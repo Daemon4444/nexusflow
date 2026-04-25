@@ -36,127 +36,9 @@ router.get("/status/:email", (_req: Request, res: Response) => {
   });
 });
 
-// ========== 渠道管理模型 ==========
-
-router.use("/:providerId", requireAdmin);
-
-// GET /api/provider/:providerId/models — 获取供应商的模型列表
-router.get("/:providerId/models", (req: Request, res: Response) => {
-  const providerId = req.params.providerId as string;
-  const provider = getProviderById(providerId);
-  if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
-    return;
-  }
-
-  const models = getModelsByProvider(providerId);
-  res.json({
-    success: true,
-    data: models.map((m) => ({
-      id: m.id,
-      modelId: m.model_id,
-      name: m.name,
-      description: m.description,
-      category: m.category,
-      contextLength: m.context_length,
-      maxOutput: m.max_output,
-      promptPrice: m.prompt_price,
-      completionPrice: m.completion_price,
-      tags: m.tags,
-      supported: m.supported,
-      status: m.status,
-      createdAt: m.created_at,
-    })),
-  });
-});
-
-// POST /api/provider/:providerId/models — 添加模型
-router.post("/:providerId/models", (req: Request, res: Response) => {
-  const providerId = req.params.providerId as string;
-  const provider = getProviderById(providerId);
-  if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
-    return;
-  }
-  if (provider.status === "disabled") {
-    res.status(403).json({ success: false, message: "渠道已停用，无法继续维护模型" });
-    return;
-  }
-
-  const {
-    model_id, name, description, category,
-    context_length, max_output, prompt_price, completion_price,
-    tags, supported,
-  } = req.body;
-
-  if (!model_id || !name) {
-    res.status(400).json({ success: false, message: "请填写模型ID和名称" });
-    return;
-  }
-
-  const model = createModel(providerId, {
-    model_id, name, description, category,
-    context_length, max_output, prompt_price, completion_price,
-    tags, supported,
-  });
-
-  if (!model) {
-    res.status(400).json({ success: false, message: "模型ID已存在" });
-    return;
-  }
-
-  res.json({
-    success: true,
-    data: {
-      id: model.id,
-      modelId: model.model_id,
-      name: model.name,
-      status: model.status,
-    },
-    message: "模型已创建",
-  });
-});
-
-// PUT /api/provider/:providerId/models/:modelId — 更新模型
-router.put("/:providerId/models/:modelId", (req: Request, res: Response) => {
-  const providerId = req.params.providerId as string;
-  const provider = getProviderById(providerId);
-  if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
-    return;
-  }
-  const model = getProviderById(providerId) && getModelsByProvider(providerId).find((item) => item.id === (req.params.modelId as string));
-  if (!model) {
-    res.status(404).json({ success: false, message: "模型不存在或不属于该供应商" });
-    return;
-  }
-
-  const success = updateModel(req.params.modelId as string, req.body);
-  if (!success) {
-    res.status(404).json({ success: false, message: "模型不存在" });
-    return;
-  }
-
-  res.json({ success: true, message: "模型已更新" });
-});
-
-// DELETE /api/provider/:providerId/models/:modelId — 删除模型
-router.delete("/:providerId/models/:modelId", (req: Request, res: Response) => {
-  const providerId = req.params.providerId as string;
-  const model = getModelsByProvider(providerId).find((item) => item.id === (req.params.modelId as string));
-  if (!model) {
-    res.status(404).json({ success: false, message: "模型不存在或不属于该供应商" });
-    return;
-  }
-  const success = deleteModel(req.params.modelId as string);
-  if (!success) {
-    res.status(404).json({ success: false, message: "模型不存在" });
-    return;
-  }
-  res.json({ success: true, message: "模型已删除" });
-});
-
 // ========== 管理员接口 / 内部渠道管理 ==========
+// 注意：/admin/* 路由必须在 /:providerId/* 路由之前注册，
+// 否则 Express 会把 "admin" 当作 providerId 参数匹配。
 
 router.use("/admin", requireAdmin);
 
@@ -543,6 +425,126 @@ router.get("/admin/usage/:providerId/:modelId", (req: Request, res: Response) =>
       currentTpm: stats.tpm,
     },
   });
+});
+
+// ========== 渠道管理模型（/:providerId 路由放在 /admin 之后） ==========
+
+router.use("/:providerId", requireAdmin);
+
+// GET /api/provider/:providerId/models — 获取供应商的模型列表
+router.get("/:providerId/models", (req: Request, res: Response) => {
+  const providerId = req.params.providerId as string;
+  const provider = getProviderById(providerId);
+  if (!provider) {
+    res.status(404).json({ success: false, message: "供应商不存在" });
+    return;
+  }
+
+  const models = getModelsByProvider(providerId);
+  res.json({
+    success: true,
+    data: models.map((m) => ({
+      id: m.id,
+      modelId: m.model_id,
+      name: m.name,
+      description: m.description,
+      category: m.category,
+      contextLength: m.context_length,
+      maxOutput: m.max_output,
+      promptPrice: m.prompt_price,
+      completionPrice: m.completion_price,
+      tags: m.tags,
+      supported: m.supported,
+      status: m.status,
+      createdAt: m.created_at,
+    })),
+  });
+});
+
+// POST /api/provider/:providerId/models — 添加模型
+router.post("/:providerId/models", (req: Request, res: Response) => {
+  const providerId = req.params.providerId as string;
+  const provider = getProviderById(providerId);
+  if (!provider) {
+    res.status(404).json({ success: false, message: "供应商不存在" });
+    return;
+  }
+  if (provider.status === "disabled") {
+    res.status(403).json({ success: false, message: "渠道已停用，无法继续维护模型" });
+    return;
+  }
+
+  const {
+    model_id, name, description, category,
+    context_length, max_output, prompt_price, completion_price,
+    tags, supported,
+  } = req.body;
+
+  if (!model_id || !name) {
+    res.status(400).json({ success: false, message: "请填写模型ID和名称" });
+    return;
+  }
+
+  const model = createModel(providerId, {
+    model_id, name, description, category,
+    context_length, max_output, prompt_price, completion_price,
+    tags, supported,
+  });
+
+  if (!model) {
+    res.status(400).json({ success: false, message: "模型ID已存在" });
+    return;
+  }
+
+  res.json({
+    success: true,
+    data: {
+      id: model.id,
+      modelId: model.model_id,
+      name: model.name,
+      status: model.status,
+    },
+    message: "模型已创建",
+  });
+});
+
+// PUT /api/provider/:providerId/models/:modelId — 更新模型
+router.put("/:providerId/models/:modelId", (req: Request, res: Response) => {
+  const providerId = req.params.providerId as string;
+  const provider = getProviderById(providerId);
+  if (!provider) {
+    res.status(404).json({ success: false, message: "供应商不存在" });
+    return;
+  }
+  const model = getModelsByProvider(providerId).find((item) => item.id === (req.params.modelId as string));
+  if (!model) {
+    res.status(404).json({ success: false, message: "模型不存在或不属于该供应商" });
+    return;
+  }
+
+  const success = updateModel(req.params.modelId as string, req.body);
+  if (!success) {
+    res.status(404).json({ success: false, message: "模型不存在" });
+    return;
+  }
+
+  res.json({ success: true, message: "模型已更新" });
+});
+
+// DELETE /api/provider/:providerId/models/:modelId — 删除模型
+router.delete("/:providerId/models/:modelId", (req: Request, res: Response) => {
+  const providerId = req.params.providerId as string;
+  const model = getModelsByProvider(providerId).find((item) => item.id === (req.params.modelId as string));
+  if (!model) {
+    res.status(404).json({ success: false, message: "模型不存在或不属于该供应商" });
+    return;
+  }
+  const success = deleteModel(req.params.modelId as string);
+  if (!success) {
+    res.status(404).json({ success: false, message: "模型不存在" });
+    return;
+  }
+  res.json({ success: true, message: "模型已删除" });
 });
 
 export default router;
