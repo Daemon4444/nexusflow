@@ -461,21 +461,6 @@ export const models: AIModel[] = [
 
   // ========== DeepSeek 系列 ==========
   {
-    id: "deepseek-v4-pro",
-    name: "DeepSeek V4 Pro",
-    provider: "DeepSeek",
-    description: "百炼接入的 DeepSeek V4 Pro 旗舰模型，面向复杂推理、代码生成和多步骤任务。",
-    contextLength: 131072,
-    promptPrice: 4,
-    completionPrice: 16,
-    category: "推理模型",
-    tags: ["V4", "旗舰", "推理", "编程"],
-    isFeatured: true,
-    isNew: true,
-    maxOutput: 16384,
-    supported: ["文本", "函数调用", "思考链"]
-  },
-  {
     id: "deepseek-v4-flash",
     name: "DeepSeek V4 Flash",
     provider: "DeepSeek",

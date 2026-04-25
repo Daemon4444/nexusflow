@@ -19,7 +19,6 @@ const modelsByTab: Record<TabKey, { id: string; name: string; ctx: string; input
     { id: "deepseek-v3", name: "DeepSeek V3", ctx: "65K", input: "¥0.5/M", output: "¥2/M", tags: ["MoE", "通用"] },
   ],
   reasoning: [
-    { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", ctx: "131K", input: "¥4/M", output: "¥16/M", tags: ["V4", "旗舰", "复杂推理"] },
     { id: "deepseek-r1", name: "DeepSeek R1", ctx: "65K", input: "¥2/M", output: "¥8/M", tags: ["推理", "思考链"] },
   ],
 };
@@ -68,7 +67,7 @@ stream = client.chat.completions.create(
     ],
     stream=True,
     stream_options={"include_usage": True},
-    enable_thinking=${modelId.includes("pro") || modelId.includes("r1") ? "True" : "False"}
+    enable_thinking=${modelId.includes("r1") ? "True" : "False"}
 )
 
 for chunk in stream:
@@ -166,7 +165,7 @@ function DeepSeekDocsInner() {
           {[
             ["stream", "boolean", "启用 SSE 流式输出，适合长推理和交互式场景。"],
             ["stream_options.include_usage", "boolean", "流式响应最后返回 usage，平台会据此记录 token 和费用。"],
-            ["enable_thinking", "boolean", "DeepSeek V4 Pro 建议开启；Flash 可按低延迟场景关闭。"],
+            ["enable_thinking", "boolean", "推理模型建议开启；Flash 可按低延迟场景关闭。"],
             ["temperature", "number", "采样温度。推理任务建议 0.2 到 0.7，创意任务可适当提高。"],
             ["top_p", "number", "核采样阈值，通常不要和 temperature 同时大幅调整。"],
             ["stop", "string | string[]", "停止序列，命中后结束输出。"],
