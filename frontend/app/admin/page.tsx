@@ -74,17 +74,39 @@ interface Provider {
   rejectionReason: string | null;
   createdAt: string;
   approvedAt: string | null;
+  modelCount?: number;
+  enabledRoutes?: number;
+  currentRpm?: number;
+  currentTpm?: number;
+  rpmLimit?: number;
+  tpmLimit?: number;
+  concurrentLimit?: number;
 }
 
 interface Model {
   id: string;
   providerId: string;
+  providerName?: string;
   modelId: string;
   name: string;
   description: string;
   category: string;
   status: string;
   createdAt: string;
+  routes?: Array<{
+    providerId: string;
+    providerName: string;
+    providerStatus: string;
+    isEnabled: boolean;
+    rpmLimit: number;
+    tpmLimit: number;
+    dailyLimit: number;
+    concurrentLimit: number;
+    priority: number;
+    weight: number;
+    currentRpm: number;
+    currentTpm: number;
+  }>;
 }
 
 interface Stats {
@@ -299,7 +321,7 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedProviderId && providers.length > 0) {
+    if (providers.length > 0 && (!selectedProviderId || !providers.some((provider) => provider.id === selectedProviderId))) {
       setSelectedProviderId(providers[0].id);
     }
   }, [providers, selectedProviderId]);
@@ -493,6 +515,30 @@ export default function AdminPage() {
     }
   }
 
+  async function handleCreateProvider() {
+    const name = prompt("渠道名称，例如：火山方舟");
+    if (!name) return;
+    const apiBaseUrl = prompt("API Base URL，例如：https://ark.cn-beijing.volces.com/api/v3");
+    if (!apiBaseUrl) return;
+    const apiKey = prompt("API Key（可留空后续再填）", "") || "";
+    const res = await fetchAPI("/api/provider/admin/providers", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        name,
+        api_base_url: apiBaseUrl,
+        api_key: apiKey,
+        contact_name: "平台运营",
+        contact_email: "ops@nexusflow.ai",
+      }),
+    });
+    if (res.success) {
+      setNotice("渠道已创建");
+      await loadData();
+      if (res.data?.id) setSelectedProviderId(res.data.id);
+    }
+  }
+
   async function handleSaveCapacity(modelId: string, current?: CapacityRecord) {
     if (!selectedProviderId) return;
 
@@ -527,6 +573,44 @@ export default function AdminPage() {
     if (res.success) {
       setNotice(`模型 ${modelId} 的容量策略已更新`);
       loadProviderDetail(selectedProviderId);
+    }
+  }
+
+  async function handleSaveModelRoute(model: Model, route?: NonNullable<Model["routes"]>[number]) {
+    const providerId = route?.providerId || prompt("选择渠道 ID（可在渠道控制台查看，例如 dashscope 或 volcengine-ark）", providers[0]?.id || "");
+    if (!providerId) return;
+    const rpm = prompt("RPM 限制", String(route?.rpmLimit ?? 1000));
+    if (rpm === null) return;
+    const tpm = prompt("TPM 限制", String(route?.tpmLimit ?? 1000000));
+    if (tpm === null) return;
+    const daily = prompt("每日请求上限", String(route?.dailyLimit ?? 100000));
+    if (daily === null) return;
+    const concurrent = prompt("并发上限", String(route?.concurrentLimit ?? 50));
+    if (concurrent === null) return;
+    const priority = prompt("优先级，越大越优先", String(route?.priority ?? 0));
+    if (priority === null) return;
+    const weight = prompt("权重，同优先级下越大越容易被选中", String(route?.weight ?? 100));
+    if (weight === null) return;
+    const enabled = prompt("是否启用：true / false", String(route?.isEnabled ?? true));
+    if (enabled === null) return;
+
+    const res = await fetchAPI(`/api/provider/${providerId}/capacity/${model.modelId}`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        rpm_limit: Number(rpm),
+        tpm_limit: Number(tpm),
+        daily_limit: Number(daily),
+        concurrent_limit: Number(concurrent),
+        priority: Number(priority),
+        weight: Number(weight),
+        is_enabled: enabled === "true",
+      }),
+    });
+    if (res.success) {
+      setNotice(`${model.modelId} 的渠道路由已保存`);
+      await loadData();
+      if (selectedProviderId) loadProviderDetail(selectedProviderId);
     }
   }
 
@@ -905,6 +989,9 @@ export default function AdminPage() {
                   <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
                     刷新
                   </button>
+                  <button onClick={handleCreateProvider} style={{ marginLeft: 8, padding: "8px 14px", borderRadius: 8, border: "none", background: "#111827", color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
+                    新增渠道
+                  </button>
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1032,7 +1119,7 @@ export default function AdminPage() {
                               </span>
                             </div>
                             <div style={{ fontSize: 12, color: "#6b7280", marginTop: 10 }}>
-                              {provider.contactName} · {provider.contactEmail}
+                              模型 {provider.modelCount ?? 0} · 路由 {provider.enabledRoutes ?? 0} · TPM {Number(provider.currentTpm || 0).toLocaleString()}/{Number(provider.tpmLimit || 0).toLocaleString()}
                             </div>
                           </button>
                         ))}
@@ -1115,9 +1202,9 @@ export default function AdminPage() {
 
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16 }}>
                             <div style={{ fontSize: 12, color: "#6b7280" }}>
-                              创建于 {new Date(selectedProvider.createdAt).toLocaleString("zh-CN")}
+                              {selectedProvider.createdAt ? `创建于 ${new Date(selectedProvider.createdAt).toLocaleString("zh-CN")}` : "平台内置上游渠道"}
                             </div>
-                            <button onClick={handleSaveProvider} disabled={savingProvider} style={{ padding: "10px 18px", background: "#111827", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: savingProvider ? 0.7 : 1 }}>
+                            <button onClick={handleSaveProvider} disabled={savingProvider} style={{ padding: "10px 18px", background: "#111827", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: savingProvider ? 0.55 : 1 }}>
                               {savingProvider ? "保存中..." : "保存渠道配置"}
                             </button>
                           </div>
@@ -1255,7 +1342,15 @@ export default function AdminPage() {
               </>
             ) : activeTab === "models" ? (
               <>
-                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>模型管理</h1>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>模型管理</h1>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>按模型维护上游渠道路由。比如 glm-5.1 可以同时配置百炼和方舟，再通过优先级/权重决定走哪边。</div>
+                  </div>
+                  <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
+                    刷新
+                  </button>
+                </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                   {["all", "draft", "enabled", "disabled"].map((item) => (
                     <button
@@ -1299,7 +1394,37 @@ export default function AdminPage() {
                       <div style={{ marginTop: 8, fontSize: 13, color: "#4b5563" }}>{model.description || "暂无描述"}</div>
                       <div style={{ marginTop: 8, display: "flex", gap: 16, fontSize: 12, color: "#6b7280" }}>
                         <span>分类: {model.category}</span>
-                        <span>提交时间: {new Date(model.createdAt).toLocaleDateString("zh-CN")}</span>
+                        <span>渠道路由: {model.routes?.filter((route) => route.isEnabled).length || 0}/{model.routes?.length || 0}</span>
+                      </div>
+                      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                        {model.routes && model.routes.length > 0 ? model.routes.map((route) => (
+                          <div key={`${model.modelId}-${route.providerId}`} style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 0.8fr auto", gap: 12, alignItems: "center", padding: 12, borderRadius: 10, border: "1px solid #e5e7eb", background: route.isEnabled ? "#f8fafc" : "#fff" }}>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{route.providerName}</div>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{route.providerId} · {route.isEnabled ? "启用" : "停用"}</div>
+                            </div>
+                            <div style={{ fontSize: 12, color: "#4b5563" }}>
+                              RPM {route.currentRpm}/{route.rpmLimit}
+                              <br />
+                              TPM {route.currentTpm}/{route.tpmLimit}
+                            </div>
+                            <div style={{ fontSize: 12, color: "#4b5563" }}>
+                              优先级 {route.priority}
+                              <br />
+                              权重 {route.weight}
+                            </div>
+                            <button onClick={() => handleSaveModelRoute(model, route)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
+                              编辑路由
+                            </button>
+                          </div>
+                        )) : (
+                          <div style={{ fontSize: 12.5, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 12 }}>
+                            当前没有启用渠道路由，API 调用不会选择到该模型。
+                          </div>
+                        )}
+                        <button onClick={() => handleSaveModelRoute(model)} style={{ alignSelf: "flex-start", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
+                          添加渠道路由
+                        </button>
                       </div>
                     </div>
                   ))}

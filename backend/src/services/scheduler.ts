@@ -67,19 +67,18 @@ const stmts = {
       p.name as provider_name,
       p.api_base_url,
       p.api_key,
-      pm.model_id,
-      COALESCE(pc.rpm_limit, 60) as rpm,
-      COALESCE(pc.tpm_limit, 100000) as tpm,
-      COALESCE(pc.daily_limit, 10000) as daily_limit,
-      COALESCE(pc.concurrent_limit, 10) as concurrent_limit,
-      COALESCE(pc.weight, 100) as weight,
-      COALESCE(pc.priority, 0) as priority,
-      COALESCE(pc.is_enabled, 1) as is_enabled
-    FROM provider_models pm
-    JOIN providers p ON pm.provider_id = p.id
-    LEFT JOIN provider_capacity pc ON pc.provider_id = p.id AND pc.model_id = pm.model_id
-    WHERE pm.model_id = ? AND pm.status = 'enabled' AND p.status = 'enabled'
-    ORDER BY COALESCE(pc.priority, 0) DESC, COALESCE(pc.weight, 100) DESC
+      pc.model_id,
+      pc.rpm_limit as rpm,
+      pc.tpm_limit as tpm,
+      pc.daily_limit as daily_limit,
+      pc.concurrent_limit as concurrent_limit,
+      pc.weight as weight,
+      pc.priority as priority,
+      pc.is_enabled as is_enabled
+    FROM provider_capacity pc
+    JOIN providers p ON pc.provider_id = p.id
+    WHERE pc.model_id = ? AND pc.is_enabled = 1 AND p.status = 'enabled'
+    ORDER BY pc.priority DESC, pc.weight DESC
   `),
   getAllHealth: db.prepare("SELECT * FROM provider_health"),
 };

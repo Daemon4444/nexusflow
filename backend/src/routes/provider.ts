@@ -1,13 +1,15 @@
 import { Router, Request, Response } from "express";
 import {
   getAllProviders, getProvidersByStatus, getProviderById, getProviderByEmail,
-  createProvider, updateProviderStatus, updateProvider, deleteProvider,
+  createProvider, ensureProvider, updateProviderStatus, updateProvider, deleteProvider,
   getModelsByProvider, createModel, updateModel, updateModelStatus, deleteModel,
   getProviderStats, getModelStats, getAllProviderModels, getModelsByStatus,
-  getCapacityByProvider, getAllCapacity, upsertCapacity, deleteCapacity,
+  getCapacityByProvider, getCapacityByModel, getCapacity, getAllCapacity, upsertCapacity, deleteCapacity,
+  type Provider,
 } from "../data/providers";
 import { getAllHealthRecords } from "../services/scheduler";
 import { getProviderUsageStats } from "../services/rate-limiter";
+import { models as staticModels } from "../data/models";
 import { requireAdmin } from "../middleware/admin";
 
 const router = Router();
@@ -16,6 +18,98 @@ function maskSecret(secret: string): string {
   if (!secret) return "";
   if (secret.length <= 8) return "********";
   return `${secret.slice(0, 4)}********${secret.slice(-4)}`;
+}
+
+function ensureInternalProviders(): void {
+  const dashscope = ensureProvider({
+    id: "dashscope",
+    name: "阿里云百炼",
+    slug: "dashscope",
+    description: "百炼 OpenAI 兼容模式渠道，当前默认承载通义千问、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse 等模型。",
+    website: "https://help.aliyun.com/zh/model-studio/",
+    api_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    api_key: process.env.DASHSCOPE_API_KEY || "",
+    contact_name: "平台运营",
+    contact_email: "ops@nexusflow.ai",
+    status: "enabled",
+  });
+  ensureProvider({
+    id: "volcengine-ark",
+    name: "火山方舟",
+    slug: "volcengine-ark",
+    description: "火山引擎方舟 OpenAI 兼容渠道，可在模型管理中按模型添加路由。",
+    website: "https://www.volcengine.com/product/ark",
+    api_base_url: "https://ark.cn-beijing.volces.com/api/v3",
+    api_key: process.env.ARK_API_KEY || "",
+    contact_name: "平台运营",
+    contact_email: "ops@nexusflow.ai",
+    status: "enabled",
+  });
+
+  for (const model of staticModels) {
+    if (getCapacity(dashscope.id, model.id)) continue;
+    upsertCapacity(dashscope.id, model.id, {
+      rpm_limit: 1000,
+      tpm_limit: 1000000,
+      daily_limit: 100000,
+      concurrent_limit: 50,
+      priority: 10,
+      weight: 100,
+      is_enabled: true,
+    });
+  }
+}
+
+function getProviderRouteModels(providerId: string) {
+  const capacities = getCapacityByProvider(providerId);
+  return capacities
+    .map((capacity) => {
+      const catalog = staticModels.find((model) => model.id === capacity.model_id);
+      if (!catalog) return null;
+      return {
+        id: `${providerId}:${catalog.id}`,
+        modelId: catalog.id,
+        name: catalog.name,
+        category: catalog.category,
+        status: capacity.is_enabled ? "enabled" : "disabled",
+        promptPrice: catalog.promptPrice,
+        completionPrice: catalog.completionPrice,
+      };
+    })
+    .filter(Boolean);
+}
+
+function getProviderCard(provider: Provider) {
+  const capacity = getCapacityByProvider(provider.id);
+  const usage = capacity.reduce((acc, cap) => {
+    const current = getProviderUsageStats(provider.id, cap.model_id);
+    acc.currentRpm += current.rpm;
+    acc.currentTpm += current.tpm;
+    acc.rpmLimit += cap.rpm_limit;
+    acc.tpmLimit += cap.tpm_limit;
+    acc.concurrentLimit += cap.concurrent_limit;
+    return acc;
+  }, { currentRpm: 0, currentTpm: 0, rpmLimit: 0, tpmLimit: 0, concurrentLimit: 0 });
+
+  return {
+    id: provider.id,
+    name: provider.name,
+    slug: provider.slug,
+    description: provider.description,
+    website: provider.website,
+    apiBaseUrl: provider.api_base_url,
+    apiKeyMasked: provider.api_key ? maskSecret(provider.api_key) : "未配置",
+    contactName: provider.contact_name,
+    contactEmail: provider.contact_email,
+    contactPhone: provider.contact_phone,
+    status: provider.status,
+    rejectionReason: provider.rejection_reason,
+    createdAt: provider.created_at,
+    approvedAt: provider.approved_at,
+    modelCount: capacity.length,
+    enabledRoutes: capacity.filter((item) => item.is_enabled).length,
+    ...usage,
+  };
 }
 
 // ========== 渠道录入（当前仍保留该入口，但更适合内部使用） ==========
@@ -44,68 +138,59 @@ router.use("/admin", requireAdmin);
 
 // GET /api/provider/admin/providers — 获取所有供应商
 router.get("/admin/providers", (_req: Request, res: Response) => {
-  const providers = getAllProviders();
+  ensureInternalProviders();
+  const providers = getAllProviders().map(getProviderCard);
   res.json({
     success: true,
-    data: providers.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      description: p.description,
-      website: p.website,
-      apiBaseUrl: p.api_base_url,
-      apiKeyMasked: maskSecret(p.api_key),
-      contactName: p.contact_name,
-      contactEmail: p.contact_email,
-      contactPhone: p.contact_phone,
-      status: p.status,
-      rejectionReason: p.rejection_reason,
-      createdAt: p.created_at,
-      approvedAt: p.approved_at,
-    })),
+    data: providers,
+  });
+});
+
+// POST /api/provider/admin/providers — 创建内部渠道
+router.post("/admin/providers", (req: Request, res: Response) => {
+  const { name, description, website, api_base_url, api_key, contact_name, contact_email, contact_phone } = req.body || {};
+  if (!name || !api_base_url) {
+    res.status(400).json({ success: false, message: "请填写渠道名称和 API Base URL" });
+    return;
+  }
+
+  const provider = createProvider({
+    name,
+    description,
+    website,
+    api_base_url,
+    api_key: api_key || "",
+    contact_name: contact_name || "平台运营",
+    contact_email: contact_email || "ops@nexusflow.ai",
+    contact_phone,
+  });
+  updateProviderStatus(provider.id, "enabled");
+
+  res.json({
+    success: true,
+    data: getProviderCard(getProviderById(provider.id)!),
+    message: "渠道已创建",
   });
 });
 
 // GET /api/provider/admin/providers/:id — 获取渠道详情
 router.get("/admin/providers/:id", (req: Request, res: Response) => {
+  ensureInternalProviders();
   const provider = getProviderById(req.params.id as string);
   if (!provider) {
     res.status(404).json({ success: false, message: "渠道不存在" });
     return;
   }
 
-  const models = getModelsByProvider(provider.id);
+  const models = getProviderRouteModels(provider.id);
   const capacity = getCapacityByProvider(provider.id);
   const health = getAllHealthRecords().filter((item) => item.providerId === provider.id);
 
   res.json({
     success: true,
     data: {
-      provider: {
-        id: provider.id,
-        name: provider.name,
-        slug: provider.slug,
-        description: provider.description,
-        website: provider.website,
-        apiBaseUrl: provider.api_base_url,
-        apiKeyMasked: maskSecret(provider.api_key),
-        contactName: provider.contact_name,
-        contactEmail: provider.contact_email,
-        contactPhone: provider.contact_phone,
-        status: provider.status,
-        rejectionReason: provider.rejection_reason,
-        createdAt: provider.created_at,
-        approvedAt: provider.approved_at,
-      },
-      models: models.map((model) => ({
-        id: model.id,
-        modelId: model.model_id,
-        name: model.name,
-        category: model.category,
-        status: model.status,
-        promptPrice: model.prompt_price,
-        completionPrice: model.completion_price,
-      })),
+      provider: getProviderCard(provider),
+      models,
       capacity: capacity.map((item) => ({
         modelId: item.model_id,
         rpmLimit: item.rpm_limit,
@@ -221,18 +306,43 @@ router.post("/admin/providers/:id/disable", (req: Request, res: Response) => {
 
 // GET /api/provider/admin/models — 获取所有模型
 router.get("/admin/models", (_req: Request, res: Response) => {
-  const models = getAllProviderModels();
+  ensureInternalProviders();
+  const providers = getAllProviders();
+  const models = staticModels.map((model) => {
+    const routes = getCapacityByModel(model.id).map((capacity) => {
+      const provider = providers.find((item) => item.id === capacity.provider_id);
+      const usage = getProviderUsageStats(capacity.provider_id, model.id);
+      return {
+        providerId: capacity.provider_id,
+        providerName: provider?.name || capacity.provider_id,
+        providerStatus: provider?.status || "disabled",
+        isEnabled: capacity.is_enabled,
+        rpmLimit: capacity.rpm_limit,
+        tpmLimit: capacity.tpm_limit,
+        dailyLimit: capacity.daily_limit,
+        concurrentLimit: capacity.concurrent_limit,
+        priority: capacity.priority,
+        weight: capacity.weight,
+        currentRpm: usage.rpm,
+        currentTpm: usage.tpm,
+      };
+    });
+    return {
+      id: model.id,
+      providerId: routes[0]?.providerId || "",
+      providerName: routes[0]?.providerName || "",
+      modelId: model.id,
+      name: model.name,
+      description: model.description,
+      category: model.category,
+      status: routes.some((route) => route.isEnabled) ? "enabled" : "disabled",
+      createdAt: "",
+      routes,
+    };
+  });
   res.json({
     success: true,
-    data: models.map((m) => ({
-      id: m.id,
-      providerId: m.provider_id,
-      modelId: m.model_id,
-      name: m.name,
-      category: m.category,
-      status: m.status,
-      createdAt: m.created_at,
-    })),
+    data: models,
   });
 });
 
@@ -278,8 +388,10 @@ router.post("/admin/models/:id/disable", (req: Request, res: Response) => {
 
 // GET /api/provider/admin/stats — 统计数据
 router.get("/admin/stats", (_req: Request, res: Response) => {
+  ensureInternalProviders();
   const providerStats = getProviderStats();
-  const modelStats = getModelStats();
+  const enabledModels = staticModels.filter((model) => getCapacityByModel(model.id).some((route) => route.is_enabled)).length;
+  const modelStats = { draft: 0, enabled: enabledModels, disabled: staticModels.length - enabledModels };
   res.json({
     success: true,
     data: {
@@ -318,6 +430,7 @@ router.get("/admin/capacity", (_req: Request, res: Response) => {
 // GET /api/provider/:providerId/capacity — 获取供应商的容量配置
 router.get("/:providerId/capacity", (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
+  ensureInternalProviders();
   const provider = getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
@@ -346,6 +459,7 @@ router.put("/:providerId/capacity/:modelId", (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const modelId = req.params.modelId as string;
 
+  ensureInternalProviders();
   const provider = getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
@@ -383,7 +497,14 @@ router.put("/:providerId/capacity/:modelId", (req: Request, res: Response) => {
 
 // DELETE /api/provider/:providerId/capacity/:modelId — 删除容量配置
 router.delete("/:providerId/capacity/:modelId", (req: Request, res: Response) => {
-  const success = deleteCapacity(req.params.providerId as string, req.params.modelId as string);
+  const providerId = req.params.providerId as string;
+  ensureInternalProviders();
+  const provider = getProviderById(providerId);
+  if (!provider) {
+    res.status(404).json({ success: false, message: "供应商不存在" });
+    return;
+  }
+  const success = deleteCapacity(providerId, req.params.modelId as string);
   if (!success) {
     res.status(404).json({ success: false, message: "配置不存在" });
     return;

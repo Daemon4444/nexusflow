@@ -149,6 +149,43 @@ export function createProvider(data: {
   return getProviderById(id)!;
 }
 
+export function ensureProvider(data: {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  website?: string;
+  api_base_url: string;
+  api_key?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  status?: "draft" | "enabled" | "disabled";
+}): Provider {
+  const existing = getProviderById(data.id) || getProviderBySlug(data.slug);
+  if (existing) return existing;
+
+  const now = new Date().toISOString();
+  stmts.insertProvider.run(
+    data.id,
+    data.name,
+    data.slug,
+    data.description || "",
+    null,
+    data.website || null,
+    data.api_base_url,
+    encryptProviderSecret(data.api_key || ""),
+    data.contact_name || "平台运营",
+    data.contact_email || "ops@nexusflow.ai",
+    data.contact_phone || null,
+    normalizeStatusForStorage(data.status || "enabled"),
+    now,
+    now
+  );
+
+  return getProviderById(data.id)!;
+}
+
 export function updateProviderStatus(
   id: string,
   status: "draft" | "enabled" | "disabled",

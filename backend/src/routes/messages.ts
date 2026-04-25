@@ -16,7 +16,7 @@ import { consume } from "../data/billing";
 import { checkConsumerLimits, checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
-import { findProvider, getProviderApiKey } from "../services/providers";
+import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 
 const router = Router();
 
@@ -275,7 +275,7 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const upstreamApiKey = getProviderApiKey(provider);
+  const upstreamApiKey = getResolvedProviderApiKey(provider);
   if (!upstreamApiKey) {
     res.status(500).json({
       type: "error",

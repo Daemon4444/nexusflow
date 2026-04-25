@@ -16,7 +16,7 @@ import { consume } from "../data/billing";
 import { checkConsumerLimits, checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType, adaptImageRequest, pollDashScopeTask } from "../services/adapters";
-import { findProvider, getProviderApiKey } from "../services/providers";
+import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { getSupportedProtocols } from "../utils/model-protocols";
 
 const router = Router();
@@ -228,7 +228,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     return;
   }
 
-  const upstreamApiKey = getProviderApiKey(provider);
+  const upstreamApiKey = getResolvedProviderApiKey(provider);
   if (!upstreamApiKey) {
     res.status(500).json({
       error: {
@@ -481,7 +481,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const upstreamApiKey = getProviderApiKey(provider);
+  const upstreamApiKey = getResolvedProviderApiKey(provider);
   if (!upstreamApiKey) {
     res.status(500).json({
       error: {
@@ -906,7 +906,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     return;
   }
 
-  const upstreamApiKey = getProviderApiKey(provider);
+  const upstreamApiKey = getResolvedProviderApiKey(provider);
   if (!upstreamApiKey) {
     res.status(500).json({
       error: {

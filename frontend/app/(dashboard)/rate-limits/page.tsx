@@ -35,9 +35,17 @@ interface RateLimitsData {
   }[];
 }
 
+interface ModelOption {
+  id: string;
+  name: string;
+  provider: string;
+  category: string;
+}
+
 export default function RateLimitsPage() {
   const { t } = useI18n();
   const [data, setData] = useState<RateLimitsData | null>(null);
+  const [models, setModels] = useState<ModelOption[]>([]);
   const [model, setModel] = useState("*");
   const [requestedQpm, setRequestedQpm] = useState("");
   const [requestedTpm, setRequestedTpm] = useState("");
@@ -48,8 +56,19 @@ export default function RateLimitsPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetchAPI("/api/rate-limits", { headers: authHeaders() });
+        const [res, modelsRes] = await Promise.all([
+          fetchAPI("/api/rate-limits", { headers: authHeaders() }),
+          fetchAPI("/api/models"),
+        ]);
         if (res.success) setData(res.data);
+        if (modelsRes.success) {
+          setModels((modelsRes.data || []).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            provider: item.provider,
+            category: item.category,
+          })));
+        }
       } catch {
         console.error("Failed to load rate limits");
       } finally {
@@ -177,7 +196,14 @@ export default function RateLimitsPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "var(--text-secondary)" }}>
                   模型
-                  <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="*" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg)" }} />
+                  <select value={model} onChange={(e) => setModel(e.target.value)} style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text-primary)" }}>
+                    <option value="*">全部模型（默认限额）</option>
+                    {models.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name} · {item.id}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "var(--text-secondary)" }}>
                   QPM
