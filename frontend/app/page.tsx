@@ -18,6 +18,7 @@ const allModels = [
   { name: "HappyHorse 1.0", provider: "Alibaba", ctx: "15s", price: "¥0.12", badge: "Video #1" },
   { name: "Qwen3 Max", provider: "Alibaba", ctx: "262K", price: "¥2.5", badge: "Flagship" },
   { name: "Qwen3.5 Plus", provider: "Alibaba", ctx: "1M", price: "¥0.8", badge: "Popular" },
+  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "131K", price: "¥4.0", badge: "Reasoning" },
   { name: "GLM-4 Plus", provider: "Zhipu AI", ctx: "128K", price: "¥1.5", badge: "Chat" },
   { name: "Qwen3 Coder", provider: "Alibaba", ctx: "64K", price: "¥2.0", badge: "Code" },
   { name: "Kimi k2", provider: "Moonshot", ctx: "128K", price: "¥1.0", badge: "Fast" },
@@ -36,6 +37,7 @@ const models = [
   { id: "happyhorse-1.0", name: "HappyHorse 1.0 🐴", provider: "Alibaba", ctx: "15s video", price: "¥0.12/s" },
   { id: "qwen3-max", name: "Qwen3 Max", provider: "Alibaba", ctx: "262K", price: "¥2.5" },
   { id: "qwen3.5-plus", name: "Qwen3.5 Plus", provider: "Alibaba", ctx: "1M", price: "¥0.8" },
+  { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "131K", price: "¥4.0" },
   { id: "glm-5", name: "GLM 5", provider: "Zhipu AI", ctx: "131K", price: "¥2.0" },
   { id: "qwen3-coder-plus", name: "Qwen3 Coder", provider: "Alibaba", ctx: "1M", price: "¥4.0" },
 ];

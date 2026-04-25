@@ -12,6 +12,7 @@ const modelLimits = [
   { model: "qwen3-max", maxInput: "262K", maxOutput: "16K", contextWindow: "262K" },
   { model: "qwen3.5-plus", maxInput: "128K", maxOutput: "8K", contextWindow: "128K" },
   { model: "qwen3.5-max", maxInput: "1M", maxOutput: "8K", contextWindow: "1M" },
+  { model: "deepseek-v4-pro", maxInput: "131K", maxOutput: "16K", contextWindow: "131K" },
   { model: "deepseek-v4-flash", maxInput: "131K", maxOutput: "16K", contextWindow: "131K" },
   { model: "deepseek-r1", maxInput: "64K", maxOutput: "8K", contextWindow: "64K" },
   { model: "deepseek-v3", maxInput: "64K", maxOutput: "8K", contextWindow: "64K" },

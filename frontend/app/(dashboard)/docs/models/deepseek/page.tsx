@@ -4,6 +4,19 @@ import Link from "next/link";
 
 const deepseekModels = [
   {
+    id: "deepseek-v4-pro",
+    name: "DeepSeek V4 Pro",
+    desc: "百炼接入的 DeepSeek V4 旗舰推理模型，适合复杂数学、长链路决策和代码 Agent 任务。",
+    ctx: "131,072",
+    maxOutput: "16,384",
+    inputPrice: "¥4",
+    outputPrice: "¥16",
+    tags: ["V4", "旗舰", "推理"],
+    features: ["复杂推理", "代码 Agent", "函数调用"],
+    isNew: true,
+    isFeatured: true,
+  },
+  {
     id: "deepseek-v4-flash",
     name: "DeepSeek V4 Flash",
     desc: "百炼接入的 DeepSeek V4 高速版本，低延迟高吞吐，适合在线问答、客服和高并发网关场景。",

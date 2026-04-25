@@ -25,7 +25,7 @@ const openAiParams = [
   ["tools[].function.parameters", "object", "工具", "JSON Schema，描述函数入参。"],
   ["tool_choice", "string | object", "可选", "auto / none / required，或指定 {type:'function', function:{name}}。"],
   ["response_format", "object", "可选", "输出格式控制。常见值为 {\"type\":\"text\"} 或 {\"type\":\"json_object\"}。"],
-  ["enable_thinking", "boolean", "可选", "思考模式。推理模型和支持思考的模型可用；低延迟场景可关闭。"],
+  ["enable_thinking", "boolean", "可选", "思考模式。DeepSeek V4 Pro、QwQ、部分 Qwen 推理模型可用；低延迟场景可关闭。"],
 ];
 
 const anthropicParams = [
