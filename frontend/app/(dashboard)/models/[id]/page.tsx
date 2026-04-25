@@ -34,14 +34,13 @@ interface ProtocolExample {
 }
 
 const categoryColors: Record<string, string> = {
-  "大语言模型": "#b5673c",
-  "推理模型": "#c44033",
-  "多模态模型": "#7c6a9a",
-  "编程模型": "#2563eb",
+  "大语言模型": "#2563eb",
+  "推理模型": "#dc2626",
+  "多模态模型": "#7c3aed",
+  "编程模型": "#0891b2",
   "图像生成": "#db2777",
-  "视频生成": "#ea580c",
-  "语音模型": "#16a34a",
-  "向量模型": "#ca8a04",
+  "视频生成": "#f97316",
+  "向量模型": "#0f766e",
   "专业模型": "#64748b",
 };
 
@@ -66,10 +65,12 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
           "model",
           "messages",
           "stream",
+          "stream_options",
           "temperature",
           "max_tokens",
           "top_p",
           "stop",
+          "enable_thinking",
           "presence_penalty",
           "frequency_penalty",
           "response_format",
@@ -82,6 +83,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
     "model": "${model.id}",
     "messages": [{"role": "user", "content": "你好！"}],
     "stream": true,
+    "stream_options": {"include_usage": true},
     "temperature": 0.7,
     "max_tokens": 512${supportsTools ? `,
     "tools": [{
@@ -111,7 +113,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         label: "Anthropic Messages",
         endpoint: "/v1/messages",
         filename: "anthropic-messages.sh",
-        params: ["model", "messages", "system", "max_tokens", "stream", "temperature", "top_p", "stop_sequences", "tools"],
+        params: ["model", "messages", "system", "max_tokens", "stream", "temperature", "top_p", "stop_sequences", "tools", "tool_choice"],
         code: `curl https://api.nexusflow.ai/v1/messages \\
   -H "x-api-key: $API_KEY" \\
   -H "anthropic-version: 2023-06-01" \\
@@ -134,7 +136,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         label: "Google Gemini GenerateContent",
         endpoint: `/v1beta/models/${model.id}:generateContent`,
         filename: "gemini-generate-content.sh",
-        params: ["contents", "generationConfig.temperature", "generationConfig.maxOutputTokens", "generationConfig.topP", "generationConfig.stopSequences", "stream"],
+        params: ["contents", "systemInstruction", "generationConfig.temperature", "generationConfig.maxOutputTokens", "generationConfig.topP", "generationConfig.stopSequences", "tools", "toolConfig", "stream"],
         code: `curl "https://api.nexusflow.ai/v1beta/models/${model.id}:generateContent?key=$API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{

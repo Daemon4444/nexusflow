@@ -51,10 +51,12 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
           "model",
           "messages",
           "stream",
+          "stream_options",
           "temperature",
           "max_tokens",
           "top_p",
           "stop",
+          "enable_thinking",
           "presence_penalty",
           "frequency_penalty",
           "response_format",
@@ -67,6 +69,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
     "model": "${model.id}",
     "messages": [{"role": "user", "content": "你好！"}],
     "stream": true,
+    "stream_options": {"include_usage": true},
     "temperature": 0.7,
     "max_tokens": 512
   }'`,
@@ -79,7 +82,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         id: protocol,
         label: "Anthropic Messages",
         endpoint: "/v1/messages",
-        params: ["model", "messages", "system", "max_tokens", "stream", "temperature", "top_p", "stop_sequences", "tools"],
+        params: ["model", "messages", "system", "max_tokens", "stream", "temperature", "top_p", "stop_sequences", "tools", "tool_choice"],
         code: `curl https://api.nexusflow.ai/v1/messages \\
   -H "x-api-key: $API_KEY" \\
   -H "anthropic-version: 2023-06-01" \\
@@ -99,7 +102,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         id: protocol,
         label: "Google Gemini GenerateContent",
         endpoint: `/v1beta/models/${model.id}:generateContent`,
-        params: ["contents", "generationConfig.temperature", "generationConfig.maxOutputTokens", "generationConfig.topP", "generationConfig.stopSequences", "stream"],
+        params: ["contents", "systemInstruction", "generationConfig.temperature", "generationConfig.maxOutputTokens", "generationConfig.topP", "generationConfig.stopSequences", "tools", "toolConfig", "stream"],
         code: `curl "https://api.nexusflow.ai/v1beta/models/${model.id}:generateContent?key=$API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -287,7 +290,7 @@ export default function ModelDetailPage() {
           <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
             上下文窗口
           </div>
-          <div className="stat-value" style={{ color: "#b5673c" }}>
+          <div className="stat-value" style={{ color: "#2563eb" }}>
             {formatTokens(model.contextLength)}
           </div>
           <div className="stat-label">tokens</div>
@@ -296,7 +299,7 @@ export default function ModelDetailPage() {
           <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
             最大输出
           </div>
-          <div className="stat-value" style={{ color: "#b5673c" }}>
+          <div className="stat-value" style={{ color: "#2563eb" }}>
             {formatTokens(model.maxOutput)}
           </div>
           <div className="stat-label">tokens</div>
@@ -314,7 +317,7 @@ export default function ModelDetailPage() {
           <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
             输出价格
           </div>
-          <div className="stat-value" style={{ color: "#d97706" }}>
+          <div className="stat-value" style={{ color: "#0f766e" }}>
             ¥{model.completionPrice}
           </div>
           <div className="stat-label">/ 百万 tokens</div>

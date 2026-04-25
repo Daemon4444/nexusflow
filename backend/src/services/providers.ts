@@ -24,7 +24,7 @@ export const providers: ProviderConfig[] = [
     models: [
       // 通义千问系列
       "qwen", "qwq", "wan", "wanx",
-      // 向量和语音
+      // 向量
       "text-embedding", "cosyvoice", "paraformer",
       // DeepSeek (百炼代理)
       "deepseek",

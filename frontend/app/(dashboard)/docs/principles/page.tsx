@@ -51,7 +51,7 @@ export default function PrinciplesPage() {
             {
               title: "模型丰富",
               code: "models.list() → 50+",
-              desc: "接入通义千问、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse 等国内头部模型。涵盖文本、推理、视觉、编程、图像、视频、语音、向量等类别。",
+              desc: "接入通义千问、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse 等国内头部模型。涵盖文本、推理、视觉、编程、图像、视频、向量等类别。",
             },
             {
               title: "开箱即用",

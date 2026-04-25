@@ -219,15 +219,15 @@ export const models: AIModel[] = [
     id: "qwen3-omni-flash",
     name: "Qwen3 Omni Flash",
     provider: "通义千问",
-    description: "通义千问3代全能模型，接收文本、图片、音频、视频等多种模态输入，并支持语音输出。",
+    description: "通义千问3代全能模型，接收文本、图片、视频等多种模态输入，适合复杂多模态理解场景。",
     contextLength: 65536,
     promptPrice: 1.8,
     completionPrice: 6.9,
     category: "多模态模型",
-    tags: ["全能", "多模态", "音频", "视频输入"],
+    tags: ["全能", "多模态", "视频输入"],
     isNew: true,
     maxOutput: 8192,
-    supported: ["文本", "图像输入", "音频输入", "视频输入", "语音输出"]
+    supported: ["文本", "图像输入", "视频输入"]
   },
 
   // ========== 编程专用 ==========
@@ -293,50 +293,6 @@ export const models: AIModel[] = [
     supported: ["文本", "翻译"]
   },
 
-  // ========== 语音模型 ==========
-  {
-    id: "qwen-audio-turbo",
-    name: "Qwen Audio Turbo",
-    provider: "通义千问",
-    description: "通义千问音频理解模型，支持多种音频输入，可进行音频转录、语义理解和情感分析。",
-    contextLength: 8000,
-    promptPrice: 0,
-    completionPrice: 0,
-    category: "语音模型",
-    tags: ["语音", "音频理解", "转录", "免费体验"],
-    isNew: true,
-    maxOutput: 4096,
-    supported: ["音频输入", "文本"]
-  },
-  {
-    id: "cosyvoice-v2",
-    name: "CosyVoice V2",
-    provider: "通义千问",
-    description: "通义千问实时语音合成模型，文本转语音，支持多种音色和情感表达，适用于智能客服等场景。",
-    contextLength: 4096,
-    promptPrice: 0,
-    completionPrice: 0,
-    category: "语音模型",
-    tags: ["语音合成", "TTS", "多音色"],
-    isNew: true,
-    maxOutput: 1,
-    supported: ["文本到语音"]
-  },
-  {
-    id: "paraformer-v2",
-    name: "Paraformer V2",
-    provider: "通义千问",
-    description: "通义千问语音识别模型，支持实时和离线语音转文字，识别准确率高，支持中英文和多种方言。",
-    contextLength: 0,
-    promptPrice: 0,
-    completionPrice: 0,
-    category: "语音模型",
-    tags: ["语音识别", "ASR", "实时转写"],
-    isNew: true,
-    maxOutput: 1,
-    supported: ["语音到文本"]
-  },
-
   // ========== 向量模型 ==========
   {
     id: "text-embedding-v3",
@@ -369,88 +325,21 @@ export const models: AIModel[] = [
     maxOutput: 4,
     supported: ["文本到图像", "图文混排", "图像编辑"]
   },
-  {
-    id: "wan2.5-t2i-preview",
-    name: "万相 2.5 文生图 Preview",
-    provider: "通义千问",
-    description: "文生图预览版，支持高质量图像生成。在写实风格和艺术创作方面表现出色，适合多种创意场景。",
-    contextLength: 4000,
-    promptPrice: 0.20,
-    completionPrice: 0,
-    category: "图像生成",
-    tags: ["图像生成", "文生图", "预览版"],
-    isNew: true,
-    maxOutput: 4,
-    supported: ["文本到图像"]
-  },
-  {
-    id: "wan2.2-t2i-plus",
-    name: "万相 2.2 文生图 Plus",
-    provider: "通义千问",
-    description: "文生图增强版，画面质量稳定，适用于生成证件照、电商主图、模特图等商业场景。",
-    contextLength: 4000,
-    promptPrice: 0.20,
-    completionPrice: 0,
-    category: "图像生成",
-    tags: ["图像生成", "电商", "证件照", "商业"],
-    maxOutput: 4,
-    supported: ["文本到图像"]
-  },
-  {
-    id: "wan2.2-t2i-flash",
-    name: "万相 2.2 文生图 Flash",
-    provider: "通义千问",
-    description: "文生图快速版，生成速度更快，成本更低。适合需要快速出图的场景，质量稳定。",
-    contextLength: 4000,
-    promptPrice: 0.14,
-    completionPrice: 0,
-    category: "图像生成",
-    tags: ["图像生成", "快速", "低成本"],
-    maxOutput: 4,
-    supported: ["文本到图像"]
-  },
-  {
-    id: "wanx-style-repaint",
-    name: "万相 风格重绘",
-    provider: "通义千问",
-    description: "基于参考图片进行风格化重绘，支持动漫、油画、水彩、素描等多种艺术风格转换。保留原图结构的同时改变画面风格。",
-    contextLength: 4000,
-    promptPrice: 0.20,
-    completionPrice: 0,
-    category: "图像生成",
-    tags: ["图像生成", "风格迁移", "艺术风格", "重绘"],
-    maxOutput: 1,
-    supported: ["图像到图像", "风格迁移"]
-  },
-  {
-    id: "wanx-background-generation",
-    name: "万相 背景生成",
-    provider: "通义千问",
-    description: "智能背景生成模型，可根据前景主体自动生成合适的背景。适用于电商产品图制作、人像背景替换等场景。",
-    contextLength: 4000,
-    promptPrice: 0.20,
-    completionPrice: 0,
-    category: "图像生成",
-    tags: ["图像生成", "背景生成", "电商", "抠图"],
-    maxOutput: 1,
-    supported: ["图像编辑", "背景生成"]
-  },
-
   // ========== 视频生成 ==========
   {
     id: "wan2.6-t2v",
     name: "万相 2.6 文生视频",
     provider: "通义千问",
-    description: "最新一代文生视频旗舰模型，支持多镜头叙事、自动配音、传入音频等功能。可生成2-15秒1080P高清视频，支持智能分镜和prompt改写。生成耗时约1-5分钟。",
+    description: "最新一代文生视频旗舰模型，支持多镜头叙事和智能分镜。可生成2-15秒1080P高清视频，支持prompt改写。生成耗时约1-5分钟。",
     contextLength: 1500,
     promptPrice: 0.15,  // 元/秒/1080P
     completionPrice: 0,
     category: "视频生成",
-    tags: ["视频生成", "文生视频", "多镜头", "配音", "1080P"],
+    tags: ["视频生成", "文生视频", "多镜头", "1080P"],
     isFeatured: true,
     isNew: true,
     maxOutput: 15,
-    supported: ["文生视频", "多镜头叙事", "自动配音"],
+    supported: ["文生视频", "多镜头叙事"],
     // 限制: RPS 5, 并发 5
   },
   {
@@ -510,47 +399,6 @@ export const models: AIModel[] = [
     isNew: true,
     maxOutput: 10,
     supported: ["参考生视频", "快速生成"],
-  },
-  {
-    id: "wan2.5-t2v-preview",
-    name: "万相 2.5 文生视频 Preview",
-    provider: "通义千问",
-    description: "文生视频预览版，支持音画同步生成。可根据文本描述生成带配音的视频内容，支持多种风格。",
-    contextLength: 800,
-    promptPrice: 0.12,
-    completionPrice: 0,
-    category: "视频生成",
-    tags: ["视频生成", "文生视频", "音画同步"],
-    maxOutput: 10,
-    supported: ["文生视频", "音画同步"],
-    // 限制: RPS 5, 并发 5
-  },
-  {
-    id: "wan2.2-t2v-plus",
-    name: "万相 2.2 文生视频 Plus",
-    provider: "通义千问",
-    description: "文生视频稳定版，生成无声视频。画面稳定性增强，适合需要后期配音的创作场景。",
-    contextLength: 800,
-    promptPrice: 0.08,
-    completionPrice: 0,
-    category: "视频生成",
-    tags: ["视频生成", "文生视频", "稳定", "无声"],
-    maxOutput: 10,
-    supported: ["文生视频"],
-    // 限制: RPS 2, 并发 2
-  },
-  {
-    id: "wan2.2-i2v-plus",
-    name: "万相 2.2 图生视频 Plus",
-    provider: "通义千问",
-    description: "图生视频稳定版，生成无声视频。以图像为首帧驱动，画面连贯性强，适合静态图片动态化。",
-    contextLength: 800,
-    promptPrice: 0.08,
-    completionPrice: 0,
-    category: "视频生成",
-    tags: ["视频生成", "图生视频", "稳定", "无声"],
-    maxOutput: 10,
-    supported: ["图生视频"],
   },
   {
     id: "pixverse-v4.5",

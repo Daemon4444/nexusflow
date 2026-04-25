@@ -72,6 +72,7 @@ stream = client.chat.completions.create(
     model="qwen3.5-plus",
     messages=[{"role": "user", "content": "写一首关于春天的诗"}],
     stream=True,
+    stream_options={"include_usage": True},
 )
 
 for chunk in stream:
@@ -85,7 +86,10 @@ for chunk in stream:
     "messages": [
       {"role": "user", "content": "写一首关于春天的诗"}
     ],
-    "stream": true
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    }
   }'
 
 # 流式返回格式：
@@ -102,6 +106,7 @@ const stream = await client.chat.completions.create({
   model: "qwen3.5-plus",
   messages: [{ role: "user", content: "写一首关于春天的诗" }],
   stream: true,
+  stream_options: { include_usage: true },
 });
 
 for await (const chunk of stream) {
@@ -345,11 +350,15 @@ console.log(response.choices[0].message.content);`,
     { name: "messages", type: "array", required: true, desc: "对话消息数组。每条消息包含 role 和 content 字段。" },
     { name: "messages[].role", type: "string", required: true, desc: "消息角色：system / user / assistant / tool" },
     { name: "messages[].content", type: "string | array", required: true, desc: "消息内容。可以是字符串或内容数组（用于图像输入）" },
+    { name: "messages[].content[].type", type: "string", required: false, desc: "多模态内容块类型：text / image_url。" },
+    { name: "messages[].content[].image_url.url", type: "string", required: false, desc: "图片 URL 或 data URL，仅视觉模型使用。" },
     { name: "stream", type: "boolean", required: false, default: "false", desc: "是否启用流式输出。启用后以 SSE 格式逐字返回。" },
+    { name: "stream_options.include_usage", type: "boolean", required: false, default: "false", desc: "流式请求是否在最后一个 SSE chunk 返回 usage。需要精确计费或统计时建议开启。" },
     { name: "temperature", type: "number", required: false, default: "1.0", desc: "采样温度，范围 [0, 2)。值越高越随机。" },
     { name: "top_p", type: "number", required: false, default: "1.0", desc: "核采样概率阈值，范围 (0, 1]。与 temperature 二选一。" },
     { name: "max_tokens", type: "integer", required: false, desc: "生成的最大 token 数。不同模型有不同上限。" },
     { name: "stop", type: "string | string[]", required: false, desc: "停止词或停止词数组。遇到时停止输出。" },
+    { name: "enable_thinking", type: "boolean", required: false, desc: "是否开启思考模式。DeepSeek V4 Pro、QwQ、部分 Qwen 推理模型可用；非推理模型可不传。" },
     { name: "presence_penalty", type: "number", required: false, default: "0", desc: "存在惩罚，范围 [-2.0, 2.0]。" },
     { name: "frequency_penalty", type: "number", required: false, default: "0", desc: "频率惩罚，范围 [-2.0, 2.0]。" },
     { name: "tools", type: "array", required: false, desc: "可用工具/函数列表，用于 Function Calling。" },
@@ -367,6 +376,7 @@ console.log(response.choices[0].message.content);`,
     { name: "choices[].message", type: "object", desc: "生成的消息对象" },
     { name: "choices[].message.role", type: "string", desc: '固定为 "assistant"' },
     { name: "choices[].message.content", type: "string | null", desc: "生成内容（调用工具时可能为 null）" },
+    { name: "choices[].message.reasoning_content", type: "string", desc: "推理模型可能返回的思考内容" },
     { name: "choices[].message.tool_calls", type: "array", desc: "工具调用请求" },
     { name: "choices[].finish_reason", type: "string", desc: "停止原因：stop / length / tool_calls" },
     { name: "usage", type: "object", desc: "Token 使用统计" },
@@ -598,6 +608,7 @@ console.log(response.choices[0].message.content);`,
             <li>流式输出时最后一个 chunk 的 <code>finish_reason</code> 才表示完成</li>
             <li>图像理解建议使用 Qwen-VL 系列和多模态模型</li>
             <li>Function Calling 推荐使用 Qwen、DeepSeek、GLM 系列</li>
+            <li>完整参数和协议映射见 <Link href="/docs/api/parameters" style={{ color: "var(--accent)" }}>参数矩阵</Link></li>
           </ul>
         </div>
       </section>

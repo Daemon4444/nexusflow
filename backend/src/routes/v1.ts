@@ -428,6 +428,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     tools,
     tool_choice,
     response_format,
+    stream_options,
+    enable_thinking,
   } = req.body;
 
   if (!modelId || !messages || !Array.isArray(messages) || messages.length === 0) {
@@ -549,6 +551,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   if (tools) requestBody.tools = tools;
   if (tool_choice) requestBody.tool_choice = tool_choice;
   if (response_format) requestBody.response_format = response_format;
+  if (stream_options !== undefined) requestBody.stream_options = stream_options;
+  if (enable_thinking !== undefined) requestBody.enable_thinking = enable_thinking;
   if ((modelId === "qwen3-32b" || modelId === "qwen3-8b") && !requestBody.stream) {
     requestBody.enable_thinking = false;
   }

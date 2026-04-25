@@ -66,7 +66,9 @@ stream = client.chat.completions.create(
     messages=[
         {"role": "user", "content": "分析递归和动态规划的区别"}
     ],
-    stream=True
+    stream=True,
+    stream_options={"include_usage": True},
+    enable_thinking=${modelId.includes("pro") || modelId.includes("r1") ? "True" : "False"}
 )
 
 for chunk in stream:
@@ -156,6 +158,26 @@ function DeepSeekDocsInner() {
           </table>
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>点击行可切换下方示例中的模型 ID</p>
+      </section>
+
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>推理与流式参数</h2>
+        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", marginBottom: 24 }}>
+          {[
+            ["stream", "boolean", "启用 SSE 流式输出，适合长推理和交互式场景。"],
+            ["stream_options.include_usage", "boolean", "流式响应最后返回 usage，平台会据此记录 token 和费用。"],
+            ["enable_thinking", "boolean", "DeepSeek V4 Pro 建议开启；Flash 可按低延迟场景关闭。"],
+            ["temperature", "number", "采样温度。推理任务建议 0.2 到 0.7，创意任务可适当提高。"],
+            ["top_p", "number", "核采样阈值，通常不要和 temperature 同时大幅调整。"],
+            ["stop", "string | string[]", "停止序列，命中后结束输出。"],
+          ].map(([name, type, desc], index) => (
+            <div key={name} style={{ display: "grid", gridTemplateColumns: "220px 130px 1fr", padding: "12px 14px", borderTop: index === 0 ? "none" : "1px solid var(--border)", background: index % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)", fontSize: 13 }}>
+              <code>{name}</code>
+              <span style={{ color: "var(--text-tertiary)" }}>{type}</span>
+              <span style={{ color: "var(--text-secondary)" }}>{desc}</span>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section style={{ marginBottom: 36 }}>

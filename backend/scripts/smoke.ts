@@ -157,10 +157,6 @@ function videoModels(): AIModel[] {
   return models.filter((model) => detectModelType(model.category) === "video");
 }
 
-function audioModels(): AIModel[] {
-  return models.filter((model) => detectModelType(model.category) === "audio");
-}
-
 function requireJsonPath(result: RequestResult, pathName: string, value: unknown): string {
   if (value === undefined || value === null) {
     throw new Error(`${pathName} missing, status=${result.status}, body=${truncate(result.text)}`);
@@ -580,46 +576,6 @@ async function smokeTaskImage(model: AIModel): Promise<Omit<SmokeResult, "name" 
   };
 }
 
-async function smokeStyleRepaint(): Promise<Omit<SmokeResult, "name" | "durationMs">> {
-  const result = await submitTask({
-    model: "wanx-style-repaint",
-    ref_img: referenceImageUrl,
-    style_index: 3,
-  });
-
-  if (result.status !== 202) {
-    throw new Error(`status=${result.status} body=${truncate(result.text)}`);
-  }
-
-  const taskStatus = await smokeTaskStatus(result.json.id);
-  return {
-    status: "passed",
-    route: "/v1/tasks",
-    model: "wanx-style-repaint",
-    detail: `task=${taskStatus}`,
-  };
-}
-
-async function smokeBackgroundGeneration(): Promise<Omit<SmokeResult, "name" | "durationMs">> {
-  const result = await submitTask({
-    model: "wanx-background-generation",
-    prompt: "clean studio background with soft shadow",
-    ref_img: referenceImageUrl,
-  });
-
-  if (result.status !== 202) {
-    throw new Error(`status=${result.status} body=${truncate(result.text)}`);
-  }
-
-  const taskStatus = await smokeTaskStatus(result.json.id);
-  return {
-    status: "passed",
-    route: "/v1/tasks",
-    model: "wanx-background-generation",
-    detail: `task=${taskStatus}`,
-  };
-}
-
 async function smokeVideoTask(model: AIModel, body: Record<string, unknown>): Promise<Omit<SmokeResult, "name" | "durationMs">> {
   const result = await submitTask(body);
   if (result.status !== 202) {
@@ -753,12 +709,11 @@ async function main(): Promise<void> {
   const embeddings = embeddingModels();
   const images = imageModels();
   const videos = videoModels();
-  const audios = audioModels();
 
   results.push(await runTest("health", smokeHealth));
   results.push(await runTest("models-list", smokeModelsList));
 
-  const firstImage = pickModel(["wan2.2-t2i-flash", "wan2.6-t2i"], images);
+  const firstImage = pickModel(["wan2.6-t2i"], images);
   const firstChat = pickModel(["deepseek-v4-flash", "qwen3.5-plus", chat[0]?.id || ""], chat);
   const firstEmbedding = embeddings[0];
   const streamCandidates = [
@@ -822,10 +777,7 @@ async function main(): Promise<void> {
   if (mediaMode !== "none") {
     results.push(await runTest(`openai-image-${firstImage.id}`, () => smokeOpenAiImages(firstImage)));
     results.push(await runTest(`task-image-${firstImage.id}`, () => smokeTaskImage(firstImage)));
-    results.push(await runTest("task-style-repaint", smokeStyleRepaint));
-    results.push(await runTest("task-background-generation", smokeBackgroundGeneration));
-
-    const t2vModel = pickModel(["wan2.2-t2v-plus", "wan2.5-t2v-preview"], videos);
+    const t2vModel = pickModel(["wan2.6-t2v"], videos);
     results.push(await runTest(`task-video-${t2vModel.id}`, () =>
       smokeVideoTask(t2vModel, {
         model: t2vModel.id,
@@ -857,16 +809,6 @@ async function main(): Promise<void> {
         n: 1,
         size: "1024x1024",
       };
-
-      if (model.id === "wanx-style-repaint") {
-        body.ref_img = referenceImageUrl;
-        body.style_index = 3;
-        delete body.prompt;
-      }
-
-      if (model.id === "wanx-background-generation") {
-        body.ref_img = referenceImageUrl;
-      }
 
       results.push(await runTest(`task-image-all-${model.id}`, async () => {
         const result = await submitTask(body);
@@ -905,17 +847,6 @@ async function main(): Promise<void> {
         };
       }));
     }
-  }
-
-  for (const model of audios) {
-    results.push({
-      name: `audio-skip-${model.id}`,
-      status: "skipped",
-      durationMs: 0,
-      model: model.id,
-      detail: "No public /v1/audio route is implemented in the current platform.",
-    });
-    printResult(results[results.length - 1]);
   }
 
   const summary = {

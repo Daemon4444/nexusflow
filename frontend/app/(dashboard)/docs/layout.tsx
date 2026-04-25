@@ -38,12 +38,14 @@ const providers: ProviderItem[] = [
     label: "HappyHorse",
     children: [
       { href: "/docs/models/happyhorse", label: "模型介绍" },
+      { href: "/docs/api/happyhorse", label: "API 用法" },
     ],
   },
   {
     key: "pixverse",
     label: "PixVerse (爱诗)",
     children: [
+      { href: "/docs/models/pixverse", label: "模型介绍" },
       { href: "/docs/api/pixverse?tab=t2v", label: "文生视频" },
       { href: "/docs/api/pixverse?tab=i2v", label: "图生视频（首帧）" },
       { href: "/docs/api/pixverse?tab=kf2v", label: "图生视频（首尾帧）" },
@@ -82,7 +84,9 @@ const platformLinks = [
 ];
 
 const refLinks = [
+  { href: "/docs/api/parameters", label: "参数矩阵" },
   { href: "/docs/api/tasks", label: "异步任务 API" },
+  { href: "/docs/api/gemini", label: "Gemini 协议" },
   { href: "/docs/api/errors", label: "错误码" },
   { href: "/docs/api/limits", label: "限流说明" },
   { href: "/docs/faq", label: "常见问题" },

@@ -9,13 +9,28 @@ interface AIModel {
   contextLength: number; promptPrice: number; completionPrice: number;
   category: string; tags: string[]; isNew?: boolean; isFeatured?: boolean;
   maxOutput: number; supported: string[];
+  supportedProtocols?: string[];
+  supported_protocols?: string[];
 }
 
 const categoryColors: Record<string, string> = {
-  "大语言模型": "#b5673c", "推理模型": "#c44033", "多模态模型": "#7c6a9a",
-  "编程模型": "#2563eb", "图像生成": "#db2777", "视频生成": "#ea580c",
-  "语音模型": "#16a34a", "向量模型": "#ca8a04", "专业模型": "#64748b",
+  "大语言模型": "#2563eb", "推理模型": "#dc2626", "多模态模型": "#7c3aed",
+  "编程模型": "#0891b2", "图像生成": "#db2777", "视频生成": "#f97316",
+  "向量模型": "#0f766e", "专业模型": "#64748b",
 };
+
+const protocolStyles: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  "openai/chat-completions": { label: "OpenAI", color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
+  "anthropic/messages": { label: "Anthropic", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
+  "google/generate-content": { label: "Gemini", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
+  "openai/embeddings": { label: "Embedding", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
+  "openai/image-generations": { label: "Image", color: "#be185d", bg: "#fdf2f8", border: "#fbcfe8" },
+  "nexusflow/tasks": { label: "Tasks", color: "#475569", bg: "#f8fafc", border: "#cbd5e1" },
+};
+
+function getProtocolBadges(model: AIModel) {
+  return model.supportedProtocols || model.supported_protocols || [];
+}
 
 export default function ModelsPage() {
   const [models, setModels] = useState<AIModel[]>([]);
@@ -76,7 +91,7 @@ export default function ModelsPage() {
           )}
         </div>
         <p style={{ fontSize: 13.5, color: "var(--text-secondary)", maxWidth: 600, margin: 0 }}>
-          浏览全系列 AI 模型，涵盖文本、推理、视觉、编程、图像、视频、语音等类别
+          浏览全系列 AI 模型，涵盖文本、推理、视觉、编程、图像、视频、向量等类别
         </p>
       </div>
 
@@ -138,13 +153,12 @@ export default function ModelsPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
           {models.map((model, idx) => {
             const accent = categoryColors[model.category] || "var(--accent)";
+            const protocolBadges = getProtocolBadges(model);
             return (
               <Link href={`/models/${encodeURIComponent(model.id)}`} key={model.id}
                 className="card animate-fadeIn"
-                style={{ animationDelay: `${idx * 20}ms`, opacity: 0, textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}
+                style={{ animationDelay: `${idx * 20}ms`, opacity: 0, textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", borderTop: `3px solid ${accent}` }}
               >
-                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: accent, opacity: 0.7, borderRadius: "10px 10px 0 0" }} />
-
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 9, gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
@@ -160,6 +174,28 @@ export default function ModelsPage() {
                   </div>
                   <code style={{ fontSize: 10.5, color: "var(--text-tertiary)", background: "var(--bg-elevated)", padding: "3px 7px", borderRadius: 5, border: "1px solid var(--border)", flexShrink: 0, fontFamily: "var(--font-mono)" }}>{model.id}</code>
                 </div>
+
+                {protocolBadges.length > 0 && (
+                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
+                    {protocolBadges.map((protocol) => {
+                      const style = protocolStyles[protocol] || { label: protocol, color: "#475569", bg: "#f8fafc", border: "#cbd5e1" };
+                      return (
+                        <span key={protocol} title={protocol} style={{
+                          padding: "2px 7px",
+                          borderRadius: 5,
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          color: style.color,
+                          background: style.bg,
+                          border: `1px solid ${style.border}`,
+                          fontFamily: "var(--font-mono)",
+                        }}>
+                          {style.label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <p style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.65, marginBottom: 10, flex: 1, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                   {model.description}
