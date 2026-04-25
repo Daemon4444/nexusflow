@@ -48,11 +48,12 @@ function ensureInternalProviders(): void {
 
   for (const model of staticModels) {
     if (getCapacity(dashscope.id, model.id)) continue;
+    const isTaskModel = model.category === "图像生成" || model.category === "视频生成";
     upsertCapacity(dashscope.id, model.id, {
       rpm_limit: 1000,
-      tpm_limit: 1000000,
+      tpm_limit: isTaskModel ? 0 : 1000000,
       daily_limit: 100000,
-      concurrent_limit: 50,
+      concurrent_limit: isTaskModel ? 10 : 0,
       priority: 10,
       weight: 100,
       is_enabled: true,

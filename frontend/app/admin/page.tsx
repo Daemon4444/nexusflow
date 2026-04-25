@@ -278,6 +278,10 @@ const cardStyle: CSSProperties = {
   boxShadow: "0 10px 30px rgba(15, 23, 42, 0.04)",
 };
 
+function isTaskModelCategory(category?: string): boolean {
+  return category === "图像生成" || category === "视频生成";
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -541,15 +545,27 @@ export default function AdminPage() {
 
   async function handleSaveCapacity(modelId: string, current?: CapacityRecord) {
     if (!selectedProviderId) return;
+    const model = providerDetail?.models.find((item) => item.modelId === modelId);
+    const isTaskModel = isTaskModelCategory(model?.category);
 
-    const rpm = prompt("RPM 限制", String(current?.rpmLimit ?? 60));
+    const rpm = prompt(isTaskModel ? "任务提交 RPM 限制" : "RPM 限制", String(current?.rpmLimit ?? 60));
     if (rpm === null) return;
-    const tpm = prompt("TPM 限制", String(current?.tpmLimit ?? 100000));
-    if (tpm === null) return;
+    let tpm = String(current?.tpmLimit ?? 100000);
+    if (!isTaskModel) {
+      const nextTpm = prompt("TPM 限制", tpm);
+      if (nextTpm === null) return;
+      tpm = nextTpm;
+    } else {
+      tpm = String(current?.tpmLimit ?? 0);
+    }
     const daily = prompt("每日请求上限", String(current?.dailyLimit ?? 10000));
     if (daily === null) return;
-    const concurrent = prompt("并发上限", String(current?.concurrentLimit ?? 10));
-    if (concurrent === null) return;
+    let concurrent = String(current?.concurrentLimit ?? 10);
+    if (isTaskModel) {
+      const nextConcurrent = prompt("后台任务并发上限", concurrent);
+      if (nextConcurrent === null) return;
+      concurrent = nextConcurrent;
+    }
     const priority = prompt("优先级", String(current?.priority ?? 0));
     if (priority === null) return;
     const weight = prompt("权重", String(current?.weight ?? 100));
@@ -579,14 +595,25 @@ export default function AdminPage() {
   async function handleSaveModelRoute(model: Model, route?: NonNullable<Model["routes"]>[number]) {
     const providerId = route?.providerId || prompt("选择渠道 ID（可在渠道控制台查看，例如 dashscope 或 volcengine-ark）", providers[0]?.id || "");
     if (!providerId) return;
-    const rpm = prompt("RPM 限制", String(route?.rpmLimit ?? 1000));
+    const isTaskModel = isTaskModelCategory(model.category);
+    const rpm = prompt(isTaskModel ? "任务提交 RPM 限制" : "RPM 限制", String(route?.rpmLimit ?? 1000));
     if (rpm === null) return;
-    const tpm = prompt("TPM 限制", String(route?.tpmLimit ?? 1000000));
-    if (tpm === null) return;
+    let tpm = String(route?.tpmLimit ?? 1000000);
+    if (!isTaskModel) {
+      const nextTpm = prompt("TPM 限制", tpm);
+      if (nextTpm === null) return;
+      tpm = nextTpm;
+    } else {
+      tpm = String(route?.tpmLimit ?? 0);
+    }
     const daily = prompt("每日请求上限", String(route?.dailyLimit ?? 100000));
     if (daily === null) return;
-    const concurrent = prompt("并发上限", String(route?.concurrentLimit ?? 50));
-    if (concurrent === null) return;
+    let concurrent = String(route?.concurrentLimit ?? 50);
+    if (isTaskModel) {
+      const nextConcurrent = prompt("后台任务并发上限", concurrent);
+      if (nextConcurrent === null) return;
+      concurrent = nextConcurrent;
+    }
     const priority = prompt("优先级，越大越优先", String(route?.priority ?? 0));
     if (priority === null) return;
     const weight = prompt("权重，同优先级下越大越容易被选中", String(route?.weight ?? 100));
@@ -651,7 +678,10 @@ export default function AdminPage() {
       currentTpm: routes.reduce((sum, route) => sum + (route.currentTpm || 0), 0),
       rpmLimit: routes.reduce((sum, route) => sum + (route.rpmLimit || 0), 0),
       tpmLimit: routes.reduce((sum, route) => sum + (route.tpmLimit || 0), 0),
-      concurrentLimit: capacity.reduce((sum, item) => sum + (item.concurrentLimit || 0), 0),
+      taskConcurrentLimit: capacity.reduce((sum, item) => {
+        const model = providerDetail.models.find((record) => record.modelId === item.modelId);
+        return isTaskModelCategory(model?.category) ? sum + (item.concurrentLimit || 0) : sum;
+      }, 0),
     };
   }, [providerDetail, providerRouteMetrics]);
 
@@ -1220,7 +1250,7 @@ export default function AdminPage() {
                                 { label: "当前 TPM", value: selectedProviderTotals.currentTpm.toLocaleString() },
                                 { label: "RPM 上限", value: selectedProviderTotals.rpmLimit.toLocaleString() },
                                 { label: "TPM 上限", value: selectedProviderTotals.tpmLimit.toLocaleString() },
-                                { label: "并发上限", value: selectedProviderTotals.concurrentLimit.toLocaleString() },
+                                { label: "任务并发上限", value: selectedProviderTotals.taskConcurrentLimit.toLocaleString() },
                                 { label: "容量占用", value: `${selectedProviderTotals.rpmLimit > 0 ? Math.round((selectedProviderTotals.currentRpm / selectedProviderTotals.rpmLimit) * 100) : 0}%` },
                               ].map((item) => (
                                 <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#f8fafc" }}>
@@ -1235,7 +1265,7 @@ export default function AdminPage() {
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                             <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>容量与路由策略</h3>
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>面向大并发：优先级、权重、RPM/TPM、并发上限统一收口</div>
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>文本/VL 看 RPM/TPM；生图/生视频看任务提交速率和后台任务并发</div>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {providerDetail.models.length === 0 ? (
@@ -1243,6 +1273,7 @@ export default function AdminPage() {
                             ) : providerDetail.models.map((model) => {
                               const capacity = providerDetail.capacity.find((item) => item.modelId === model.modelId);
                               const health = providerDetail.health.find((item) => item.modelId === model.modelId);
+                              const isTaskModel = isTaskModelCategory(model.category);
                               return (
                                 <div key={model.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14 }}>
                                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -1258,9 +1289,12 @@ export default function AdminPage() {
                                         <span>分类: {model.category}</span>
                                         <span>权重: {capacity?.weight ?? 100}</span>
                                         <span>优先级: {capacity?.priority ?? 0}</span>
-                                        <span>RPM: {capacity?.rpmLimit ?? 60}</span>
-                                        <span>TPM: {capacity?.tpmLimit ?? 100000}</span>
-                                        <span>并发: {capacity?.concurrentLimit ?? 10}</span>
+                                        <span>{isTaskModel ? "任务提交 RPM" : "RPM"}: {capacity?.rpmLimit ?? 60}</span>
+                                        {isTaskModel ? (
+                                          <span>任务并发: {capacity?.concurrentLimit ?? 10}</span>
+                                        ) : (
+                                          <span>TPM: {capacity?.tpmLimit ?? 100000}</span>
+                                        )}
                                       </div>
                                       {health ? (
                                         <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
@@ -1287,7 +1321,10 @@ export default function AdminPage() {
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {providerRouteMetrics.length === 0 ? (
                               <div style={{ color: "#6b7280", fontSize: 13 }}>暂无路由监控数据。</div>
-                            ) : providerRouteMetrics.map((route) => (
+                            ) : providerRouteMetrics.map((route) => {
+                              const model = providerDetail.models.find((item) => item.modelId === route.modelId);
+                              const isTaskModel = isTaskModelCategory(model?.category);
+                              return (
                               <div key={route.modelId} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14 }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                                   <div>
@@ -1302,8 +1339,8 @@ export default function AdminPage() {
                                       </span>
                                     </div>
                                     <div style={{ marginTop: 8, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#6b7280" }}>
-                                      <span>RPM {route.currentRpm}/{route.rpmLimit}</span>
-                                      <span>TPM {route.currentTpm}/{route.tpmLimit}</span>
+                                      <span>{isTaskModel ? "任务提交 RPM" : "RPM"} {route.currentRpm}/{route.rpmLimit}</span>
+                                      {isTaskModel ? <span>任务并发 {route.concurrentLimit}</span> : <span>TPM {route.currentTpm}/{route.tpmLimit}</span>}
                                       <span>延迟 {route.avgLatencyMs} ms</span>
                                       <span>失败 {route.consecutiveFailures} 次</span>
                                       <span>权重 {route.weight}</span>
@@ -1330,7 +1367,8 @@ export default function AdminPage() {
                                   <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>最近错误：{route.lastError}</div>
                                 ) : null}
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       </>
@@ -1397,17 +1435,27 @@ export default function AdminPage() {
                         <span>渠道路由: {model.routes?.filter((route) => route.isEnabled).length || 0}/{model.routes?.length || 0}</span>
                       </div>
                       <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                        {model.routes && model.routes.length > 0 ? model.routes.map((route) => (
+                        {model.routes && model.routes.length > 0 ? model.routes.map((route) => {
+                          const isTaskModel = isTaskModelCategory(model.category);
+                          return (
                           <div key={`${model.modelId}-${route.providerId}`} style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 0.8fr auto", gap: 12, alignItems: "center", padding: 12, borderRadius: 10, border: "1px solid #e5e7eb", background: route.isEnabled ? "#f8fafc" : "#fff" }}>
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{route.providerName}</div>
                               <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{route.providerId} · {route.isEnabled ? "启用" : "停用"}</div>
                             </div>
-                            <div style={{ fontSize: 12, color: "#4b5563" }}>
-                              RPM {route.currentRpm}/{route.rpmLimit}
-                              <br />
-                              TPM {route.currentTpm}/{route.tpmLimit}
-                            </div>
+                            {isTaskModel ? (
+                              <div style={{ fontSize: 12, color: "#4b5563" }}>
+                                提交RPM {route.currentRpm}/{route.rpmLimit}
+                                <br />
+                                任务并发 {route.concurrentLimit}
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: 12, color: "#4b5563" }}>
+                                RPM {route.currentRpm}/{route.rpmLimit}
+                                <br />
+                                TPM {route.currentTpm}/{route.tpmLimit}
+                              </div>
+                            )}
                             <div style={{ fontSize: 12, color: "#4b5563" }}>
                               优先级 {route.priority}
                               <br />
@@ -1417,7 +1465,8 @@ export default function AdminPage() {
                               编辑路由
                             </button>
                           </div>
-                        )) : (
+                          );
+                        }) : (
                           <div style={{ fontSize: 12.5, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 12 }}>
                             当前没有启用渠道路由，API 调用不会选择到该模型。
                           </div>
