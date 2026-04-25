@@ -535,7 +535,93 @@ function PlaygroundInner() {
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 56px)", fontFamily: "var(--font-sans)" }}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <aside style={{ width: 340, borderRight: "1px solid var(--border)", background: "var(--bg)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>模型</div>
+          <div style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
+            {currentModel?.name || "未选择模型"}
+          </div>
+          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+            <span style={{
+              padding: "3px 8px",
+              borderRadius: 5,
+              fontSize: 11,
+              fontWeight: 600,
+              background: modeConfig[mode].bg,
+              color: modeConfig[mode].color,
+              border: `1px solid ${modeConfig[mode].border}`,
+            }}>
+              {modeConfig[mode].label}
+            </span>
+            <span style={{
+              padding: "3px 8px",
+              borderRadius: 5,
+              fontSize: 11,
+              fontWeight: 600,
+              background: "var(--bg-elevated)",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--border)",
+            }}>
+              {visibleModels.length} / {models.length}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ padding: 12, borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
+          <input
+            className="input"
+            value={modelQuery}
+            onChange={(e) => setModelQuery(e.target.value)}
+            placeholder="搜索模型、供应商、标签"
+            style={{ width: "100%", fontSize: 13 }}
+          />
+        </div>
+
+        <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          {visibleModels.map((model) => {
+            const active = model.id === selectedModel;
+            return (
+              <button
+                key={model.id}
+                type="button"
+                onClick={() => setSelectedModel(model.id)}
+                style={{
+                  textAlign: "left",
+                  padding: "11px 12px",
+                  borderRadius: 8,
+                  border: active ? "1px solid var(--accent)" : "1px solid var(--border)",
+                  background: active ? "var(--accent-bg)" : "var(--bg)",
+                  cursor: "pointer",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {model.name}
+                  </div>
+                  {model.id === requestedModel && (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "var(--success-bg)", color: "var(--success)" }}>
+                      来源
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {model.provider} · {model.category}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 4, background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                    {model.id}
+                  </span>
+                  <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 4, background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                    {model.promptPrice}/M
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Top bar */}
         <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg)", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -572,94 +658,37 @@ function PlaygroundInner() {
                 {currentModel?.name || "未选择模型"}
               </span>
             </div>
-          <div style={{ display: "flex", gap: 7 }}>
-            <button
-              className={apiKey ? "btn-secondary" : "btn-danger"}
-              style={{ padding: "5px 12px", fontSize: 12.5 }}
-              onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-            >
-              {apiKey ? "API Key ✓" : "设置 API Key"}
-            </button>
-            {mode === "chat" && (
-              <>
-                <button
-                  className={streamEnabled ? "btn-primary" : "btn-secondary"}
-                  style={{ padding: "5px 12px", fontSize: 12.5 }}
-                  onClick={() => setStreamEnabled(!streamEnabled)}
-                >
-                  {streamEnabled ? "流式 ✓" : "非流式"}
-                </button>
-                <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={() => setShowSettings(!showSettings)}>
-                  设置
-                </button>
-              </>
-            )}
-            {sending && streamEnabled && mode === "chat" && (
-              <button className="btn-danger" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={cancelStream}>
-                取消
+            <div style={{ display: "flex", gap: 7 }}>
+              <button
+                className={apiKey ? "btn-secondary" : "btn-danger"}
+                style={{ padding: "5px 12px", fontSize: 12.5 }}
+                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+              >
+                {apiKey ? "API Key ✓" : "设置 API Key"}
               </button>
-            )}
-            <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={clearChat}>
-              清空
-            </button>
-          </div>
-          </div>
-        </div>
-
-        <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <input
-              className="input"
-              value={modelQuery}
-              onChange={(e) => setModelQuery(e.target.value)}
-              placeholder="搜索模型、供应商、分类或标签"
-              style={{ flex: 1, fontSize: 13 }}
-            />
-            <span style={{ fontSize: 12, color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>
-              {visibleModels.length} / {models.length}
-            </span>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 8, maxHeight: 132, overflow: "auto", paddingRight: 2 }}>
-            {visibleModels.map((model) => {
-              const active = model.id === selectedModel;
-              return (
-                <button
-                  key={model.id}
-                  type="button"
-                  onClick={() => setSelectedModel(model.id)}
-                  style={{
-                    textAlign: "left",
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    border: active ? "1px solid var(--accent)" : "1px solid var(--border)",
-                    background: active ? "var(--accent-bg)" : "var(--bg)",
-                    cursor: "pointer",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {model.name}
-                    </div>
-                    {model.id === requestedModel && (
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "var(--success-bg)", color: "var(--success)" }}>
-                        来源
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {model.provider} · {model.category}
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 4, background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
-                      {model.id}
-                    </span>
-                    <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 4, background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
-                      {model.promptPrice}/M
-                    </span>
-                  </div>
+              {mode === "chat" && (
+                <>
+                  <button
+                    className={streamEnabled ? "btn-primary" : "btn-secondary"}
+                    style={{ padding: "5px 12px", fontSize: 12.5 }}
+                    onClick={() => setStreamEnabled(!streamEnabled)}
+                  >
+                    {streamEnabled ? "流式 ✓" : "非流式"}
+                  </button>
+                  <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={() => setShowSettings(!showSettings)}>
+                    设置
+                  </button>
+                </>
+              )}
+              {sending && streamEnabled && mode === "chat" && (
+                <button className="btn-danger" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={cancelStream}>
+                  取消
                 </button>
-              );
-            })}
+              )}
+              <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={clearChat}>
+                清空
+              </button>
+            </div>
           </div>
         </div>
 
@@ -787,7 +816,7 @@ function PlaygroundInner() {
             </button>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
