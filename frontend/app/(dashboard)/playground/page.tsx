@@ -10,6 +10,224 @@ interface Message { role: "user" | "assistant" | "system"; content: string; reas
 interface UsageInfo { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost: string; }
 type ModelMode = "chat" | "image" | "video";
 
+function renderInlineMarkdown(text: string) {
+  const parts: any[] = [];
+  const pattern = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text))) {
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    const token = match[0];
+    if (token.startsWith("**")) {
+      parts.push(<strong key={`${match.index}-b`}>{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith("`")) {
+      parts.push(
+        <code key={`${match.index}-c`} style={{ padding: "1px 5px", borderRadius: 4, background: "var(--bg-elevated)", border: "1px solid var(--border)", fontSize: "0.92em" }}>
+          {token.slice(1, -1)}
+        </code>
+      );
+    } else {
+      const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (linkMatch) {
+        parts.push(
+          <a
+            key={`${match.index}-a`}
+            href={linkMatch[2]}
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: "var(--accent)", textDecoration: "underline" }}
+          >
+            {linkMatch[1]}
+          </a>
+        );
+      }
+    }
+    lastIndex = match.index + token.length;
+  }
+
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length > 0 ? parts : text;
+}
+
+function MarkdownBlock({ text, compact = false }: { text: string; compact?: boolean }) {
+  const lines = text.replace(/\r/g, "").split("\n");
+  const blocks: any[] = [];
+  let i = 0;
+  let paragraph: string[] = [];
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    blocks.push(
+      <p key={`p-${blocks.length}`} style={{ margin: 0, whiteSpace: "pre-wrap" }}>
+        {renderInlineMarkdown(paragraph.join(" ").trim())}
+      </p>
+    );
+    paragraph = [];
+  };
+
+  const codeFence = /^```([\w-]+)?\s*$/;
+  const heading = /^(#{1,3})\s+(.+)$/;
+  const unordered = /^[-*+]\s+(.+)$/;
+  const ordered = /^\d+\.\s+(.+)$/;
+  const isTableDivider = (line: string) => /^\s*\|?[\s:-]+(\|[\s:-]+)+\|?\s*$/.test(line);
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushParagraph();
+      i++;
+      continue;
+    }
+
+    const codeMatch = trimmed.match(codeFence);
+    if (codeMatch) {
+      flushParagraph();
+      const language = codeMatch[1] || "";
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().match(/^```\s*$/)) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      blocks.push(
+        <pre
+          key={`code-${blocks.length}`}
+          style={{
+            margin: 0,
+            padding: "12px 14px",
+            borderRadius: 8,
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border)",
+            overflow: "auto",
+            fontSize: compact ? 12 : 12.5,
+            lineHeight: 1.65,
+          }}
+        >
+          {language ? <div style={{ marginBottom: 8, fontSize: 11, color: "var(--text-tertiary)" }}>{language}</div> : null}
+          <code style={{ whiteSpace: "pre-wrap" }}>{codeLines.join("\n")}</code>
+        </pre>
+      );
+      i++;
+      continue;
+    }
+
+    const headingMatch = trimmed.match(heading);
+    if (headingMatch) {
+      flushParagraph();
+      const level = headingMatch[1].length;
+      const tagStyle = level === 1 ? { margin: "0 0 10px", fontSize: 18, lineHeight: 1.35 } : level === 2 ? { margin: "12px 0 8px", fontSize: 16, lineHeight: 1.35 } : { margin: "12px 0 6px", fontSize: 14, lineHeight: 1.35 };
+      blocks.push(
+        <div key={`h-${blocks.length}`} style={{ fontWeight: 700, color: "var(--text-primary)", ...tagStyle }}>
+          {renderInlineMarkdown(headingMatch[2])}
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    if (trimmed.startsWith(">")) {
+      flushParagraph();
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith(">")) {
+        quoteLines.push(lines[i].trim().replace(/^>\s?/, ""));
+        i++;
+      }
+      blocks.push(
+        <blockquote key={`q-${blocks.length}`} style={{ margin: 0, padding: "10px 12px", borderLeft: "3px solid var(--accent)", background: "var(--bg-elevated)", borderRadius: 8, color: "var(--text-secondary)" }}>
+          {renderInlineMarkdown(quoteLines.join(" "))}
+        </blockquote>
+      );
+      continue;
+    }
+
+    if (/^[-*+]\s+/.test(trimmed)) {
+      flushParagraph();
+      const items: string[] = [];
+      while (i < lines.length && /^[-*+]\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[-*+]\s+/, ""));
+        i++;
+      }
+      blocks.push(
+        <ul key={`ul-${blocks.length}`} style={{ margin: 0, paddingLeft: 20 }}>
+          {items.map((item, idx) => (
+            <li key={idx} style={{ marginBottom: idx === items.length - 1 ? 0 : 6 }}>
+              {renderInlineMarkdown(item)}
+            </li>
+          ))}
+        </ul>
+      );
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(trimmed)) {
+      flushParagraph();
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+\.\s+/, ""));
+        i++;
+      }
+      blocks.push(
+        <ol key={`ol-${blocks.length}`} style={{ margin: 0, paddingLeft: 20 }}>
+          {items.map((item, idx) => (
+            <li key={idx} style={{ marginBottom: idx === items.length - 1 ? 0 : 6 }}>
+              {renderInlineMarkdown(item)}
+            </li>
+          ))}
+        </ol>
+      );
+      continue;
+    }
+
+    if (trimmed.includes("|") && i + 1 < lines.length && isTableDivider(lines[i + 1] || "")) {
+      flushParagraph();
+      const header = trimmed.split("|").map((cell) => cell.trim()).filter(Boolean);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].includes("|")) {
+        const row = lines[i].split("|").map((cell) => cell.trim()).filter(Boolean);
+        if (row.length) rows.push(row);
+        i++;
+      }
+      blocks.push(
+        <div key={`table-${blocks.length}`} style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 8 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: compact ? 12 : 13 }}>
+            <thead>
+              <tr style={{ background: "var(--bg-elevated)" }}>
+                {header.map((cell, idx) => (
+                  <th key={idx} style={{ textAlign: "left", padding: "8px 10px", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }}>
+                    {renderInlineMarkdown(cell)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rIdx) => (
+                <tr key={rIdx} style={{ background: rIdx % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} style={{ padding: "8px 10px", borderBottom: "1px solid var(--border)", verticalAlign: "top" }}>
+                      {renderInlineMarkdown(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      continue;
+    }
+
+    paragraph.push(trimmed);
+    i++;
+  }
+
+  flushParagraph();
+  return <div style={{ display: "grid", gap: compact ? 8 : 10 }}>{blocks}</div>;
+}
+
 function PlaygroundInner() {
   const searchParams = useSearchParams();
   const requestedModel = searchParams.get("model") || "";
@@ -765,8 +983,8 @@ function PlaygroundInner() {
                 <div style={{ fontSize: 10.5, color: "var(--text-tertiary)", marginBottom: 5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
                   {msg.role === "user" ? "你" : currentModel?.name || "AI"}
                 </div>
-                <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--text-primary)", whiteSpace: "pre-wrap" }}>
-                  {msg.content}
+                <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--text-primary)" }}>
+                  <MarkdownBlock text={msg.content} compact />
                   {msg.isStreaming && (
                     <span style={{ display: "inline-block", marginLeft: 4 }}>
                       <span className="typing-dot" style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--accent)", display: "inline-block" }} />
@@ -775,7 +993,7 @@ function PlaygroundInner() {
                 </div>
                 {msg.reasoningContent && msg.reasoningContent !== msg.content && (
                   <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-elevated)", fontSize: 12.5, lineHeight: 1.65, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
-                    {msg.reasoningContent}
+                    <MarkdownBlock text={msg.reasoningContent} compact />
                   </div>
                 )}
                 {msg.type === "image" && msg.mediaUrl && msg.status === "done" && (
