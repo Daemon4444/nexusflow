@@ -1,0 +1,503 @@
+{
+  "summary": {
+    "baseUrl": "http://127.0.0.1:3001",
+    "mediaMode": "sample",
+    "reportPath": "/root/distiny/ai-router-platform/backend/reports/smoke-latest.json",
+    "total": 62,
+    "passed": 59,
+    "failed": 0,
+    "skipped": 3,
+    "failedItems": [],
+    "generatedAt": "2026-04-25T05:42:49.234Z"
+  },
+  "results": [
+    {
+      "name": "health",
+      "durationMs": 39,
+      "status": "passed",
+      "route": "/api/health",
+      "detail": "2026-04-25T05:41:20.881Z"
+    },
+    {
+      "name": "models-list",
+      "durationMs": 6,
+      "status": "passed",
+      "route": "/v1/models",
+      "detail": "54 models"
+    },
+    {
+      "name": "contract-chat-reject-image",
+      "durationMs": 6,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "detail": "status=400"
+    },
+    {
+      "name": "contract-tasks-reject-chat",
+      "durationMs": 14,
+      "status": "passed",
+      "route": "/v1/tasks",
+      "detail": "status=400"
+    },
+    {
+      "name": "contract-embeddings-reject-chat",
+      "durationMs": 5,
+      "status": "passed",
+      "route": "/v1/embeddings",
+      "detail": "status=400"
+    },
+    {
+      "name": "chat-qwen3-max",
+      "durationMs": 738,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-max",
+      "detail": "usage=17"
+    },
+    {
+      "name": "chat-qwen3.5-plus",
+      "durationMs": 5144,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3.5-plus",
+      "detail": "usage=264"
+    },
+    {
+      "name": "chat-qwen3.5-flash",
+      "durationMs": 2431,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3.5-flash",
+      "detail": "usage=236"
+    },
+    {
+      "name": "chat-qwen-plus",
+      "durationMs": 461,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen-plus",
+      "detail": "usage=17"
+    },
+    {
+      "name": "chat-qwen-turbo",
+      "durationMs": 331,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen-turbo",
+      "detail": "usage=21"
+    },
+    {
+      "name": "chat-qwen-max",
+      "durationMs": 520,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen-max",
+      "detail": "usage=17"
+    },
+    {
+      "name": "chat-qwen-long",
+      "durationMs": 379,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen-long",
+      "detail": "usage=9"
+    },
+    {
+      "name": "chat-qwen3-235b-a22b",
+      "durationMs": 3153,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-235b-a22b",
+      "detail": "usage=119"
+    },
+    {
+      "name": "chat-qwen3-32b",
+      "durationMs": 299,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-32b",
+      "detail": "usage=21"
+    },
+    {
+      "name": "chat-qwq-plus",
+      "durationMs": 2310,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwq-plus",
+      "detail": "usage=n/a"
+    },
+    {
+      "name": "chat-qwen-vl-max",
+      "durationMs": 451,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen-vl-max",
+      "detail": "usage=17"
+    },
+    {
+      "name": "chat-qwen-vl-plus",
+      "durationMs": 264,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen-vl-plus",
+      "detail": "usage=18"
+    },
+    {
+      "name": "chat-qwen3-vl-plus",
+      "durationMs": 531,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-vl-plus",
+      "detail": "usage=18"
+    },
+    {
+      "name": "chat-qwen3-vl-flash",
+      "durationMs": 306,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-vl-flash",
+      "detail": "usage=17"
+    },
+    {
+      "name": "chat-qwen3-omni-flash",
+      "durationMs": 180,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-omni-flash",
+      "detail": "usage=16"
+    },
+    {
+      "name": "chat-qwen3-coder-plus",
+      "durationMs": 520,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-coder-plus",
+      "detail": "usage=17"
+    },
+    {
+      "name": "chat-qwen3-coder-flash",
+      "durationMs": 178,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-coder-flash",
+      "detail": "usage=16"
+    },
+    {
+      "name": "chat-qwen-math-plus",
+      "durationMs": 430,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen-math-plus",
+      "detail": "usage=16"
+    },
+    {
+      "name": "chat-qwen-mt-plus",
+      "durationMs": 227,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen-mt-plus",
+      "detail": "usage=16"
+    },
+    {
+      "name": "chat-deepseek-v4-pro",
+      "durationMs": 1215,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "deepseek-v4-pro",
+      "detail": "usage=40"
+    },
+    {
+      "name": "chat-deepseek-v4-flash",
+      "durationMs": 589,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "deepseek-v4-flash",
+      "detail": "usage=36"
+    },
+    {
+      "name": "chat-deepseek-v3.2",
+      "durationMs": 756,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "deepseek-v3.2",
+      "detail": "usage=12"
+    },
+    {
+      "name": "chat-deepseek-r1",
+      "durationMs": 1017,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "deepseek-r1",
+      "detail": "usage=26"
+    },
+    {
+      "name": "chat-deepseek-v3",
+      "durationMs": 686,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "deepseek-v3",
+      "detail": "usage=11"
+    },
+    {
+      "name": "chat-glm-4.7",
+      "durationMs": 2738,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "glm-4.7",
+      "detail": "usage=212"
+    },
+    {
+      "name": "chat-glm-5",
+      "durationMs": 2456,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "glm-5",
+      "detail": "usage=97"
+    },
+    {
+      "name": "chat-glm-5.1",
+      "durationMs": 2327,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "glm-5.1",
+      "detail": "usage=80"
+    },
+    {
+      "name": "chat-kimi-k2.5",
+      "durationMs": 816,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "kimi-k2.5",
+      "detail": "usage=19"
+    },
+    {
+      "name": "chat-kimi-k2.6",
+      "durationMs": 2926,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "kimi-k2.6",
+      "detail": "usage=19"
+    },
+    {
+      "name": "chat-MiniMax-M2.1",
+      "durationMs": 1255,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "MiniMax-M2.1",
+      "detail": "usage=95"
+    },
+    {
+      "name": "chat-MiniMax-M2.5",
+      "durationMs": 2597,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "MiniMax-M2.5",
+      "detail": "usage=158"
+    },
+    {
+      "name": "chat-qwen3-8b",
+      "durationMs": 218,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-8b",
+      "detail": "usage=21"
+    },
+    {
+      "name": "stream-qwen3.5-plus",
+      "durationMs": 1362,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3.5-plus",
+      "detail": "12 sse lines"
+    },
+    {
+      "name": "stream-deepseek-v4-flash",
+      "durationMs": 399,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "deepseek-v4-flash",
+      "detail": "8 sse lines"
+    },
+    {
+      "name": "stream-glm-4.7",
+      "durationMs": 642,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "glm-4.7",
+      "detail": "12 sse lines"
+    },
+    {
+      "name": "tools-qwen3-max",
+      "durationMs": 1326,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3-max",
+      "detail": "tools accepted"
+    },
+    {
+      "name": "tools-qwen3.5-plus",
+      "durationMs": 2994,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3.5-plus",
+      "detail": "tools accepted"
+    },
+    {
+      "name": "tools-qwen3.5-flash",
+      "durationMs": 1060,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "qwen3.5-flash",
+      "detail": "tools accepted"
+    },
+    {
+      "name": "chat-advanced-params-deepseek-v4-flash",
+      "durationMs": 1236,
+      "status": "passed",
+      "route": "/v1/chat/completions",
+      "model": "deepseek-v4-flash",
+      "detail": "advanced params accepted"
+    },
+    {
+      "name": "anthropic-deepseek-v4-flash",
+      "durationMs": 435,
+      "status": "passed",
+      "route": "/v1/messages",
+      "model": "deepseek-v4-flash",
+      "detail": "usage=11/25"
+    },
+    {
+      "name": "anthropic-stream-deepseek-v4-flash",
+      "durationMs": 411,
+      "status": "passed",
+      "route": "/v1/messages",
+      "model": "deepseek-v4-flash",
+      "detail": "12 stream lines"
+    },
+    {
+      "name": "gemini-deepseek-v4-flash",
+      "durationMs": 562,
+      "status": "passed",
+      "route": "/v1beta/models/deepseek-v4-flash:generateContent",
+      "model": "deepseek-v4-flash",
+      "detail": "usage=32"
+    },
+    {
+      "name": "gemini-stream-deepseek-v4-flash",
+      "durationMs": 548,
+      "status": "passed",
+      "route": "/v1beta/models/deepseek-v4-flash:streamGenerateContent?alt=sse",
+      "model": "deepseek-v4-flash",
+      "detail": "2 stream lines"
+    },
+    {
+      "name": "embedding-text-embedding-v3",
+      "durationMs": 81,
+      "status": "passed",
+      "route": "/v1/embeddings",
+      "model": "text-embedding-v3",
+      "detail": "dim=1024"
+    },
+    {
+      "name": "embedding-params-text-embedding-v3",
+      "durationMs": 124,
+      "status": "passed",
+      "route": "/v1/embeddings",
+      "model": "text-embedding-v3",
+      "detail": "array input accepted"
+    },
+    {
+      "name": "openai-image-wan2.2-t2i-flash",
+      "durationMs": 7870,
+      "status": "passed",
+      "route": "/v1/images/generations",
+      "model": "wan2.2-t2i-flash",
+      "detail": "returned image url"
+    },
+    {
+      "name": "task-image-wan2.2-t2i-flash",
+      "durationMs": 176,
+      "status": "passed",
+      "route": "/v1/tasks",
+      "model": "wan2.2-t2i-flash",
+      "detail": "task=pending"
+    },
+    {
+      "name": "task-style-repaint",
+      "durationMs": 9679,
+      "status": "passed",
+      "route": "/v1/tasks",
+      "model": "wanx-style-repaint",
+      "detail": "task=pending"
+    },
+    {
+      "name": "task-background-generation",
+      "durationMs": 9950,
+      "status": "passed",
+      "route": "/v1/tasks",
+      "model": "wanx-background-generation",
+      "detail": "task=pending"
+    },
+    {
+      "name": "task-video-wan2.2-t2v-plus",
+      "durationMs": 250,
+      "status": "passed",
+      "route": "/v1/tasks",
+      "model": "wan2.2-t2v-plus",
+      "detail": "task=pending"
+    },
+    {
+      "name": "task-video-wan2.6-i2v-flash",
+      "durationMs": 9941,
+      "status": "passed",
+      "route": "/v1/tasks",
+      "model": "wan2.6-i2v-flash",
+      "detail": "task=running"
+    },
+    {
+      "name": "playground-chat-deepseek-v4-flash",
+      "durationMs": 415,
+      "status": "passed",
+      "route": "/api/chat/completions",
+      "model": "deepseek-v4-flash",
+      "detail": "playground chat ok"
+    },
+    {
+      "name": "playground-image-wan2.2-t2i-flash",
+      "durationMs": 182,
+      "status": "passed",
+      "route": "/api/image/generate",
+      "model": "wan2.2-t2i-flash",
+      "detail": "status=PENDING"
+    },
+    {
+      "name": "playground-video-wan2.2-t2v-plus",
+      "durationMs": 223,
+      "status": "passed",
+      "route": "/api/video/generate",
+      "model": "wan2.2-t2v-plus",
+      "detail": "status=pending"
+    },
+    {
+      "name": "audio-skip-qwen-audio-turbo",
+      "status": "skipped",
+      "durationMs": 0,
+      "model": "qwen-audio-turbo",
+      "detail": "No public /v1/audio route is implemented in the current platform."
+    },
+    {
+      "name": "audio-skip-cosyvoice-v2",
+      "status": "skipped",
+      "durationMs": 0,
+      "model": "cosyvoice-v2",
+      "detail": "No public /v1/audio route is implemented in the current platform."
+    },
+    {
+      "name": "audio-skip-paraformer-v2",
+      "status": "skipped",
+      "durationMs": 0,
+      "model": "paraformer-v2",
+      "detail": "No public /v1/audio route is implemented in the current platform."
+    }
+  ]
+}
