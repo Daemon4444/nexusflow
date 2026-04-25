@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { fetchAPI } from "@/lib/api";
 
 interface AIModel { id: string; name: string; provider: string; category: string; promptPrice: number; completionPrice: number; tags?: string[]; }
-interface Message { role: "user" | "assistant" | "system"; content: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
+interface Message { role: "user" | "assistant" | "system"; content: string; reasoningContent?: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
 interface UsageInfo { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost: string; }
 type ModelMode = "chat" | "image" | "video";
 
@@ -79,7 +79,7 @@ function PlaygroundInner() {
     if (!input.trim() || sending) return;
 
     const userMsg: Message = { role: "user", content: input.trim(), type: "text" };
-    const assistantMsg: Message = { role: "assistant", content: "", type: "text", isStreaming: true };
+    const assistantMsg: Message = { role: "assistant", content: "", reasoningContent: "", type: "text", isStreaming: true };
 
     setMessages((p) => [...p, userMsg, assistantMsg]);
     setInput("");
@@ -136,6 +136,7 @@ function PlaygroundInner() {
       const decoder = new TextDecoder();
       let buffer = "";
       let fullContent = "";
+      let fullReasoning = "";
       let tokenCount = 0;
 
       if (reader) {
@@ -152,13 +153,14 @@ function PlaygroundInner() {
           for (const line of lines) {
             if (line.startsWith("data: ")) {
               const data = line.slice(6).trim();
-              if (data === "[DONE]") {
-                // 流结束
-                updateLastMessage({
-                  content: fullContent,
-                  isStreaming: false,
-                  status: "done",
-                });
+                if (data === "[DONE]") {
+                  // 流结束
+                  updateLastMessage({
+                    content: fullContent || fullReasoning || "[空响应]",
+                    reasoningContent: fullReasoning,
+                    isStreaming: false,
+                    status: "done",
+                  });
                 setSending(false);
                 return;
               }
@@ -166,12 +168,21 @@ function PlaygroundInner() {
               try {
                 const json = JSON.parse(data);
                 const delta = json.choices?.[0]?.delta?.content;
+                const reasoningDelta = json.choices?.[0]?.delta?.reasoning_content;
                 if (delta) {
                   fullContent += delta;
                   tokenCount++;
                   // 实时更新消息
                   updateLastMessage({
                     content: fullContent,
+                    isStreaming: true,
+                  });
+                }
+                if (reasoningDelta) {
+                  fullReasoning += reasoningDelta;
+                  updateLastMessage({
+                    reasoningContent: fullReasoning,
+                    content: fullContent || fullReasoning,
                     isStreaming: true,
                   });
                 }
@@ -195,7 +206,8 @@ function PlaygroundInner() {
 
       // 流结束
       updateLastMessage({
-        content: fullContent,
+        content: fullContent || fullReasoning || "[空响应]",
+        reasoningContent: fullReasoning,
         isStreaming: false,
         status: "done",
       });
@@ -268,7 +280,8 @@ function PlaygroundInner() {
       if (res.ok && data.choices) {
         setMessages((p) => [...p, {
           role: "assistant",
-          content: data.choices[0].message.content,
+          content: data.choices[0].message.content || data.choices[0].message.reasoning_content || "[空响应]",
+          reasoningContent: data.choices[0].message.reasoning_content || "",
           type: "text",
           status: "done",
         }]);
@@ -760,6 +773,11 @@ function PlaygroundInner() {
                     </span>
                   )}
                 </div>
+                {msg.reasoningContent && msg.reasoningContent !== msg.content && (
+                  <div style={{ marginTop: 8, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-elevated)", fontSize: 12.5, lineHeight: 1.65, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                    {msg.reasoningContent}
+                  </div>
+                )}
                 {msg.type === "image" && msg.mediaUrl && msg.status === "done" && (
                   <img src={msg.mediaUrl} alt="Generated" style={{ marginTop: 10, maxWidth: "100%", maxHeight: 360, borderRadius: 8, border: "1px solid var(--border)" }} />
                 )}
