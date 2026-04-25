@@ -170,7 +170,7 @@ NEXT_PUBLIC_API_URL=http://8.152.221.32:3001             # 后端 API 地址（�
 
 当前配置 27 个模型，数据定义在 `backend/src/data/models.ts`：
 
-**大语言模型**: qwen3-max, qwen-plus, qwen-turbo, qwen-max, qwen-long, qwen-flash, qwen3-235b-a22b, qwen3-32b, deepseek-v3.2, deepseek-v3, glm-4.7, kimi-k2.5, MiniMax-M2.1
+**大语言模型**: qwen3-max, qwen3.6-max-preview, qwen3.6-plus, qwen3.5-plus, qwen3.5-flash, qwen-plus, qwen-turbo, qwen-long, qwen-flash, qwen3-235b-a22b, qwen3-32b, deepseek-v3.2, deepseek-v3, glm-4.7, kimi-k2.5, MiniMax-M2.1
 
 **推理模型**: qwq-plus, qvq-max, deepseek-r1
 

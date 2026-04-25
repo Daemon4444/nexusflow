@@ -16,12 +16,12 @@ const tabs: { key: TabKey; label: string }[] = [
 
 const modelsByTab: Record<TabKey, { id: string; name: string; ctx: string; input: string; output: string; tags: string[] }[]> = {
   chat: [
-    { id: "qwen3-max", name: "Qwen3 Max", ctx: "262K", input: "¥2.5/M", output: "¥10/M", tags: ["旗舰", "思考模式"] },
+    { id: "qwen3.6-max-preview", name: "Qwen3.6 Max Preview", ctx: "256K", input: "¥9.742/M", output: "¥58.455/M", tags: ["旗舰", "思考模式"] },
+    { id: "qwen3.6-plus", name: "Qwen3.6 Plus", ctx: "1M", input: "¥3.7471/M", output: "¥22.4826/M", tags: ["百万上下文", "推荐"] },
     { id: "qwen3.5-plus", name: "Qwen3.5 Plus", ctx: "1M", input: "¥0.8/M", output: "¥4.8/M", tags: ["百万上下文", "推荐"] },
     { id: "qwen3.5-flash", name: "Qwen3.5 Flash", ctx: "1M", input: "¥0.2/M", output: "¥2/M", tags: ["极速", "低成本"] },
     { id: "qwen-plus", name: "Qwen Plus", ctx: "131K", input: "¥0.8/M", output: "¥2/M", tags: ["高性价比"] },
     { id: "qwen-turbo", name: "Qwen Turbo", ctx: "131K", input: "¥0.3/M", output: "¥0.6/M", tags: ["快速"] },
-    { id: "qwen-max", name: "Qwen Max", ctx: "32K", input: "¥2/M", output: "¥6/M", tags: ["旗舰"] },
     { id: "qwen-long", name: "Qwen Long", ctx: "10M", input: "¥0.5/M", output: "¥2/M", tags: ["超长上下文"] },
     { id: "qwen3-235b-a22b", name: "Qwen3 235B", ctx: "131K", input: "¥1/M", output: "¥4/M", tags: ["开源", "MoE"] },
     { id: "qwen3-32b", name: "Qwen3 32B", ctx: "131K", input: "¥0.5/M", output: "¥2/M", tags: ["开源"] },

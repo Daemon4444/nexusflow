@@ -4,14 +4,27 @@ import Link from "next/link";
 
 const qwenModels = [
   {
-    id: "qwen3.5-max",
-    name: "Qwen3.5 Max",
-    desc: "通义千问旗舰模型，千亿参数规模，支持百万级上下文窗口。在中文理解、长文本处理方面表现卓越。",
+    id: "qwen3.6-max-preview",
+    name: "Qwen3.6 Max Preview",
+    desc: "Qwen3.6 系列最强预览模型，适合复杂推理、多步骤代码生成和工具型任务。",
+    ctx: "256,000",
+    maxOutput: "64,000",
+    inputPrice: "¥9.742",
+    outputPrice: "¥58.455",
+    tags: ["旗舰", "思考模式"],
+    features: ["函数调用", "复杂推理", "代码生成"],
+    isNew: true,
+    isFeatured: true,
+  },
+  {
+    id: "qwen3.6-plus",
+    name: "Qwen3.6 Plus",
+    desc: "均衡旗舰模型，支持百万级上下文窗口、函数调用与内置工具，适合大多数生产场景。",
     ctx: "1,000,000",
-    maxOutput: "8,000",
-    inputPrice: "¥12",
-    outputPrice: "¥24",
-    tags: ["旗舰", "长文本"],
+    maxOutput: "64,000",
+    inputPrice: "¥3.7471",
+    outputPrice: "¥22.4826",
+    tags: ["推荐", "均衡"],
     features: ["图像理解", "函数调用", "代码生成", "百万上下文"],
     isNew: true,
     isFeatured: true,
@@ -20,39 +33,26 @@ const qwenModels = [
     id: "qwen3.5-plus",
     name: "Qwen3.5 Plus",
     desc: "均衡性能模型，适合大多数生产场景。中文能力优秀，响应速度快。",
-    ctx: "128,000",
-    maxOutput: "8,000",
-    inputPrice: "¥4",
-    outputPrice: "¥12",
+    ctx: "1,000,000",
+    maxOutput: "64,000",
+    inputPrice: "¥2.936",
+    outputPrice: "¥17.614",
     tags: ["推荐", "均衡"],
     features: ["图像理解", "函数调用", "代码生成"],
     isNew: true,
     isFeatured: true,
   },
   {
-    id: "qwen3.5-turbo",
-    name: "Qwen3.5 Turbo",
+    id: "qwen3.5-flash",
+    name: "Qwen3.5 Flash",
     desc: "高速响应模型，适合对延迟敏感的场景。性价比高。",
-    ctx: "128,000",
-    maxOutput: "8,000",
-    inputPrice: "¥2",
-    outputPrice: "¥6",
+    ctx: "1,000,000",
+    maxOutput: "64,000",
+    inputPrice: "¥0.2",
+    outputPrice: "¥2",
     tags: ["快速", "经济"],
-    features: ["函数调用"],
+    features: ["函数调用", "低成本"],
     isNew: false,
-    isFeatured: false,
-  },
-  {
-    id: "qwen-coder-plus",
-    name: "Qwen Coder Plus",
-    desc: "专注代码生成的模型，支持多种编程语言，代码补全和解释能力强。",
-    ctx: "128,000",
-    maxOutput: "8,000",
-    inputPrice: "¥5",
-    outputPrice: "¥10",
-    tags: ["编程专用"],
-    features: ["代码补全", "多语言支持"],
-    isNew: true,
     isFeatured: false,
   },
 ];
@@ -86,8 +86,8 @@ export default function QwenModelsPage() {
           </div>
         </div>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 700 }}>
-          通义千问是阿里云自研的大语言模型，在中文理解和生成方面表现优异，
-          支持超长上下文窗口，适合长文档处理、知识问答等场景。
+          通义千问是阿里云自研的大语言模型。当前这里优先展示 Qwen3.6 与 Qwen3.5 系列，
+          它们覆盖长文本、函数调用、代码生成和复杂推理等常见生产场景。
         </p>
       </div>
 
@@ -210,7 +210,7 @@ client = OpenAI(
 
 # 使用通义千问处理长文本
 response = client.chat.completions.create(
-    model="qwen3.5-max",
+    model="qwen3.6-plus",
     messages=[
         {"role": "system", "content": "你是一个专业的文档分析助手。"},
         {"role": "user", "content": "请总结以下长文档的主要内容...（此处可输入超长文本）"}

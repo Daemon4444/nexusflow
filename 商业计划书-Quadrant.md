@@ -644,16 +644,17 @@ Quadrant 采用 **"API 调用加价 + 增值服务"** 的商业模式：
 | # | 模型 ID | 模型名称 | 供应商 | 类别 | 输入价格 (元/1M tokens) | 输出价格 (元/1M tokens) |
 |---|---------|----------|--------|------|----------------------|----------------------|
 | 1 | qwen3-max | Qwen3 Max | 通义千问 | 大语言模型 | 2.5 | 10 |
-| 2 | qwen3.5-plus | Qwen3.5 Plus | 通义千问 | 大语言模型 | 0.8 | 4.8 |
-| 3 | qwen3.5-flash | Qwen3.5 Flash | 通义千问 | 大语言模型 | 0.2 | 2 |
-| 4 | qwen-plus | Qwen Plus | 通义千问 | 大语言模型 | 0.8 | 2 |
-| 5 | qwen-turbo | Qwen Turbo | 通义千问 | 大语言模型 | 0.3 | 0.6 |
-| 6 | qwen-max | Qwen Max | 通义千问 | 大语言模型 | 2 | 6 |
-| 7 | qwen-long | Qwen Long | 通义千问 | 大语言模型 | 0.5 | 2 |
-| 8 | qwen3-235b-a22b | Qwen3 235B-A22B | 通义千问 | 大语言模型 | 1 | 4 |
-| 9 | qwen3-32b | Qwen3 32B | 通义千问 | 大语言模型 | 0.5 | 2 |
-| 10 | deepseek-v3.2 | DeepSeek V3.2 | DeepSeek | 大语言模型 | 1 | 4 |
-| 11 | deepseek-v3 | DeepSeek V3 | DeepSeek | 大语言模型 | 0.5 | 2 |
+| 2 | qwen3.6-max-preview | Qwen3.6 Max Preview | 通义千问 | 大语言模型 | 9.742 | 58.455 |
+| 3 | qwen3.6-plus | Qwen3.6 Plus | 通义千问 | 大语言模型 | 3.7471 | 22.4826 |
+| 4 | qwen3.5-plus | Qwen3.5 Plus | 通义千问 | 大语言模型 | 0.8 | 4.8 |
+| 5 | qwen3.5-flash | Qwen3.5 Flash | 通义千问 | 大语言模型 | 0.2 | 2 |
+| 6 | qwen-plus | Qwen Plus | 通义千问 | 大语言模型 | 0.8 | 2 |
+| 7 | qwen-turbo | Qwen Turbo | 通义千问 | 大语言模型 | 0.3 | 0.6 |
+| 8 | qwen-long | Qwen Long | 通义千问 | 大语言模型 | 0.5 | 2 |
+| 9 | qwen3-235b-a22b | Qwen3 235B-A22B | 通义千问 | 大语言模型 | 1 | 4 |
+| 10 | qwen3-32b | Qwen3 32B | 通义千问 | 大语言模型 | 0.5 | 2 |
+| 11 | deepseek-v3.2 | DeepSeek V3.2 | DeepSeek | 大语言模型 | 1 | 4 |
+| 12 | deepseek-v3 | DeepSeek V3 | DeepSeek | 大语言模型 | 0.5 | 2 |
 | 12 | glm-4.7 | GLM 4.7 | 智谱AI | 大语言模型 | 1 | 4 |
 | 13 | kimi-k2.5 | Kimi K2.5 | 月之暗面 | 大语言模型 | 1 | 4 |
 | 14 | MiniMax-M2.1 | MiniMax M2.1 | MiniMax | 大语言模型 | 1 | 4 |

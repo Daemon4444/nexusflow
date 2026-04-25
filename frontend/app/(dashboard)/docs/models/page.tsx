@@ -6,9 +6,9 @@ const modelCategories = [
   {
     name: "通义千问系列",
     provider: "阿里云",
-    desc: "阿里云自研大模型，中文能力优秀，支持超长上下文",
+    desc: "阿里云自研大模型，当前重点展示 Qwen3.6 与 Qwen3.5 系列，中文能力优秀，支持超长上下文",
     href: "/docs/models/qwen",
-    models: ["Qwen3.5 Max", "Qwen3.5 Plus", "Qwen3.5 Turbo"],
+    models: ["Qwen3.6 Max Preview", "Qwen3.6 Plus", "Qwen3.5 Plus", "Qwen3.5 Flash"],
     color: "#7c3aed",
     tag: null,
   },
@@ -42,9 +42,10 @@ const modelCategories = [
 ];
 
 const pricingTable = [
-  { model: "qwen3-max", ctx: "262K", input: "¥2.5", output: "¥10", category: "旗舰" },
-  { model: "qwen3.5-max", ctx: "1M", input: "¥12", output: "¥24", category: "旗舰" },
-  { model: "qwen3.5-plus", ctx: "128K", input: "¥4", output: "¥12", category: "均衡" },
+  { model: "qwen3.6-max-preview", ctx: "256K", input: "¥9.742", output: "¥58.455", category: "旗舰" },
+  { model: "qwen3.6-plus", ctx: "1M", input: "¥3.7471", output: "¥22.4826", category: "均衡" },
+  { model: "qwen3.5-plus", ctx: "1M", input: "¥2.936", output: "¥17.614", category: "均衡" },
+  { model: "qwen3.5-flash", ctx: "1M", input: "¥0.2", output: "¥2", category: "极速" },
   { model: "deepseek-v4-pro", ctx: "131K", input: "¥4", output: "¥16", category: "推理旗舰" },
   { model: "deepseek-v4-flash", ctx: "131K", input: "¥1", output: "¥4", category: "高速" },
   { model: "deepseek-r1", ctx: "64K", input: "¥4", output: "¥16", category: "推理" },

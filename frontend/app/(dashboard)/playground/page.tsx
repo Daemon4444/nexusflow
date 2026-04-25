@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { fetchAPI } from "@/lib/api";
 
-interface AIModel { id: string; name: string; provider: string; category: string; promptPrice: number; completionPrice: number; }
+interface AIModel { id: string; name: string; provider: string; category: string; promptPrice: number; completionPrice: number; tags?: string[]; }
 interface Message { role: "user" | "assistant" | "system"; content: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
 interface UsageInfo { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost: string; }
 type ModelMode = "chat" | "image" | "video";
 
-export default function PlaygroundPage() {
+function PlaygroundInner() {
+  const searchParams = useSearchParams();
+  const requestedModel = searchParams.get("model") || "";
   const [models, setModels] = useState<AIModel[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
+  const [modelQuery, setModelQuery] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -31,8 +35,19 @@ export default function PlaygroundPage() {
       const res = await fetchAPI("/api/models");
       if (res.success) {
         setModels(res.data);
-        const chatModel = res.data.find((m: AIModel) => m.category === "大语言模型");
-        setSelectedModel(chatModel?.id || res.data[0]?.id || "");
+        const preferredIds = [
+          requestedModel,
+          "deepseek-v4-pro",
+          "qwen3.6-max-preview",
+          "qwen3.6-plus",
+          "deepseek-v4-flash",
+          "qwen3.5-plus",
+          "qwen3-max",
+          "qwen-plus",
+        ].filter(Boolean);
+        const preferred = preferredIds.find((id) => res.data.some((m: AIModel) => m.id === id));
+        const fallback = res.data.find((m: AIModel) => m.category === "大语言模型") || res.data[0];
+        setSelectedModel(preferred || fallback?.id || "");
       }
     }
     loadModels();
@@ -43,7 +58,7 @@ export default function PlaygroundPage() {
       if (pollingRef.current) clearInterval(pollingRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, []);
+  }, [requestedModel]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -481,6 +496,32 @@ export default function PlaygroundPage() {
   // ============================================================
 
   const currentModel = models.find((m) => m.id === selectedModel);
+  const visibleModels = useMemo(() => {
+    const preferredOrder = [
+      requestedModel,
+      "deepseek-v4-pro",
+      "qwen3.6-max-preview",
+      "qwen3.6-plus",
+      "deepseek-v4-flash",
+      "qwen3.5-plus",
+      "qwen3-max",
+      "qwen-plus",
+    ];
+    const query = modelQuery.trim().toLowerCase();
+    return [...models]
+      .filter((model) => {
+        if (!query) return true;
+        return [model.id, model.name, model.provider, model.category, ...(model.tags || [])]
+          .some((value) => String(value).toLowerCase().includes(query));
+      })
+      .sort((a, b) => {
+        const ai = preferredOrder.indexOf(a.id);
+        const bi = preferredOrder.indexOf(b.id);
+        const ar = ai === -1 ? preferredOrder.length : ai;
+        const br = bi === -1 ? preferredOrder.length : bi;
+        return ar - br || a.category.localeCompare(b.category, "zh-Hans-CN") || a.name.localeCompare(b.name, "zh-Hans-CN");
+      });
+  }, [models, modelQuery, requestedModel]);
   const modeConfig = {
     chat: { label: "文本对话", color: "var(--success)", bg: "var(--success-bg)", border: "var(--success-border)" },
     image: { label: "图片生成", color: "var(--warning)", bg: "var(--warning-bg)", border: "var(--warning-border)" },
@@ -496,31 +537,41 @@ export default function PlaygroundPage() {
     <div style={{ display: "flex", height: "calc(100vh - 56px)", fontFamily: "var(--font-sans)" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {/* Top bar */}
-        <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg)", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Playground</h1>
-            <div style={{ width: 1, height: 14, background: "var(--border)" }} />
-            <select className="select" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} style={{ minWidth: 200, fontSize: 13 }}>
-              {["大语言模型", "推理模型", "多模态模型", "编程模型", "图像生成", "视频生成"].map(cat => (
-                <optgroup key={cat} label={cat}>
-                  {models.filter(m => m.category === cat).map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            <span style={{
-              padding: "3px 9px",
-              borderRadius: 5,
-              fontSize: 11.5,
-              fontWeight: 600,
-              background: modeConfig[mode].bg,
-              color: modeConfig[mode].color,
-              border: `1px solid ${modeConfig[mode].border}`,
-            }}>
-              {modeConfig[mode].label}
-            </span>
-          </div>
+        <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <h1 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Playground</h1>
+              <div style={{ width: 1, height: 14, background: "var(--border)" }} />
+              <span style={{
+                padding: "3px 9px",
+                borderRadius: 5,
+                fontSize: 11.5,
+                fontWeight: 600,
+                background: modeConfig[mode].bg,
+                color: modeConfig[mode].color,
+                border: `1px solid ${modeConfig[mode].border}`,
+              }}>
+                {modeConfig[mode].label}
+              </span>
+              <span
+                title={currentModel?.id || ""}
+                style={{
+                  maxWidth: 320,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  padding: "3px 9px",
+                  borderRadius: 5,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  background: "var(--bg-elevated)",
+                  color: "var(--text-secondary)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                {currentModel?.name || "未选择模型"}
+              </span>
+            </div>
           <div style={{ display: "flex", gap: 7 }}>
             <button
               className={apiKey ? "btn-secondary" : "btn-danger"}
@@ -551,6 +602,64 @@ export default function PlaygroundPage() {
             <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={clearChat}>
               清空
             </button>
+          </div>
+          </div>
+        </div>
+
+        <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <input
+              className="input"
+              value={modelQuery}
+              onChange={(e) => setModelQuery(e.target.value)}
+              placeholder="搜索模型、供应商、分类或标签"
+              style={{ flex: 1, fontSize: 13 }}
+            />
+            <span style={{ fontSize: 12, color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>
+              {visibleModels.length} / {models.length}
+            </span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 8, maxHeight: 132, overflow: "auto", paddingRight: 2 }}>
+            {visibleModels.map((model) => {
+              const active = model.id === selectedModel;
+              return (
+                <button
+                  key={model.id}
+                  type="button"
+                  onClick={() => setSelectedModel(model.id)}
+                  style={{
+                    textAlign: "left",
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    border: active ? "1px solid var(--accent)" : "1px solid var(--border)",
+                    background: active ? "var(--accent-bg)" : "var(--bg)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {model.name}
+                    </div>
+                    {model.id === requestedModel && (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "var(--success-bg)", color: "var(--success)" }}>
+                        来源
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {model.provider} · {model.category}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 4, background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                      {model.id}
+                    </span>
+                    <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 4, background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                      {model.promptPrice}/M
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -680,5 +789,13 @@ export default function PlaygroundPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PlaygroundPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 24 }}>Loading...</div>}>
+      <PlaygroundInner />
+    </Suspense>
   );
 }

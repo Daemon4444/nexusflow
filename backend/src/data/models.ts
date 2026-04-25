@@ -32,6 +32,36 @@ export const models: AIModel[] = [
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
+    id: "qwen3.6-max-preview",
+    name: "Qwen3.6 Max Preview",
+    provider: "通义千问",
+    description: "通义千问3.6代最强预览模型，面向复杂推理、代码生成和多步骤工具任务，适合需要更强思考能力的场景。",
+    contextLength: 262144,
+    promptPrice: 9.742,
+    completionPrice: 58.455,
+    category: "大语言模型",
+    tags: ["旗舰", "推理", "预览版"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 65536,
+    supported: ["文本", "函数调用", "思考模式"]
+  },
+  {
+    id: "qwen3.6-plus",
+    name: "Qwen3.6 Plus",
+    provider: "通义千问",
+    description: "通义千问3.6代均衡旗舰模型，支持百万级上下文、函数调用和内置工具，适合大型代码库与通用生产场景。",
+    contextLength: 1000000,
+    promptPrice: 3.7471,
+    completionPrice: 22.4826,
+    category: "大语言模型",
+    tags: ["高性价比", "均衡", "百万上下文"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 65536,
+    supported: ["文本", "函数调用", "内置工具", "思考模式"]
+  },
+  {
     id: "qwen3.5-plus",
     name: "Qwen3.5 Plus",
     provider: "通义千问",
@@ -85,19 +115,6 @@ export const models: AIModel[] = [
     category: "大语言模型",
     tags: ["快速", "低成本", "通用"],
     maxOutput: 16384,
-    supported: ["文本", "函数调用"]
-  },
-  {
-    id: "qwen-max",
-    name: "Qwen Max",
-    provider: "通义千问",
-    description: "通义千问2.5代旗舰模型，综合能力强劲，适合复杂任务处理。",
-    contextLength: 32768,
-    promptPrice: 2,
-    completionPrice: 6,
-    category: "大语言模型",
-    tags: ["旗舰", "推理", "编程"],
-    maxOutput: 8192,
     supported: ["文本", "函数调用"]
   },
   {

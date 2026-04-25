@@ -20,7 +20,7 @@ const endpoints: ApiEndpoint[] = [
     desc: "对话补全接口，支持多轮对话、流式输出、函数调用等",
     href: "/docs/api/chat",
     params: [
-      { name: "model", type: "string", required: true, desc: "模型 ID，如 qwen3.5-plus" },
+      { name: "model", type: "string", required: true, desc: "模型 ID，如 qwen3.6-plus" },
       { name: "messages", type: "array", required: true, desc: "对话消息数组" },
       { name: "stream", type: "boolean", required: false, desc: "是否启用流式响应" },
       { name: "temperature", type: "number", required: false, desc: "采样温度 0-2" },
@@ -30,7 +30,7 @@ const endpoints: ApiEndpoint[] = [
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "qwen3.5-plus",
+    "model": "qwen3.6-plus",
     "messages": [{"role": "user", "content": "你好！"}],
     "stream": false
   }'`,
@@ -43,7 +43,7 @@ const endpoints: ApiEndpoint[] = [
     responseExample: `{
   "object": "list",
   "data": [
-    {"id": "qwen3.5-plus", "object": "model", "owned_by": "通义千问"},
+    {"id": "qwen3.6-plus", "object": "model", "owned_by": "通义千问"},
     {"id": "deepseek-r1", "object": "model", "owned_by": "DeepSeek"}
   ]
 }`,
