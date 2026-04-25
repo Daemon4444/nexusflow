@@ -73,7 +73,8 @@ app.use("/api/rate-limits", rateLimitsRouter);
 app.use("/api/tickets", ticketsRouter);
 
 // Admin API (requires authentication)
-import { getAllUsers, validateSession } from "./data/users";
+import { validateSession } from "./data/users";
+import { getAdminUserLimitSummaries } from "./data/ratelimits";
 app.get("/api/admin/users", (req, res) => {
   const session = getSessionUser(req, res);
   if (!session) {
@@ -83,7 +84,10 @@ app.get("/api/admin/users", (req, res) => {
     res.status(403).json({ success: false, message: "需要管理员权限" });
     return;
   }
-  res.json({ success: true, data: getAllUsers() });
+  res.json({
+    success: true,
+    data: getAdminUserLimitSummaries(),
+  });
 });
 
 // Health check

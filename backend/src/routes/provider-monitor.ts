@@ -34,13 +34,22 @@ router.get("/overview", (_req: Request, res: Response) => {
   const models = getAllProviderModels();
   const capacity = getAllCapacity();
   const health = getAllHealthRecords();
+  const totals = {
+    currentRpm: 0,
+    currentTpm: 0,
+    rpmLimit: 0,
+    tpmLimit: 0,
+    concurrentLimit: 0,
+    modelCount: 0,
+    enabledRoutes: 0,
+  };
 
   const providerCards = providers.map((provider) => {
     const providerModels = models.filter((model) => model.provider_id === provider.id);
     const providerCapacity = capacity.filter((item) => item.provider_id === provider.id);
     const providerHealth = health.filter((item) => item.providerId === provider.id);
 
-    const totals = providerCapacity.reduce((acc, item) => {
+    const providerTotals = providerCapacity.reduce((acc, item) => {
       const usage = getProviderUsageStats(provider.id, item.model_id);
       acc.rpm += usage.rpm;
       acc.tpm += usage.tpm;
@@ -68,8 +77,8 @@ router.get("/overview", (_req: Request, res: Response) => {
       healthSummary.degraded > 0 ? "degraded" :
       "healthy";
 
-    const rpmRatio = totals.rpmLimit > 0 ? totals.rpm / totals.rpmLimit : 0;
-    const tpmRatio = totals.tpmLimit > 0 ? totals.tpm / totals.tpmLimit : 0;
+    const rpmRatio = providerTotals.rpmLimit > 0 ? providerTotals.rpm / providerTotals.rpmLimit : 0;
+    const tpmRatio = providerTotals.tpmLimit > 0 ? providerTotals.tpm / providerTotals.tpmLimit : 0;
     const saturation = Math.max(rpmRatio, tpmRatio);
 
     return {
@@ -78,12 +87,12 @@ router.get("/overview", (_req: Request, res: Response) => {
       status: provider.status,
       health: worstHealth,
       modelCount: providerModels.length,
-      enabledRoutes: totals.enabledRoutes,
-      currentRpm: totals.rpm,
-      rpmLimit: totals.rpmLimit,
-      currentTpm: totals.tpm,
-      tpmLimit: totals.tpmLimit,
-      concurrentLimit: totals.concurrentLimit,
+      enabledRoutes: providerTotals.enabledRoutes,
+      currentRpm: providerTotals.rpm,
+      rpmLimit: providerTotals.rpmLimit,
+      currentTpm: providerTotals.tpm,
+      tpmLimit: providerTotals.tpmLimit,
+      concurrentLimit: providerTotals.concurrentLimit,
       saturationRatio: Number(saturation.toFixed(4)),
       fallbackState: getFallbackState(worstHealth),
       capacityHitRate: Number(Math.min(100, saturation * 100).toFixed(1)),
@@ -126,6 +135,16 @@ router.get("/overview", (_req: Request, res: Response) => {
     });
   }
 
+  for (const card of providerCards) {
+    totals.currentRpm += card.currentRpm;
+    totals.currentTpm += card.currentTpm;
+    totals.rpmLimit += card.rpmLimit;
+    totals.tpmLimit += card.tpmLimit;
+    totals.concurrentLimit += card.concurrentLimit;
+    totals.modelCount += card.modelCount;
+    totals.enabledRoutes += card.enabledRoutes;
+  }
+
   const alerts = providerCards.flatMap((card) => {
     const rows: Array<{ level: "critical" | "warning" | "info"; title: string; detail: string; providerId: string }> = [];
     if (card.health === "down") {
@@ -165,6 +184,13 @@ router.get("/overview", (_req: Request, res: Response) => {
         healthyProviders: providerCards.filter((item) => item.health === "healthy").length,
         degradedProviders: providerCards.filter((item) => item.health === "degraded").length,
         downProviders: providerCards.filter((item) => item.health === "down").length,
+        currentRpm: totals.currentRpm,
+        currentTpm: totals.currentTpm,
+        rpmLimit: totals.rpmLimit,
+        tpmLimit: totals.tpmLimit,
+        concurrentLimit: totals.concurrentLimit,
+        modelCount: totals.modelCount,
+        enabledRoutes: totals.enabledRoutes,
       },
     },
   });

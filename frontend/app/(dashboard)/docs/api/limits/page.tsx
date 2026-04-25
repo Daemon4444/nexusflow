@@ -26,7 +26,7 @@ export default function LimitsPage() {
         限流说明
       </h1>
       <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 40, lineHeight: 1.7 }}>
-        nexusflow 通过 RPM、TPM、异步任务和监控体系控制峰值流量。高并发不是单一数值，而是限流、队列、轮询节奏和模型延迟的组合。
+        nexusflow 通过 RPM、TPM、审批流、异步任务和监控体系控制峰值流量。高并发不是单一数值，而是限流、队列、轮询节奏和模型延迟的组合。
       </p>
 
       <section style={{ marginBottom: 40 }}>

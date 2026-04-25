@@ -362,6 +362,27 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_user_rate_limits_user ON user_rate_limits(user_id);
 `);
 
+// ========== 限额申请表 ==========
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rate_limit_requests (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    model TEXT NOT NULL DEFAULT '*',
+    requested_qpm INTEGER NOT NULL,
+    requested_tpm INTEGER NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    admin_reply TEXT,
+    reviewed_by TEXT,
+    reviewed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_rate_limit_requests_user ON rate_limit_requests(user_id);
+  CREATE INDEX IF NOT EXISTS idx_rate_limit_requests_status ON rate_limit_requests(status);
+`);
+
 // ========== 工单表 ==========
 db.exec(`
   CREATE TABLE IF NOT EXISTS tickets (

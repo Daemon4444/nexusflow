@@ -8,11 +8,55 @@ import { authHeaders } from "@/lib/auth";
 
 interface User {
   id: string;
-  phone: string;
-  email: string;
+  phone: string | null;
+  email: string | null;
   nickname: string;
   balance: number;
   createdAt: string;
+  updatedAt?: string;
+  defaultQpm?: number;
+  defaultTpm?: number;
+  customLimitCount?: number;
+  pendingRequestCount?: number;
+  customLimits?: Array<{
+    id: string;
+    user_id: string;
+    model: string;
+    qpm: number;
+    tpm: number;
+    source: string;
+    created_at: string;
+    updated_at: string;
+  }>;
+  requests?: Array<{
+    id: string;
+    user_id: string;
+    model: string;
+    requested_qpm: number;
+    requested_tpm: number;
+    reason: string;
+    status: string;
+    admin_reply: string | null;
+    reviewed_by: string | null;
+    reviewed_at: string | null;
+    created_at: string;
+    updated_at: string;
+  }>;
+  latestRequest?: {
+    id: string;
+    model: string;
+    status: string;
+    requested_qpm: number;
+    requested_tpm: number;
+    created_at: string;
+  } | null;
+  usage?: {
+    totalRequests: number;
+    totalTokens: number;
+    totalCost: number;
+    avgLatency: number;
+    successRate: number;
+  };
 }
 
 interface Provider {
@@ -59,6 +103,21 @@ interface Ticket {
   requested_tpm: number | null;
   status: string;
   admin_reply: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface RateLimitRequest {
+  id: string;
+  user_id: string;
+  model: string;
+  requested_qpm: number;
+  requested_tpm: number;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  admin_reply: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -129,6 +188,13 @@ interface MonitorOverview {
     healthyProviders: number;
     degradedProviders: number;
     downProviders: number;
+    currentRpm: number;
+    currentTpm: number;
+    rpmLimit: number;
+    tpmLimit: number;
+    concurrentLimit: number;
+    modelCount: number;
+    enabledRoutes: number;
   };
 }
 
@@ -154,7 +220,7 @@ interface ProviderRouteMetrics {
   saturation: number;
 }
 
-type TabKey = "overview" | "users" | "providers" | "models" | "tickets";
+type TabKey = "overview" | "users" | "approvals" | "providers" | "models" | "tickets";
 
 const statusColors: Record<string, string> = {
   draft: "#d97706",
@@ -195,12 +261,22 @@ export default function AdminPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [models, setModels] = useState<Model[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [rateLimitRequests, setRateLimitRequests] = useState<RateLimitRequest[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [usageOverview, setUsageOverview] = useState<{
+    totalRequests: number;
+    totalTokens: number;
+    totalCost: number;
+    activeModels: number;
+    avgLatency: number;
+    successRate: number;
+  } | null>(null);
   const [providerDetail, setProviderDetail] = useState<ProviderDetail | null>(null);
   const [monitorOverview, setMonitorOverview] = useState<MonitorOverview | null>(null);
   const [providerRouteMetrics, setProviderRouteMetrics] = useState<ProviderRouteMetrics[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState("");
   const [providerForm, setProviderForm] = useState({
     name: "",
     description: "",
@@ -229,6 +305,12 @@ export default function AdminPage() {
   }, [providers, selectedProviderId]);
 
   useEffect(() => {
+    if (!selectedUserId && users.length > 0) {
+      setSelectedUserId(users[0].id);
+    }
+  }, [users, selectedUserId]);
+
+  useEffect(() => {
     if (selectedProviderId) {
       loadProviderDetail(selectedProviderId);
     }
@@ -239,19 +321,29 @@ export default function AdminPage() {
     setError("");
     try {
       const headers = authHeaders();
-      const [providersRes, modelsRes, statsRes, usersRes, ticketsRes] = await Promise.all([
+      const [providersRes, modelsRes, statsRes, usersRes, ticketsRes, requestsRes, usageRes] = await Promise.all([
         fetchAPI("/api/provider/admin/providers", { headers }),
         fetchAPI("/api/provider/admin/models", { headers }),
         fetchAPI("/api/provider/admin/stats", { headers }),
         fetchAPI("/api/admin/users", { headers }).catch(() => ({ success: false, data: [] })),
         fetchAPI("/api/tickets/admin/all", { headers }).catch(() => ({ success: false, data: [] })),
+        fetchAPI("/api/rate-limits/admin/requests", { headers }).catch(() => ({ success: false, data: [] })),
+        fetchAPI("/api/usage/overview?scope=all", { headers }).catch(() => ({ success: false })),
       ]);
 
       if (providersRes.success) setProviders(providersRes.data || []);
       if (modelsRes.success) setModels(modelsRes.data || []);
       if (statsRes.success) setStats(statsRes.data || null);
-      if (usersRes.success) setUsers(usersRes.data || []);
+      if (usersRes.success) {
+        setUsers((usersRes.data || []).map((user: any) => ({
+          ...user,
+          createdAt: user.created_at || user.createdAt,
+          updatedAt: user.updated_at || user.updatedAt,
+        })));
+      }
       if (ticketsRes.success) setTickets(ticketsRes.data || []);
+      if (requestsRes.success) setRateLimitRequests(requestsRes.data || []);
+      if (usageRes.success) setUsageOverview(usageRes.data || null);
       const monitorRes = await fetchAPI("/api/provider-monitor/overview", { headers }).catch(() => ({ success: false }));
       if (monitorRes.success) setMonitorOverview(monitorRes.data || null);
 
@@ -346,6 +438,31 @@ export default function AdminPage() {
     if (res.success) loadData();
   }
 
+  async function handleApproveRequest(id: string, request?: RateLimitRequest) {
+    const reply = prompt("审批备注（可留空）", "已批准");
+    const res = await fetchAPI(`/api/rate-limits/admin/requests/${id}/approve`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        reply: reply || "已批准",
+        model: request?.model,
+        qpm: request?.requested_qpm,
+        tpm: request?.requested_tpm,
+      }),
+    });
+    if (res.success) loadData();
+  }
+
+  async function handleRejectRequest(id: string) {
+    const reply = prompt("拒绝原因（可留空）", "暂不通过");
+    const res = await fetchAPI(`/api/rate-limits/admin/requests/${id}/reject`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ reply: reply || "暂不通过" }),
+    });
+    if (res.success) loadData();
+  }
+
   async function handleSaveProvider() {
     if (!selectedProviderId) return;
     setSavingProvider(true);
@@ -420,6 +537,7 @@ export default function AdminPage() {
   const tabs: { key: TabKey; label: string }[] = [
     { key: "overview", label: "总览" },
     { key: "users", label: "用户管理" },
+    { key: "approvals", label: "限额审批" },
     { key: "providers", label: "渠道控制台" },
     { key: "models", label: "模型管理" },
     { key: "tickets", label: "工单中心" },
@@ -429,6 +547,29 @@ export default function AdminPage() {
     () => providers.find((provider) => provider.id === selectedProviderId) || null,
     [providers, selectedProviderId]
   );
+
+  const selectedUser = useMemo(
+    () => users.find((user) => user.id === selectedUserId) || null,
+    [users, selectedUserId]
+  );
+
+  const selectedProviderTotals = useMemo(() => {
+    if (!providerDetail) return null;
+    const routes = providerRouteMetrics;
+    const capacity = providerDetail.capacity;
+    return {
+      modelCount: providerDetail.models.length,
+      enabledRoutes: providerDetail.models.filter((model) => {
+        const current = capacity.find((item) => item.modelId === model.modelId);
+        return current?.isEnabled ?? true;
+      }).length,
+      currentRpm: routes.reduce((sum, route) => sum + (route.currentRpm || 0), 0),
+      currentTpm: routes.reduce((sum, route) => sum + (route.currentTpm || 0), 0),
+      rpmLimit: routes.reduce((sum, route) => sum + (route.rpmLimit || 0), 0),
+      tpmLimit: routes.reduce((sum, route) => sum + (route.tpmLimit || 0), 0),
+      concurrentLimit: capacity.reduce((sum, item) => sum + (item.concurrentLimit || 0), 0),
+    };
+  }, [providerDetail, providerRouteMetrics]);
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "var(--font-sans, system-ui, -apple-system, sans-serif)", background: "#f3f4f6" }}>
@@ -508,6 +649,19 @@ export default function AdminPage() {
                   <>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
                       {[
+                        { label: "全站当前RPM", value: monitorOverview.totals.currentRpm, color: "#2563eb" },
+                        { label: "全站当前TPM", value: monitorOverview.totals.currentTpm, color: "#0f766e" },
+                        { label: "全站总RPM上限", value: monitorOverview.totals.rpmLimit, color: "#7c3aed" },
+                        { label: "全站总TPM上限", value: monitorOverview.totals.tpmLimit, color: "#b45309" },
+                      ].map((item) => (
+                        <div key={item.label} style={{ ...cardStyle, padding: 20 }}>
+                          <div style={{ fontSize: 24, fontWeight: 700, color: item.color, fontVariantNumeric: "tabular-nums" }}>{Number(item.value || 0).toLocaleString()}</div>
+                          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>{item.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
+                      {[
                         { label: "健康渠道", value: monitorOverview.totals.healthyProviders, color: "#10b981" },
                         { label: "降级渠道", value: monitorOverview.totals.degradedProviders, color: "#f59e0b" },
                         { label: "熔断渠道", value: monitorOverview.totals.downProviders, color: "#ef4444" },
@@ -578,36 +732,226 @@ export default function AdminPage() {
               </>
             ) : activeTab === "users" ? (
               <>
-                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>用户管理</h1>
-                <div style={{ ...cardStyle, overflow: "hidden" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: "#f8fafc" }}>
-                        <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid #e5e7eb" }}>账号</th>
-                        <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid #e5e7eb" }}>昵称</th>
-                        <th style={{ padding: "12px 16px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid #e5e7eb" }}>余额</th>
-                        <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid #e5e7eb" }}>注册时间</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>用户管理</h1>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>查看账号、余额、使用量、默认限额和每个模型的覆盖规则</div>
+                  </div>
+                  {usageOverview ? (
+                    <div style={{ display: "flex", gap: 10, fontSize: 12, color: "#4b5563" }}>
+                      <span style={{ padding: "6px 10px", borderRadius: 9999, background: "#f3f4f6" }}>请求 {usageOverview.totalRequests.toLocaleString()}</span>
+                      <span style={{ padding: "6px 10px", borderRadius: 9999, background: "#f3f4f6" }}>Tokens {usageOverview.totalTokens.toLocaleString()}</span>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "minmax(360px, 0.9fr) minmax(420px, 1.1fr)", gap: 16, alignItems: "start" }}>
+                  <div style={{ ...cardStyle, overflow: "hidden" }}>
+                    <div style={{ padding: "14px 16px", borderBottom: "1px solid #e5e7eb", background: "#f8fafc", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
+                      用户列表
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column" }}>
                       {users.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>暂无用户数据</td>
-                        </tr>
-                      ) : users.map((user, index) => (
-                        <tr key={user.id} style={{ background: index % 2 === 0 ? "#fff" : "#fcfcfd" }}>
-                          <td style={{ padding: "10px 16px", borderBottom: "1px solid #f3f4f6" }}>{user.email || user.phone}</td>
-                          <td style={{ padding: "10px 16px", borderBottom: "1px solid #f3f4f6" }}>{user.nickname}</td>
-                          <td style={{ padding: "10px 16px", borderBottom: "1px solid #f3f4f6", textAlign: "right", color: "#10b981", fontWeight: 600 }}>
-                            ¥{Number(user.balance || 0).toFixed(2)}
-                          </td>
-                          <td style={{ padding: "10px 16px", borderBottom: "1px solid #f3f4f6", color: "#6b7280" }}>
-                            {new Date(user.createdAt).toLocaleDateString("zh-CN")}
-                          </td>
-                        </tr>
+                        <div style={{ padding: 36, textAlign: "center", color: "#6b7280" }}>暂无用户数据</div>
+                      ) : users.map((user) => (
+                        <button
+                          key={user.id}
+                          onClick={() => setSelectedUserId(user.id)}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: 14,
+                            border: "none",
+                            borderBottom: "1px solid #f3f4f6",
+                            background: selectedUserId === user.id ? "#eff6ff" : "#fff",
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{user.nickname}</div>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{user.email || user.phone}</div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              <div style={{ fontSize: 12, color: "#10b981", fontWeight: 600 }}>¥{Number(user.balance || 0).toFixed(2)}</div>
+                              <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280" }}>
+                                {user.customLimitCount || 0} 条模型限额
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", fontSize: 11.5, color: "#4b5563" }}>
+                            <span style={{ padding: "4px 8px", borderRadius: 9999, background: "#f3f4f6" }}>默认 QPM {user.defaultQpm?.toLocaleString?.() || "-"}</span>
+                            <span style={{ padding: "4px 8px", borderRadius: 9999, background: "#f3f4f6" }}>默认 TPM {user.defaultTpm?.toLocaleString?.() || "-"}</span>
+                            <span style={{ padding: "4px 8px", borderRadius: 9999, background: "#f3f4f6" }}>申请中 {user.pendingRequestCount || 0}</span>
+                          </div>
+                        </button>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {selectedUser ? (
+                      <>
+                        <div style={{ ...cardStyle, padding: 20 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
+                            <div>
+                              <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0 }}>{selectedUser.nickname}</h2>
+                              <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>{selectedUser.email || selectedUser.phone}</div>
+                              <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>注册于 {new Date(selectedUser.createdAt).toLocaleString("zh-CN")}</div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              <div style={{ fontSize: 26, fontWeight: 700, color: "#10b981" }}>¥{Number(selectedUser.balance || 0).toFixed(2)}</div>
+                              <div style={{ fontSize: 12, color: "#6b7280" }}>账户余额</div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginTop: 18 }}>
+                            {[
+                              { label: "默认 QPM", value: selectedUser.defaultQpm?.toLocaleString?.() || "-" },
+                              { label: "默认 TPM", value: selectedUser.defaultTpm?.toLocaleString?.() || "-" },
+                              { label: "模型限额数", value: selectedUser.customLimitCount || 0 },
+                              { label: "审批中", value: selectedUser.pendingRequestCount || 0 },
+                            ].map((item) => (
+                              <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#f8fafc" }}>
+                                <div style={{ fontSize: 12, color: "#6b7280" }}>{item.label}</div>
+                                <div style={{ marginTop: 6, fontSize: 20, fontWeight: 700, color: "#111827" }}>{item.value}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div style={{ ...cardStyle, padding: 20 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型限流明细</h3>
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>默认限额适用于未单独覆盖的模型</div>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {selectedUser.customLimits && selectedUser.customLimits.length > 0 ? selectedUser.customLimits.map((limit) => (
+                              <div key={limit.id} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                                  <div>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{limit.model}</div>
+                                    <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>来源: {limit.source}</div>
+                                  </div>
+                                  <div style={{ textAlign: "right", fontSize: 12, color: "#111827" }}>
+                                    <div>QPM {limit.qpm.toLocaleString()}</div>
+                                    <div>TPM {limit.tpm.toLocaleString()}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            )) : (
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>当前没有模型级覆盖，默认限额生效。</div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ ...cardStyle, padding: 20 }}>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>使用情况</h3>
+                          {selectedUser.usage ? (
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+                              {[
+                                { label: "请求", value: selectedUser.usage.totalRequests.toLocaleString() },
+                                { label: "Tokens", value: selectedUser.usage.totalTokens.toLocaleString() },
+                                { label: "成本", value: `¥${Number(selectedUser.usage.totalCost || 0).toFixed(4)}` },
+                                { label: "成功率", value: `${Number(selectedUser.usage.successRate || 0).toFixed(1)}%` },
+                              ].map((item) => (
+                                <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff" }}>
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>{item.label}</div>
+                                  <div style={{ marginTop: 6, fontSize: 18, fontWeight: 700, color: "#111827" }}>{item.value}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无使用数据</div>
+                          )}
+                        </div>
+
+                        <div style={{ ...cardStyle, padding: 20 }}>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近申请</h3>
+                          {selectedUser.latestRequest ? (
+                            <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                                <div>
+                                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{selectedUser.latestRequest.model}</div>
+                                  <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                                    QPM {selectedUser.latestRequest.requested_qpm.toLocaleString()} · TPM {selectedUser.latestRequest.requested_tpm.toLocaleString()}
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: 12, color: "#6b7280" }}>{selectedUser.latestRequest.status}</span>
+                              </div>
+                              <div style={{ marginTop: 10, fontSize: 12.5, color: "#4b5563", lineHeight: 1.6 }}>
+                                创建于 {new Date(selectedUser.latestRequest.created_at).toLocaleString("zh-CN")}
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无申请记录</div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>请选择一个用户查看详情</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : activeTab === "approvals" ? (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>限额审批</h1>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>用户直接提交 QPM / TPM 申请，后台在这里批准或拒绝</div>
+                  </div>
+                  <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
+                    刷新
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {rateLimitRequests.length === 0 ? (
+                    <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>暂无限额申请</div>
+                  ) : rateLimitRequests.map((request) => {
+                    const user = users.find((item) => item.id === request.user_id);
+                    return (
+                      <div key={request.id} style={{ ...cardStyle, padding: 18 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{user?.nickname || request.user_id}</span>
+                              <span style={{ fontSize: 12, color: "#6b7280" }}>{user?.email || user?.phone || "未知账号"}</span>
+                              <span style={{ padding: "3px 10px", borderRadius: 9999, fontSize: 12, background: request.status === "pending" ? "#fff7ed" : request.status === "approved" ? "#ecfdf5" : "#fef2f2", color: request.status === "pending" ? "#c2410c" : request.status === "approved" ? "#166534" : "#b91c1c" }}>
+                                {request.status}
+                              </span>
+                            </div>
+                            <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "#4b5563" }}>
+                              <span>模型: {request.model}</span>
+                              <span>QPM: {request.requested_qpm}</span>
+                              <span>TPM: {request.requested_tpm}</span>
+                              <span>创建时间: {new Date(request.created_at).toLocaleString("zh-CN")}</span>
+                            </div>
+                            {request.reason ? (
+                              <div style={{ marginTop: 8, fontSize: 13, color: "#4b5563", lineHeight: 1.6 }}>{request.reason}</div>
+                            ) : null}
+                            {request.admin_reply ? (
+                              <div style={{ marginTop: 10, fontSize: 12.5, color: "#334155", background: "#f8fafc", borderRadius: 8, padding: 10 }}>
+                                审批备注：{request.admin_reply}
+                              </div>
+                            ) : null}
+                          </div>
+                          {request.status === "pending" ? (
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <button onClick={() => handleApproveRequest(request.id, request)} style={{ padding: "8px 14px", border: "none", borderRadius: 8, background: "#10b981", color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
+                                通过
+                              </button>
+                              <button onClick={() => handleRejectRequest(request.id)} style={{ padding: "8px 14px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
+                                拒绝
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </>
             ) : activeTab === "providers" ? (
@@ -621,6 +965,22 @@ export default function AdminPage() {
                     刷新
                   </button>
                 </div>
+
+                {monitorOverview ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
+                    {[
+                      { label: "全站当前RPM", value: monitorOverview.totals.currentRpm, color: "#2563eb" },
+                      { label: "全站当前TPM", value: monitorOverview.totals.currentTpm, color: "#0f766e" },
+                      { label: "全站总RPM上限", value: monitorOverview.totals.rpmLimit, color: "#7c3aed" },
+                      { label: "全站总TPM上限", value: monitorOverview.totals.tpmLimit, color: "#b45309" },
+                    ].map((item) => (
+                      <div key={item.label} style={{ ...cardStyle, padding: 18 }}>
+                        <div style={{ fontSize: 22, fontWeight: 700, color: item.color, fontVariantNumeric: "tabular-nums" }}>{Number(item.value || 0).toLocaleString()}</div>
+                        <div style={{ fontSize: 12.5, color: "#6b7280", marginTop: 4 }}>{item.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
 
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(360px, 0.95fr) minmax(420px, 1.35fr)", gap: 18, alignItems: "start" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -762,6 +1122,28 @@ export default function AdminPage() {
                             </button>
                           </div>
                         </div>
+
+                        {selectedProviderTotals ? (
+                          <div style={{ ...cardStyle, padding: 20 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+                              {[
+                                { label: "模型总数", value: selectedProviderTotals.modelCount },
+                                { label: "启用路由", value: selectedProviderTotals.enabledRoutes },
+                                { label: "当前 RPM", value: selectedProviderTotals.currentRpm.toLocaleString() },
+                                { label: "当前 TPM", value: selectedProviderTotals.currentTpm.toLocaleString() },
+                                { label: "RPM 上限", value: selectedProviderTotals.rpmLimit.toLocaleString() },
+                                { label: "TPM 上限", value: selectedProviderTotals.tpmLimit.toLocaleString() },
+                                { label: "并发上限", value: selectedProviderTotals.concurrentLimit.toLocaleString() },
+                                { label: "容量占用", value: `${selectedProviderTotals.rpmLimit > 0 ? Math.round((selectedProviderTotals.currentRpm / selectedProviderTotals.rpmLimit) * 100) : 0}%` },
+                              ].map((item) => (
+                                <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#f8fafc" }}>
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>{item.label}</div>
+                                  <div style={{ marginTop: 6, fontSize: 18, fontWeight: 700, color: "#111827" }}>{item.value}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
 
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>

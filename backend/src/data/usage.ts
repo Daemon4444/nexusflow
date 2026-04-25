@@ -276,6 +276,28 @@ export function getPerformanceHourly(userId?: string) {
   `).all(...params);
 }
 
+/** 获取单个用户的使用汇总 */
+export function getUsageSummary(userId: string) {
+  const row: any = db.prepare(`
+    SELECT
+      COUNT(*) as totalRequests,
+      COALESCE(SUM(total_tokens), 0) as totalTokens,
+      COALESCE(SUM(cost), 0) as totalCost,
+      COALESCE(AVG(CASE WHEN latency_ms > 0 THEN latency_ms END), 0) as avgLatencyMs,
+      ROUND(CAST(SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1) as successRate
+    FROM usage_logs
+    WHERE user_id = ?
+  `).get(userId);
+
+  return {
+    totalRequests: row.totalRequests || 0,
+    totalTokens: row.totalTokens || 0,
+    totalCost: Number((row.totalCost || 0).toFixed(6)),
+    avgLatency: Math.round((row.avgLatencyMs || 0) / 100) / 10,
+    successRate: row.successRate || 100,
+  };
+}
+
 /** 获取按模型的性能数据 */
 export function getPerformanceByModel(userId?: string) {
   const { params } = whereByUser(userId);

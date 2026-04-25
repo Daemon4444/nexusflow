@@ -1,5 +1,13 @@
 import db from "../db";
 import { v4 as uuid } from "uuid";
+import { getAllUsers } from "./users";
+import { getUsageSummary } from "./usage";
+import {
+  createRateLimitRequest,
+  getRateLimitRequestById,
+  getRateLimitRequests,
+  reviewRateLimitRequest,
+} from "./rate-limit-requests";
 
 const DEFAULT_QPM = 1000;
 const DEFAULT_TPM = 1000000;
@@ -35,15 +43,97 @@ export function getEffectiveRateLimit(userId: string, model: string): { qpm: num
 }
 
 /** Get effective limits for a user across all models (for dashboard display) */
-export function getUserLimitsOverview(userId: string): { defaultQpm: number; defaultTpm: number; customLimits: UserRateLimit[] } {
+export function getUserLimitsOverview(userId: string): {
+  defaultQpm: number;
+  defaultTpm: number;
+  customLimits: UserRateLimit[];
+  requests: any[];
+  pendingRequests: any[];
+  pendingRequestCount: number;
+} {
   const wildcard = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'").get(userId) as UserRateLimit | undefined;
   const customs = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model != '*' ORDER BY model").all(userId) as UserRateLimit[];
+  const requests = getRateLimitRequests(userId);
 
   return {
     defaultQpm: wildcard?.qpm ?? DEFAULT_QPM,
     defaultTpm: wildcard?.tpm ?? DEFAULT_TPM,
     customLimits: customs,
+    requests,
+    pendingRequests: requests.filter((item) => item.status === "pending"),
+    pendingRequestCount: requests.filter((item) => item.status === "pending").length,
   };
+}
+
+export function getAdminUserLimitSummaries() {
+  return getAllUsers().map((user) => {
+    const wildcard = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'").get(user.id) as UserRateLimit | undefined;
+    const customs = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model != '*' ORDER BY model").all(user.id) as UserRateLimit[];
+    const requests = getRateLimitRequests(user.id);
+    const usage = getUsageSummary(user.id);
+    return {
+      id: user.id,
+      phone: user.phone,
+      email: user.email,
+      nickname: user.nickname,
+      balance: user.balance,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      defaultQpm: wildcard?.qpm ?? DEFAULT_QPM,
+      defaultTpm: wildcard?.tpm ?? DEFAULT_TPM,
+      customLimits: customs,
+      customLimitCount: customs.length,
+      pendingRequestCount: requests.filter((item) => item.status === "pending").length,
+      latestRequest: requests[0] || null,
+      usage,
+    };
+  });
+}
+
+export function getAdminRateLimitRequests(status?: string) {
+  return getRateLimitRequests(undefined, status);
+}
+
+export function submitRateLimitRequest(data: {
+  userId: string;
+  model?: string;
+  requestedQpm: number;
+  requestedTpm: number;
+  reason?: string;
+}) {
+  return createRateLimitRequest(data);
+}
+
+export function approveRateLimitRequest(
+  requestId: string,
+  reviewer: string,
+  overrides?: { model?: string; qpm?: number; tpm?: number; reply?: string }
+) {
+  const request = getRateLimitRequestById(requestId);
+  if (!request || request.status !== "pending") return null;
+  const model = overrides?.model?.trim() || request.model || "*";
+  const qpm = overrides?.qpm ?? request.requested_qpm;
+  const tpm = overrides?.tpm ?? request.requested_tpm;
+  reviewRateLimitRequest(requestId, "approved", {
+    adminReply: overrides?.reply || "已批准",
+    reviewedBy: reviewer,
+  });
+  setUserRateLimit(request.user_id, model, qpm, tpm, "admin");
+  return getRateLimitRequestById(requestId);
+}
+
+export function rejectRateLimitRequest(
+  requestId: string,
+  reviewer: string,
+  reply?: string
+) {
+  const request = getRateLimitRequestById(requestId);
+  if (!request || request.status !== "pending") return null;
+  reviewRateLimitRequest(requestId, "rejected", {
+    adminReply: reply || "已拒绝",
+    reviewedBy: reviewer,
+  });
+  return getRateLimitRequestById(requestId);
 }
 
 /** Admin: set rate limit for a user + model */

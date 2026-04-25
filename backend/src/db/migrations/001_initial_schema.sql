@@ -77,6 +77,25 @@ CREATE TABLE IF NOT EXISTS api_keys (
 CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key);
 CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
 
+-- 限额申请表
+CREATE TABLE IF NOT EXISTS rate_limit_requests (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    model TEXT NOT NULL DEFAULT '*',
+    requested_qpm INTEGER NOT NULL,
+    requested_tpm INTEGER NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'approved' | 'rejected'
+    admin_reply TEXT,
+    reviewed_by TEXT,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limit_requests_user ON rate_limit_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_requests_status ON rate_limit_requests(status);
+
 -- 使用日志表
 CREATE TABLE IF NOT EXISTS usage_logs (
     id SERIAL PRIMARY KEY,
