@@ -274,6 +274,51 @@ pm2 restart quadrant-backend   # 重启后端
 pm2 monit               # 实时监控
 ```
 
+### Git 提交与服务器部署速查
+
+提交前建议先跑构建，避免把不能启动的代码推到服务器：
+
+```bash
+cd /path/to/nexusflow
+npm run build
+git status --short
+git add <changed-files>
+git commit -m "Update model catalog and API docs"
+git push origin main
+```
+
+如果新机器第一次提交时提示 `Author identity unknown`，在仓库内配置本地身份即可：
+
+```bash
+git config user.name "Codex"
+git config user.email "codex@nexusflow.local"
+```
+
+另一台服务器首次部署：
+
+```bash
+git clone git@github.com:Daemon4444/nexusflow.git
+cd nexusflow
+npm install
+cat > backend/.env <<'EOF'
+DASHSCOPE_API_KEY=your-dashscope-key
+PORT=3001
+EOF
+npm run build
+pm2 start ecosystem.config.js
+pm2 save
+```
+
+已有部署更新：
+
+```bash
+cd /path/to/nexusflow
+git pull origin main
+npm install
+npm run build
+pm2 restart all
+```
+
 ### Nginx 反向代理 (可选)
 
 ```nginx
