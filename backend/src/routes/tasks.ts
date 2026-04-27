@@ -25,6 +25,7 @@ import {
   detectModelType,
   adaptImageRequest,
   adaptVideoRequest,
+  adaptHappyHorseRequest,
   adaptPixVerseRequest,
   pollDashScopeTask,
   pollPixVerseTask,
@@ -142,9 +143,16 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  if (modelType === "video" && (modelId.includes("-i2v") || modelId.includes("-r2v")) && !params.img_url) {
+  if (modelType === "video" && (modelId.includes("-i2v") || modelId.includes("-r2v")) && !params.img_url && !params.img_urls?.length) {
     res.status(400).json({
-      error: { message: `Model '${modelId}' requires img_url`, type: "invalid_request_error", code: "invalid_request" },
+      error: { message: `Model '${modelId}' requires img_url or img_urls`, type: "invalid_request_error", code: "invalid_request" },
+    });
+    return;
+  }
+
+  if (modelId === "happyhorse-1.0-video-edit" && !params.video_url) {
+    res.status(400).json({
+      error: { message: `Model '${modelId}' requires video_url`, type: "invalid_request_error", code: "invalid_request" },
     });
     return;
   }
@@ -182,6 +190,8 @@ router.post("/", async (req: Request, res: Response) => {
       adapted = adaptImageRequest(upstreamApiKey, { model: modelId, prompt, ...params });
     } else if (isPixVerse) {
       adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+    } else if (modelId.startsWith("happyhorse-")) {
+      adapted = adaptHappyHorseRequest(upstreamApiKey, { model: modelId, prompt, ...params });
     } else {
       adapted = adaptVideoRequest(upstreamApiKey, { model: modelId, prompt, ...params });
     }

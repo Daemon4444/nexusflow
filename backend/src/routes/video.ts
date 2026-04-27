@@ -18,6 +18,7 @@ import {
 } from "../data/tasks";
 import {
   adaptVideoRequest,
+  adaptHappyHorseRequest,
   adaptPixVerseRequest,
   pollDashScopeTask,
   pollPixVerseTask,
@@ -35,10 +36,20 @@ function getPixVerseKey(): string {
 
 // POST /api/video/generate - Submit video generation task
 router.post("/generate", async (req: Request, res: Response) => {
-  const { model: modelId, prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url } = req.body;
+  const { 
+    model: modelId, prompt, duration, aspect_ratio, quality, negative_prompt, size,
+    img_url, img_urls, video_url, resolution, ratio, audio_setting, seed, watermark
+  } = req.body;
 
-  if (!modelId || !prompt) {
-    res.status(400).json({ success: false, message: "请提供模型ID和提示词" });
+  if (!modelId) {
+    res.status(400).json({ success: false, message: "请提供模型ID" });
+    return;
+  }
+
+  // HappyHorse video-edit doesn't strictly require prompt at creation
+  const isHappyHorse = modelId.startsWith("happyhorse-");
+  if (!isHappyHorse && !prompt) {
+    res.status(400).json({ success: false, message: "请提供提示词" });
     return;
   }
 
@@ -49,7 +60,7 @@ router.post("/generate", async (req: Request, res: Response) => {
   }
 
   const isPixVerse = modelId.startsWith("pixverse-");
-  const isDashScope = modelId.startsWith("wan") || modelId.startsWith("happyhorse");
+  const isDashScope = modelId.startsWith("wan") || isHappyHorse;
   
   if (!isPixVerse && !isDashScope) {
     res.status(400).json({ success: false, message: `不支持的视频模型: ${modelId}` });
@@ -65,10 +76,18 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
-  if ((modelId.includes("-i2v") || modelId.includes("-r2v")) && !img_url) {
+  if ((modelId.includes("-i2v") || modelId.includes("-r2v")) && !img_url && !img_urls?.length) {
     res.status(400).json({
       success: false,
-      message: `${modelId} 需要传入 img_url`,
+      message: `${modelId} 需要传入 img_url 或 img_urls`,
+    });
+    return;
+  }
+
+  if (modelId === "happyhorse-1.0-video-edit" && !video_url) {
+    res.status(400).json({
+      success: false,
+      message: `${modelId} 需要传入 video_url`,
     });
     return;
   }
@@ -78,7 +97,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     type: "video",
     model: modelId,
     provider: isPixVerse ? "pixverse" : "dashscope",
-    input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url },
+    input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_urls, video_url, resolution, ratio, audio_setting, seed, watermark },
   });
 
   // Build request based on provider
@@ -93,16 +112,29 @@ router.post("/generate", async (req: Request, res: Response) => {
         quality,
         negative_prompt,
       });
+    } else if (isHappyHorse) {
+      adapted = adaptHappyHorseRequest(apiKey, {
+        model: modelId,
+        prompt: prompt || "",
+        resolution,
+        ratio,
+        duration,
+        seed,
+        watermark,
+        img_url,
+        img_urls,
+        video_url,
+        audio_setting,
+      });
     } else {
-      // DashScope video models
-      const acceptsImageInput = modelId.includes("i2v") || modelId.startsWith("happyhorse");
+      // DashScope wan video models
       adapted = adaptVideoRequest(apiKey, {
         model: modelId,
         prompt,
         negative_prompt,
         size: size || "1280*720",
         duration: duration || 5,
-        img_url: acceptsImageInput ? img_url : undefined,
+        img_url: modelId.includes("i2v") ? img_url : undefined,
         prompt_extend: true,
       });
     }

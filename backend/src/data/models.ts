@@ -461,19 +461,62 @@ export const models: AIModel[] = [
 
   // ========== HappyHorse 快乐小马 ==========
   {
-    id: "happyhorse-1.0",
-    name: "HappyHorse 1.0",
+    id: "happyhorse-1.0-t2v",
+    name: "HappyHorse 1.0 文生视频",
     provider: "阿里巴巴 (Alibaba)",
-    description: "阿里巴巴2026年最新AI视频生成模型，在Artificial Analysis视频生成榜单排名第一。支持高质量视频生成、多风格转换，画面流畅自然。",
-    contextLength: 1500,
+    description: "阿里巴巴2026年最新AI视频生成模型，榜单排名第一。文本生成高质量视频，支持720P/1080P，3-15秒时长，多种宽高比。默认带音频直出。",
+    contextLength: 2500,
     promptPrice: 0.12,
     completionPrice: 0,
     category: "视频生成",
-    tags: ["视频生成", "文生视频", "图生视频", "高质量", "榜单第一"],
+    tags: ["视频生成", "文生视频", "高质量", "榜单第一", "音频"],
     isFeatured: true,
     isNew: true,
     maxOutput: 15,
-    supported: ["文生视频", "图生视频", "多风格"]
+    supported: ["文生视频"]
+  },
+  {
+    id: "happyhorse-1.0-i2v",
+    name: "HappyHorse 1.0 图生视频",
+    provider: "阿里巴巴 (Alibaba)",
+    description: "以输入图片作为首帧生成连贯视频，支持720P/1080P，3-15秒时长。画面连贯性和运动一致性出色。默认带音频直出。",
+    contextLength: 2500,
+    promptPrice: 0.12,
+    completionPrice: 0,
+    category: "视频生成",
+    tags: ["视频生成", "图生视频", "首帧驱动", "高质量", "音频"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 15,
+    supported: ["图生视频"]
+  },
+  {
+    id: "happyhorse-1.0-r2v",
+    name: "HappyHorse 1.0 参考生视频",
+    provider: "阿里巴巴 (Alibaba)",
+    description: "支持1-9张参考图片输入，可将图中人物/物体/场景融合生成视频。支持720P/1080P，3-15秒，多种宽高比。默认带音频直出。",
+    contextLength: 2500,
+    promptPrice: 0.12,
+    completionPrice: 0,
+    category: "视频生成",
+    tags: ["视频生成", "参考生视频", "多图输入", "高质量", "音频"],
+    isNew: true,
+    maxOutput: 15,
+    supported: ["参考生视频"]
+  },
+  {
+    id: "happyhorse-1.0-video-edit",
+    name: "HappyHorse 1.0 视频编辑",
+    provider: "阿里巴巴 (Alibaba)",
+    description: "基于输入视频进行AI编辑，支持0-5张参考图片辅助编辑。输入视频3-60秒（超15秒截断），支持720P/1080P，可保留原始音频。",
+    contextLength: 2500,
+    promptPrice: 0.12,
+    completionPrice: 0,
+    category: "视频生成",
+    tags: ["视频生成", "视频编辑", "AI编辑", "音频保留"],
+    isNew: true,
+    maxOutput: 15,
+    supported: ["视频编辑"]
   },
 
   // ========== DeepSeek 系列 ==========

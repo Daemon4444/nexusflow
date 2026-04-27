@@ -351,6 +351,97 @@ export function adaptVideoRequest(
   };
 }
 
+
+// ============================================================
+// HappyHorse Video Adapter (DashScope async)
+// ============================================================
+
+/**
+ * Convert unified video request to HappyHorse DashScope format
+ *
+ * Supports 4 model variants:
+ * - happyhorse-1.0-t2v: Text-to-Video
+ * - happyhorse-1.0-i2v: Image-to-Video (first_frame)
+ * - happyhorse-1.0-r2v: Reference-to-Video (1-9 reference_image)
+ * - happyhorse-1.0-video-edit: Video editing (video + 0-5 reference_image)
+ */
+export function adaptHappyHorseRequest(
+  apiKey: string,
+  body: {
+    model: string;
+    prompt: string;
+    resolution?: string;
+    ratio?: string;
+    duration?: number;
+    seed?: number;
+    watermark?: boolean;
+    img_url?: string;
+    img_urls?: string[];
+    video_url?: string;
+    audio_setting?: string;
+  }
+): AdapterResult {
+  const input: any = {};
+  const parameters: any = {};
+
+  // Common parameters
+  if (body.resolution) parameters.resolution = body.resolution;
+  if (body.duration) parameters.duration = body.duration;
+  if (body.seed !== undefined && body.seed !== null) parameters.seed = body.seed;
+  if (body.watermark !== undefined) parameters.watermark = body.watermark;
+
+  if (body.model === "happyhorse-1.0-t2v") {
+    // T2V: prompt + ratio
+    input.prompt = body.prompt;
+    if (body.ratio) parameters.ratio = body.ratio;
+
+  } else if (body.model === "happyhorse-1.0-i2v") {
+    // I2V: prompt (optional) + first_frame image
+    if (body.prompt) input.prompt = body.prompt;
+    input.media = [
+      { type: "first_frame", url: body.img_url }
+    ];
+
+  } else if (body.model === "happyhorse-1.0-r2v") {
+    // R2V: prompt (required) + 1-9 reference_images
+    input.prompt = body.prompt;
+    const urls = body.img_urls || (body.img_url ? [body.img_url] : []);
+    input.media = urls.map((url: string) => ({ type: "reference_image", url }));
+    if (body.ratio) parameters.ratio = body.ratio;
+
+  } else if (body.model === "happyhorse-1.0-video-edit") {
+    // Video-Edit: prompt (required) + video + 0-5 reference_images
+    input.prompt = body.prompt;
+    input.media = [
+      { type: "video", url: body.video_url }
+    ];
+    // Append reference images if provided
+    const refUrls = body.img_urls || [];
+    for (const url of refUrls) {
+      input.media.push({ type: "reference_image", url });
+    }
+    if (body.audio_setting) parameters.audio_setting = body.audio_setting;
+  }
+
+  const dashscopeBody = {
+    model: body.model,
+    input,
+    parameters,
+  };
+
+  return {
+    url: `${DASHSCOPE_BASE}/api/v1/services/aigc/video-generation/video-synthesis`,
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-DashScope-Async": "enable",
+    },
+    body: dashscopeBody,
+    isAsync: true,
+  };
+}
+
 // ============================================================
 // Task Status Polling (DashScope)
 // ============================================================
