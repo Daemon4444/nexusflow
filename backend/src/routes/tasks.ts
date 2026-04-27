@@ -31,15 +31,12 @@ import {
   pollPixVerseTask,
 } from "../services/adapters";
 import { checkConsumerLimits, recordRequest } from "../services/rate-limiter";
+import { getPixVerseRuntimeChannel, getPixVerseTaskChannel } from "../services/pixverse-channel";
 
 const router = Router();
 
 function getApiKey(): string {
   return process.env.DASHSCOPE_API_KEY || "";
-}
-
-function getPixVerseKey(): string {
-  return process.env.PIXVERSE_API_KEY || "";
 }
 
 /** Extract Bearer token from Authorization header */
@@ -159,10 +156,11 @@ router.post("/", async (req: Request, res: Response) => {
 
   // Determine provider
   const isPixVerse = modelId.startsWith("pixverse-");
-  const provider = isPixVerse ? "pixverse" : "dashscope";
+  const pixVerseChannel = isPixVerse ? getPixVerseRuntimeChannel() : null;
+  const provider = pixVerseChannel?.taskProvider || "dashscope";
 
   // Get appropriate API key
-  const upstreamApiKey = isPixVerse ? getPixVerseKey() : getApiKey();
+  const upstreamApiKey = pixVerseChannel?.apiKey || getApiKey();
   if (!upstreamApiKey) {
     res.status(500).json({
       error: { message: "Upstream API key not configured", type: "server_error", code: "upstream_error" },
@@ -188,8 +186,10 @@ router.post("/", async (req: Request, res: Response) => {
   try {
     if (modelType === "image") {
       adapted = adaptImageRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+    } else if (isPixVerse && pixVerseChannel?.adapter === "pixverse") {
+      adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, pixVerseChannel.apiBaseUrl);
     } else if (isPixVerse) {
-      adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+      adapted = adaptVideoRequest(upstreamApiKey, { model: modelId, prompt, ...params });
     } else if (modelId.startsWith("happyhorse-")) {
       adapted = adaptHappyHorseRequest(upstreamApiKey, { model: modelId, prompt, ...params });
     } else {
@@ -213,10 +213,10 @@ router.post("/", async (req: Request, res: Response) => {
 
     const data: any = await response.json();
 
-    if (!response.ok) {
+    if (!response.ok || data.code || (data.ErrCode !== undefined && data.ErrCode !== 0)) {
       const errorMsg = data.message || data.error?.message || data.ErrMsg || `HTTP ${response.status}`;
       failTask(task.id, errorMsg);
-      res.status(response.status).json({
+      res.status(response.ok ? 400 : response.status).json({
         error: { message: errorMsg, type: "upstream_error", code: "upstream_error" },
       });
       return;
@@ -307,11 +307,12 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 
   try {
-    const isPixVerse = task.provider === "pixverse";
-    const apiKey = isPixVerse ? getPixVerseKey() : getApiKey();
+    const isPixVerse = task.provider.startsWith("pixverse");
+    const pixVerseChannel = isPixVerse ? getPixVerseTaskChannel(task.provider) : null;
+    const apiKey = pixVerseChannel?.apiKey || getApiKey();
     
-    const result = isPixVerse
-      ? await pollPixVerseTask(apiKey, task.upstream_task_id)
+    const result = isPixVerse && pixVerseChannel?.adapter === "pixverse"
+      ? await pollPixVerseTask(apiKey, task.upstream_task_id, pixVerseChannel.apiBaseUrl)
       : await pollDashScopeTask(apiKey, task.upstream_task_id);
 
     // Update task based on result

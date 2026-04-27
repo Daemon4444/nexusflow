@@ -29,7 +29,7 @@ const allModels = [
   { name: "GLM-4-Flash", provider: "Zhipu AI", ctx: "128K", price: "¥0.0", badge: "Free" },
   { name: "DeepSeek R1", provider: "DeepSeek", ctx: "64K", price: "¥2.0", badge: "Lite" },
   { name: "Qwen-Turbo", provider: "Alibaba", ctx: "1M", price: "¥0.3", badge: "Turbo" },
-  { name: "PixVerse v3.5", provider: "PixVerse", ctx: "-", price: "¥0.4", badge: "Video" },
+  { name: "PixVerse v6", provider: "PixVerse", ctx: "-", price: "按渠道", badge: "Video" },
 ];
 
 const models = [

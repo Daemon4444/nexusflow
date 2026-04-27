@@ -1,0 +1,49 @@
+import { getProviderChannel, getProviderChannelConfig } from "../data/provider-channels";
+
+export type PixVerseRuntimeChannel = {
+  id: string;
+  name: string;
+  adapter: "dashscope" | "pixverse";
+  apiBaseUrl: string;
+  apiKey: string;
+  taskProvider: string;
+};
+
+const DEFAULT_CHANNELS = {
+  bailian: {
+    name: "百炼渠道",
+    adapter: "dashscope" as const,
+    api_base_url: "https://dashscope.aliyuncs.com/api/v1",
+    api_key: process.env.DASHSCOPE_API_KEY || "",
+  },
+  official: {
+    name: "拍我官方",
+    adapter: "pixverse" as const,
+    api_base_url: "https://app-api.pixverseai.cn/openapi/v2",
+    api_key: process.env.PIXVERSE_API_KEY || "",
+  },
+};
+
+export function getPixVerseRuntimeChannel(channelId?: string): PixVerseRuntimeChannel {
+  const stored = getProviderChannel("pixverse", channelId);
+  const fallbackId = channelId || getProviderChannelConfig("pixverse")?.active_channel || "bailian";
+  const fallback = DEFAULT_CHANNELS[fallbackId as keyof typeof DEFAULT_CHANNELS] || DEFAULT_CHANNELS.bailian;
+  const selected = stored || { id: fallbackId, ...fallback };
+  const envKey = selected.adapter === "dashscope" ? process.env.DASHSCOPE_API_KEY : process.env.PIXVERSE_API_KEY;
+  const apiKey = selected.api_key || envKey || "";
+
+  return {
+    id: selected.id,
+    name: selected.name,
+    adapter: selected.adapter,
+    apiBaseUrl: selected.api_base_url.replace(/\/$/, ""),
+    apiKey,
+    taskProvider: `pixverse:${selected.id}:${selected.adapter}`,
+  };
+}
+
+export function getPixVerseTaskChannel(provider: string): PixVerseRuntimeChannel {
+  if (!provider.startsWith("pixverse:")) return getPixVerseRuntimeChannel();
+  const [, channelId] = provider.split(":");
+  return getPixVerseRuntimeChannel(channelId);
+}

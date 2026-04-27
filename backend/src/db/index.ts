@@ -210,6 +210,18 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_provider_capacity_provider ON provider_capacity(provider_id);
 `);
 
+// ========== 供应商多渠道配置表 ==========
+db.exec(`
+  CREATE TABLE IF NOT EXISTS provider_channel_configs (
+    provider_id TEXT PRIMARY KEY,
+    active_channel TEXT NOT NULL,
+    channels TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE
+  );
+`);
+
 // ========== 供应商健康记录表 ==========
 db.exec(`
   CREATE TABLE IF NOT EXISTS provider_health (
@@ -329,6 +341,16 @@ try {
     UPDATE provider_models SET status = 'draft' WHERE status = 'pending';
     UPDATE provider_models SET status = 'enabled' WHERE status = 'approved';
     UPDATE provider_models SET status = 'disabled' WHERE status = 'rejected';
+  `);
+} catch {}
+
+// 迁移：PixVerse 只保留当前可维护的 pixverse-v6，清理旧版本草稿
+try {
+  db.exec(`
+    DELETE FROM provider_models
+      WHERE model_id LIKE 'pixverse-v5%' OR model_id IN ('pixverse-v4.5', 'pixverse-v4', 'pixverse-v3.5');
+    DELETE FROM provider_capacity
+      WHERE model_id LIKE 'pixverse-v5%' OR model_id IN ('pixverse-v4.5', 'pixverse-v4', 'pixverse-v3.5');
   `);
 } catch {}
 

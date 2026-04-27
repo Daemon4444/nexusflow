@@ -10,6 +10,12 @@ import {
 import { getAllHealthRecords } from "../services/scheduler";
 import { getProviderUsageStats } from "../services/rate-limiter";
 import { models as staticModels } from "../data/models";
+import {
+  getProviderChannelConfig,
+  switchProviderChannel,
+  upsertProviderChannelConfig,
+  type ProviderChannelConfig,
+} from "../data/provider-channels";
 import { requireAdmin } from "../middleware/admin";
 
 const router = Router();
@@ -28,6 +34,18 @@ function ensureInternalProviders(): void {
     description: "百炼 OpenAI 兼容模式渠道，当前默认承载通义千问、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse 等模型。",
     website: "https://help.aliyun.com/zh/model-studio/",
     api_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    api_key: process.env.DASHSCOPE_API_KEY || "",
+    contact_name: "平台运营",
+    contact_email: "ops@nexusflow.ai",
+    status: "enabled",
+  });
+  ensureProvider({
+    id: "pixverse",
+    name: "PixVerse 双通道",
+    slug: "pixverse",
+    description: "PixVerse 视频模型渠道，可在百炼和拍我官方之间切换。",
+    website: "https://pixverse.ai/",
+    api_base_url: "https://dashscope.aliyuncs.com/api/v1",
     api_key: process.env.DASHSCOPE_API_KEY || "",
     contact_name: "平台运营",
     contact_email: "ops@nexusflow.ai",
@@ -59,6 +77,56 @@ function ensureInternalProviders(): void {
       is_enabled: true,
     });
   }
+
+  ensurePixVerseChannelConfig();
+  if (!getCapacity("pixverse", "pixverse-v6")) {
+    upsertCapacity("pixverse", "pixverse-v6", {
+      rpm_limit: 60,
+      tpm_limit: 0,
+      daily_limit: 1000,
+      concurrent_limit: 5,
+      priority: 20,
+      weight: 100,
+      is_enabled: true,
+    });
+  }
+}
+
+function ensurePixVerseChannelConfig(): ProviderChannelConfig {
+  const existing = getProviderChannelConfig("pixverse");
+  if (existing) return existing;
+  return upsertProviderChannelConfig("pixverse", {
+    active_channel: "bailian",
+    channels: {
+      bailian: {
+        name: "百炼渠道",
+        adapter: "dashscope",
+        api_base_url: "https://dashscope.aliyuncs.com/api/v1",
+        api_key: process.env.DASHSCOPE_API_KEY || "",
+      },
+      official: {
+        name: "拍我官方",
+        adapter: "pixverse",
+        api_base_url: "https://app-api.pixverseai.cn/openapi/v2",
+        api_key: process.env.PIXVERSE_API_KEY || "",
+      },
+    },
+  });
+}
+
+function getProviderChannelSummary(providerId: string) {
+  const config = getProviderChannelConfig(providerId);
+  if (!config) return null;
+  return {
+    activeChannel: config.active_channel,
+    channels: Object.entries(config.channels).map(([id, channel]) => ({
+      id,
+      name: channel.name,
+      adapter: channel.adapter,
+      apiBaseUrl: channel.api_base_url,
+      apiKeyMasked: channel.api_key ? maskSecret(channel.api_key) : "未配置",
+    })),
+  };
 }
 
 function getProviderRouteModels(providerId: string) {
@@ -109,6 +177,7 @@ function getProviderCard(provider: Provider) {
     approvedAt: provider.approved_at,
     modelCount: capacity.length,
     enabledRoutes: capacity.filter((item) => item.is_enabled).length,
+    channelConfig: getProviderChannelSummary(provider.id),
     ...usage,
   };
 }
@@ -552,6 +621,40 @@ router.get("/admin/usage/:providerId/:modelId", (req: Request, res: Response) =>
 // ========== 渠道管理模型（/:providerId 路由放在 /admin 之后） ==========
 
 router.use("/:providerId", requireAdmin);
+
+// POST /api/provider/:providerId/switch-channel — 切换供应商活跃子渠道
+router.post("/:providerId/switch-channel", (req: Request, res: Response) => {
+  const providerId = req.params.providerId as string;
+  ensureInternalProviders();
+  const provider = getProviderById(providerId);
+  if (!provider) {
+    res.status(404).json({ success: false, message: "供应商不存在" });
+    return;
+  }
+
+  const { channel } = req.body || {};
+  if (!channel || typeof channel !== "string") {
+    res.status(400).json({ success: false, message: "请提供要切换的渠道" });
+    return;
+  }
+
+  const updated = switchProviderChannel(providerId, channel);
+  if (!updated) {
+    res.status(400).json({ success: false, message: "渠道不存在或未配置" });
+    return;
+  }
+
+  const selected = updated.channels[channel];
+  res.json({
+    success: true,
+    data: {
+      channel,
+      channelName: selected.name,
+      adapter: selected.adapter,
+    },
+    message: `已切换到${selected.name}`,
+  });
+});
 
 // GET /api/provider/:providerId/models — 获取供应商的模型列表
 router.get("/:providerId/models", (req: Request, res: Response) => {

@@ -27,12 +27,12 @@ return Array.from(modelMap.values());
 - 从 `adapters.ts` 和 `tasks.ts` 中删除对应的模型映射
 - 从数据库中删除：`DELETE FROM provider_models WHERE model_id IN ('pixverse-v5.5', 'pixverse-v5', 'pixverse-v4', 'pixverse-v3.5');`
 
-### 1.3 pixverse-v5.6 模型不可用
-**问题**: 尝试添加 pixverse-v5.6 模型，但百炼平台返回 "User does not exist" 错误。
+### 1.3 PixVerse 旧版本模型不可用
+**问题**: 尝试添加旧版本 PixVerse 模型时，百炼平台返回 "User does not exist" 或模型不可用错误。
 
 **原因**: 当前百炼 API Key 对应的账号可能未开通该模型，或模型名称不正确。
 
-**解决**: 暂时移除 v5.6，只保留 v6。待百炼平台确认模型可用性后再添加。
+**解决**: 移除旧版本 PixVerse 模型，只保留 `pixverse-v6`。
 
 ---
 
@@ -79,7 +79,7 @@ return Array.from(modelMap.values());
 
 **状态**: 需要在阿里云控制台充值才能恢复使用。
 
-**备注**: 之前测试 pixverse-v5.6 时曾返回 "User does not exist"，可能是模型未开通。pixverse-v6 模型是可用的，但账号欠费导致无法调用。
+**备注**: `pixverse-v6` 模型是可用的，但账号欠费会导致无法调用。
 
 ### 3.2 官方渠道 "Insufficient balance"
 **问题**: 使用 PixVerse 官方 API 时返回余额不足。
@@ -153,7 +153,6 @@ router.post("/:providerId/switch-channel", (req, res) => {
   - 说明模型是可用的，但阿里云账号欠费
   
 ### 6.3 失败的测试
-- **pixverse-v5.6 (百炼渠道)**: "User does not exist" - 模型可能未开通
 - **pixverse-v6 (官方渠道)**: "Insufficient balance" - PixVerse 官方账号需要充值
 
 ---
@@ -162,9 +161,8 @@ router.post("/:providerId/switch-channel", (req, res) => {
 
 1. [ ] **阿里云账号充值** - 百炼渠道因欠费无法使用
 2. [ ] **为 PixVerse 官方渠道充值** - 官方渠道余额不足
-3. [ ] 确认百炼平台 pixverse-v5.6 模型是否可用
-4. [ ] 测试渠道切换功能是否正常工作
-5. [ ] 考虑是否需要为其他供应商（如 HappyHorse）实现双通道支持
+3. [ ] 测试渠道切换功能是否正常工作
+4. [ ] 考虑是否需要为其他供应商（如 HappyHorse）实现双通道支持
 
 ---
 

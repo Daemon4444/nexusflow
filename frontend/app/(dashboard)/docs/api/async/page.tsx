@@ -15,7 +15,7 @@ const poll = `curl https://nexusflow.hk/v1/tasks/task_xxx \\
   -H "Authorization: Bearer $API_KEY"`;
 
 const params = [
-  { name: "model", required: "必填", desc: "图像或视频模型 ID，如 wan2.6-t2i、wan2.6-i2v、pixverse-v4.5、happyhorse-1.0。" },
+  { name: "model", required: "必填", desc: "图像或视频模型 ID，如 wan2.6-t2i、wan2.6-i2v、pixverse-v6、happyhorse-1.0。" },
   { name: "prompt", required: "必填", desc: "生成提示词。视频建议描述主体、动作、镜头、场景和光线。" },
   { name: "size", required: "可选", desc: "图像或视频尺寸，如 1024x1024、1280x720。" },
   { name: "duration", required: "视频可选", desc: "视频时长，按模型能力选择 5、8、10、15 等值。" },

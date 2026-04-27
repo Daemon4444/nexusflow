@@ -333,7 +333,7 @@ export function adaptVideoRequest(
   if (body.prompt_extend !== undefined) parameters.prompt_extend = body.prompt_extend;
 
   const dashscopeBody = {
-    model: body.model,
+    model: getDashScopeVideoModel(body.model),
     input,
     parameters,
   };
@@ -349,6 +349,13 @@ export function adaptVideoRequest(
     body: dashscopeBody,
     isAsync: true,
   };
+}
+
+function getDashScopeVideoModel(model: string): string {
+  const modelMap: Record<string, string> = {
+    "pixverse-v6": "pixverse/pixverse-v6-t2v",
+  };
+  return modelMap[model] || model;
 }
 
 
@@ -508,17 +515,16 @@ export async function pollDashScopeTask(apiKey: string, taskId: string): Promise
 
 export function adaptPixVerseRequest(
   apiKey: string,
-  body: { model: string; prompt: string; duration?: number; aspect_ratio?: string; quality?: string; negative_prompt?: string }
+  body: { model: string; prompt: string; duration?: number; aspect_ratio?: string; quality?: string; negative_prompt?: string },
+  apiBaseUrl = "https://app-api.pixverseai.cn/openapi/v2"
 ): AdapterResult {
   const modelMap: Record<string, string> = {
-    "pixverse-v4.5": "v4.5",
-    "pixverse-v4": "v4",
-    "pixverse-v3.5": "v3.5",
+    "pixverse-v6": "v6",
   };
 
   const pixBody: any = {
     prompt: body.prompt,
-    model: modelMap[body.model] || "v4.5",
+    model: modelMap[body.model] || "v6",
     duration: body.duration || 5,
     aspect_ratio: body.aspect_ratio || "16:9",
     quality: body.quality || "540p",
@@ -526,7 +532,7 @@ export function adaptPixVerseRequest(
   if (body.negative_prompt) pixBody.negative_prompt = body.negative_prompt;
 
   return {
-    url: "https://app-api.pixverseai.cn/openapi/v2/video/text/generate",
+    url: `${apiBaseUrl.replace(/\/$/, "")}/video/text/generate`,
     method: "POST",
     headers: {
       "Api-Key": apiKey,
@@ -538,8 +544,8 @@ export function adaptPixVerseRequest(
   };
 }
 
-export async function pollPixVerseTask(apiKey: string, taskId: string): Promise<TaskResult> {
-  const response = await fetch(`https://app-api.pixverseai.cn/openapi/v2/video/result/${taskId}`, {
+export async function pollPixVerseTask(apiKey: string, taskId: string, apiBaseUrl = "https://app-api.pixverseai.cn/openapi/v2"): Promise<TaskResult> {
+  const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/video/result/${taskId}`, {
     headers: {
       "Api-Key": apiKey,
       "Ai-Trace-Id": `air-${Date.now()}`,

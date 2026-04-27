@@ -81,6 +81,16 @@ interface Provider {
   rpmLimit?: number;
   tpmLimit?: number;
   concurrentLimit?: number;
+  channelConfig?: {
+    activeChannel: string;
+    channels: Array<{
+      id: string;
+      name: string;
+      adapter: "dashscope" | "pixverse";
+      apiBaseUrl: string;
+      apiKeyMasked: string;
+    }>;
+  } | null;
 }
 
 interface Model {
@@ -540,6 +550,22 @@ export default function AdminPage() {
       setNotice("渠道已创建");
       await loadData();
       if (res.data?.id) setSelectedProviderId(res.data.id);
+    }
+  }
+
+  async function handleSwitchChannel(providerId: string, channel: string) {
+    setNotice("");
+    const res = await fetchAPI(`/api/provider/${providerId}/switch-channel`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ channel }),
+    });
+    if (res.success) {
+      setNotice(res.message || "渠道已切换");
+      await loadData();
+      await loadProviderDetail(providerId);
+    } else {
+      setNotice(res.message || "渠道切换失败");
     }
   }
 
@@ -1188,6 +1214,42 @@ export default function AdminPage() {
                               ) : null}
                             </div>
                           </div>
+
+                          {selectedProvider.channelConfig ? (
+                            <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, marginBottom: 16, background: "#f8fafc" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", marginBottom: 12 }}>
+                                <div>
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>当前子渠道</div>
+                                  <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                                    {selectedProvider.channelConfig.activeChannel}
+                                  </div>
+                                </div>
+                                <select
+                                  value={selectedProvider.channelConfig.activeChannel}
+                                  onChange={(event) => handleSwitchChannel(selectedProvider.id, event.target.value)}
+                                  style={{ minWidth: 180, padding: "9px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#111827", fontSize: 13, fontFamily: "inherit" }}
+                                >
+                                  {selectedProvider.channelConfig.channels.map((channel) => (
+                                    <option key={channel.id} value={channel.id}>
+                                      {channel.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+                                {selectedProvider.channelConfig.channels.map((channel) => (
+                                  <div key={channel.id} style={{ padding: 12, borderRadius: 8, border: selectedProvider.channelConfig?.activeChannel === channel.id ? "1px solid #2563eb" : "1px solid #e5e7eb", background: "#fff" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                                      <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{channel.name}</span>
+                                      <span style={{ fontSize: 11, color: "#4b5563", background: "#f3f4f6", borderRadius: 9999, padding: "2px 8px" }}>{channel.adapter}</span>
+                                    </div>
+                                    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", overflowWrap: "anywhere" }}>{channel.apiBaseUrl}</div>
+                                    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>密钥: {channel.apiKeyMasked}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
 
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
                             {[

@@ -23,7 +23,10 @@ function getAllModels(): AIModel[] {
     maxOutput: m.max_output,
     supported: m.supported,
   }));
-  return [...models, ...dynamicModels];
+  const modelMap = new Map<string, AIModel>();
+  for (const model of models) modelMap.set(model.id, model);
+  for (const model of dynamicModels) modelMap.set(model.id, model);
+  return Array.from(modelMap.values());
 }
 
 // 获取所有模型列表

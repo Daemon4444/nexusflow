@@ -3,9 +3,7 @@
 import Link from "next/link";
 
 const models = [
-  ["pixverse-v4.5", "旗舰质量", "适合广告短片、产品视觉和高质量创意视频。"],
-  ["pixverse-v4", "稳定通用", "适合日常文生视频和图生视频任务。"],
-  ["pixverse-v3.5", "高性价比", "适合批量生成和快速草稿。"],
+  ["pixverse-v6", "当前主推", "支持文生视频和图生视频，后台可在百炼渠道与 PixVerse 官方渠道之间切换。"],
 ];
 
 export default function PixVerseModelPage() {
@@ -21,7 +19,7 @@ export default function PixVerseModelPage() {
         </p>
       </div>
 
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginBottom: 38 }}>
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(1, minmax(0, 1fr))", gap: 14, marginBottom: 38 }}>
         {models.map(([id, title, desc]) => (
           <div key={id} style={{ padding: 18, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)" }}>
             <code style={{ fontSize: 13 }}>{id}</code>

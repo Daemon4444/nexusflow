@@ -58,7 +58,7 @@ const PROVIDERS: ProviderConfig[] = [
     name: "拍我AI (PixVerse)",
     baseUrl: "https://app-api.pixverseai.cn/openapi/v2",
     apiKeyEnv: "PIXVERSE_API_KEY",
-    models: ["pixverse-v4.5", "pixverse-v4", "pixverse-v3.5"],
+    models: ["pixverse-v6"],
     priority: 90,
     weight: 100,
     healthy: true,

@@ -15,10 +15,10 @@ const tabs: { key: TabKey; label: string; desc: string }[] = [
 ];
 
 const models: Record<TabKey, string> = {
-  t2v: "pixverse/pixverse-v5.6-t2v",
-  i2v: "pixverse/pixverse-v5.6-it2v",
-  kf2v: "pixverse/pixverse-v5.6-kf2v",
-  r2v: "pixverse/pixverse-v5.6-r2v",
+  t2v: "pixverse-v6",
+  i2v: "pixverse-v6",
+  kf2v: "pixverse-v6",
+  r2v: "pixverse-v6",
 };
 
 const curlExamples: Record<TabKey, string> = {
@@ -27,7 +27,7 @@ const curlExamples: Record<TabKey, string> = {
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
-  "model": "pixverse/pixverse-v5.6-t2v",
+  "model": "pixverse-v6",
   "input": {
     "prompt": "一只小猫在月光下奔跑"
   },
@@ -43,7 +43,7 @@ const curlExamples: Record<TabKey, string> = {
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
-  "model": "pixverse/pixverse-v5.6-it2v",
+  "model": "pixverse-v6",
   "input": {
     "media": [
       {
@@ -65,7 +65,7 @@ const curlExamples: Record<TabKey, string> = {
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
-  "model": "pixverse/pixverse-v5.6-kf2v",
+  "model": "pixverse-v6",
   "input": {
     "media": [
       {
@@ -91,7 +91,7 @@ const curlExamples: Record<TabKey, string> = {
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
-  "model": "pixverse/pixverse-v5.6-r2v",
+  "model": "pixverse-v6",
   "input": {
     "media": [
       { "type": "image_url", "url": "https://example.com/ref1.jpg" },
@@ -123,7 +123,7 @@ response = requests.post(
         "X-DashScope-Async": "enable"
     },
     json={
-        "model": "pixverse/pixverse-v5.6-t2v",
+        "model": "pixverse-v6",
         "input": {"prompt": "一只小猫在月光下奔跑"},
         "parameters": {"size": "1280*720", "duration": 5}
     }
@@ -160,7 +160,7 @@ response = requests.post(
         "X-DashScope-Async": "enable"
     },
     json={
-        "model": "pixverse/pixverse-v5.6-it2v",
+        "model": "pixverse-v6",
         "input": {
             "media": [{"type": "image_url", "url": "https://example.com/image.jpg"}],
             "prompt": "让画面中的场景动起来"
@@ -198,7 +198,7 @@ response = requests.post(
         "X-DashScope-Async": "enable"
     },
     json={
-        "model": "pixverse/pixverse-v5.6-kf2v",
+        "model": "pixverse-v6",
         "input": {
             "media": [
                 {"type": "first_frame", "url": "https://example.com/first.png"},
@@ -239,7 +239,7 @@ response = requests.post(
         "X-DashScope-Async": "enable"
     },
     json={
-        "model": "pixverse/pixverse-v5.6-r2v",
+        "model": "pixverse-v6",
         "input": {
             "media": [
                 {"type": "image_url", "url": "https://example.com/ref1.jpg"},
@@ -269,7 +269,7 @@ while True:
 
 const requestParams: Record<TabKey, { name: string; type: string; required: boolean; desc: string }[]> = {
   t2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：pixverse/pixverse-v5.6-t2v" },
+    { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
     { name: "input.prompt", type: "string", required: true, desc: "文本提示词，支持中英文，不超过 2048 字符" },
     { name: "parameters.size", type: "string", required: true, desc: "视频分辨率（宽*高），如 1280*720、1920*1080" },
     { name: "parameters.duration", type: "integer", required: true, desc: "视频时长（秒）。360P~720P 可选 5/8/10；1080P 可选 5/8" },
@@ -278,7 +278,7 @@ const requestParams: Record<TabKey, { name: string; type: string; required: bool
     { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]" },
   ],
   i2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：pixverse/pixverse-v5.6-it2v" },
+    { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
     { name: "input.media[0].type", type: "string", required: true, desc: '固定值："image_url"' },
     { name: "input.media[0].url", type: "string", required: true, desc: "图像 URL（JPG/PNG/WEBP，≤20MB，宽高≤10000px）" },
     { name: "input.prompt", type: "string", required: false, desc: "文本提示词，描述视频动态效果" },
@@ -289,7 +289,7 @@ const requestParams: Record<TabKey, { name: string; type: string; required: bool
     { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]" },
   ],
   kf2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：pixverse/pixverse-v5.6-kf2v" },
+    { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
     { name: "input.media", type: "array", required: true, desc: "包含 2 个元素：type=first_frame 和 type=last_frame" },
     { name: "input.media[].type", type: "string", required: true, desc: '"first_frame" 或 "last_frame"' },
     { name: "input.media[].url", type: "string", required: true, desc: "图像 URL（JPG/PNG/WEBP，≤20MB，宽高≤10000px）" },
@@ -301,7 +301,7 @@ const requestParams: Record<TabKey, { name: string; type: string; required: bool
     { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]" },
   ],
   r2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：pixverse/pixverse-v5.6-r2v" },
+    { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
     { name: "input.media", type: "array", required: true, desc: "参考图片数组，最多 7 张" },
     { name: "input.media[].type", type: "string", required: true, desc: '固定值："image_url"' },
     { name: "input.media[].url", type: "string", required: true, desc: "图像 URL（JPG/PNG/WEBP，≤20MB）" },
@@ -353,7 +353,7 @@ function PixVerseDocsInner() {
         爱诗（PixVerse）视频生成 API
       </h1>
       <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 32, lineHeight: 1.6 }}>
-        爱诗 PixVerse v5.6 系列模型支持文生视频、图生视频、首尾帧生视频、参考生视频四种模式。
+        爱诗 PixVerse V6 系列模型支持文生视频、图生视频、首尾帧生视频、参考生视频四种模式。
         API 采用异步调用方式：先创建任务获取 task_id，再轮询查询结果。
       </p>
 

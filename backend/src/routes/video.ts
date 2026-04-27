@@ -3,7 +3,7 @@
  * 
  * Supports both:
  * - DashScope video models (wanx / wan2.6 / happyhorse)
- * - PixVerse models (pixverse-v4.5, etc.)
+ * - PixVerse models (pixverse-v6)
  */
 
 import { Router, Request, Response } from "express";
@@ -23,15 +23,12 @@ import {
   pollDashScopeTask,
   pollPixVerseTask,
 } from "../services/adapters";
+import { getPixVerseRuntimeChannel, getPixVerseTaskChannel } from "../services/pixverse-channel";
 
 const router = Router();
 
 function getDashScopeKey(): string {
   return process.env.DASHSCOPE_API_KEY || "";
-}
-
-function getPixVerseKey(): string {
-  return process.env.PIXVERSE_API_KEY || "";
 }
 
 // POST /api/video/generate - Submit video generation task
@@ -60,6 +57,7 @@ router.post("/generate", async (req: Request, res: Response) => {
   }
 
   const isPixVerse = modelId.startsWith("pixverse-");
+  const pixVerseChannel = isPixVerse ? getPixVerseRuntimeChannel() : null;
   const isDashScope = modelId.startsWith("wan") || isHappyHorse;
   
   if (!isPixVerse && !isDashScope) {
@@ -67,11 +65,11 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
-  const apiKey = isPixVerse ? getPixVerseKey() : getDashScopeKey();
+  const apiKey = pixVerseChannel?.apiKey || getDashScopeKey();
   if (!apiKey) {
     res.status(500).json({ 
       success: false, 
-      message: isPixVerse ? "未配置 PixVerse API Key" : "未配置 DashScope API Key" 
+      message: isPixVerse ? "未配置 PixVerse 当前渠道 API Key" : "未配置 DashScope API Key"
     });
     return;
   }
@@ -96,14 +94,14 @@ router.post("/generate", async (req: Request, res: Response) => {
   const task = createTask({
     type: "video",
     model: modelId,
-    provider: isPixVerse ? "pixverse" : "dashscope",
+    provider: pixVerseChannel?.taskProvider || "dashscope",
     input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_urls, video_url, resolution, ratio, audio_setting, seed, watermark },
   });
 
   // Build request based on provider
   try {
     let adapted;
-    if (isPixVerse) {
+    if (isPixVerse && pixVerseChannel?.adapter === "pixverse") {
       adapted = adaptPixVerseRequest(apiKey, {
         model: modelId,
         prompt,
@@ -111,6 +109,16 @@ router.post("/generate", async (req: Request, res: Response) => {
         aspect_ratio,
         quality,
         negative_prompt,
+      }, pixVerseChannel.apiBaseUrl);
+    } else if (isPixVerse) {
+      adapted = adaptVideoRequest(apiKey, {
+        model: modelId,
+        prompt,
+        negative_prompt,
+        size: size || "1280*720",
+        duration: duration || 5,
+        img_url,
+        prompt_extend: true,
       });
     } else if (isHappyHorse) {
       adapted = adaptHappyHorseRequest(apiKey, {
@@ -147,8 +155,8 @@ router.post("/generate", async (req: Request, res: Response) => {
 
     const data: any = await response.json();
 
-    // Handle PixVerse response
-    if (isPixVerse) {
+    // Handle PixVerse official response
+    if (isPixVerse && pixVerseChannel?.adapter === "pixverse") {
       if (data.ErrCode !== 0) {
         failTask(task.id, data.ErrMsg || "视频生成失败");
         res.status(400).json({
@@ -238,11 +246,12 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
     // Poll upstream
     try {
-      const isPixVerse = task.provider === "pixverse";
-      const apiKey = isPixVerse ? getPixVerseKey() : getDashScopeKey();
+      const isPixVerse = task.provider.startsWith("pixverse");
+      const pixVerseChannel = isPixVerse ? getPixVerseTaskChannel(task.provider) : null;
+      const apiKey = pixVerseChannel?.apiKey || getDashScopeKey();
       
-      const result = isPixVerse
-        ? await pollPixVerseTask(apiKey, task.upstream_task_id)
+      const result = isPixVerse && pixVerseChannel?.adapter === "pixverse"
+        ? await pollPixVerseTask(apiKey, task.upstream_task_id, pixVerseChannel.apiBaseUrl)
         : await pollDashScopeTask(apiKey, task.upstream_task_id);
 
       if (result.status === "succeeded") {
@@ -288,13 +297,14 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   }
 
   // Fallback: treat taskId as direct PixVerse/DashScope task ID (legacy support)
-  const pixVerseKey = getPixVerseKey();
+  const pixVerseChannel = getPixVerseRuntimeChannel("official");
+  const pixVerseKey = pixVerseChannel.apiKey;
   const dashScopeKey = getDashScopeKey();
 
   // Try PixVerse first (legacy behavior)
   if (pixVerseKey) {
     try {
-      const result = await pollPixVerseTask(pixVerseKey, taskId);
+      const result = await pollPixVerseTask(pixVerseKey, taskId, pixVerseChannel.apiBaseUrl);
       res.json({
         success: true,
         data: {

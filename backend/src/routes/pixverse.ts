@@ -22,6 +22,10 @@ function extractToken(req: Request): string | null {
   return auth.trim();
 }
 
+function getDashScopePixVerseModel(model: string): string {
+  return model === "pixverse-v6" ? "pixverse/pixverse-v6-t2v" : model;
+}
+
 // ── 创建视频生成任务 ──────────────────────────────────────────────
 // POST /v1/video/text          (简洁路径)
 // POST /v1/video/video-synthesis (兼容百炼路径 /v1/services/aigc/video-generation/video-synthesis)
@@ -58,17 +62,17 @@ async function handleVideoSynthesis(req: Request, res: Response) {
 
   if (req.body.input) {
     // 百炼格式 — 直接透传
-    model = req.body.model || "pixverse/pixverse-v5.6-t2v";
+    model = req.body.model || "pixverse-v6";
     dashBody = {
-      model,
+      model: getDashScopePixVerseModel(model),
       input: req.body.input,
       parameters: req.body.parameters || {},
     };
   } else {
     // 简洁格式 — 转成百炼格式
-    model = req.body.model || "pixverse/pixverse-v5.6-t2v";
+    model = req.body.model || "pixverse-v6";
     dashBody = {
-      model,
+      model: getDashScopePixVerseModel(model),
       input: {
         prompt: req.body.prompt || "",
       },
@@ -144,11 +148,11 @@ async function handleImageToVideo(req: Request, res: Response) {
     return;
   }
 
-  const model = req.body.model || "pixverse/pixverse-v5.6-i2v";
+  const model = req.body.model || "pixverse-v6";
   const dashBody = req.body.input
-    ? { model, input: req.body.input, parameters: req.body.parameters || {} }
+    ? { model: getDashScopePixVerseModel(model), input: req.body.input, parameters: req.body.parameters || {} }
     : {
-        model,
+        model: getDashScopePixVerseModel(model),
         input: {
           prompt: req.body.prompt || "",
           image_url: req.body.image_url || "",
