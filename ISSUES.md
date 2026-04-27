@@ -72,14 +72,14 @@ return Array.from(modelMap.values());
 
 ## 3. API Key 和余额问题
 
-### 3.1 百炼渠道 "User does not exist"
-**问题**: 使用新的百炼 API Key (`sk-27b3ca3cb4944f379c214b6444e08210`) 调用 pixverse-v5.6 时返回 "User does not exist"。
+### 3.1 百炼渠道 "Account in arrears"
+**问题**: 使用百炼 API Key (`sk-27b3ca3cb4944f379c214b6444e08210`) 调用 pixverse-v6 时返回 "Your account is in arrears. Please check your account status."
 
-**可能原因**:
-1. 百炼账号未开通该模型
-2. 模型名称格式不正确（百炼平台实际名称可能与预期不同）
+**原因**: 阿里云百炼账号欠费了。
 
-**状态**: 待确认百炼平台模型开通情况。
+**状态**: 需要在阿里云控制台充值才能恢复使用。
+
+**备注**: 之前测试 pixverse-v5.6 时曾返回 "User does not exist"，可能是模型未开通。pixverse-v6 模型是可用的，但账号欠费导致无法调用。
 
 ### 3.2 官方渠道 "Insufficient balance"
 **问题**: 使用 PixVerse 官方 API 时返回余额不足。
@@ -144,22 +144,27 @@ router.post("/:providerId/switch-channel", (req, res) => {
 
 ## 6. 模型测试验证
 
-### 6.1 成功的测试
-- **pixverse-v6 (百炼渠道)**: 成功生成视频，返回视频 URL
+### 6.1 成功的测试（历史记录）
+- **pixverse-v6 (百炼渠道)**: 之前曾成功生成视频，返回视频 URL
 - **任务轮询**: 修复了渠道感知的 API Key 选择逻辑，百炼渠道使用 DashScope Key 和轮询方法
 
-### 6.2 失败的测试
+### 6.2 最新的测试结果（2026-04-27 22:24）
+- **pixverse-v6 (百炼渠道)**: 失败 - "Your account is in arrears. Please check your account status."
+  - 说明模型是可用的，但阿里云账号欠费
+  
+### 6.3 失败的测试
 - **pixverse-v5.6 (百炼渠道)**: "User does not exist" - 模型可能未开通
-- **pixverse-v6 (官方渠道)**: "Insufficient balance" - 需要充值
+- **pixverse-v6 (官方渠道)**: "Insufficient balance" - PixVerse 官方账号需要充值
 
 ---
 
 ## 7. 待办事项
 
-1. [ ] 确认百炼平台 pixverse-v5.6 模型是否可用
-2. [ ] 为 PixVerse 官方渠道充值
-3. [ ] 测试渠道切换功能是否正常工作
-4. [ ] 考虑是否需要为其他供应商（如 HappyHorse）实现双通道支持
+1. [ ] **阿里云账号充值** - 百炼渠道因欠费无法使用
+2. [ ] **为 PixVerse 官方渠道充值** - 官方渠道余额不足
+3. [ ] 确认百炼平台 pixverse-v5.6 模型是否可用
+4. [ ] 测试渠道切换功能是否正常工作
+5. [ ] 考虑是否需要为其他供应商（如 HappyHorse）实现双通道支持
 
 ---
 
