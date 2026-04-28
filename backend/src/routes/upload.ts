@@ -44,13 +44,16 @@ const upload = multer({
 
 // POST /api/upload - single file upload
 router.post("/", upload.single("file"), (req, res) => {
+  console.log("[Upload API] Received request, file:", req.file?.originalname, "size:", req.file?.size);
   if (!req.file) {
+    console.log("[Upload API] No file in request");
     res.status(400).json({ success: false, message: "未收到文件" });
     return;
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  const baseUrl = process.env.PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
   const publicUrl = `${baseUrl}/api/uploads/${req.file.filename}`;
+  console.log("[Upload API] Success, url:", publicUrl);
 
   res.json({
     success: true,

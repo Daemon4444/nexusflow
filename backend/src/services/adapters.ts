@@ -320,6 +320,8 @@ export function adaptVideoRequest(
     size?: string;
     duration?: number;
     img_url?: string;
+    img_urls?: string[];
+    video_url?: string;
     prompt_extend?: boolean;
   }
 ): AdapterResult {
@@ -328,6 +330,10 @@ export function adaptVideoRequest(
   };
   if (body.negative_prompt) input.negative_prompt = body.negative_prompt;
   if (body.img_url) input.img_url = body.img_url;
+  // wan2.6-r2v: reference images -> reference_urls, reference video -> reference_video_urls
+  if (body.img_urls && body.img_urls.length > 0) input.reference_urls = body.img_urls;
+  else if (body.img_url && body.model.includes("r2v")) input.reference_urls = [body.img_url];
+  if (body.video_url && body.model.includes("r2v")) input.reference_video_urls = [body.video_url];
 
   const parameters: any = {};
   if (body.size) parameters.size = body.size;

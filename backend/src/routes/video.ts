@@ -150,7 +150,9 @@ router.post("/generate", async (req: Request, res: Response) => {
         negative_prompt,
         size: size || "1280*720",
         duration: duration || 5,
-        img_url: modelId.includes("i2v") ? img_url : undefined,
+        img_url: (modelId.includes("i2v") || modelId.includes("r2v")) ? img_url : undefined,
+        img_urls: modelId.includes("r2v") ? img_urls : undefined,
+        video_url: modelId.includes("r2v") ? video_url : undefined,
         prompt_extend: true,
       });
     }
