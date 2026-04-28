@@ -1236,6 +1236,87 @@ function PlaygroundInner() {
               <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", marginTop: 10, opacity: 0.7 }}>
                 {mode === "chat" ? (streamEnabled ? "流式模式：实时显示生成内容" : "在下方输入消息，按 Enter 发送") : "在下方输入描述，点击生成"}
               </div>
+              {/* Video parameters in empty state */}
+              {mode === "video" && (
+                <div style={{
+                  marginTop: 20,
+                  padding: "14px 16px",
+                  borderRadius: 10,
+                  background: "var(--bg)",
+                  border: "1px solid var(--border)",
+                  maxWidth: 400,
+                }}>
+                  <div style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--text-secondary)",
+                    marginBottom: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+                      <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                      <polyline points="12 12 12 22"/>
+                      <line x1="12" y1="22" x2="2" y2="17"/>
+                      <line x1="12" y1="22" x2="22" y2="17"/>
+                    </svg>
+                    视频参数设置
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                    {/* Duration */}
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>时长 (秒)</div>
+                      <select
+                        className="input"
+                        style={{ fontSize: 13, padding: "8px 10px" }}
+                        value={videoDuration}
+                        onChange={(e) => setVideoDuration(Number(e.target.value))}
+                      >
+                        <option value={3}>3秒</option>
+                        <option value={4}>4秒</option>
+                        <option value={5}>5秒</option>
+                        <option value={6}>6秒</option>
+                        <option value={8}>8秒</option>
+                        <option value={10}>10秒</option>
+                        <option value={12}>12秒</option>
+                        <option value={15}>15秒</option>
+                      </select>
+                    </div>
+                    {/* Resolution */}
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>分辨率</div>
+                      <select
+                        className="input"
+                        style={{ fontSize: 13, padding: "8px 10px" }}
+                        value={videoResolution}
+                        onChange={(e) => setVideoResolution(e.target.value)}
+                      >
+                        <option value="360p">360p</option>
+                        <option value="540p">540p</option>
+                        <option value="720p">720p</option>
+                        <option value="1080p">1080p</option>
+                      </select>
+                    </div>
+                    {/* Aspect ratio */}
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>宽高比</div>
+                      <select
+                        className="input"
+                        style={{ fontSize: 13, padding: "8px 10px" }}
+                        value={videoRatio}
+                        onChange={(e) => setVideoRatio(e.target.value)}
+                      >
+                        <option value="16:9">16:9 横屏</option>
+                        <option value="9:16">9:16 竖屏</option>
+                        <option value="1:1">1:1 方形</option>
+                        <option value="4:3">4:3</option>
+                        <option value="3:4">3:4</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
