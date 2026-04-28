@@ -904,8 +904,7 @@ function PlaygroundInner() {
         if (!originalFile) throw new Error("File not found");
         formData.append("file", originalFile);
 
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-        const res = await fetch(`${baseUrl}/api/upload`, {
+        const res = await fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
@@ -916,7 +915,10 @@ function PlaygroundInner() {
         }
 
         const data = await res.json();
-        setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, url: data.url, uploading: false } : f));
+        // Backend returns { success: true, data: { url: ... } }
+        const fileUrl = data.data?.url || data.url;
+        if (!fileUrl) throw new Error("Upload response missing URL");
+        setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, url: fileUrl, uploading: false } : f));
         setUploadingCount(c => c - 1);
       } catch (err: any) {
         setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, uploading: false, error: err.message } : f));
@@ -1236,88 +1238,7 @@ function PlaygroundInner() {
               <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", marginTop: 10, opacity: 0.7 }}>
                 {mode === "chat" ? (streamEnabled ? "流式模式：实时显示生成内容" : "在下方输入消息，按 Enter 发送") : "在下方输入描述，点击生成"}
               </div>
-              {/* Video parameters in empty state */}
-              {mode === "video" && (
-                <div style={{
-                  marginTop: 20,
-                  padding: "14px 16px",
-                  borderRadius: 10,
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                  maxWidth: 400,
-                }}>
-                  <div style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--text-secondary)",
-                    marginBottom: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-                      <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-                      <polyline points="12 12 12 22"/>
-                      <line x1="12" y1="22" x2="2" y2="17"/>
-                      <line x1="12" y1="22" x2="22" y2="17"/>
-                    </svg>
-                    视频参数设置
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                    {/* Duration */}
-                    <div>
-                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>时长 (秒)</div>
-                      <select
-                        className="input"
-                        style={{ fontSize: 13, padding: "8px 10px" }}
-                        value={videoDuration}
-                        onChange={(e) => setVideoDuration(Number(e.target.value))}
-                      >
-                        <option value={3}>3秒</option>
-                        <option value={4}>4秒</option>
-                        <option value={5}>5秒</option>
-                        <option value={6}>6秒</option>
-                        <option value={8}>8秒</option>
-                        <option value={10}>10秒</option>
-                        <option value={12}>12秒</option>
-                        <option value={15}>15秒</option>
-                      </select>
-                    </div>
-                    {/* Resolution */}
-                    <div>
-                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>分辨率</div>
-                      <select
-                        className="input"
-                        style={{ fontSize: 13, padding: "8px 10px" }}
-                        value={videoResolution}
-                        onChange={(e) => setVideoResolution(e.target.value)}
-                      >
-                        <option value="360p">360p</option>
-                        <option value="540p">540p</option>
-                        <option value="720p">720p</option>
-                        <option value="1080p">1080p</option>
-                      </select>
-                    </div>
-                    {/* Aspect ratio */}
-                    <div>
-                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>宽高比</div>
-                      <select
-                        className="input"
-                        style={{ fontSize: 13, padding: "8px 10px" }}
-                        value={videoRatio}
-                        onChange={(e) => setVideoRatio(e.target.value)}
-                      >
-                        <option value="16:9">16:9 横屏</option>
-                        <option value="9:16">9:16 竖屏</option>
-                        <option value="1:1">1:1 方形</option>
-                        <option value="4:3">4:3</option>
-                        <option value="3:4">3:4</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+                          </div>
           )}
 
           {messages.map((msg, idx) => (
@@ -1362,8 +1283,39 @@ function PlaygroundInner() {
           {/* Upload area */}
           {needsUpload(selectedModel) && (
             <div style={{ marginBottom: 10 }}>
+              {/* Upload limit hint */}
+              <div style={{
+                padding: "8px 12px",
+                borderRadius: 6,
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                marginBottom: 8,
+                fontSize: 11,
+                color: "var(--text-tertiary)",
+              }}>
+                {selectedModel.includes("i2v") && (
+                  <>图生视频：上传1张图片作为首帧，支持 JPG/PNG，建议分辨率与输出一致</>
+                )}
+                {selectedModel.includes("r2v") && (
+                  <>参考生视频：上传1-9张参考图片，支持 JPG/PNG，图片中人物/物体将作为主角</>
+                )}
+                {selectedModel.includes("video-edit") && (
+                  <>视频编辑：上传1个视频（3-60秒），可选0-5张参考图片辅助编辑，支持 MP4/WebM</>
+                )}
+                {selectedModel === "pixverse-v6" && (
+                  <>PixVerse V6：可选上传1张图片进行图生视频，否则为文生视频模式</>
+                )}
+              </div>
+
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>参考文件</span>
+                <span style={{ fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+                  上传文件
+                  {uploadingCount > 0 && (
+                    <span style={{ color: "var(--accent)", marginLeft: 6 }}>
+                      ({uploadingCount} 个上传中...)
+                    </span>
+                  )}
+                </span>
                 <div style={{ flex: 1 }} />
                 {canUploadMore("image") && (
                   <button
@@ -1371,6 +1323,7 @@ function PlaygroundInner() {
                     className="btn-secondary"
                     style={{ padding: "4px 10px", fontSize: 11.5 }}
                     onClick={() => imageInputRef.current?.click()}
+                    disabled={uploadingCount > 0}
                   >
                     + 图片
                   </button>
@@ -1381,6 +1334,7 @@ function PlaygroundInner() {
                     className="btn-secondary"
                     style={{ padding: "4px 10px", fontSize: 11.5 }}
                     onClick={() => videoInputRef.current?.click()}
+                    disabled={uploadingCount > 0}
                   >
                     + 视频
                   </button>
@@ -1398,7 +1352,7 @@ function PlaygroundInner() {
                         width: 64,
                         height: 64,
                         borderRadius: 8,
-                        border: file.error ? "1px solid var(--error, #ef4444)" : "1px solid var(--border)",
+                        border: file.error ? "1px solid var(--error, #ef4444)" : file.uploading ? "1px solid var(--accent)" : "1px solid var(--success-border, #22c55e40)",
                         overflow: "hidden",
                         background: "var(--bg-elevated)",
                       }}
@@ -1408,32 +1362,52 @@ function PlaygroundInner() {
                       ) : (
                         <video src={file.preview} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       )}
+                      {/* Uploading overlay */}
                       {file.uploading && (
                         <div style={{
                           position: "absolute",
                           inset: 0,
                           display: "flex",
+                          flexDirection: "column",
                           alignItems: "center",
                           justifyContent: "center",
                           background: "rgba(0,0,0,0.6)",
+                          gap: 4,
                         }}>
                           <div className="spinner" style={{ width: 16, height: 16 }} />
+                          <span style={{ fontSize: 9, color: "#fff" }}>上传中</span>
                         </div>
                       )}
+                      {/* Success indicator */}
+                      {!file.uploading && !file.error && file.url && (
+                        <div style={{
+                          position: "absolute",
+                          bottom: 2,
+                          left: 2,
+                          padding: "1px 4px",
+                          borderRadius: 3,
+                          background: "var(--success)",
+                          color: "#fff",
+                          fontSize: 8,
+                          fontWeight: 600,
+                        }}>
+                          ✓
+                        </div>
+                      )}
+                      {/* Error overlay */}
                       {file.error && (
                         <div style={{
                           position: "absolute",
                           inset: 0,
                           display: "flex",
+                          flexDirection: "column",
                           alignItems: "center",
                           justifyContent: "center",
-                          background: "rgba(239,68,68,0.2)",
-                          color: "#ef4444",
-                          fontSize: 9,
-                          textAlign: "center",
-                          padding: 2,
+                          background: "rgba(239,68,68,0.3)",
+                          gap: 2,
                         }}>
-                          错误
+                          <span style={{ fontSize: 10, color: "#ef4444" }}>✕</span>
+                          <span style={{ fontSize: 8, color: "#ef4444", padding: "0 4px" }}>失败</span>
                         </div>
                       )}
                       <button
@@ -1484,8 +1458,8 @@ function PlaygroundInner() {
             </div>
           )}
 
-          {/* Video parameters */}
-          {mode === "video" && (
+          {/* Video parameters - dynamic based on model */}
+          {mode === "video" && selectedModel && (
             <div style={{
               marginBottom: 12,
               padding: "12px 14px",
@@ -1511,26 +1485,41 @@ function PlaygroundInner() {
                 视频参数
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                {/* Duration */}
+                {/* Duration - options based on model */}
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>时长 (秒)</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>时长</div>
                   <select
                     className="input"
                     style={{ fontSize: 13, padding: "6px 10px" }}
                     value={videoDuration}
                     onChange={(e) => setVideoDuration(Number(e.target.value))}
                   >
-                    <option value={3}>3秒</option>
-                    <option value={4}>4秒</option>
-                    <option value={5}>5秒</option>
-                    <option value={6}>6秒</option>
-                    <option value={8}>8秒</option>
-                    <option value={10}>10秒</option>
-                    <option value={12}>12秒</option>
-                    <option value={15}>15秒</option>
+                    {selectedModel.includes("pixverse") ? (
+                      <>
+                        <option value={5}>5秒</option>
+                        <option value={8}>8秒</option>
+                      </>
+                    ) : selectedModel.includes("happyhorse") || selectedModel.includes("wan2.6") ? (
+                      <>
+                        <option value={3}>3秒</option>
+                        <option value={5}>5秒</option>
+                        <option value={8}>8秒</option>
+                        <option value={10}>10秒</option>
+                        <option value={12}>12秒</option>
+                        <option value={15}>15秒</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value={3}>3秒</option>
+                        <option value={5}>5秒</option>
+                        <option value={8}>8秒</option>
+                        <option value={10}>10秒</option>
+                        <option value={15}>15秒</option>
+                      </>
+                    )}
                   </select>
                 </div>
-                {/* Resolution */}
+                {/* Resolution - options based on model */}
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>分辨率</div>
                   <select
@@ -1539,10 +1528,29 @@ function PlaygroundInner() {
                     value={videoResolution}
                     onChange={(e) => setVideoResolution(e.target.value)}
                   >
-                    <option value="360p">360p</option>
-                    <option value="540p">540p</option>
-                    <option value="720p">720p</option>
-                    <option value="1080p">1080p</option>
+                    {selectedModel.includes("happyhorse") ? (
+                      <>
+                        <option value="720p">720p</option>
+                        <option value="1080p">1080p</option>
+                      </>
+                    ) : selectedModel.includes("pixverse") ? (
+                      <>
+                        <option value="360p">360p</option>
+                        <option value="540p">540p</option>
+                        <option value="720p">720p</option>
+                        <option value="1080p">1080p</option>
+                      </>
+                    ) : selectedModel.includes("wan2.6") ? (
+                      <>
+                        <option value="720p">720p</option>
+                        <option value="1080p">1080p</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="720p">720p</option>
+                        <option value="1080p">1080p</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 {/* Aspect ratio */}
@@ -1554,30 +1562,18 @@ function PlaygroundInner() {
                     value={videoRatio}
                     onChange={(e) => setVideoRatio(e.target.value)}
                   >
-                    <option value="16:9">16:9 (横屏)</option>
-                    <option value="9:16">9:16 (竖屏)</option>
-                    <option value="1:1">1:1 (方形)</option>
-                    <option value="4:3">4:3</option>
-                    <option value="3:4">3:4</option>
+                    <option value="16:9">16:9 横屏</option>
+                    <option value="9:16">9:16 竖屏</option>
+                    <option value="1:1">1:1 方形</option>
+                    {selectedModel.includes("happyhorse") && (
+                      <>
+                        <option value="4:3">4:3</option>
+                        <option value="3:4">3:4</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
-              {/* Model-specific hints */}
-              {selectedModel.includes("pixverse") && (
-                <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
-                  PixVerse V6: 支持 5秒/8秒时长，360p-1080p 分辨率
-                </div>
-              )}
-              {selectedModel.includes("happyhorse") && (
-                <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
-                  HappyHorse: 支持 3-15秒时长，720p/1080p，默认带音频
-                </div>
-              )}
-              {selectedModel.includes("wan2.6") && (
-                <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
-                  万相 2.6: 支持 2-15秒时长，720p/1080p
-                </div>
-              )}
             </div>
           )}
 

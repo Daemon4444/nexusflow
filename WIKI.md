@@ -2,7 +2,7 @@
 
 本文档是 `ai-router-platform` 的统一项目文档，覆盖当前代码库的真实逻辑、运行链路、管理后台、支付、监控与部署说明。
 
-更新时间：2026-04-24
+更新时间：2026-04-28
 
 ---
 
@@ -187,7 +187,60 @@ ai-router-platform/
 
 ---
 
-## 8. 渠道密钥安全
+## 8. PixVerse 双通道架构
+
+### 8.1 概述
+
+PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个渠道调用：
+
+- **百炼渠道**：通过阿里云百炼平台调用 PixVerse 模型
+- **官方渠道**：通过 PixVerse 官方 API 调用
+
+### 8.2 支持的模型
+
+| 模型ID | 名称 | 特性 |
+|--------|------|------|
+| `pixverse-v6` | PixVerse V6 | 旗舰模型，文生视频/图生视频，5秒/8秒时长 |
+
+### 8.3 渠道配置
+
+渠道配置存储在 `providers.config` 字段（JSON 格式）：
+
+```json
+{
+  "active_channel": "official",
+  "channels": {
+    "bailian": {
+      "name": "百炼渠道",
+      "adapter": "dashscope",
+      "api_base_url": "https://dashscope.aliyuncs.com/api/v1",
+      "api_key": "sk-27b3ca3cb4944f379c214b6444e08210"
+    },
+    "official": {
+      "name": "拍我官方",
+      "adapter": "pixverse",
+      "api_base_url": "https://app-api.pixverseai.cn/openapi/v2",
+      "api_key": "sk-b2803a285c787974e5eb786435dce3c1"
+    }
+  }
+}
+```
+
+### 8.4 渠道切换逻辑
+
+- 通过数据库更新 `active_channel` 字段切换渠道
+- 任务轮询时根据模型的 `channelAdapter` 字段选择对应的 API key 和轮询方法
+- 百炼渠道使用 `pollDashScopeTask`，官方渠道使用 `pollPixVerseTask`
+
+### 8.5 关键文件
+
+- [providers.ts](/root/distiny/nexusflow/backend/src/data/providers.ts) - 渠道配置与切换
+- [tasks.ts](/root/distiny/nexusflow/backend/src/routes/tasks.ts) - 渠道感知任务轮询
+- [adapters.ts](/root/distiny/nexusflow/backend/src/services/adapters.ts) - PixVerse API 适配器
+
+---
+
+## 9. 渠道密钥安全
 
 `providers.api_key` 支持透明加密存储：
 
@@ -404,4 +457,138 @@ curl -I https://nexusflow.hk/
 2. 将告警联动到通知通道（邮件/飞书/webhook）。
 3. 将渠道监控与工单自动关联，异常自动提示关联问题单。
 4. 统一后台认证入口（Basic Auth 与应用角色体系融合）。
+
+---
+
+## 16. Playground 视频生成与文件上传（2026-04-28 更新）
+
+### 16.1 视频参数动态配置
+
+Playground 视频生成参数面板根据选择的模型类型动态显示正确的选项：
+
+| 模型 | 时长选项 | 分辨率选项 | 宽高比选项 |
+|------|----------|------------|------------|
+| HappyHorse 系列 | 3/5/8/10/12/15秒 | 720p, 1080p | 16:9, 9:16, 1:1, 4:3, 3:4 |
+| PixVerse V6 | 5秒, 8秒 | 360p, 540p, 720p, 1080p | 16:9, 9:16, 1:1 |
+| 万相 2.6 系列 | 3/5/8/10/12/15秒 | 720p, 1080p | 16:9, 9:16, 1:1 |
+
+关键改动：
+- 删除了重复的视频参数面板（空消息区域的），只保留底部输入区域上方的一个
+- 参数选项根据模型动态渲染，避免用户选择不支持的参数导致 API 错误
+
+### 16.2 文件上传功能
+
+#### 上传 API 代理架构
+
+前端通过 Next.js API Route 代理文件上传请求到后端：
+
+```
+前端 Playground
+    ↓ POST /api/upload (FormData)
+前端 Next.js API Route (app/api/upload/route.ts)
+    ↓ 转发 FormData
+后端 Express (routes/upload.ts + multer)
+    ↓ 存储文件到 backend/uploads/
+    ↓ 返回 URL
+前端 API Route 转换 URL 为前端可访问路径
+    ↓ 返回 /api/uploads/{filename}
+```
+
+#### 关键文件
+
+| 文件 | 作用 |
+|------|------|
+| `frontend/app/api/upload/route.ts` | 上传代理，转换后端 URL 为前端路径 |
+| `frontend/app/api/uploads/[filename]/route.ts` | 文件访问代理，从后端获取上传的文件 |
+| `backend/src/routes/upload.ts` | multer 文件上传处理，支持图片和视频 |
+| `backend/uploads/` | 文件存储目录 |
+
+#### 上传限制
+
+- 文件大小：最大 100MB
+- 图片格式：JPG, PNG, WebP, GIF, BMP
+- 视频格式：MP4, MOV, WebM, AVI
+
+#### 模型上传要求
+
+| 模型类型 | 上传要求 |
+|----------|----------|
+| 图生视频 (i2v) | 1张图片作为首帧，建议分辨率与输出一致 |
+| 参考生视频 (r2v) | 1-9张参考图片，人物/物体将作为主角 |
+| 视频编辑 (video-edit) | 1个视频(3-60秒)，可选0-5张参考图片 |
+| PixVerse V6 | 可选1张图片进行图生视频，否则文生视频 |
+
+#### 上传状态显示
+
+- **上传中**：spinner + "上传中"文字 + 蓝色边框
+- **成功**：绿色勾号 ✓ + 绿色边框
+- **失败**：红色叉号 ✕ + "失败"文字 + 红色边框
+
+### 16.3 视频生成 API 参数映射
+
+前端发送的参数名称与后端 API 期望的参数名称映射：
+
+| 前端参数 | PixVerse API 参数 | HappyHorse API 参数 |
+|----------|-------------------|---------------------|
+| `duration` | `duration` | `duration` |
+| `resolution` | `quality` | `resolution` |
+| `ratio` | `aspect_ratio` | `ratio` |
+
+关键修复文件：
+- `backend/src/routes/video.ts` - 参数映射逻辑
+
+### 16.4 数据库模型配置修正
+
+PixVerse V6 的 `maxOutput` 从错误的 1 秒修正为 8 秒：
+
+```sql
+UPDATE provider_models SET max_output = 8 WHERE model_id = 'pixverse-v6';
+```
+
+---
+
+## 17. 本次更新改动汇总（2026-04-28）
+
+### 新增文件
+
+1. `frontend/app/api/upload/route.ts` - 文件上传代理
+2. `frontend/app/api/uploads/[filename]/route.ts` - 文件访问代理
+
+### 修改文件
+
+1. `frontend/app/(dashboard)/playground/page.tsx`
+   - 删除重复的视频参数面板
+   - 视频参数根据模型动态渲染选项
+   - 增强上传状态显示（成功/失败/上传中）
+   - 添加上传限制提示说明
+   - 修复上传响应 URL 处理
+
+2. `backend/src/routes/video.ts`
+   - 修复 PixVerse API 参数映射 (resolution→quality, ratio→aspect_ratio)
+
+3. `backend/src/data/models.ts`
+   - PixVerse V6 maxOutput 从 1 改为 8
+
+4. `backend/data/ai-router.db`
+   - provider_models 表 pixverse-v6 max_output 更新为 8
+
+### API 新增端点
+
+| 端点 | 方法 | 作用 |
+|------|------|------|
+| `/api/upload` | POST | 前端上传代理 |
+| `/api/uploads/{filename}` | GET | 前端文件访问代理 |
+
+---
+
+## 18. 部署验证清单
+
+每次更新后建议验证：
+
+1. 基础页面访问：首页、模型列表、定价、文档
+2. Playground API Key 强制填写是否生效
+3. 视频生成：选择视频模型后参数面板是否显示正确选项
+4. 文件上传：上传图片/视频是否显示状态并成功
+5. 视频生成请求：是否正常提交任务并返回 task_id
+6. 管理后台：是否正常访问
 

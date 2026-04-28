@@ -421,15 +421,15 @@ export const models: AIModel[] = [
     id: "pixverse-v6",
     name: "PixVerse V6",
     provider: "拍我AI (PixVerse)",
-    description: "PixVerse V6 视频生成模型，支持文生视频、图生视频和多种视频创作参数。平台侧可在百炼渠道与 PixVerse 官方渠道之间切换。",
+    description: "PixVerse最新旗舰视频生成模型，支持文生视频、图生视频，画面质量和运动一致性大幅提升。支持5秒/8秒时长，360p/540p/720p/1080p多种分辨率，多种宽高比。",
     contextLength: 500,
     promptPrice: 0,
     completionPrice: 0,
     category: "视频生成",
-    tags: ["视频生成", "文生视频", "图生视频", "旗舰"],
+    tags: ["视频生成", "文生视频", "图生视频", "旗舰", "V6"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 1,
+    maxOutput: 8,
     supported: ["文生视频", "图生视频"]
   },
 
