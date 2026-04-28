@@ -100,7 +100,7 @@ export default function SettingsPage() {
   }
 
   const joined = user ? new Date(user.createdAt).toLocaleDateString(
-    locale === "zh" ? "zh-CN" : locale === "ja" ? "ja-JP" : "en-US",
+    locale === "zh" ? "zh-CN" : "en-US",
     { year: "numeric", month: "long", day: "numeric" }
   ) : "";
 

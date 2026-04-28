@@ -104,7 +104,7 @@ export default function TicketsPage() {
   }
 
   function formatDate(dateStr: string) {
-    const loc = locale === "zh" ? "zh-CN" : locale === "ja" ? "ja-JP" : "en-US";
+    const loc = locale === "zh" ? "zh-CN" : "en-US";
     return new Date(dateStr).toLocaleString(loc, {
       month: "short", day: "numeric", year: "numeric",
       hour: "2-digit", minute: "2-digit",

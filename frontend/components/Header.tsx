@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
-import { useI18n, localeLabels, Locale } from "@/lib/i18n";
+import { useI18n, localeLabels } from "@/lib/i18n";
+import { Locale } from "@/lib/i18n";
 import { NexusflowLogo } from "./QuadrantLogo";
 import { useState, useRef, useEffect } from "react";
 
@@ -131,7 +132,7 @@ export default function Header() {
               minWidth: 100,
               zIndex: 200,
             }}>
-              {(["zh", "en", "ja"] as Locale[]).map((l) => (
+              {(["zh", "en"] as Locale[]).map((l) => (
                 <button
                   key={l}
                   onClick={() => { setLocale(l); setLangOpen(false); }}

@@ -16,6 +16,12 @@ interface ApiKey {
   rateLimit: number;
 }
 
+// Helper to mask API key for display
+function maskApiKey(key: string): string {
+  if (key.length <= 20) return key;
+  return `${key.slice(0, 12)}••••••••${key.slice(-8)}`;
+}
+
 export default function KeysPage() {
   const { user } = useAuth();
   const { t, locale } = useI18n();
@@ -25,10 +31,23 @@ export default function KeysPage() {
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyLimit, setNewKeyLimit] = useState(60);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (user) loadKeys();
   }, [user]);
+
+  function toggleReveal(id: string) {
+    setRevealedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
 
   async function loadKeys() {
     setDataLoading(true);
@@ -97,7 +116,7 @@ export default function KeysPage() {
   }
 
   function formatDate(dateStr: string) {
-    const loc = locale === "zh" ? "zh-CN" : locale === "ja" ? "ja-JP" : "en-US";
+    const loc = locale === "zh" ? "zh-CN" : "en-US";
     return new Date(dateStr).toLocaleString(loc, {
       month: "short", day: "numeric", year: "numeric",
       hour: "2-digit", minute: "2-digit",
@@ -223,10 +242,19 @@ export default function KeysPage() {
               }}>
                 <code style={{
                   flex: 1, fontSize: 12.5, color: "#e7e5e4",
-                  fontFamily: "var(--font-mono)", wordBreak: "break-all", userSelect: "all",
+                  fontFamily: "var(--font-mono)", wordBreak: "break-all",
                 }}>
-                  {key.key}
+                  {revealedIds.has(key.id) ? key.key : maskApiKey(key.key)}
                 </code>
+                <button
+                  className="btn-secondary"
+                  style={{
+                    padding: "5px 10px", flexShrink: 0, fontSize: 12,
+                  }}
+                  onClick={() => toggleReveal(key.id)}
+                >
+                  {revealedIds.has(key.id) ? "隐藏" : "显示"}
+                </button>
                 <button
                   className="btn-secondary"
                   style={{

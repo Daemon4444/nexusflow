@@ -5,9 +5,13 @@ import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import UserLayout from "@/components/UserLayout";
+import { BalanceWarning } from "@/components/BalanceWarning";
+import OnboardingGuide, { useOnboarding } from "@/components/OnboardingGuide";
+import SmartRecharge from "@/components/SmartRechargeRecommendation";
 
 interface BillingSummary { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; }
 interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; createdAt: string; }
+interface ApiKeyInfo { id: string; key: string; name: string; }
 type PayMethod = "mock" | "alipay";
 type AlipayMode = "page" | "qr";
 interface PaymentConfigStatus {
@@ -36,7 +40,9 @@ export default function BillingPage() {
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfigStatus | null>(null);
   const [alipayMode, setAlipayMode] = useState<AlipayMode>("page");
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [firstApiKey, setFirstApiKey] = useState<ApiKeyInfo | null>(null);
   const missingConfigKeys = Array.isArray(paymentConfig?.missing) ? paymentConfig!.missing : [];
+  const { shouldShow: showOnboarding, markCompleted } = useOnboarding();
 
   useEffect(() => { if (user) loadData(); }, [user]);
 
@@ -60,14 +66,18 @@ export default function BillingPage() {
     setDataLoading(true);
     try {
       const headers = authHeaders();
-      const [sRes, tRes, cRes] = await Promise.all([
+      const [sRes, tRes, cRes, kRes] = await Promise.all([
         fetchAPI("/api/billing/summary", { headers }),
         fetchAPI(`/api/billing/transactions?limit=20&offset=${txOffset}`, { headers }),
         fetchAPI("/api/billing/payment/config", { headers }),
+        fetchAPI("/api/keys", { headers }),
       ]);
       if (sRes.success) setSummary(sRes.data);
       if (tRes.success) { setTransactions(tRes.data.rows); setTxTotal(tRes.data.total); }
       if (cRes.success) setPaymentConfig(cRes.data);
+      if (kRes.success && kRes.data && kRes.data.length > 0) {
+        setFirstApiKey(kRes.data[0]);
+      }
     } catch {} finally { setDataLoading(false); }
   }
 
@@ -116,7 +126,7 @@ export default function BillingPage() {
   }
 
   function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleString(locale === "zh" ? "zh-CN" : locale === "ja" ? "ja-JP" : "en-US", {
+    return new Date(dateStr).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", {
       month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit",
     });
   }
@@ -132,6 +142,15 @@ export default function BillingPage() {
 
   return (
     <UserLayout>
+      {/* Onboarding Guide */}
+      {showOnboarding && user && (
+        <OnboardingGuide
+          hasApiKey={!!firstApiKey}
+          apiKey={firstApiKey?.key}
+          onClose={markCompleted}
+        />
+      )}
+
       <div className="usr-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div><h1>{t("creditsTitle")}</h1><p>{t("creditsDesc")}</p></div>
         <button className="btn-primary" onClick={() => setShowRecharge(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -141,6 +160,11 @@ export default function BillingPage() {
       </div>
 
       <div className="usr-hero-dark">
+        <BalanceWarning
+          balance={summary?.balance || user?.balance || 0}
+          threshold={10}
+          onRecharge={() => setShowRecharge(true)}
+        />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
             <div className="usr-hero-label">{t("availableBalance")}</div>
@@ -161,6 +185,18 @@ export default function BillingPage() {
             <button onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); setQrCode(null); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 18, lineHeight: 1 }}>×</button>
           </div>
           <div className="usr-section-body">
+            {/* Smart recommendations */}
+            {summary && (
+              <SmartRecharge
+                stats={{
+                  monthlyCost: summary.totalConsumption,
+                  avgDailyCost: summary.totalConsumption / 30,
+                  balance: summary.balance,
+                }}
+                onSelect={(amount) => setRechargeAmount(String(amount))}
+                selectedAmount={rechargeAmount}
+              />
+            )}
             <div style={{ marginBottom: 20 }}>
               <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>{t("selectAmount")}</label>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>

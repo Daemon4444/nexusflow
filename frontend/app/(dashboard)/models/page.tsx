@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 interface AIModel {
   id: string; name: string; provider: string; description: string;
@@ -159,6 +160,32 @@ export default function ModelsPage() {
                 className="card animate-fadeIn"
                 style={{ animationDelay: `${idx * 20}ms`, opacity: 0, textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", borderTop: `3px solid ${accent}` }}
               >
+                {/* Quick test button */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.location.href = `/playground?model=${encodeURIComponent(model.id)}`;
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    right: 12,
+                    padding: "6px 12px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    background: "var(--accent)",
+                    color: "#fff",
+                    border: "none",
+                    cursor: "pointer",
+                    opacity: 0.9,
+                    transition: "opacity 0.15s",
+                  }}
+                  title="在 Playground 中快速测试此模型"
+                >
+                  快速测试
+                </button>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 9, gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>

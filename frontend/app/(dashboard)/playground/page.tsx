@@ -4,11 +4,25 @@ import { Suspense, useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { fetchAPI } from "@/lib/api";
+import CostEstimate from "@/components/CostEstimate";
+import PlaygroundHistory, { saveToHistory, HistoryEntry } from "@/components/PlaygroundHistory";
+import PromptTemplates from "@/components/PromptTemplates";
+import ErrorSuggestion, { ApiError } from "@/components/ErrorSuggestion";
 
 interface AIModel { id: string; name: string; provider: string; category: string; promptPrice: number; completionPrice: number; tags?: string[]; }
 interface Message { role: "user" | "assistant" | "system"; content: string; reasoningContent?: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
 interface UsageInfo { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost: string; }
 type ModelMode = "chat" | "image" | "video";
+
+interface UploadedFile {
+  id: string;
+  type: "image" | "video";
+  name: string;
+  url: string;
+  preview: string;
+  uploading: boolean;
+  error?: string;
+}
 
 function renderInlineMarkdown(text: string) {
   const parts: any[] = [];
@@ -247,6 +261,11 @@ function PlaygroundInner() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [lastError, setLastError] = useState<ApiError | string | null>(null);
 
   useEffect(() => {
     async function loadModels() {
@@ -275,6 +294,8 @@ function PlaygroundInner() {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
+      // Clean up object URLs for uploaded files
+      uploadedFiles.forEach(f => URL.revokeObjectURL(f.preview));
     };
   }, [requestedModel]);
 
@@ -286,6 +307,8 @@ function PlaygroundInner() {
       if (m.category === "图像生成") setMode("image");
       else if (m.category === "视频生成") setMode("video");
       else setMode("chat");
+      // Clear uploaded files when model changes
+      setUploadedFiles(prev => { prev.forEach(f => URL.revokeObjectURL(f.preview)); return []; });
     }
   }, [selectedModel, models]);
 
@@ -340,11 +363,13 @@ function PlaygroundInner() {
 
       if (!response.ok) {
         const errData = await response.json();
+        const errorMsg = errData.error?.message || `HTTP ${response.status}`;
         updateLastMessage({
-          content: `错误: ${errData.error?.message || `HTTP ${response.status}`}`,
+          content: `错误: ${errorMsg}`,
           isStreaming: false,
           status: "error",
         });
+        setLastError({ code: errData.error?.code || String(response.status), message: errorMsg, status: response.status });
         setSending(false);
         return;
       }
@@ -445,6 +470,7 @@ function PlaygroundInner() {
           isStreaming: false,
           status: "error",
         });
+        setLastError("network_error");
       }
       setSending(false);
     }
@@ -510,12 +536,14 @@ function PlaygroundInner() {
           cost: "$" + ((data.usage?.total_tokens || 0) * 0.001 / 1000).toFixed(4),
         });
       } else {
+        const errorMsg = data.error?.message || `HTTP ${res.status}`;
         setMessages((p) => [...p, {
           role: "assistant",
-          content: `错误: ${data.error?.message || `HTTP ${res.status}`}`,
+          content: `错误: ${errorMsg}`,
           type: "text",
           status: "error",
         }]);
+        setLastError({ code: data.error?.code || String(res.status), message: errorMsg, status: res.status });
       }
     } catch {
       setMessages((p) => [...p, {
@@ -524,6 +552,7 @@ function PlaygroundInner() {
         type: "text",
         status: "error",
       }]);
+      setLastError("network_error");
     } finally {
       setSending(false);
     }
@@ -535,6 +564,15 @@ function PlaygroundInner() {
 
   async function generateImage() {
     if (!input.trim() || sending) return;
+
+    const { images } = getUploadedUrls();
+
+    // Check for uploading files
+    if (uploadedFiles.some(f => f.uploading)) {
+      alert("文件上传中，请稍候");
+      return;
+    }
+
     setMessages((p) => [...p,
       { role: "user", content: input.trim(), type: "text" },
       { role: "assistant", content: "正在生成图片...", type: "image", status: "pending" }
@@ -543,9 +581,15 @@ function PlaygroundInner() {
     setSending(true);
 
     try {
+      const body: Record<string, any> = {
+        model: selectedModel,
+        prompt: input.trim(),
+      };
+      if (images.length > 0) body.ref_img = images[0];
+
       const res = await fetchAPI("/api/image/generate", {
         method: "POST",
-        body: JSON.stringify({ model: selectedModel, prompt: input.trim() }),
+        body: JSON.stringify(body),
       });
 
       if (res.success && res.data.task_id) {
@@ -604,6 +648,26 @@ function PlaygroundInner() {
 
   async function generateVideo() {
     if (!input.trim() || sending) return;
+
+    // Check if required files are uploaded
+    const { images, videos } = getUploadedUrls();
+    const config = getUploadConfig(selectedModel);
+
+    if (config.requiredImages && images.length === 0) {
+      alert("请上传所需图片");
+      return;
+    }
+    if (config.requiredVideos && videos.length === 0) {
+      alert("请上传所需视频");
+      return;
+    }
+
+    // Check for uploading files
+    if (uploadedFiles.some(f => f.uploading)) {
+      alert("文件上传中，请稍候");
+      return;
+    }
+
     setMessages((p) => [...p,
       { role: "user", content: input.trim(), type: "text" },
       { role: "assistant", content: "正在生成视频...", type: "video", status: "pending" }
@@ -612,9 +676,18 @@ function PlaygroundInner() {
     setSending(true);
 
     try {
+      const body: Record<string, any> = {
+        model: selectedModel,
+        prompt: input.trim(),
+      };
+      // Add uploaded files
+      if (images.length === 1) body.img_url = images[0];
+      else if (images.length > 1) body.img_urls = images;
+      if (videos.length > 0) body.video_url = videos[0];
+
       const res = await fetchAPI("/api/video/generate", {
         method: "POST",
-        body: JSON.stringify({ model: selectedModel, prompt: input.trim() }),
+        body: JSON.stringify(body),
       });
 
       if (res.success && res.data.task_id) {
@@ -689,7 +762,17 @@ function PlaygroundInner() {
   }
 
   function handleSend() {
+    setLastError(null); // Clear previous error
     if (mode === "chat") {
+      // Save to history before sending
+      if (messages.length > 0) {
+        saveToHistory({
+          model: selectedModel,
+          messages: messages.filter(m => m.type === "text"),
+          systemPrompt,
+          input: input.trim(),
+        });
+      }
       if (streamEnabled) {
         sendChatMessageStream();
       } else {
@@ -700,6 +783,13 @@ function PlaygroundInner() {
     } else {
       generateVideo();
     }
+  }
+
+  function handleHistorySelect(entry: HistoryEntry) {
+    setMessages(entry.messages);
+    setSystemPrompt(entry.systemPrompt || "你是一个有用的AI助手。");
+    setSelectedModel(entry.model);
+    setInput(entry.input);
   }
 
   function cancelStream() {
@@ -715,6 +805,129 @@ function PlaygroundInner() {
     setMessages([]);
     setUsage(null);
     setSending(false);
+    setUploadedFiles([]);
+    setLastError(null);
+  }
+
+  // ============================================================
+  // 文件上传
+  // ============================================================
+
+  function getUploadConfig(modelId: string) {
+    // 根据模型决定上传限制
+    // requiredImages/requiredVideos: 是否必须上传（false = 可选）
+    const configs: Record<string, { maxImages: number; maxVideos: number; accept: string; multiple: boolean; requiredImages?: boolean; requiredVideos?: boolean }> = {
+      // HappyHorse
+      "happyhorse-1.0-i2v": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: true },
+      "happyhorse-1.0-r2v": { maxImages: 9, maxVideos: 0, accept: "image/*", multiple: true, requiredImages: true },
+      "happyhorse-1.0-video-edit": { maxImages: 5, maxVideos: 1, accept: "image/*,video/*", multiple: true, requiredVideos: true },
+      "happyhorse-1.0-t2v": { maxImages: 0, maxVideos: 0, accept: "", multiple: false },
+      // PixVerse - 支持文生视频和图生视频，图片可选
+      "pixverse-v6": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: false },
+    };
+    return configs[modelId] || { maxImages: 0, maxVideos: 0, accept: "", multiple: false };
+  }
+
+  function needsUpload(modelId: string) {
+    const config = getUploadConfig(modelId);
+    return config.maxImages > 0 || config.maxVideos > 0;
+  }
+
+  function canUploadMore(type: "image" | "video") {
+    const config = getUploadConfig(selectedModel);
+    const images = uploadedFiles.filter(f => f.type === "image").length;
+    const videos = uploadedFiles.filter(f => f.type === "video").length;
+    if (type === "image") return images < config.maxImages && config.maxImages > 0;
+    if (type === "video") return videos < config.maxVideos && config.maxVideos > 0;
+    return false;
+  }
+
+  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    // Reset input value to allow re-upload of same file
+    event.target.value = "";
+
+    const config = getUploadConfig(selectedModel);
+    const remainingImages = config.maxImages - uploadedFiles.filter(f => f.type === "image").length;
+    const remainingVideos = config.maxVideos - uploadedFiles.filter(f => f.type === "video").length;
+
+    // Validate files
+    const fileArray = Array.from(files);
+    const toUpload: File[] = [];
+    const errors: string[] = [];
+
+    for (const file of fileArray) {
+      if (file.type.startsWith("image/") && remainingImages > 0) {
+        toUpload.push(file);
+      } else if (file.type.startsWith("video/") && remainingVideos > 0) {
+        toUpload.push(file);
+      } else {
+        errors.push(`${file.name}: 不支持的文件类型或超出限制`);
+      }
+    }
+
+    if (toUpload.length === 0) {
+      if (errors.length > 0) alert(errors.join("\n"));
+      return;
+    }
+
+    // Create local previews
+    const newFiles: UploadedFile[] = toUpload.map(file => ({
+      id: `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      type: file.type.startsWith("image/") ? "image" : "video",
+      name: file.name,
+      url: "",
+      preview: URL.createObjectURL(file),
+      uploading: true,
+    }));
+
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setUploadingCount(c => c + newFiles.length);
+
+    // Upload each file
+    for (const file of newFiles) {
+      try {
+        const formData = new FormData();
+        // Find the actual File object
+        const originalFile = toUpload.find(f => f.name === file.name);
+        if (!originalFile) throw new Error("File not found");
+        formData.append("file", originalFile);
+
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${baseUrl}/api/upload`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Upload failed");
+        }
+
+        const data = await res.json();
+        setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, url: data.url, uploading: false } : f));
+        setUploadingCount(c => c - 1);
+      } catch (err: any) {
+        setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, uploading: false, error: err.message } : f));
+        setUploadingCount(c => c - 1);
+      }
+    }
+  }
+
+  function removeUploadedFile(id: string) {
+    setUploadedFiles(prev => {
+      const file = prev.find(f => f.id === id);
+      if (file) URL.revokeObjectURL(file.preview);
+      return prev.filter(f => f.id !== id);
+    });
+  }
+
+  function getUploadedUrls() {
+    const images = uploadedFiles.filter(f => f.type === "image" && f.url && !f.error).map(f => f.url);
+    const videos = uploadedFiles.filter(f => f.type === "video" && f.url && !f.error).map(f => f.url);
+    return { images, videos };
   }
 
   function saveApiKey() {
@@ -890,6 +1103,20 @@ function PlaygroundInner() {
               </span>
             </div>
             <div style={{ display: "flex", gap: 7 }}>
+              {/* History */}
+              {mode === "chat" && (
+                <PlaygroundHistory
+                  onSelect={handleHistorySelect}
+                  currentModel={selectedModel}
+                />
+              )}
+              {/* Prompt Templates */}
+              {mode === "chat" && (
+                <PromptTemplates
+                  onSelect={(prompt) => setInput(prompt)}
+                  currentPrompt={input}
+                />
+              )}
               <button
                 className={apiKey ? "btn-secondary" : "btn-danger"}
                 style={{ padding: "5px 12px", fontSize: 12.5 }}
@@ -1000,7 +1227,7 @@ function PlaygroundInner() {
                   <img src={msg.mediaUrl} alt="Generated" style={{ marginTop: 10, maxWidth: "100%", maxHeight: 360, borderRadius: 8, border: "1px solid var(--border)" }} />
                 )}
                 {msg.type === "video" && msg.mediaUrl && msg.status === "done" && (
-                  <video src={msg.mediaUrl} controls style={{ marginTop: 10, maxWidth: "100%", maxHeight: 360, borderRadius: 8, border: "1px solid var(--border)" }} />
+                  <video src={msg.mediaUrl} controls preload="auto" style={{ marginTop: 10, maxWidth: "100%", maxHeight: 360, borderRadius: 8, border: "1px solid var(--border)" }} />
                 )}
                 {(msg.status === "pending" || msg.status === "processing") && (
                   <div style={{ marginTop: 7, display: "flex", alignItems: "center", gap: 7 }}>
@@ -1016,12 +1243,154 @@ function PlaygroundInner() {
 
         {/* Input */}
         <div style={{ padding: "12px 18px", borderTop: "1px solid var(--border)", background: "var(--bg)", flexShrink: 0 }}>
+          {/* Upload area */}
+          {needsUpload(selectedModel) && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>参考文件</span>
+                <div style={{ flex: 1 }} />
+                {canUploadMore("image") && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ padding: "4px 10px", fontSize: 11.5 }}
+                    onClick={() => imageInputRef.current?.click()}
+                  >
+                    + 图片
+                  </button>
+                )}
+                {canUploadMore("video") && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ padding: "4px 10px", fontSize: 11.5 }}
+                    onClick={() => videoInputRef.current?.click()}
+                  >
+                    + 视频
+                  </button>
+                )}
+              </div>
+
+              {/* File previews */}
+              {uploadedFiles.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {uploadedFiles.map(file => (
+                    <div
+                      key={file.id}
+                      style={{
+                        position: "relative",
+                        width: 64,
+                        height: 64,
+                        borderRadius: 8,
+                        border: file.error ? "1px solid var(--error, #ef4444)" : "1px solid var(--border)",
+                        overflow: "hidden",
+                        background: "var(--bg-elevated)",
+                      }}
+                    >
+                      {file.type === "image" ? (
+                        <img src={file.preview} alt={file.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <video src={file.preview} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      )}
+                      {file.uploading && (
+                        <div style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "rgba(0,0,0,0.6)",
+                        }}>
+                          <div className="spinner" style={{ width: 16, height: 16 }} />
+                        </div>
+                      )}
+                      {file.error && (
+                        <div style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "rgba(239,68,68,0.2)",
+                          color: "#ef4444",
+                          fontSize: 9,
+                          textAlign: "center",
+                          padding: 2,
+                        }}>
+                          错误
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeUploadedFile(file.id)}
+                        style={{
+                          position: "absolute",
+                          top: 2,
+                          right: 2,
+                          width: 16,
+                          height: 16,
+                          borderRadius: "50%",
+                          background: "rgba(0,0,0,0.7)",
+                          color: "#fff",
+                          border: "none",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 10,
+                          lineHeight: 1,
+                          padding: 0,
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Hidden file inputs */}
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                multiple={getUploadConfig(selectedModel).multiple}
+                style={{ display: "none" }}
+                onChange={handleFileUpload}
+              />
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/*"
+                style={{ display: "none" }}
+                onChange={handleFileUpload}
+              />
+            </div>
+          )}
+
           {usage && mode === "chat" && (
             <div style={{ display: "flex", gap: 12, fontSize: 11.5, color: "var(--text-tertiary)", marginBottom: 8 }}>
               <span>输入 {usage.prompt_tokens} tokens</span>
               <span>输出 {usage.completion_tokens} tokens</span>
               <span style={{ color: "var(--success)" }}>费用 {usage.cost}</span>
             </div>
+          )}
+
+          {/* Error suggestion */}
+          {lastError && (
+            <ErrorSuggestion
+              error={lastError}
+              onClose={() => setLastError(null)}
+            />
+          )}
+
+          {/* Cost estimate before sending */}
+          {!usage && mode === "chat" && input.trim() && (
+            <CostEstimate
+              model={currentModel || null}
+              inputText={input}
+              estimatedOutputTokens={500}
+            />
           )}
           <div style={{ display: "flex", gap: 9, alignItems: "flex-end" }}>
             <textarea
