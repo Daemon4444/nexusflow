@@ -107,7 +107,7 @@ function ensurePixVerseChannelConfig(): ProviderChannelConfig {
       official: {
         name: "拍我官方",
         adapter: "pixverse",
-        api_base_url: "https://app-api.pixverseai.cn/openapi/v2",
+        api_base_url: "https://app-api.pixverse.ai/openapi/v2",
         api_key: process.env.PIXVERSE_API_KEY || "",
       },
     },

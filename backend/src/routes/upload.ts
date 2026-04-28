@@ -63,6 +63,23 @@ router.post("/", upload.single("file"), (req, res) => {
   });
 });
 
+// GET /api/uploads/:filename - serve uploaded files through the backend.
+router.get("/:filename", (req, res) => {
+  const filename = path.basename(req.params.filename || "");
+  if (!filename) {
+    res.status(400).json({ success: false, message: "文件名无效" });
+    return;
+  }
+
+  const filePath = path.join(uploadDir, filename);
+  if (!filePath.startsWith(uploadDir) || !fs.existsSync(filePath)) {
+    res.status(404).json({ success: false, message: "文件不存在" });
+    return;
+  }
+
+  res.sendFile(filePath);
+});
+
 // Error handler for multer errors
 router.use((err: any, _req: any, res: any, _next: any) => {
   if (err instanceof multer.MulterError) {

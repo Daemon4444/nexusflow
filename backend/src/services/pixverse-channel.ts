@@ -19,10 +19,21 @@ const DEFAULT_CHANNELS = {
   official: {
     name: "拍我官方",
     adapter: "pixverse" as const,
-    api_base_url: "https://app-api.pixverseai.cn/openapi/v2",
+    api_base_url: "https://app-api.pixverse.ai/openapi/v2",
     api_key: process.env.PIXVERSE_API_KEY || "",
   },
 };
+
+function normalizePixVerseBaseUrl(apiBaseUrl: string): string {
+  const normalized = apiBaseUrl.replace(/\/$/, "");
+  if (
+    normalized === "https://app-api.pixverseai.cn/openapi/v2" ||
+    normalized === "https://app-api.pixverse.ai.cn/openapi/v2"
+  ) {
+    return "https://app-api.pixverse.ai/openapi/v2";
+  }
+  return normalized;
+}
 
 export function getPixVerseRuntimeChannel(channelId?: string): PixVerseRuntimeChannel {
   const stored = getProviderChannel("pixverse", channelId);
@@ -36,7 +47,7 @@ export function getPixVerseRuntimeChannel(channelId?: string): PixVerseRuntimeCh
     id: selected.id,
     name: selected.name,
     adapter: selected.adapter,
-    apiBaseUrl: selected.api_base_url.replace(/\/$/, ""),
+    apiBaseUrl: normalizePixVerseBaseUrl(selected.api_base_url),
     apiKey,
     taskProvider: `pixverse:${selected.id}:${selected.adapter}`,
   };

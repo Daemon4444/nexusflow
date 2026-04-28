@@ -151,7 +151,7 @@ router.post("/generate", async (req: Request, res: Response) => {
         aspect_ratio: ratio || aspect_ratio,
         quality: resolution || quality,
         negative_prompt,
-        img_url: (modelId.includes("-i2v") || modelId.includes("-r2v")) ? img_url : undefined,
+        img_url,
         motion_mode: req.body.motion_mode,
         seed: req.body.seed,
       });

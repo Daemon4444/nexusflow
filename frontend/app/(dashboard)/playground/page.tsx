@@ -1495,10 +1495,9 @@ function PlaygroundInner() {
                     onChange={(e) => setVideoDuration(Number(e.target.value))}
                   >
                     {selectedModel.includes("pixverse") ? (
-                      <>
-                        <option value={5}>5秒</option>
-                        <option value={8}>8秒</option>
-                      </>
+                      Array.from({ length: 15 }, (_, index) => index + 1).map((seconds) => (
+                        <option key={seconds} value={seconds}>{seconds}秒</option>
+                      ))
                     ) : selectedModel.includes("happyhorse") || selectedModel.includes("wan2.6") ? (
                       <>
                         <option value={3}>3秒</option>
@@ -1565,6 +1564,15 @@ function PlaygroundInner() {
                     <option value="16:9">16:9 横屏</option>
                     <option value="9:16">9:16 竖屏</option>
                     <option value="1:1">1:1 方形</option>
+                    {selectedModel.includes("pixverse") && (
+                      <>
+                        <option value="4:3">4:3</option>
+                        <option value="3:4">3:4</option>
+                        <option value="2:3">2:3</option>
+                        <option value="3:2">3:2</option>
+                        <option value="21:9">21:9</option>
+                      </>
+                    )}
                     {selectedModel.includes("happyhorse") && (
                       <>
                         <option value="4:3">4:3</option>

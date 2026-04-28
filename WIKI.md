@@ -200,7 +200,7 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 
 | 模型ID | 名称 | 特性 |
 |--------|------|------|
-| `pixverse-v6` | PixVerse V6 | 旗舰模型，文生视频/图生视频，5秒/8秒时长 |
+| `pixverse-v6` | PixVerse V6 | 旗舰模型，文生视频/图生视频，1-15 秒时长 |
 
 ### 8.3 渠道配置
 
@@ -219,7 +219,7 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
     "official": {
       "name": "拍我官方",
       "adapter": "pixverse",
-      "api_base_url": "https://app-api.pixverseai.cn/openapi/v2",
+      "api_base_url": "https://app-api.pixverse.ai/openapi/v2",
       "api_key": "sk-b2803a285c787974e5eb786435dce3c1"
     }
   }
@@ -469,7 +469,7 @@ Playground 视频生成参数面板根据选择的模型类型动态显示正确
 | 模型 | 时长选项 | 分辨率选项 | 宽高比选项 |
 |------|----------|------------|------------|
 | HappyHorse 系列 | 3/5/8/10/12/15秒 | 720p, 1080p | 16:9, 9:16, 1:1, 4:3, 3:4 |
-| PixVerse V6 | 5秒, 8秒 | 360p, 540p, 720p, 1080p | 16:9, 9:16, 1:1 |
+| PixVerse V6 | 1-15秒 | 360p, 540p, 720p, 1080p | 16:9, 4:3, 1:1, 3:4, 9:16, 2:3, 3:2, 21:9 |
 | 万相 2.6 系列 | 3/5/8/10/12/15秒 | 720p, 1080p | 16:9, 9:16, 1:1 |
 
 关键改动：
@@ -539,10 +539,10 @@ Playground 视频生成参数面板根据选择的模型类型动态显示正确
 
 ### 16.4 数据库模型配置修正
 
-PixVerse V6 的 `maxOutput` 从错误的 1 秒修正为 8 秒：
+PixVerse V6 的 `maxOutput` 按官方 V6 文档修正为 15 秒：
 
 ```sql
-UPDATE provider_models SET max_output = 8 WHERE model_id = 'pixverse-v6';
+UPDATE provider_models SET max_output = 15 WHERE model_id = 'pixverse-v6';
 ```
 
 ---
@@ -567,10 +567,10 @@ UPDATE provider_models SET max_output = 8 WHERE model_id = 'pixverse-v6';
    - 修复 PixVerse API 参数映射 (resolution→quality, ratio→aspect_ratio)
 
 3. `backend/src/data/models.ts`
-   - PixVerse V6 maxOutput 从 1 改为 8
+   - PixVerse V6 maxOutput 按官方 V6 文档改为 15
 
 4. `backend/data/ai-router.db`
-   - provider_models 表 pixverse-v6 max_output 更新为 8
+   - provider_models 表 pixverse-v6 max_output 更新为 15
 
 ### API 新增端点
 
@@ -607,13 +607,13 @@ UPDATE provider_models SET max_output = 8 WHERE model_id = 'pixverse-v6';
 | API Key 警告提示 | ✅ 存在 |
 | HappyHorse 时长 (3-15秒) | ✅ 正确 |
 | HappyHorse 分辨率 (720p/1080p) | ✅ 正确 |
-| PixVerse V6 时长 (5秒/8秒) | ✅ 正确 |
+| PixVerse V6 时长 (1-15秒) | ✅ 正确 |
 | PixVerse V6 分辨率 (360p-1080p) | ✅ 正确 |
 | 上传按钮 | ✅ 存在 |
 | 上传限制提示 | ✅ 存在 (文字使用中文冒号) |
 | 模型API | ✅ 45个模型 |
 | 视频模型数量 | ✅ 10个 |
-| PixVerse V6 maxOutput | ✅ 8秒 |
+| PixVerse V6 maxOutput | ✅ 15秒 |
 | 上传API | ✅ 正常返回URL |
 
 **总计: 18/19 通过 (94%)**
@@ -633,5 +633,4 @@ python3 /tmp/nexusflow_full_test.py
 1. **视频参数动态渲染**: HappyHorse 只有 720p/1080p，PixVerse V6 有 360p-1080p
 2. **API Key 强制**: localStorage 无 key 时显示警告，输入框存在
 3. **上传功能**: API 正常工作，返回前端可访问的 URL
-4. **模型配置**: PixVerse V6 maxOutput=8，符合模型描述
-
+4. **模型配置**: PixVerse V6 maxOutput=15，符合官方 V6 文档

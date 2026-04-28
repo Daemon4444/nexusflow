@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+
 /**
  * API Format Adapters
  * 
@@ -515,8 +517,18 @@ export async function pollDashScopeTask(apiKey: string, taskId: string): Promise
 
 export function adaptPixVerseRequest(
   apiKey: string,
-  body: { model: string; prompt: string; duration?: number; aspect_ratio?: string; quality?: string; negative_prompt?: string },
-  apiBaseUrl = "https://app-api.pixverseai.cn/openapi/v2"
+  body: {
+    model: string;
+    prompt: string;
+    duration?: number;
+    aspect_ratio?: string;
+    quality?: string;
+    negative_prompt?: string;
+    img_url?: string;
+    motion_mode?: string;
+    seed?: number;
+  },
+  apiBaseUrl = "https://app-api.pixverse.ai/openapi/v2"
 ): AdapterResult {
   const modelMap: Record<string, string> = {
     "pixverse-v6": "v6",
@@ -530,25 +542,28 @@ export function adaptPixVerseRequest(
     quality: body.quality || "540p",
   };
   if (body.negative_prompt) pixBody.negative_prompt = body.negative_prompt;
+  if (body.img_url) pixBody.img_url = body.img_url;
+  if (body.motion_mode) pixBody.motion_mode = body.motion_mode;
+  if (body.seed !== undefined && body.seed !== null) pixBody.seed = body.seed;
 
   return {
     url: `${apiBaseUrl.replace(/\/$/, "")}/video/text/generate`,
     method: "POST",
     headers: {
-      "Api-Key": apiKey,
+      "API-KEY": apiKey,
       "Content-Type": "application/json",
-      "Ai-Trace-Id": `air-${Date.now()}`,
+      "Ai-trace-id": randomUUID(),
     },
     body: pixBody,
     isAsync: true,
   };
 }
 
-export async function pollPixVerseTask(apiKey: string, taskId: string, apiBaseUrl = "https://app-api.pixverseai.cn/openapi/v2"): Promise<TaskResult> {
+export async function pollPixVerseTask(apiKey: string, taskId: string, apiBaseUrl = "https://app-api.pixverse.ai/openapi/v2"): Promise<TaskResult> {
   const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/video/result/${taskId}`, {
     headers: {
-      "Api-Key": apiKey,
-      "Ai-Trace-Id": `air-${Date.now()}`,
+      "API-KEY": apiKey,
+      "Ai-trace-id": randomUUID(),
     },
   });
 
@@ -559,25 +574,30 @@ export async function pollPixVerseTask(apiKey: string, taskId: string, apiBaseUr
   }
 
   const statusMap: Record<string, TaskResult["status"]> = {
-    "pending": "pending",
-    "processing": "running",
-    "successful": "succeeded",
-    "failed": "failed",
+    "1": "succeeded",
+    "5": "running",
+    "7": "failed",
+    "8": "failed",
+    pending: "pending",
+    processing: "running",
+    successful: "succeeded",
+    failed: "failed",
   };
 
+  const rawStatus = data.Resp?.status;
   const result: TaskResult = {
-    status: statusMap[data.Resp?.status] || "pending",
+    status: statusMap[String(rawStatus)] || "pending",
   };
 
-  if (data.Resp?.status === "successful") {
+  if (result.status === "succeeded") {
     result.output = {
       type: "video",
-      video_url: data.Resp.video_url,
+      video_url: data.Resp?.url || data.Resp?.video_url,
     };
     result.progress = 100;
-  } else if (data.Resp?.status === "failed") {
-    result.error = "Video generation failed";
-  } else if (data.Resp?.status === "processing") {
+  } else if (result.status === "failed") {
+    result.error = data.Resp?.err_msg || data.Resp?.message || data.ErrMsg || "Video generation failed";
+  } else if (result.status === "running") {
     result.progress = 50;
   }
 

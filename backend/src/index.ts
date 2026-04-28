@@ -14,6 +14,7 @@ import messagesRouter from "./routes/messages";
 import pixverseRouter from "./routes/pixverse";
 import imageRouter from "./routes/image";
 import videoRouter from "./routes/video";
+import uploadRouter from "./routes/upload";
 import authRouter from "./routes/auth";
 import billingRouter from "./routes/billing";
 import providerRouter from "./routes/provider";
@@ -69,6 +70,8 @@ app.use("/api/usage", usageRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/image", imageRouter);
 app.use("/api/video", videoRouter);
+app.use("/api/upload", uploadRouter);
+app.use("/api/uploads", uploadRouter);
 app.use("/api/rate-limits", rateLimitsRouter);
 app.use("/api/tickets", ticketsRouter);
 

@@ -12,14 +12,12 @@ export function NexusflowLogo({
   size?: number;
   color?: string;
 }) {
-  const id = `nf-${Math.random().toString(36).slice(2, 8)}`;
-
   return (
     <span
       style={{
         fontSize: size,
         fontWeight: 700,
-        letterSpacing: "-0.04em",
+        letterSpacing: 0,
         color,
         position: "relative",
         display: "inline-block",
@@ -54,13 +52,13 @@ export function NexusflowLogo({
             width: "60%",
             height: "100%",
             background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)`,
-            animation: `nf-shimmer-${id} 4s ease-in-out infinite`,
+            animation: "nf-shimmer 4s ease-in-out infinite",
           }}
         />
       </span>
 
       <style>{`
-        @keyframes nf-shimmer-${id} {
+        @keyframes nf-shimmer {
           0%, 100% { left: -60%; opacity: 0; }
           10% { opacity: 1; }
           50% { left: 120%; opacity: 1; }
