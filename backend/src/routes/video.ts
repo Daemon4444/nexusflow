@@ -8,14 +8,15 @@
 
 import { Router, Request, Response } from "express";
 import { models } from "../data/models";
-import { 
-  createTask, 
-  getTaskById, 
-  setUpstreamTaskId, 
-  completeTask, 
+import {
+  createTask,
+  getTaskById,
+  setUpstreamTaskId,
+  completeTask,
   failTask,
   updateTaskStatus
 } from "../data/tasks";
+import { getProviderBySlug, getProviderChannels } from "../data/providers";
 import {
   adaptVideoRequest,
   adaptHappyHorseRequest,
@@ -32,6 +33,32 @@ function getDashScopeKey(): string {
 
 function getPixVerseKey(): string {
   return process.env.PIXVERSE_API_KEY || "";
+}
+
+// Get PixVerse channel config from database
+function getPixVerseChannel(): { adapter: string; apiKey: string; baseUrl: string; channelName: string } {
+  const provider = getProviderBySlug("pixverse");
+  if (!provider) {
+    // Fallback to environment variable
+    return { adapter: "pixverse", apiKey: getPixVerseKey(), baseUrl: "https://app-api.pixverseai.cn/openapi/v2", channelName: "env" };
+  }
+
+  const channels = getProviderChannels(provider.id);
+  if (!channels || !channels.active_channel) {
+    return { adapter: "pixverse", apiKey: getPixVerseKey(), baseUrl: "https://app-api.pixverseai.cn/openapi/v2", channelName: "env" };
+  }
+
+  const activeChannel = channels.channels[channels.active_channel];
+  if (!activeChannel) {
+    return { adapter: "pixverse", apiKey: getPixVerseKey(), baseUrl: "https://app-api.pixverseai.cn/openapi/v2", channelName: "env" };
+  }
+
+  return {
+    adapter: activeChannel.adapter || "pixverse",
+    apiKey: activeChannel.api_key || getPixVerseKey(),
+    baseUrl: activeChannel.api_base_url || "https://app-api.pixverseai.cn/openapi/v2",
+    channelName: channels.active_channel,
+  };
 }
 
 // POST /api/video/generate - Submit video generation task
@@ -59,20 +86,31 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
-  // pixverse-v6 and other pixverse models go through official API
-  const isPixVerseOfficial = modelId.startsWith("pixverse-") || modelId.startsWith("pixverse/");
-  const isDashScope = modelId.startsWith("wan") || modelId.startsWith("wanx") || isHappyHorse;
-  
-  if (!isPixVerseOfficial && !isDashScope) {
+  // PixVerse models - check channel config from database
+  const isPixVerseModel = modelId.startsWith("pixverse-") || modelId.startsWith("pixverse/");
+  const isDashScopeModel = modelId.startsWith("wan") || modelId.startsWith("wanx") || isHappyHorse;
+
+  if (!isPixVerseModel && !isDashScopeModel) {
     res.status(400).json({ success: false, message: `不支持的视频模型: ${modelId}` });
     return;
   }
 
-  const apiKey = isPixVerseOfficial ? getPixVerseKey() : getDashScopeKey();
+  // Get channel config for PixVerse models
+  let pixverseChannel: { adapter: string; apiKey: string; baseUrl: string; channelName: string } | null = null;
+  if (isPixVerseModel) {
+    pixverseChannel = getPixVerseChannel();
+  }
+
+  // Determine adapter type
+  const useDashScopeAdapter = isDashScopeModel || (pixverseChannel && pixverseChannel.adapter === "dashscope");
+  const apiKey = useDashScopeAdapter
+    ? (pixverseChannel?.apiKey || getDashScopeKey())
+    : (pixverseChannel?.apiKey || getPixVerseKey());
+
   if (!apiKey) {
-    res.status(500).json({ 
-      success: false, 
-      message: isPixVerseOfficial ? "未配置 PixVerse API Key" : "未配置 DashScope API Key" 
+    res.status(500).json({
+      success: false,
+      message: useDashScopeAdapter ? "未配置 DashScope API Key" : "未配置 PixVerse API Key"
     });
     return;
   }
@@ -97,23 +135,21 @@ router.post("/generate", async (req: Request, res: Response) => {
   const task = createTask({
     type: "video",
     model: modelId,
-    provider: isPixVerseOfficial ? "pixverse" : "dashscope",
+    provider: useDashScopeAdapter ? "dashscope" : "pixverse",
     input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_urls, video_url, resolution, ratio, audio_setting, seed, watermark },
   });
 
-  // Build request based on provider
+  // Build request based on provider/adapter
   try {
     let adapted;
-    if (isPixVerseOfficial) {
-      // Map frontend params to PixVerse API params
-      // resolution -> quality (e.g., "720p")
-      // ratio -> aspect_ratio (e.g., "16:9")
+    if (!useDashScopeAdapter && isPixVerseModel) {
+      // Official PixVerse API (when channel is "official")
       adapted = adaptPixVerseRequest(apiKey, {
         model: modelId,
         prompt,
         duration,
-        aspect_ratio: ratio || aspect_ratio,  // frontend sends "ratio"
-        quality: resolution || quality,        // frontend sends "resolution"
+        aspect_ratio: ratio || aspect_ratio,
+        quality: resolution || quality,
         negative_prompt,
         img_url: (modelId.includes("-i2v") || modelId.includes("-r2v")) ? img_url : undefined,
         motion_mode: req.body.motion_mode,
@@ -134,7 +170,8 @@ router.post("/generate", async (req: Request, res: Response) => {
         audio_setting,
       });
     } else {
-      // DashScope wan video models (and pixverse-v6 via DashScope)
+      // DashScope API (wan video models, HappyHorse, or PixVerse via bailian channel)
+      // adapters.ts handles model name normalization (pixverse-v6 -> pixverse/pixverse-v6-t2v)
       adapted = adaptVideoRequest(apiKey, {
         model: modelId,
         prompt,
@@ -154,8 +191,8 @@ router.post("/generate", async (req: Request, res: Response) => {
 
     const data: any = await response.json();
 
-    // Handle PixVerse response (official API only)
-    if (isPixVerseOfficial) {
+    // Handle official PixVerse API response
+    if (!useDashScopeAdapter && isPixVerseModel) {
       if (data.ErrCode !== 0) {
         failTask(task.id, data.ErrMsg || "视频生成失败");
         res.status(400).json({
