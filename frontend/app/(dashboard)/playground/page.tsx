@@ -266,6 +266,10 @@ function PlaygroundInner() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [lastError, setLastError] = useState<ApiError | string | null>(null);
+  // Video generation parameters
+  const [videoDuration, setVideoDuration] = useState(5);
+  const [videoResolution, setVideoResolution] = useState("720p");
+  const [videoRatio, setVideoRatio] = useState("16:9");
 
   useEffect(() => {
     async function loadModels() {
@@ -681,6 +685,9 @@ function PlaygroundInner() {
       const body: Record<string, any> = {
         model: selectedModel,
         prompt: input.trim(),
+        duration: videoDuration,
+        resolution: videoResolution,
+        ratio: videoRatio,
       };
       // Add uploaded files
       if (images.length === 1) body.img_url = images[0];
@@ -1393,6 +1400,103 @@ function PlaygroundInner() {
                 style={{ display: "none" }}
                 onChange={handleFileUpload}
               />
+            </div>
+          )}
+
+          {/* Video parameters */}
+          {mode === "video" && (
+            <div style={{
+              marginBottom: 12,
+              padding: "12px 14px",
+              borderRadius: 10,
+              background: "var(--bg-elevated)",
+              border: "1px solid var(--border)",
+            }}>
+              <div style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                marginBottom: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+                  <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                  <polyline points="12 12 12 22"/>
+                  <line x1="12" y1="22" x2="2" y2="17"/>
+                  <line x1="12" y1="22" x2="22" y2="17"/>
+                </svg>
+                视频参数
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                {/* Duration */}
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>时长 (秒)</div>
+                  <select
+                    className="input"
+                    style={{ fontSize: 13, padding: "6px 10px" }}
+                    value={videoDuration}
+                    onChange={(e) => setVideoDuration(Number(e.target.value))}
+                  >
+                    <option value={3}>3秒</option>
+                    <option value={4}>4秒</option>
+                    <option value={5}>5秒</option>
+                    <option value={6}>6秒</option>
+                    <option value={8}>8秒</option>
+                    <option value={10}>10秒</option>
+                    <option value={12}>12秒</option>
+                    <option value={15}>15秒</option>
+                  </select>
+                </div>
+                {/* Resolution */}
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>分辨率</div>
+                  <select
+                    className="input"
+                    style={{ fontSize: 13, padding: "6px 10px" }}
+                    value={videoResolution}
+                    onChange={(e) => setVideoResolution(e.target.value)}
+                  >
+                    <option value="360p">360p</option>
+                    <option value="540p">540p</option>
+                    <option value="720p">720p</option>
+                    <option value="1080p">1080p</option>
+                  </select>
+                </div>
+                {/* Aspect ratio */}
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>宽高比</div>
+                  <select
+                    className="input"
+                    style={{ fontSize: 13, padding: "6px 10px" }}
+                    value={videoRatio}
+                    onChange={(e) => setVideoRatio(e.target.value)}
+                  >
+                    <option value="16:9">16:9 (横屏)</option>
+                    <option value="9:16">9:16 (竖屏)</option>
+                    <option value="1:1">1:1 (方形)</option>
+                    <option value="4:3">4:3</option>
+                    <option value="3:4">3:4</option>
+                  </select>
+                </div>
+              </div>
+              {/* Model-specific hints */}
+              {selectedModel.includes("pixverse") && (
+                <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
+                  PixVerse V6: 支持 5秒/8秒时长，360p-1080p 分辨率
+                </div>
+              )}
+              {selectedModel.includes("happyhorse") && (
+                <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
+                  HappyHorse: 支持 3-15秒时长，720p/1080p，默认带音频
+                </div>
+              )}
+              {selectedModel.includes("wan2.6") && (
+                <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
+                  万相 2.6: 支持 2-15秒时长，720p/1080p
+                </div>
+              )}
             </div>
           )}
 
