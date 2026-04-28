@@ -16,7 +16,7 @@ import {
   failTask,
   updateTaskStatus
 } from "../data/tasks";
-import { getProviderBySlug, getProviderChannels } from "../data/providers";
+import { getPixVerseRuntimeChannel } from "../services/pixverse-channel";
 import {
   adaptVideoRequest,
   adaptHappyHorseRequest,
@@ -33,32 +33,6 @@ function getDashScopeKey(): string {
 
 function getPixVerseKey(): string {
   return process.env.PIXVERSE_API_KEY || "";
-}
-
-// Get PixVerse channel config from database
-function getPixVerseChannel(): { adapter: string; apiKey: string; baseUrl: string; channelName: string } {
-  const provider = getProviderBySlug("pixverse");
-  if (!provider) {
-    // Fallback to environment variable
-    return { adapter: "pixverse", apiKey: getPixVerseKey(), baseUrl: "https://app-api.pixverseai.cn/openapi/v2", channelName: "env" };
-  }
-
-  const channels = getProviderChannels(provider.id);
-  if (!channels || !channels.active_channel) {
-    return { adapter: "pixverse", apiKey: getPixVerseKey(), baseUrl: "https://app-api.pixverseai.cn/openapi/v2", channelName: "env" };
-  }
-
-  const activeChannel = channels.channels[channels.active_channel];
-  if (!activeChannel) {
-    return { adapter: "pixverse", apiKey: getPixVerseKey(), baseUrl: "https://app-api.pixverseai.cn/openapi/v2", channelName: "env" };
-  }
-
-  return {
-    adapter: activeChannel.adapter || "pixverse",
-    apiKey: activeChannel.api_key || getPixVerseKey(),
-    baseUrl: activeChannel.api_base_url || "https://app-api.pixverseai.cn/openapi/v2",
-    channelName: channels.active_channel,
-  };
 }
 
 // POST /api/video/generate - Submit video generation task
@@ -95,17 +69,15 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
-  // Get channel config for PixVerse models
-  let pixverseChannel: { adapter: string; apiKey: string; baseUrl: string; channelName: string } | null = null;
+  // Get channel config for PixVerse models using new channel system
+  let pixverseChannel: ReturnType<typeof getPixVerseRuntimeChannel> | null = null;
   if (isPixVerseModel) {
-    pixverseChannel = getPixVerseChannel();
+    pixverseChannel = getPixVerseRuntimeChannel();
   }
 
   // Determine adapter type
   const useDashScopeAdapter = isDashScopeModel || (pixverseChannel && pixverseChannel.adapter === "dashscope");
-  const apiKey = useDashScopeAdapter
-    ? (pixverseChannel?.apiKey || getDashScopeKey())
-    : (pixverseChannel?.apiKey || getPixVerseKey());
+  const apiKey = pixverseChannel?.apiKey || (useDashScopeAdapter ? getDashScopeKey() : getPixVerseKey());
 
   if (!apiKey) {
     res.status(500).json({
