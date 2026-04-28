@@ -198,6 +198,12 @@ body {
 }
 .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
 .input::placeholder { color: var(--text-tertiary); }
+select.input {
+  cursor: pointer;
+  appearance: auto;
+  -webkit-appearance: menulist;
+  padding-right: 12px;
+}
 
 .select {
   padding: 9px 12px; background: var(--bg-input);
