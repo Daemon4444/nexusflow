@@ -2,8 +2,11 @@ import { Router, Request } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import sharp from "sharp";
 
 const router = Router();
+
+const IMAGE_SIZE_LIMIT = 10 * 1024 * 1024; // 10MB
 
 // Configure upload directory
 const uploadDir = path.resolve(__dirname, "../../uploads");
@@ -42,8 +45,43 @@ const upload = multer({
   },
 });
 
+async function compressImageIfNeeded(filePath: string, mimetype: string): Promise<number> {
+  const stat = fs.statSync(filePath);
+  const isImage = mimetype.startsWith("image/") || /\.(jpg|jpeg|png|webp|bmp)$/i.test(filePath);
+  if (!isImage || stat.size <= IMAGE_SIZE_LIMIT) return stat.size;
+
+  console.log(`[Upload API] Compressing image: ${stat.size} bytes -> target <= 10MB`);
+  const tmpPath = filePath + ".tmp";
+
+  // Compress: reduce to fit within 10MB using JPEG quality stepping down
+  let quality = 85;
+  while (quality >= 40) {
+    await sharp(filePath).jpeg({ quality }).toFile(tmpPath);
+    const newSize = fs.statSync(tmpPath).size;
+    if (newSize <= IMAGE_SIZE_LIMIT) {
+      fs.renameSync(tmpPath, filePath);
+      console.log(`[Upload API] Compressed to ${newSize} bytes (quality=${quality})`);
+      return newSize;
+    }
+    quality -= 10;
+  }
+
+  // If still too large after quality reduction, also resize
+  const meta = await sharp(filePath).metadata();
+  const maxDim = 3840;
+  const needsResize = (meta.width || 0) > maxDim || (meta.height || 0) > maxDim;
+  await sharp(filePath)
+    .resize(needsResize ? maxDim : undefined, needsResize ? maxDim : undefined, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 40 })
+    .toFile(tmpPath);
+  const finalSize = fs.statSync(tmpPath).size;
+  fs.renameSync(tmpPath, filePath);
+  console.log(`[Upload API] Compressed (resize+quality=40) to ${finalSize} bytes`);
+  return finalSize;
+}
+
 // POST /api/upload - single file upload
-router.post("/", upload.single("file"), (req, res) => {
+router.post("/", upload.single("file"), async (req, res) => {
   console.log("[Upload API] Received request, file:", req.file?.originalname, "size:", req.file?.size);
   if (!req.file) {
     console.log("[Upload API] No file in request");
@@ -51,16 +89,26 @@ router.post("/", upload.single("file"), (req, res) => {
     return;
   }
 
+  const filePath = req.file.path;
+  let finalSize = req.file.size;
+
+  try {
+    finalSize = await compressImageIfNeeded(filePath, req.file.mimetype);
+  } catch (err: any) {
+    console.error("[Upload API] Compression failed:", err.message);
+    // 压缩失败不影响上传，继续用原文件
+  }
+
   const baseUrl = process.env.PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
   const publicUrl = `${baseUrl}/api/uploads/${req.file.filename}`;
-  console.log("[Upload API] Success, url:", publicUrl);
+  console.log("[Upload API] Success, url:", publicUrl, "size:", finalSize);
 
   res.json({
     success: true,
     data: {
       url: publicUrl,
       filename: req.file.filename,
-      size: req.file.size,
+      size: finalSize,
       mimetype: req.file.mimetype,
     },
   });
