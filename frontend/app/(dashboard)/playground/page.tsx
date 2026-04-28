@@ -257,7 +257,7 @@ function PlaygroundInner() {
   const [mode, setMode] = useState<ModelMode>("chat");
   const [streamEnabled, setStreamEnabled] = useState(true); // 流式开关
   const [apiKey, setApiKey] = useState(""); // API Key 状态
-  const [showApiKeyInput, setShowApiKeyInput] = useState(false); // 显示 API Key 输入框
+  const [showApiKeyInput, setShowApiKeyInput] = useState(true); // 默认显示 API Key 输入框
   const chatEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -291,6 +291,8 @@ function PlaygroundInner() {
     // 从 localStorage 加载 API Key
     const savedKey = localStorage.getItem("api_key") || "";
     setApiKey(savedKey);
+    // 如果有保存的 key，隐藏输入区域；否则显示
+    setShowApiKeyInput(!savedKey);
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -1151,20 +1153,46 @@ function PlaygroundInner() {
         </div>
 
         {showApiKeyInput && (
-          <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-            <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 5, fontWeight: 600, letterSpacing: "0.03em" }}>
-              API KEY
-            </label>
+          <div style={{
+            padding: "12px 18px",
+            borderBottom: "1px solid var(--border)",
+            background: apiKey ? "var(--bg-elevated)" : "rgba(239,68,68,0.04)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <label style={{ fontSize: 12, color: apiKey ? "var(--text-secondary)" : "#ef4444", fontWeight: 600, letterSpacing: "0.03em" }}>
+                {apiKey ? "API KEY ✓" : "API KEY (必填)"}
+              </label>
+              {!apiKey && (
+                <span style={{
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                  background: "#ef4444",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}>
+                  必须填写
+                </span>
+              )}
+            </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 className="input"
                 type="password"
-                style={{ flex: 1, fontSize: 13 }}
+                style={{
+                  flex: 1,
+                  fontSize: 13,
+                  borderColor: apiKey ? "var(--border)" : "#ef4444",
+                }}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="sk-air-xxx"
               />
-              <button className="btn-primary" style={{ padding: "6px 14px", fontSize: 12.5 }} onClick={saveApiKey}>
+              <button
+                className={apiKey ? "btn-secondary" : "btn-primary"}
+                style={{ padding: "6px 14px", fontSize: 12.5 }}
+                onClick={saveApiKey}
+              >
                 保存
               </button>
             </div>
@@ -1392,6 +1420,36 @@ function PlaygroundInner() {
               estimatedOutputTokens={500}
             />
           )}
+
+          {/* API Key required warning */}
+          {!apiKey && (
+            <div style={{
+              padding: "12px 16px",
+              borderRadius: 10,
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.2)",
+              marginBottom: 12,
+            }}>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+                  <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#ef4444", marginBottom: 4 }}>
+                    必须设置 API Key 才能使用
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                    请在上方输入框填写 API Key，或从 <Link href="/keys" style={{ color: "var(--accent)" }}>API Key 管理</Link> 获取密钥
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: 9, alignItems: "flex-end" }}>
             <textarea
               className="input"
@@ -1408,13 +1466,16 @@ function PlaygroundInner() {
               disabled={sending && mode !== "chat"}
             />
             <button
-              className="btn-primary"
-              style={{ padding: "9px 18px", alignSelf: "flex-end", flexShrink: 0 }}
+              className={apiKey ? "btn-primary" : "btn-secondary"}
+              style={{ padding: "9px 18px", alignSelf: "flex-end", flexShrink: 0, opacity: apiKey ? 1 : 0.6 }}
               onClick={handleSend}
-              disabled={sending || !input.trim()}
+              disabled={sending || !input.trim() || !apiKey}
+              title={!apiKey ? "请先设置 API Key" : ""}
             >
               {sending ? (
                 <span className="spinner" style={{ width: 13, height: 13 }} />
+              ) : !apiKey ? (
+                <span style={{ fontSize: 12 }}>需设置 Key</span>
               ) : mode === "chat" ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               ) : "生成"}
