@@ -653,11 +653,14 @@ function PlaygroundInner() {
   // ============================================================
 
   async function generateVideo() {
+    console.log("[generateVideo] called, input:", input.trim(), "sending:", sending);
     if (!input.trim() || sending) return;
 
     // Check if required files are uploaded
     const { images, videos } = getUploadedUrls();
     const config = getUploadConfig(selectedModel);
+    console.log("[generateVideo] images:", images, "videos:", videos, "config:", config);
+    console.log("[generateVideo] uploadedFiles:", uploadedFiles.map(f => ({ id: f.id, name: f.name, url: f.url, uploading: f.uploading, error: f.error })));
 
     if (config.requiredImages && images.length === 0) {
       alert("请上传所需图片");
@@ -693,11 +696,13 @@ function PlaygroundInner() {
       if (images.length === 1) body.img_url = images[0];
       else if (images.length > 1) body.img_urls = images;
       if (videos.length > 0) body.video_url = videos[0];
+      console.log("[generateVideo] request body:", body);
 
       const res = await fetchAPI("/api/video/generate", {
         method: "POST",
         body: JSON.stringify(body),
       });
+      console.log("[generateVideo] response:", res);
 
       if (res.success && res.data.task_id) {
         pollVideoStatus(res.data.task_id, messages.length + 1);
@@ -705,7 +710,8 @@ function PlaygroundInner() {
         updateLastMessage({ content: `错误: ${res.message || "视频生成失败"}`, status: "error" });
         setSending(false);
       }
-    } catch {
+    } catch (err: any) {
+      console.error("[generateVideo] error:", err);
       updateLastMessage({ content: "网络错误", status: "error" });
       setSending(false);
     }
@@ -833,12 +839,20 @@ function PlaygroundInner() {
       "happyhorse-1.0-t2v": { maxImages: 0, maxVideos: 0, accept: "", multiple: false },
       // PixVerse - 支持文生视频和图生视频，图片可选
       "pixverse-v6": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: false },
+      // 万相 Wan 系列
+      "wan2.6-i2v": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: true },
+      "wan2.6-i2v-flash": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: true },
+      "wan2.6-r2v": { maxImages: 1, maxVideos: 1, accept: "image/*,video/*", multiple: true, requiredImages: false },
+      "wan2.6-r2v-flash": { maxImages: 1, maxVideos: 1, accept: "image/*,video/*", multiple: true, requiredImages: false },
+      "wan2.6-t2v": { maxImages: 0, maxVideos: 0, accept: "", multiple: false },
+      "wan2.6-t2i": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: false },
     };
     return configs[modelId] || { maxImages: 0, maxVideos: 0, accept: "", multiple: false };
   }
 
   function needsUpload(modelId: string) {
     const config = getUploadConfig(modelId);
+    console.log("[needsUpload] modelId:", modelId, "config:", config, "result:", config.maxImages > 0 || config.maxVideos > 0);
     return config.maxImages > 0 || config.maxVideos > 0;
   }
 
@@ -846,6 +860,7 @@ function PlaygroundInner() {
     const config = getUploadConfig(selectedModel);
     const images = uploadedFiles.filter(f => f.type === "image").length;
     const videos = uploadedFiles.filter(f => f.type === "video").length;
+    console.log("[canUploadMore] type:", type, "selectedModel:", selectedModel, "config:", config, "images:", images, "videos:", videos);
     if (type === "image") return images < config.maxImages && config.maxImages > 0;
     if (type === "video") return videos < config.maxVideos && config.maxVideos > 0;
     return false;
@@ -853,46 +868,77 @@ function PlaygroundInner() {
 
   async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    console.log("[Upload] File input changed, files:", files?.length || 0);
+    if (!files || files.length === 0) {
+      console.log("[Upload] No files selected, returning");
+      return;
+    }
+
+    // IMPORTANT: 先复制文件列表，再清空 input value
+    // 因为清空 value 会同时清空 FileList
+    const fileArray = Array.from(files);
+    console.log("[Upload] Files copied:", fileArray.map(f => ({ name: f.name, type: f.type, size: f.size })));
 
     // Reset input value to allow re-upload of same file
     event.target.value = "";
 
+    console.log("[Upload] Starting upload, selectedModel:", selectedModel);
+
     const config = getUploadConfig(selectedModel);
+    console.log("[Upload] Config for model:", config);
     const remainingImages = config.maxImages - uploadedFiles.filter(f => f.type === "image").length;
     const remainingVideos = config.maxVideos - uploadedFiles.filter(f => f.type === "video").length;
+    console.log("[Upload] Remaining slots - images:", remainingImages, "videos:", remainingVideos);
 
     // Validate files
-    const fileArray = Array.from(files);
     const toUpload: File[] = [];
     const errors: string[] = [];
 
     for (const file of fileArray) {
-      if (file.type.startsWith("image/") && remainingImages > 0) {
+      console.log("[Upload] Checking file:", file.name, "type:", file.type);
+      // Check by MIME type OR by file extension
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const isImage = file.type.startsWith("image/") || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
+      const isVideo = file.type.startsWith("video/") || ['mp4', 'mov', 'webm', 'avi'].includes(ext);
+
+      if (isImage && remainingImages > 0) {
         toUpload.push(file);
-      } else if (file.type.startsWith("video/") && remainingVideos > 0) {
+        console.log("[Upload] Added image file:", file.name);
+      } else if (isVideo && remainingVideos > 0) {
         toUpload.push(file);
+        console.log("[Upload] Added video file:", file.name);
       } else {
         errors.push(`${file.name}: 不支持的文件类型或超出限制`);
+        console.log("[Upload] Rejected file:", file.name, "reason: type or limit, isImage:", isImage, "isVideo:", isVideo);
       }
     }
 
     if (toUpload.length === 0) {
+      console.log("[Upload] No files to upload, errors:", errors);
       if (errors.length > 0) alert(errors.join("\n"));
       return;
     }
 
     // Create local previews
-    const newFiles: UploadedFile[] = toUpload.map(file => ({
-      id: `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      type: file.type.startsWith("image/") ? "image" : "video",
-      name: file.name,
-      url: "",
-      preview: URL.createObjectURL(file),
-      uploading: true,
-    }));
+    const newFiles: UploadedFile[] = toUpload.map(file => {
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const isImage = file.type.startsWith("image/") || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
+      return {
+        id: `file_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        type: isImage ? "image" : "video",
+        name: file.name,
+        url: "",
+        preview: URL.createObjectURL(file),
+        uploading: true,
+      };
+    });
+    console.log("[Upload] Created previews:", newFiles.map(f => ({ id: f.id, name: f.name, type: f.type, preview: f.preview })));
 
-    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setUploadedFiles(prev => {
+      const updated = [...prev, ...newFiles];
+      console.log("[Upload] Updated uploadedFiles:", updated.length, "items");
+      return updated;
+    });
     setUploadingCount(c => c + newFiles.length);
 
     // Upload each file
@@ -915,12 +961,15 @@ function PlaygroundInner() {
         }
 
         const data = await res.json();
+        console.log("[Upload] Response:", data);
         // Backend returns { success: true, data: { url: ... } }
         const fileUrl = data.data?.url || data.url;
         if (!fileUrl) throw new Error("Upload response missing URL");
+        console.log("[Upload] File URL:", fileUrl, "for file.id:", file.id);
         setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, url: fileUrl, uploading: false } : f));
         setUploadingCount(c => c - 1);
       } catch (err: any) {
+        console.error("[Upload] Error:", err.message);
         setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, uploading: false, error: err.message } : f));
         setUploadingCount(c => c - 1);
       }
@@ -936,8 +985,10 @@ function PlaygroundInner() {
   }
 
   function getUploadedUrls() {
+    console.log("[getUploadedUrls] uploadedFiles:", uploadedFiles.map(f => ({ type: f.type, url: f.url, error: f.error })));
     const images = uploadedFiles.filter(f => f.type === "image" && f.url && !f.error).map(f => f.url);
     const videos = uploadedFiles.filter(f => f.type === "video" && f.url && !f.error).map(f => f.url);
+    console.log("[getUploadedUrls] result: images=", images, "videos=", videos);
     return { images, videos };
   }
 
@@ -1309,7 +1360,7 @@ function PlaygroundInner() {
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
-                  上传文件
+                  上传文件 ({uploadedFiles.length} 个已选择)
                   {uploadingCount > 0 && (
                     <span style={{ color: "var(--accent)", marginLeft: 6 }}>
                       ({uploadingCount} 个上传中...)
@@ -1341,7 +1392,18 @@ function PlaygroundInner() {
                 )}
               </div>
 
-              {/* File previews */}
+              {/* File previews - DEBUG: always show list if files exist */}
+              {uploadedFiles.length > 0 && (
+                <div style={{ display: "block", marginBottom: 8, padding: "8px 12px", background: "var(--bg-elevated)", borderRadius: 6, fontSize: 11 }}>
+                  <div style={{ color: "var(--text-secondary)", marginBottom: 4 }}>已选择文件列表:</div>
+                  {uploadedFiles.map(f => (
+                    <div key={f.id} style={{ color: f.error ? "var(--error)" : f.uploading ? "var(--accent)" : "var(--success)", marginBottom: 2 }}>
+                      {f.name} - {f.uploading ? "上传中..." : f.error ? "失败: " + f.error : f.url ? "完成: " + f.url : "等待上传"}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* File preview images */}
               {uploadedFiles.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {uploadedFiles.map(file => (
