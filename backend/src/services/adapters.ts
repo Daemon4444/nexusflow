@@ -393,8 +393,8 @@ export function adaptHappyHorseRequest(
   const input: any = {};
   const parameters: any = {};
 
-  // Common parameters
-  if (body.resolution) parameters.resolution = body.resolution;
+  // Common parameters - HappyHorse expects uppercase resolution format (720P/1080P)
+  if (body.resolution) parameters.resolution = body.resolution.toUpperCase();
   if (body.duration) parameters.duration = body.duration;
   if (body.seed !== undefined && body.seed !== null) parameters.seed = body.seed;
   if (body.watermark !== undefined) parameters.watermark = body.watermark;
