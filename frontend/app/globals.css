@@ -611,6 +611,129 @@ select.input {
   .landing-stats-card { padding: 20px 14px; }
 }
 
+/* ====== Mobile Overflow Guardrails ====== */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+pre,
+code {
+  max-width: 100%;
+}
+
+.models-page,
+.docs-content-page,
+.playground-root {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.docs-table-wrap,
+.docs-code-wrap {
+  max-width: 100%;
+  overflow-x: auto !important;
+}
+
+.docs-table-wrap table {
+  min-width: 720px;
+}
+
+.docs-code-wrap pre {
+  width: max-content;
+  min-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .models-page {
+    padding: 24px 16px !important;
+    overflow-x: hidden;
+  }
+
+  .models-page > div:first-child > div {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+  }
+
+  .models-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .models-grid .card {
+    min-width: 0;
+  }
+
+  .docs-layout {
+    display: block !important;
+  }
+
+  .docs-sidebar {
+    position: relative !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 280px;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .docs-main {
+    width: 100% !important;
+    overflow-x: hidden;
+  }
+
+  .docs-content-page,
+  .docs-main > div {
+    padding: 28px 16px !important;
+    max-width: 100% !important;
+  }
+
+  .docs-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .playground-root {
+    display: block !important;
+    height: auto !important;
+    min-height: calc(100vh - 56px);
+    overflow-x: hidden;
+  }
+
+  .playground-sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 340px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .playground-main {
+    width: 100% !important;
+    min-height: calc(100vh - 56px);
+  }
+
+  .playground-main > div:first-child > div {
+    align-items: flex-start !important;
+    flex-wrap: wrap;
+  }
+
+  .playground-main > div:first-child > div > div:last-child {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .playground-video-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .chat-user,
+  .chat-assistant {
+    max-width: 100%;
+  }
+}
+
 /* ====== Hero Section ====== */
 .hero-section {
   padding: 100px 48px 80px; background: var(--bg); position: relative; overflow: hidden;

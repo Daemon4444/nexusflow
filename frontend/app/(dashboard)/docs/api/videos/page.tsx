@@ -182,7 +182,7 @@ export default function VideosPage() {
   const [codeLang, setCodeLang] = useState<"python" | "curl" | "nodejs">("python");
 
   return (
-    <div style={{ padding: "48px 64px", maxWidth: 1040 }}>
+    <div className="docs-content-page" style={{ padding: "48px 64px", maxWidth: 1040 }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
           <span
@@ -229,7 +229,7 @@ export default function VideosPage() {
       </div>
 
       <section style={{ marginBottom: 40 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 14 }}>
+        <div className="docs-card-grid docs-card-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 14 }}>
           {concurrencyCards.map((item) => (
             <div key={item.title} style={{ padding: 18, borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg)" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
@@ -243,7 +243,7 @@ export default function VideosPage() {
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
           推荐模型
         </h2>
-        <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+        <div className="docs-table-wrap" style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
@@ -273,7 +273,7 @@ export default function VideosPage() {
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
           请求参数
         </h2>
-        <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+        <div className="docs-table-wrap" style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
@@ -351,7 +351,7 @@ export default function VideosPage() {
           ))}
         </div>
 
-        <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
+        <div className="docs-code-wrap" style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
           <pre style={{ margin: 0, fontSize: 13, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.55 }}>
             {codeExamples[activeTab][codeLang]}
           </pre>
@@ -362,7 +362,7 @@ export default function VideosPage() {
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
           继续阅读
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 }}>
+        <div className="docs-card-grid docs-card-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 }}>
           {[
             { href: "/docs/api/tasks", label: "异步任务 API", desc: "查看统一任务提交与状态查询接口" },
             { href: "/docs/api/limits", label: "限流与并发", desc: "查看高并发下的限流、排队和监控建议" },

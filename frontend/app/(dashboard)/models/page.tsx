@@ -79,7 +79,7 @@ export default function ModelsPage() {
   }
 
   return (
-    <div style={{ padding: "32px 44px", fontFamily: "var(--font-sans)" }}>
+    <div className="models-page" style={{ padding: "32px 44px", fontFamily: "var(--font-sans)" }}>
       {/* Header */}
       <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
         <div className="section-label">Model Catalog</div>
@@ -140,7 +140,7 @@ export default function ModelsPage() {
 
       {/* Grid */}
       {loading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
+        <div className="models-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))", gap: 12 }}>
           {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 185, borderRadius: 10 }} />)}
         </div>
       ) : models.length === 0 ? (
@@ -151,7 +151,7 @@ export default function ModelsPage() {
           <div style={{ fontSize: 14 }}>没有找到匹配的模型</div>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 12 }}>
+        <div className="models-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))", gap: 12 }}>
           {models.map((model, idx) => {
             const accent = categoryColors[model.category] || "var(--accent)";
             const protocolBadges = getProtocolBadges(model);
@@ -199,7 +199,7 @@ export default function ModelsPage() {
                       <span style={{ fontSize: 10.5, fontWeight: 600, color: accent, background: `${accent}12`, padding: "1px 6px", borderRadius: 4, border: `1px solid ${accent}28` }}>{model.category}</span>
                     </div>
                   </div>
-                  <code style={{ fontSize: 10.5, color: "var(--text-tertiary)", background: "var(--bg-elevated)", padding: "3px 7px", borderRadius: 5, border: "1px solid var(--border)", flexShrink: 0, fontFamily: "var(--font-mono)" }}>{model.id}</code>
+                  <code style={{ fontSize: 10.5, color: "var(--text-tertiary)", background: "var(--bg-elevated)", padding: "3px 7px", borderRadius: 5, border: "1px solid var(--border)", flexShrink: 1, minWidth: 0, maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-mono)" }}>{model.id}</code>
                 </div>
 
                 {protocolBadges.length > 0 && (

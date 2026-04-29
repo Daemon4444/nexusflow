@@ -370,8 +370,8 @@ function DocsNav() {
 /* ── Layout ── */
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", minHeight: "calc(100vh - 56px)" }}>
-      <aside style={{
+    <div className="docs-layout" style={{ display: "flex", minHeight: "calc(100vh - 56px)" }}>
+      <aside className="docs-sidebar" style={{
         width: 240,
         flexShrink: 0,
         borderRight: "1px solid var(--border)",
@@ -385,7 +385,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           <DocsNav />
         </Suspense>
       </aside>
-      <main style={{ flex: 1, minWidth: 0, background: "var(--bg)" }}>
+      <main className="docs-main" style={{ flex: 1, minWidth: 0, background: "var(--bg)" }}>
         {children}
       </main>
     </div>

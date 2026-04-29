@@ -571,6 +571,16 @@ function PlaygroundInner() {
   async function generateImage() {
     if (!input.trim() || sending) return;
 
+    if (!apiKey) {
+      setMessages((p) => [...p, {
+        role: "assistant",
+        content: "请先设置 API Key。点击右上角「API Key」按钮输入。",
+        type: "text",
+        status: "error",
+      }]);
+      return;
+    }
+
     const { images } = getUploadedUrls();
 
     // Check for uploading files
@@ -595,6 +605,7 @@ function PlaygroundInner() {
 
       const res = await fetchAPI("/api/image/generate", {
         method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}` },
         body: JSON.stringify(body),
       });
 
@@ -653,14 +664,21 @@ function PlaygroundInner() {
   // ============================================================
 
   async function generateVideo() {
-    console.log("[generateVideo] called, input:", input.trim(), "sending:", sending);
     if (!input.trim() || sending) return;
+
+    if (!apiKey) {
+      setMessages((p) => [...p, {
+        role: "assistant",
+        content: "请先设置 API Key。点击右上角「API Key」按钮输入。",
+        type: "text",
+        status: "error",
+      }]);
+      return;
+    }
 
     // Check if required files are uploaded
     const { images, videos } = getUploadedUrls();
     const config = getUploadConfig(selectedModel);
-    console.log("[generateVideo] images:", images, "videos:", videos, "config:", config);
-    console.log("[generateVideo] uploadedFiles:", uploadedFiles.map(f => ({ id: f.id, name: f.name, url: f.url, uploading: f.uploading, error: f.error })));
 
     if (config.requiredImages && images.length === 0) {
       alert("请上传所需图片");
@@ -696,13 +714,12 @@ function PlaygroundInner() {
       if (images.length === 1) body.img_url = images[0];
       else if (images.length > 1) body.img_urls = images;
       if (videos.length > 0) body.video_url = videos[0];
-      console.log("[generateVideo] request body:", body);
 
       const res = await fetchAPI("/api/video/generate", {
         method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}` },
         body: JSON.stringify(body),
       });
-      console.log("[generateVideo] response:", res);
 
       if (res.success && res.data.task_id) {
         pollVideoStatus(res.data.task_id, messages.length + 1);
@@ -710,8 +727,7 @@ function PlaygroundInner() {
         updateLastMessage({ content: `错误: ${res.message || "视频生成失败"}`, status: "error" });
         setSending(false);
       }
-    } catch (err: any) {
-      console.error("[generateVideo] error:", err);
+    } catch {
       updateLastMessage({ content: "网络错误", status: "error" });
       setSending(false);
     }
@@ -852,7 +868,6 @@ function PlaygroundInner() {
 
   function needsUpload(modelId: string) {
     const config = getUploadConfig(modelId);
-    console.log("[needsUpload] modelId:", modelId, "config:", config, "result:", config.maxImages > 0 || config.maxVideos > 0);
     return config.maxImages > 0 || config.maxVideos > 0;
   }
 
@@ -860,7 +875,6 @@ function PlaygroundInner() {
     const config = getUploadConfig(selectedModel);
     const images = uploadedFiles.filter(f => f.type === "image").length;
     const videos = uploadedFiles.filter(f => f.type === "video").length;
-    console.log("[canUploadMore] type:", type, "selectedModel:", selectedModel, "config:", config, "images:", images, "videos:", videos);
     if (type === "image") return images < config.maxImages && config.maxImages > 0;
     if (type === "video") return videos < config.maxVideos && config.maxVideos > 0;
     return false;
@@ -868,34 +882,24 @@ function PlaygroundInner() {
 
   async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const files = event.target.files;
-    console.log("[Upload] File input changed, files:", files?.length || 0);
-    if (!files || files.length === 0) {
-      console.log("[Upload] No files selected, returning");
-      return;
-    }
+    if (!files || files.length === 0) return;
 
     // IMPORTANT: 先复制文件列表，再清空 input value
     // 因为清空 value 会同时清空 FileList
     const fileArray = Array.from(files);
-    console.log("[Upload] Files copied:", fileArray.map(f => ({ name: f.name, type: f.type, size: f.size })));
 
     // Reset input value to allow re-upload of same file
     event.target.value = "";
 
-    console.log("[Upload] Starting upload, selectedModel:", selectedModel);
-
     const config = getUploadConfig(selectedModel);
-    console.log("[Upload] Config for model:", config);
-    const remainingImages = config.maxImages - uploadedFiles.filter(f => f.type === "image").length;
-    const remainingVideos = config.maxVideos - uploadedFiles.filter(f => f.type === "video").length;
-    console.log("[Upload] Remaining slots - images:", remainingImages, "videos:", remainingVideos);
+    let remainingImages = config.maxImages - uploadedFiles.filter(f => f.type === "image").length;
+    let remainingVideos = config.maxVideos - uploadedFiles.filter(f => f.type === "video").length;
 
     // Validate files
     const toUpload: File[] = [];
     const errors: string[] = [];
 
     for (const file of fileArray) {
-      console.log("[Upload] Checking file:", file.name, "type:", file.type);
       // Check by MIME type OR by file extension
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
       const isImage = file.type.startsWith("image/") || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
@@ -903,18 +907,16 @@ function PlaygroundInner() {
 
       if (isImage && remainingImages > 0) {
         toUpload.push(file);
-        console.log("[Upload] Added image file:", file.name);
+        remainingImages -= 1;
       } else if (isVideo && remainingVideos > 0) {
         toUpload.push(file);
-        console.log("[Upload] Added video file:", file.name);
+        remainingVideos -= 1;
       } else {
         errors.push(`${file.name}: 不支持的文件类型或超出限制`);
-        console.log("[Upload] Rejected file:", file.name, "reason: type or limit, isImage:", isImage, "isVideo:", isVideo);
       }
     }
 
     if (toUpload.length === 0) {
-      console.log("[Upload] No files to upload, errors:", errors);
       if (errors.length > 0) alert(errors.join("\n"));
       return;
     }
@@ -932,21 +934,15 @@ function PlaygroundInner() {
         uploading: true,
       };
     });
-    console.log("[Upload] Created previews:", newFiles.map(f => ({ id: f.id, name: f.name, type: f.type, preview: f.preview })));
 
-    setUploadedFiles(prev => {
-      const updated = [...prev, ...newFiles];
-      console.log("[Upload] Updated uploadedFiles:", updated.length, "items");
-      return updated;
-    });
+    setUploadedFiles(prev => [...prev, ...newFiles]);
     setUploadingCount(c => c + newFiles.length);
 
     // Upload each file
-    for (const file of newFiles) {
+    for (const [index, file] of newFiles.entries()) {
       try {
         const formData = new FormData();
-        // Find the actual File object
-        const originalFile = toUpload.find(f => f.name === file.name);
+        const originalFile = toUpload[index];
         if (!originalFile) throw new Error("File not found");
         formData.append("file", originalFile);
 
@@ -961,11 +957,9 @@ function PlaygroundInner() {
         }
 
         const data = await res.json();
-        console.log("[Upload] Response:", data);
         // Backend returns { success: true, data: { url: ... } }
         const fileUrl = data.data?.url || data.url;
         if (!fileUrl) throw new Error("Upload response missing URL");
-        console.log("[Upload] File URL:", fileUrl, "for file.id:", file.id);
         setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, url: fileUrl, uploading: false } : f));
         setUploadingCount(c => c - 1);
       } catch (err: any) {
@@ -985,10 +979,8 @@ function PlaygroundInner() {
   }
 
   function getUploadedUrls() {
-    console.log("[getUploadedUrls] uploadedFiles:", uploadedFiles.map(f => ({ type: f.type, url: f.url, error: f.error })));
     const images = uploadedFiles.filter(f => f.type === "image" && f.url && !f.error).map(f => f.url);
     const videos = uploadedFiles.filter(f => f.type === "video" && f.url && !f.error).map(f => f.url);
-    console.log("[getUploadedUrls] result: images=", images, "videos=", videos);
     return { images, videos };
   }
 
@@ -1040,8 +1032,8 @@ function PlaygroundInner() {
   };
 
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 56px)", fontFamily: "var(--font-sans)" }}>
-      <aside style={{ width: 340, borderRight: "1px solid var(--border)", background: "var(--bg)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+    <div className="playground-root" style={{ display: "flex", height: "calc(100vh - 56px)", fontFamily: "var(--font-sans)" }}>
+      <aside className="playground-sidebar" style={{ width: 340, borderRight: "1px solid var(--border)", background: "var(--bg)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>模型</div>
           <div style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
@@ -1127,7 +1119,7 @@ function PlaygroundInner() {
         </div>
       </aside>
 
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <main className="playground-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Top bar */}
         <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg)", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -1392,17 +1384,6 @@ function PlaygroundInner() {
                 )}
               </div>
 
-              {/* File previews - DEBUG: always show list if files exist */}
-              {uploadedFiles.length > 0 && (
-                <div style={{ display: "block", marginBottom: 8, padding: "8px 12px", background: "var(--bg-elevated)", borderRadius: 6, fontSize: 11 }}>
-                  <div style={{ color: "var(--text-secondary)", marginBottom: 4 }}>已选择文件列表:</div>
-                  {uploadedFiles.map(f => (
-                    <div key={f.id} style={{ color: f.error ? "var(--error)" : f.uploading ? "var(--accent)" : "var(--success)", marginBottom: 2 }}>
-                      {f.name} - {f.uploading ? "上传中..." : f.error ? "失败: " + f.error : f.url ? "完成: " + f.url : "等待上传"}
-                    </div>
-                  ))}
-                </div>
-              )}
               {/* File preview images */}
               {uploadedFiles.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1546,7 +1527,7 @@ function PlaygroundInner() {
                 </svg>
                 视频参数
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div className="playground-video-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 {/* Duration - options based on model */}
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>时长</div>

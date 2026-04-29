@@ -7,6 +7,13 @@ import sharp from "sharp";
 const router = Router();
 
 const IMAGE_SIZE_LIMIT = 10 * 1024 * 1024; // 10MB
+const JPEG_MIME = "image/jpeg";
+
+type UploadResult = {
+  filename: string;
+  size: number;
+  mimetype: string;
+};
 
 // Configure upload directory
 const uploadDir = path.resolve(__dirname, "../../uploads");
@@ -45,13 +52,32 @@ const upload = multer({
   },
 });
 
-async function compressImageIfNeeded(filePath: string, mimetype: string): Promise<number> {
+function jpegFilename(filename: string): string {
+  const parsed = path.parse(filename);
+  return `${parsed.name}.jpg`;
+}
+
+function replaceFile(source: string, target: string) {
+  if (source !== target && fs.existsSync(source)) {
+    fs.unlinkSync(source);
+  }
+  fs.renameSync(`${target}.tmp`, target);
+}
+
+async function compressImageIfNeeded(file: Express.Multer.File): Promise<UploadResult> {
+  const filePath = file.path;
+  const mimetype = file.mimetype;
   const stat = fs.statSync(filePath);
   const isImage = mimetype.startsWith("image/") || /\.(jpg|jpeg|png|webp|bmp)$/i.test(filePath);
-  if (!isImage || stat.size <= IMAGE_SIZE_LIMIT) return stat.size;
+  const isAnimatedGif = mimetype === "image/gif" || /\.gif$/i.test(filePath);
+  if (!isImage || isAnimatedGif || stat.size <= IMAGE_SIZE_LIMIT) {
+    return { filename: file.filename, size: stat.size, mimetype };
+  }
 
   console.log(`[Upload API] Compressing image: ${stat.size} bytes -> target <= 10MB`);
-  const tmpPath = filePath + ".tmp";
+  const outputFilename = jpegFilename(file.filename);
+  const outputPath = path.join(uploadDir, outputFilename);
+  const tmpPath = outputPath + ".tmp";
 
   // Compress: reduce to fit within 10MB using JPEG quality stepping down
   let quality = 85;
@@ -59,9 +85,9 @@ async function compressImageIfNeeded(filePath: string, mimetype: string): Promis
     await sharp(filePath).jpeg({ quality }).toFile(tmpPath);
     const newSize = fs.statSync(tmpPath).size;
     if (newSize <= IMAGE_SIZE_LIMIT) {
-      fs.renameSync(tmpPath, filePath);
+      replaceFile(filePath, outputPath);
       console.log(`[Upload API] Compressed to ${newSize} bytes (quality=${quality})`);
-      return newSize;
+      return { filename: outputFilename, size: newSize, mimetype: JPEG_MIME };
     }
     quality -= 10;
   }
@@ -75,9 +101,9 @@ async function compressImageIfNeeded(filePath: string, mimetype: string): Promis
     .jpeg({ quality: 40 })
     .toFile(tmpPath);
   const finalSize = fs.statSync(tmpPath).size;
-  fs.renameSync(tmpPath, filePath);
+  replaceFile(filePath, outputPath);
   console.log(`[Upload API] Compressed (resize+quality=40) to ${finalSize} bytes`);
-  return finalSize;
+  return { filename: outputFilename, size: finalSize, mimetype: JPEG_MIME };
 }
 
 // POST /api/upload - single file upload
@@ -89,27 +115,30 @@ router.post("/", upload.single("file"), async (req, res) => {
     return;
   }
 
-  const filePath = req.file.path;
-  let finalSize = req.file.size;
+  let uploaded: UploadResult = {
+    filename: req.file.filename,
+    size: req.file.size,
+    mimetype: req.file.mimetype,
+  };
 
   try {
-    finalSize = await compressImageIfNeeded(filePath, req.file.mimetype);
+    uploaded = await compressImageIfNeeded(req.file);
   } catch (err: any) {
     console.error("[Upload API] Compression failed:", err.message);
     // 压缩失败不影响上传，继续用原文件
   }
 
   const baseUrl = process.env.PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-  const publicUrl = `${baseUrl}/api/uploads/${req.file.filename}`;
-  console.log("[Upload API] Success, url:", publicUrl, "size:", finalSize);
+  const publicUrl = `${baseUrl}/api/uploads/${uploaded.filename}`;
+  console.log("[Upload API] Success, url:", publicUrl, "size:", uploaded.size);
 
   res.json({
     success: true,
     data: {
       url: publicUrl,
-      filename: req.file.filename,
-      size: finalSize,
-      mimetype: req.file.mimetype,
+      filename: uploaded.filename,
+      size: uploaded.size,
+      mimetype: uploaded.mimetype,
     },
   });
 });

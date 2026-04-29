@@ -32,6 +32,7 @@ import {
 } from "../services/adapters";
 import { checkConsumerLimits, recordRequest } from "../services/rate-limiter";
 import { getPixVerseRuntimeChannel, getPixVerseTaskChannel } from "../services/pixverse-channel";
+import { billAsyncError, billAsyncSuccess, estimateAsyncCost, hasEnoughBalance } from "../services/async-billing";
 
 const router = Router();
 
@@ -111,6 +112,14 @@ router.post("/", async (req: Request, res: Response) => {
         type: "invalid_request_error", 
         code: "unsupported_model" 
       },
+    });
+    return;
+  }
+
+  const estimatedCost = estimateAsyncCost(model, params);
+  if (!hasEnoughBalance(apiKeyRecord.user_id, estimatedCost)) {
+    res.status(402).json({
+      error: { message: "Insufficient balance", type: "billing_error", code: "insufficient_balance" },
     });
     return;
   }
@@ -216,6 +225,7 @@ router.post("/", async (req: Request, res: Response) => {
     if (!response.ok || data.code || (data.ErrCode !== undefined && data.ErrCode !== 0)) {
       const errorMsg = data.message || data.error?.message || data.ErrMsg || `HTTP ${response.status}`;
       failTask(task.id, errorMsg);
+      billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
       res.status(response.ok ? 400 : response.status).json({
         error: { message: errorMsg, type: "upstream_error", code: "upstream_error" },
       });
@@ -257,6 +267,7 @@ router.post("/", async (req: Request, res: Response) => {
 
   } catch (err: any) {
     failTask(task.id, `Request failed: ${err.message}`);
+    billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
     res.status(500).json({
       error: { message: `Upstream request failed: ${err.message}`, type: "server_error", code: "upstream_error" },
     });
@@ -317,9 +328,13 @@ router.get("/:id", async (req: Request, res: Response) => {
 
     // Update task based on result
     if (result.status === "succeeded") {
-      completeTask(task.id, result.output, 0);
+      const model = models.find((m) => m.id === task.model);
+      const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
+      completeTask(task.id, result.output, cost);
+      if (model) billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
     } else if (result.status === "failed") {
       failTask(task.id, result.error || "Task failed");
+      billAsyncError(task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
     } else {
       updateTaskStatus(task.id, result.status, result.progress || 0);
     }

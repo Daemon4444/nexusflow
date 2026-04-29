@@ -10,6 +10,7 @@
 
 import { Router, Request, Response } from "express";
 import { models } from "../data/models";
+import { validateApiKey } from "../data/apikeys";
 import { 
   createTask, 
   getTaskById, 
@@ -19,6 +20,7 @@ import {
   updateTaskStatus
 } from "../data/tasks";
 import { adaptImageRequest, pollDashScopeTask } from "../services/adapters";
+import { billAsyncError, billAsyncSuccess, estimateAsyncCost, hasEnoughBalance } from "../services/async-billing";
 
 const router = Router();
 
@@ -26,8 +28,15 @@ function getApiKey(): string {
   return process.env.DASHSCOPE_API_KEY || "";
 }
 
+function extractToken(req: Request): string | null {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith("Bearer ")) return null;
+  return auth.slice(7).trim();
+}
+
 // POST /api/image/generate - Submit image generation task
 router.post("/generate", async (req: Request, res: Response) => {
+  const startTime = Date.now();
   const {
     model: modelId,
     prompt,
@@ -52,6 +61,19 @@ router.post("/generate", async (req: Request, res: Response) => {
   const model = models.find((m) => m.id === modelId);
   if (!model || model.category !== "图像生成") {
     res.status(404).json({ success: false, message: "图像生成模型不存在" });
+    return;
+  }
+
+  const token = extractToken(req);
+  const apiKeyRecord = token ? validateApiKey(token) : null;
+  if (!apiKeyRecord) {
+    res.status(401).json({ success: false, message: "请提供有效的 API Key" });
+    return;
+  }
+
+  const estimatedCost = estimateAsyncCost(model, { n });
+  if (!hasEnoughBalance(apiKeyRecord.user_id, estimatedCost)) {
+    res.status(402).json({ success: false, message: "余额不足，请先充值" });
     return;
   }
 
@@ -92,6 +114,8 @@ router.post("/generate", async (req: Request, res: Response) => {
 
   // Create internal task record
   const task = createTask({
+    userId: apiKeyRecord.user_id,
+    apiKeyId: apiKeyRecord.id,
     type: "image",
     model: modelId,
     provider: "dashscope",
@@ -126,6 +150,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     if (!response.ok || data.code) {
       const errorMsg = data.message || `HTTP ${response.status}`;
       failTask(task.id, errorMsg);
+      billAsyncError(apiKeyRecord, modelId, Date.now() - startTime);
       res.status(response.status || 400).json({
         success: false,
         message: errorMsg,
@@ -144,7 +169,8 @@ router.post("/generate", async (req: Request, res: Response) => {
       }).filter(Boolean);
 
       if (results.length > 0) {
-        completeTask(task.id, { type: "image", results }, 0);
+        completeTask(task.id, { type: "image", results }, estimatedCost);
+        billAsyncSuccess(task, model, estimatedCost, Date.now() - startTime);
         res.json({
           success: true,
           data: {
@@ -155,6 +181,7 @@ router.post("/generate", async (req: Request, res: Response) => {
         });
       } else {
         failTask(task.id, "No image generated");
+        billAsyncError(apiKeyRecord, modelId, Date.now() - startTime);
         res.status(500).json({
           success: false,
           message: "图像生成失败，未返回结果",
@@ -178,6 +205,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     failTask(task.id, err.message);
+    billAsyncError(apiKeyRecord, modelId, Date.now() - startTime);
     res.status(500).json({
       success: false,
       message: `请求失败: ${err.message}`,
@@ -226,7 +254,10 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
       const result = await pollDashScopeTask(DASHSCOPE_API_KEY, task.upstream_task_id);
 
       if (result.status === "succeeded") {
-        completeTask(task.id, result.output, 0);
+        const model = models.find((m) => m.id === task.model);
+        const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
+        completeTask(task.id, result.output, cost);
+        if (model) billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {
@@ -237,6 +268,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
         });
       } else if (result.status === "failed") {
         failTask(task.id, result.error || "Task failed");
+        billAsyncError(task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {

@@ -8,6 +8,7 @@
 
 import { Router, Request, Response } from "express";
 import { models } from "../data/models";
+import { validateApiKey } from "../data/apikeys";
 import {
   createTask,
   getTaskById,
@@ -17,6 +18,7 @@ import {
   updateTaskStatus
 } from "../data/tasks";
 import { getPixVerseRuntimeChannel } from "../services/pixverse-channel";
+import { billAsyncError, billAsyncSuccess, estimateAsyncCost, hasEnoughBalance } from "../services/async-billing";
 import {
   adaptVideoRequest,
   adaptHappyHorseRequest,
@@ -35,8 +37,15 @@ function getPixVerseKey(): string {
   return process.env.PIXVERSE_API_KEY || "";
 }
 
+function extractToken(req: Request): string | null {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith("Bearer ")) return null;
+  return auth.slice(7).trim();
+}
+
 // POST /api/video/generate - Submit video generation task
 router.post("/generate", async (req: Request, res: Response) => {
+  const startTime = Date.now();
   const { 
     model: modelId, prompt, duration, aspect_ratio, quality, negative_prompt, size,
     img_url, img_urls, video_url, resolution, ratio, audio_setting, seed, watermark
@@ -57,6 +66,19 @@ router.post("/generate", async (req: Request, res: Response) => {
   const model = models.find((m) => m.id === modelId);
   if (!model || model.category !== "视频生成") {
     res.status(404).json({ success: false, message: "视频生成模型不存在" });
+    return;
+  }
+
+  const token = extractToken(req);
+  const apiKeyRecord = token ? validateApiKey(token) : null;
+  if (!apiKeyRecord) {
+    res.status(401).json({ success: false, message: "请提供有效的 API Key" });
+    return;
+  }
+
+  const estimatedCost = estimateAsyncCost(model, { duration });
+  if (!hasEnoughBalance(apiKeyRecord.user_id, estimatedCost)) {
+    res.status(402).json({ success: false, message: "余额不足，请先充值" });
     return;
   }
 
@@ -105,6 +127,8 @@ router.post("/generate", async (req: Request, res: Response) => {
 
   // Create internal task record
   const task = createTask({
+    userId: apiKeyRecord.user_id,
+    apiKeyId: apiKeyRecord.id,
     type: "video",
     model: modelId,
     provider: useDashScopeAdapter ? "dashscope" : "pixverse",
@@ -150,8 +174,8 @@ router.post("/generate", async (req: Request, res: Response) => {
         negative_prompt,
         size: size || "1280*720",
         duration: duration || 5,
-        img_url: (modelId.includes("i2v") || modelId.includes("r2v")) ? img_url : undefined,
-        img_urls: modelId.includes("r2v") ? img_urls : undefined,
+        img_url: modelId.includes("i2v") ? img_url : undefined,
+        img_urls: modelId.includes("r2v") ? (img_urls || (img_url ? [img_url] : undefined)) : undefined,
         video_url: modelId.includes("r2v") ? video_url : undefined,
         prompt_extend: true,
       });
@@ -169,6 +193,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     if (!useDashScopeAdapter && isPixVerseModel) {
       if (data.ErrCode !== 0) {
         failTask(task.id, data.ErrMsg || "视频生成失败");
+        billAsyncError(apiKeyRecord, modelId, Date.now() - startTime);
         res.status(400).json({
           success: false,
           message: data.ErrMsg || "视频生成失败",
@@ -196,6 +221,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     if (!response.ok || data.code) {
       const errorMsg = data.message || `HTTP ${response.status}`;
       failTask(task.id, errorMsg);
+      billAsyncError(apiKeyRecord, modelId, Date.now() - startTime);
       res.status(response.status || 400).json({
         success: false,
         message: errorMsg,
@@ -219,6 +245,7 @@ router.post("/generate", async (req: Request, res: Response) => {
 
   } catch (err: any) {
     failTask(task.id, err.message);
+    billAsyncError(apiKeyRecord, modelId, Date.now() - startTime);
     res.status(500).json({
       success: false,
       message: `请求失败: ${err.message}`,
@@ -266,7 +293,10 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
         : await pollDashScopeTask(apiKey, task.upstream_task_id);
 
       if (result.status === "succeeded") {
-        completeTask(task.id, result.output, 0);
+        const model = models.find((m) => m.id === task.model);
+        const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
+        completeTask(task.id, result.output, cost);
+        if (model) billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {
@@ -277,6 +307,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
         });
       } else if (result.status === "failed") {
         failTask(task.id, result.error || "Task failed");
+        billAsyncError(task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {
