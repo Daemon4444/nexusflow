@@ -48,7 +48,7 @@ router.post("/generate", async (req: Request, res: Response) => {
   const startTime = Date.now();
   const { 
     model: modelId, prompt, duration, aspect_ratio, quality, negative_prompt, size,
-    img_url, img_urls, video_url, resolution, ratio, audio_setting, seed, watermark
+    img_url, img_urls, video_url, resolution, ratio, audio, audio_setting, seed, watermark
   } = req.body;
 
   if (!modelId) {
@@ -76,7 +76,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedCost = estimateAsyncCost(model, { duration });
+  const estimatedCost = estimateAsyncCost(model, { duration, quality, resolution, audio, audio_setting });
   if (!hasEnoughBalance(apiKeyRecord.user_id, estimatedCost)) {
     res.status(402).json({ success: false, message: "余额不足，请先充值" });
     return;
@@ -132,7 +132,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     type: "video",
     model: modelId,
     provider: useDashScopeAdapter ? "dashscope" : "pixverse",
-    input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_urls, video_url, resolution, ratio, audio_setting, seed, watermark },
+    input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_urls, video_url, resolution, ratio, audio, audio_setting, seed, watermark },
   });
 
   // Build request based on provider/adapter

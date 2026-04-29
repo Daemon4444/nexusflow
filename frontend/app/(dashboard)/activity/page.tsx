@@ -5,6 +5,7 @@ import { fetchAPI } from "@/lib/api";
 import { authHeaders } from "@/lib/auth";
 import UserLayout from "@/components/UserLayout";
 import { useI18n } from "@/lib/i18n";
+import { formatCny } from "@/lib/money";
 
 interface UsageData {
   overview: {
@@ -73,12 +74,6 @@ export default function ActivityPage() {
     return tokens.toLocaleString();
   }
 
-  function formatCost(cost: number): string {
-    if (cost === 0) return "¥0.00";
-    if (cost < 0.01) return `¥${cost.toFixed(6)}`;
-    return `¥${cost.toFixed(2)}`;
-  }
-
   return (
     <UserLayout wide>
       <div className="usr-page-header">
@@ -97,7 +92,7 @@ export default function ActivityPage() {
             {[
               { label: t("totalRequests"), value: data.overview.totalRequests.toLocaleString() },
               { label: t("totalTokens"), value: formatTokensCompact(data.overview.totalTokens) },
-              { label: t("totalCost"), value: formatCost(data.overview.totalCost) },
+              { label: t("totalCost"), value: formatCny(data.overview.totalCost) },
               { label: t("activeModels"), value: data.overview.activeModels.toString() },
               { label: t("avgLatency"), value: data.overview.avgLatency + "s" },
               { label: t("successRate"), value: data.overview.successRate + "%" },
@@ -186,7 +181,7 @@ export default function ActivityPage() {
                     <span style={{ color: "var(--text-primary)", fontSize: 12.5 }}>{d.date}</span>
                     <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{d.requests.toLocaleString()}</span>
                     <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatTokensCompact(d.tokens)}</span>
-                    <span style={{ color: "#10b981", fontWeight: 500, fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCost(d.cost)}</span>
+                    <span style={{ color: "#10b981", fontWeight: 500, fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCny(d.cost)}</span>
                   </div>
                 ))}
               </div>
@@ -214,7 +209,7 @@ export default function ActivityPage() {
                     </span>
                     <span style={{ color: "var(--text-primary)", fontSize: 12.5, fontWeight: 500 }}>{r.model}</span>
                     <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{r.tokens.toLocaleString()}</span>
-                    <span style={{ color: "#10b981", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCost(r.cost)}</span>
+                    <span style={{ color: "#10b981", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCny(r.cost)}</span>
                     <span>
                       <span style={{
                         width: 7, height: 7, borderRadius: "50%", display: "inline-block",

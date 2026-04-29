@@ -43,20 +43,25 @@ const stmts = {
   ),
 };
 
+function roundBalance(value: number): number {
+  return Math.round(value * 1_000_000) / 1_000_000;
+}
+
 /** 充值 */
 export function recharge(userId: string, amount: number, description?: string): Transaction | null {
   if (amount <= 0) return null;
   const user = getUserById(userId);
   if (!user) return null;
 
-  const newBalance = Math.round((user.balance + amount) * 100) / 100;
+  const normalizedAmount = roundBalance(amount);
+  const newBalance = roundBalance(user.balance + normalizedAmount);
   const txId = uuidv4();
   const now = new Date().toISOString();
 
   const doRecharge = db.transaction(() => {
     updateUserBalance(userId, newBalance);
     stmts.insert.run(
-      txId, userId, "recharge", amount, newBalance,
+      txId, userId, "recharge", normalizedAmount, newBalance,
       description || `充值 ¥${amount.toFixed(2)}`, null, now
     );
   });
@@ -64,7 +69,7 @@ export function recharge(userId: string, amount: number, description?: string): 
 
   return {
     id: txId, user_id: userId, type: "recharge",
-    amount, balance_after: newBalance,
+    amount: normalizedAmount, balance_after: newBalance,
     description: description || `充值 ¥${amount.toFixed(2)}`,
     ref_id: null, created_at: now,
   };
@@ -77,16 +82,17 @@ export function consume(
   if (amount <= 0) return null;
   const user = getUserById(userId);
   if (!user) return null;
-  if (user.balance < amount) return null; // 余额不足
+  const normalizedAmount = roundBalance(amount);
+  if (user.balance < normalizedAmount) return null; // 余额不足
 
-  const newBalance = Math.round((user.balance - amount) * 100) / 100;
+  const newBalance = roundBalance(user.balance - normalizedAmount);
   const txId = uuidv4();
   const now = new Date().toISOString();
 
   const doConsume = db.transaction(() => {
     updateUserBalance(userId, newBalance);
     stmts.insert.run(
-      txId, userId, "consumption", amount, newBalance,
+      txId, userId, "consumption", normalizedAmount, newBalance,
       description, refId || null, now
     );
   });
@@ -94,7 +100,7 @@ export function consume(
 
   return {
     id: txId, user_id: userId, type: "consumption",
-    amount, balance_after: newBalance,
+    amount: normalizedAmount, balance_after: newBalance,
     description, ref_id: refId || null, created_at: now,
   };
 }
@@ -112,8 +118,8 @@ export function getBillingSummary(userId: string) {
   const user = getUserById(userId);
   return {
     balance: user?.balance || 0,
-    totalRecharge: Math.round(row.totalRecharge * 100) / 100,
-    totalConsumption: Math.round(row.totalConsumption * 100) / 100,
+    totalRecharge: roundBalance(row.totalRecharge),
+    totalConsumption: roundBalance(row.totalConsumption),
     totalCalls: row.totalCalls,
   };
 }

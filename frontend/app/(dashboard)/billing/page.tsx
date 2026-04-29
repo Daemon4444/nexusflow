@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { formatCny } from "@/lib/money";
 import UserLayout from "@/components/UserLayout";
 import { BalanceWarning } from "@/components/BalanceWarning";
 import OnboardingGuide, { useOnboarding } from "@/components/OnboardingGuide";
@@ -168,11 +169,11 @@ export default function BillingPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
             <div className="usr-hero-label">{t("availableBalance")}</div>
-            <div className="usr-hero-value">¥{(summary?.balance || user?.balance || 0).toFixed(2)}</div>
+            <div className="usr-hero-value">{formatCny(summary?.balance || user?.balance || 0)}</div>
           </div>
           <div className="usr-hero-stats">
-            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("totalRecharged")}</div><div className="usr-hero-stat-value">¥{(summary?.totalRecharge || 0).toFixed(2)}</div></div>
-            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("totalSpent")}</div><div className="usr-hero-stat-value">¥{(summary?.totalConsumption || 0).toFixed(2)}</div></div>
+            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("totalRecharged")}</div><div className="usr-hero-stat-value">{formatCny(summary?.totalRecharge || 0)}</div></div>
+            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("totalSpent")}</div><div className="usr-hero-stat-value">{formatCny(summary?.totalConsumption || 0)}</div></div>
             <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("apiCalls")}</div><div className="usr-hero-stat-value">{summary?.totalCalls || 0}</div></div>
           </div>
         </div>
@@ -304,8 +305,8 @@ export default function BillingPage() {
                 <div key={tx.id} className="table-row" style={{ gridTemplateColumns: "80px 1fr 100px 100px 150px" }}>
                   <span><span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 9999, fontSize: 11, fontWeight: 500, background: `${typeColor(tx.type)}12`, color: typeColor(tx.type), border: `1px solid ${typeColor(tx.type)}25` }}>{typeLabel(tx.type)}</span></span>
                   <span style={{ color: "var(--text-primary)", fontSize: 12.5 }}>{tx.description || "-"}</span>
-                  <span style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{tx.type === "recharge" ? "+" : "-"}¥{Number(tx.amount || 0).toFixed(4)}</span>
-                  <span style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>¥{Number(tx.balanceAfter || 0).toFixed(2)}</span>
+                  <span style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{tx.type === "recharge" ? "+" : "-"}{formatCny(tx.amount)}</span>
+                  <span style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCny(tx.balanceAfter)}</span>
                   <span style={{ textAlign: "right", color: "var(--text-tertiary)", fontSize: 12 }}>{formatDate(tx.createdAt)}</span>
                 </div>
               ))}

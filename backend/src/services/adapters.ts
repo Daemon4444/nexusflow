@@ -529,6 +529,7 @@ export function adaptPixVerseRequest(
     duration?: number;
     aspect_ratio?: string;
     quality?: string;
+    resolution?: string;
     negative_prompt?: string;
     img_url?: string;
     motion_mode?: string;
@@ -545,7 +546,7 @@ export function adaptPixVerseRequest(
     model: modelMap[body.model] || "v6",
     duration: body.duration || 5,
     aspect_ratio: body.aspect_ratio || "16:9",
-    quality: body.quality || "540p",
+    quality: body.quality || body.resolution || "540p",
   };
   if (body.negative_prompt) pixBody.negative_prompt = body.negative_prompt;
   if (body.img_url) pixBody.img_url = body.img_url;

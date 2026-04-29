@@ -349,7 +349,7 @@ export const models: AIModel[] = [
     provider: "通义千问",
     description: "最新一代文生视频旗舰模型，支持多镜头叙事和智能分镜。可生成2-15秒1080P高清视频，支持prompt改写。生成耗时约1-5分钟。",
     contextLength: 1500,
-    promptPrice: 0.25,  // 元/秒/1080P
+    promptPrice: 0.6,  // 元/秒，720P 起
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "文生视频", "多镜头", "1080P"],
@@ -365,7 +365,7 @@ export const models: AIModel[] = [
     provider: "通义千问",
     description: "图像驱动视频生成模型，以输入图像作为首帧生成连贯视频。支持多镜头叙事、自动配音、720P/1080P分辨率，时长2-15秒。画面连贯性和运动一致性出色。",
     contextLength: 1500,
-    promptPrice: 0.25,  // 元/秒/1080P
+    promptPrice: 0.6,  // 元/秒，720P 起
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "图生视频", "首帧驱动", "多镜头", "配音"],
@@ -381,7 +381,7 @@ export const models: AIModel[] = [
     provider: "通义千问",
     description: "图生视频快速版，支持有声/无声视频生成。生成速度更快，适合对延迟敏感的场景。支持720P/1080P，时长2-15秒。",
     contextLength: 1500,
-    promptPrice: 0.18,  // 元/秒/1080P
+    promptPrice: 0.15,  // 元/秒，720P 无声起
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "图生视频", "快速", "Flash"],
@@ -395,7 +395,7 @@ export const models: AIModel[] = [
     provider: "通义千问",
     description: "多模态输入视频生成模型，支持文本/图像/视频作为参考。可将人物或物体作为主角，生成单角色表演或多角色互动视频。时长2-10秒，支持智能分镜。",
     contextLength: 1500,
-    promptPrice: 0.25,  // 元/秒/1080P
+    promptPrice: 0.6,  // 元/秒，720P 起
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "参考生视频", "角色扮演", "多模态"],
@@ -409,7 +409,7 @@ export const models: AIModel[] = [
     provider: "通义千问",
     description: "参考生视频快速版，支持有声/无声输出。生成速度更快，适合快速迭代场景。支持720P/1080P分辨率。",
     contextLength: 1500,
-    promptPrice: 0.18,  // 元/秒/1080P
+    promptPrice: 0.15,  // 元/秒，720P 无声起
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "参考生视频", "快速", "Flash"],
@@ -423,7 +423,7 @@ export const models: AIModel[] = [
     provider: "拍我AI (PixVerse)",
     description: "PixVerse最新旗舰视频生成模型，支持文生视频、图生视频，画面质量和运动一致性大幅提升。支持1-15秒时长，360p/540p/720p/1080p多种分辨率，多种宽高比。",
     contextLength: 500,
-    promptPrice: 0,
+    promptPrice: 0.21,  // 元/秒，默认 540P 无声
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "文生视频", "图生视频", "旗舰", "V6"],
@@ -440,7 +440,7 @@ export const models: AIModel[] = [
     provider: "阿里巴巴 (Alibaba)",
     description: "阿里巴巴2026年最新AI视频生成模型，榜单排名第一。文本生成高质量视频，支持720P/1080P，3-15秒时长，多种宽高比。默认带音频直出。",
     contextLength: 2500,
-    promptPrice: 0.28,  // 元/秒/1080P
+    promptPrice: 0.9,  // 元/秒，720P 起
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "文生视频", "高质量", "榜单第一", "音频"],
@@ -455,7 +455,7 @@ export const models: AIModel[] = [
     provider: "阿里巴巴 (Alibaba)",
     description: "以输入图片作为首帧生成连贯视频，支持720P/1080P，3-15秒时长。画面连贯性和运动一致性出色。默认带音频直出。",
     contextLength: 2500,
-    promptPrice: 0.28,  // 元/秒/1080P
+    promptPrice: 0.9,  // 元/秒，720P 起
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "图生视频", "首帧驱动", "高质量", "音频"],
@@ -470,7 +470,7 @@ export const models: AIModel[] = [
     provider: "阿里巴巴 (Alibaba)",
     description: "支持1-9张参考图片输入，可将图中人物/物体/场景融合生成视频。支持720P/1080P，3-15秒，多种宽高比。默认带音频直出。",
     contextLength: 2500,
-    promptPrice: 0.28,  // 元/秒/1080P
+    promptPrice: 0.9,  // 元/秒，720P 起
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "参考生视频", "多图输入", "高质量", "音频"],
@@ -484,7 +484,7 @@ export const models: AIModel[] = [
     provider: "阿里巴巴 (Alibaba)",
     description: "基于输入视频进行AI编辑，支持0-5张参考图片辅助编辑。输入视频3-60秒（超15秒截断），支持720P/1080P，可保留原始音频。",
     contextLength: 2500,
-    promptPrice: 0.26,  // 元/秒/1080P
+    promptPrice: 0.9,  // 元/秒，720P 起
     completionPrice: 0,
     category: "视频生成",
     tags: ["视频生成", "视频编辑", "AI编辑", "音频保留"],

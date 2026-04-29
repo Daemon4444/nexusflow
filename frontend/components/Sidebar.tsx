@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { formatCny } from "@/lib/money";
 import { NexusflowLogo } from "./QuadrantLogo";
 
 const navItems = [
@@ -103,7 +104,7 @@ export default function Sidebar() {
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {user.nickname}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--success)", marginTop: 1 }}>¥{user.balance.toFixed(2)}</div>
+                <div style={{ fontSize: 11, color: "var(--success)", marginTop: 1 }}>{formatCny(user.balance)}</div>
               </div>
             </div>
             <button onClick={() => logout()} style={{
