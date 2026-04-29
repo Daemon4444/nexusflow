@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
         source: "/api/:path*",
         destination: "http://127.0.0.1:3001/api/:path*",
       },
+      {
+        source: "/v1/:path*",
+        destination: "http://127.0.0.1:3001/v1/:path*",
+      },
     ];
   },
 };

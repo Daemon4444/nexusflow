@@ -552,6 +552,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   if (tool_choice) requestBody.tool_choice = tool_choice;
   if (response_format) requestBody.response_format = response_format;
   if (stream_options !== undefined) requestBody.stream_options = stream_options;
+  if (requestBody.stream && requestBody.stream_options === undefined) {
+    requestBody.stream_options = { include_usage: true };
+  }
   if (enable_thinking !== undefined) requestBody.enable_thinking = enable_thinking;
   if ((modelId === "qwen3-32b" || modelId === "qwen3-8b") && !requestBody.stream) {
     requestBody.enable_thinking = false;
