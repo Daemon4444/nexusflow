@@ -5,9 +5,16 @@ import { fetchAPI } from "@/lib/api";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 
+interface PricingTier {
+  label: string;
+  price: number;
+}
+
 interface AIModel {
   id: string; name: string; provider: string; description: string;
   contextLength: number; promptPrice: number; completionPrice: number;
+  pricingType?: "token" | "per-image" | "per-second";
+  pricingTiers?: PricingTier[];
   category: string; tags: string[]; isNew?: boolean; isFeatured?: boolean;
   maxOutput: number; supported: string[];
   supportedProtocols?: string[];
@@ -211,11 +218,22 @@ export default function ModelsPage() {
                 )}
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, padding: "10px 0 0", borderTop: "1px solid var(--border)" }}>
-                  {[
-                    { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
-                    { label: "输入", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}/M`, color: "var(--success)" },
-                    { label: "输出", value: model.completionPrice === 0 ? "免费" : `¥${model.completionPrice}/M`, color: "var(--warning)" },
-                  ].map((s) => (
+                  {(() => {
+                    const isMedia = model.pricingType === "per-second" || model.pricingType === "per-image";
+                    if (isMedia) {
+                      const unit = model.pricingType === "per-second" ? "/秒" : "/张";
+                      return [
+                        { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
+                        { label: "价格", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}${unit}`, color: "var(--success)" },
+                        { label: "计费", value: model.pricingType === "per-second" ? "按秒" : "按张", color: "var(--warning)" },
+                      ];
+                    }
+                    return [
+                      { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
+                      { label: "输入", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}/M`, color: "var(--success)" },
+                      { label: "输出", value: model.completionPrice === 0 ? "免费" : `¥${model.completionPrice}/M`, color: "var(--warning)" },
+                    ];
+                  })().map((s) => (
                     <div key={s.label}>
                       <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 3, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{s.label}</div>
                       <div style={{ fontSize: 14, fontWeight: 550, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>

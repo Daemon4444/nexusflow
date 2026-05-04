@@ -2,18 +2,13 @@ import { Router, Request, Response } from "express";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { getUserById } from "../data/users";
+import { getPixVerseRuntimeChannel } from "../services/pixverse-channel";
+import { adaptPixVerseRequest, pollPixVerseTask } from "../services/adapters";
+import { randomUUID } from "crypto";
 
 const router = Router();
 
-/*
- * 上游：阿里云百炼 DashScope
- * 文档：https://help.aliyun.com/zh/model-studio/pixverse-text-to-video-api-reference
- */
 const DASHSCOPE_BASE = "https://dashscope.aliyuncs.com/api/v1";
-
-function getDashScopeKey(): string {
-  return process.env.DASHSCOPE_API_KEY || "";
-}
 
 function extractToken(req: Request): string | null {
   const auth = req.headers.authorization;
@@ -27,8 +22,6 @@ function getDashScopePixVerseModel(model: string): string {
 }
 
 // ── 创建视频生成任务 ──────────────────────────────────────────────
-// POST /v1/video/text          (简洁路径)
-// POST /v1/video/video-synthesis (兼容百炼路径 /v1/services/aigc/video-generation/video-synthesis)
 async function handleVideoSynthesis(req: Request, res: Response) {
   const token = extractToken(req);
   const keyRecord = token ? validateApiKey(token) : null;
@@ -48,85 +41,118 @@ async function handleVideoSynthesis(req: Request, res: Response) {
     }
   }
 
-  const apiKey = getDashScopeKey();
-  if (!apiKey) {
-    res.status(500).json({ error: { message: "DashScope API key not configured.", code: "upstream_error" } });
-    return;
-  }
-
-  // 兼容两种请求格式:
-  // 1. 百炼格式: { model, input: { prompt }, parameters: { size, duration, ... } }
-  // 2. 简洁格式: { model, prompt, size, duration, ... }
-  let model: string;
-  let dashBody: any;
-
-  if (req.body.input) {
-    // 百炼格式 — 直接透传
-    model = req.body.model || "pixverse-v6";
-    dashBody = {
-      model: getDashScopePixVerseModel(model),
-      input: req.body.input,
-      parameters: req.body.parameters || {},
-    };
-  } else {
-    // 简洁格式 — 转成百炼格式
-    model = req.body.model || "pixverse-v6";
-    dashBody = {
-      model: getDashScopePixVerseModel(model),
-      input: {
-        prompt: req.body.prompt || "",
-      },
-      parameters: {
-        size: req.body.size || "1280*720",
-        duration: req.body.duration || 5,
-        audio: req.body.audio ?? false,
-        watermark: req.body.watermark ?? false,
-      },
-    };
-    if (req.body.seed !== undefined) dashBody.parameters.seed = req.body.seed;
-    if (req.body.negative_prompt) dashBody.input.negative_prompt = req.body.negative_prompt;
-  }
+  const model = req.body.model || "pixverse-v6";
+  const channel = getPixVerseRuntimeChannel();
 
   const startTime = Date.now();
-  try {
-    const response = await fetch(`${DASHSCOPE_BASE}/services/aigc/video-generation/video-synthesis`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "X-DashScope-Async": "enable",
-      },
-      body: JSON.stringify(dashBody),
-    });
 
-    const data: any = await response.json();
-    const latencyMs = Date.now() - startTime;
-
-    logUsage({
-      apiKeyId: keyRecord.id,
+  if (channel.adapter === "pixverse") {
+    // ── 走 PixVerse 官方 API ──
+    const prompt = req.body.input?.prompt || req.body.prompt || "";
+    const params = req.body.parameters || {};
+    const adapted = adaptPixVerseRequest(channel.apiKey, {
       model,
-      promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-      cost: 0,
-      status: response.ok ? "success" : "error",
-      latencyMs,
-    });
+      prompt,
+      duration: params.duration || req.body.duration || 5,
+      quality: params.resolution || params.quality || "540p",
+      aspect_ratio: params.aspect_ratio || "16:9",
+      negative_prompt: req.body.input?.negative_prompt || req.body.negative_prompt,
+      seed: params.seed || req.body.seed,
+    }, channel.apiBaseUrl);
 
-    if (!response.ok) {
-      res.status(response.status).json(data);
+    try {
+      const response = await fetch(adapted.url, {
+        method: adapted.method,
+        headers: adapted.headers,
+        body: JSON.stringify(adapted.body),
+      });
+      const data: any = await response.json();
+      const latencyMs = Date.now() - startTime;
+
+      logUsage({
+        apiKeyId: keyRecord.id,
+        model,
+        promptTokens: 0, completionTokens: 0, totalTokens: 0,
+        cost: 0, status: response.ok && data.ErrCode === 0 ? "success" : "error", latencyMs,
+      });
+
+      if (data.ErrCode !== 0) {
+        res.status(400).json({
+          error: { message: data.ErrMsg || "PixVerse request failed", code: "upstream_error" },
+        });
+        return;
+      }
+
+      // 返回 DashScope 兼容格式
+      res.json({
+        request_id: randomUUID(),
+        output: {
+          task_id: String(data.Resp?.video_id || ""),
+          task_status: "PENDING",
+        },
+      });
+    } catch (err: any) {
+      logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: "error", latencyMs: Date.now() - startTime });
+      res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+    }
+  } else {
+    // ── 走 DashScope（百炼）──
+    const apiKey = channel.apiKey;
+    if (!apiKey) {
+      res.status(500).json({ error: { message: "DashScope API key not configured.", code: "upstream_error" } });
       return;
     }
 
-    res.json(data);
-  } catch (err: any) {
-    logUsage({
-      apiKeyId: keyRecord.id,
-      model,
-      promptTokens: 0, completionTokens: 0, totalTokens: 0,
-      cost: 0, status: "error", latencyMs: Date.now() - startTime,
-    });
-    res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+    let dashBody: any;
+    if (req.body.input) {
+      dashBody = {
+        model: getDashScopePixVerseModel(model),
+        input: req.body.input,
+        parameters: req.body.parameters || {},
+      };
+    } else {
+      dashBody = {
+        model: getDashScopePixVerseModel(model),
+        input: { prompt: req.body.prompt || "" },
+        parameters: {
+          size: req.body.size || "1280*720",
+          duration: req.body.duration || 5,
+          audio: req.body.audio ?? false,
+          watermark: req.body.watermark ?? false,
+        },
+      };
+      if (req.body.seed !== undefined) dashBody.parameters.seed = req.body.seed;
+      if (req.body.negative_prompt) dashBody.input.negative_prompt = req.body.negative_prompt;
+    }
+
+    try {
+      const response = await fetch(`${DASHSCOPE_BASE}/services/aigc/video-generation/video-synthesis`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "X-DashScope-Async": "enable",
+        },
+        body: JSON.stringify(dashBody),
+      });
+      const data: any = await response.json();
+      const latencyMs = Date.now() - startTime;
+
+      logUsage({
+        apiKeyId: keyRecord.id, model,
+        promptTokens: 0, completionTokens: 0, totalTokens: 0,
+        cost: 0, status: response.ok ? "success" : "error", latencyMs,
+      });
+
+      if (!response.ok) {
+        res.status(response.status).json(data);
+        return;
+      }
+      res.json(data);
+    } catch (err: any) {
+      logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: "error", latencyMs: Date.now() - startTime });
+      res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+    }
   }
 }
 
@@ -142,51 +168,80 @@ async function handleImageToVideo(req: Request, res: Response) {
     return;
   }
 
-  const apiKey = getDashScopeKey();
-  if (!apiKey) {
-    res.status(500).json({ error: { message: "DashScope API key not configured.", code: "upstream_error" } });
-    return;
-  }
-
   const model = req.body.model || "pixverse-v6";
-  const dashBody = req.body.input
-    ? { model: getDashScopePixVerseModel(model), input: req.body.input, parameters: req.body.parameters || {} }
-    : {
-        model: getDashScopePixVerseModel(model),
-        input: {
-          prompt: req.body.prompt || "",
-          image_url: req.body.image_url || "",
-        },
-        parameters: {
-          size: req.body.size || "1280*720",
-          duration: req.body.duration || 5,
-        },
-      };
+  const channel = getPixVerseRuntimeChannel();
 
-  const startTime = Date.now();
-  try {
-    const response = await fetch(`${DASHSCOPE_BASE}/services/aigc/video-generation/video-synthesis`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "X-DashScope-Async": "enable",
-      },
-      body: JSON.stringify(dashBody),
-    });
-    const data: any = await response.json();
-    logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: response.ok ? "success" : "error", latencyMs: Date.now() - startTime });
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+  if (channel.adapter === "pixverse") {
+    // 官方 API 暂时用文生视频端点 + img_url
+    const prompt = req.body.input?.prompt || req.body.prompt || "";
+    const imgUrl = req.body.input?.media?.[0]?.url || req.body.input?.image_url || req.body.image_url || "";
+    const params = req.body.parameters || {};
+    const adapted = adaptPixVerseRequest(channel.apiKey, {
+      model,
+      prompt,
+      img_url: imgUrl,
+      duration: params.duration || req.body.duration || 5,
+      quality: params.resolution || "540p",
+    }, channel.apiBaseUrl);
+
+    try {
+      const response = await fetch(adapted.url, {
+        method: adapted.method,
+        headers: adapted.headers,
+        body: JSON.stringify(adapted.body),
+      });
+      const data: any = await response.json();
+      logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: data.ErrCode === 0 ? "success" : "error", latencyMs: Date.now() });
+
+      if (data.ErrCode !== 0) {
+        res.status(400).json({ error: { message: data.ErrMsg || "PixVerse request failed", code: "upstream_error" } });
+        return;
+      }
+      res.json({
+        request_id: randomUUID(),
+        output: { task_id: String(data.Resp?.video_id || ""), task_status: "PENDING" },
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+    }
+  } else {
+    // DashScope
+    const apiKey = channel.apiKey;
+    if (!apiKey) {
+      res.status(500).json({ error: { message: "DashScope API key not configured.", code: "upstream_error" } });
+      return;
+    }
+
+    const dashBody = req.body.input
+      ? { model: getDashScopePixVerseModel(model), input: req.body.input, parameters: req.body.parameters || {} }
+      : {
+          model: getDashScopePixVerseModel(model),
+          input: { prompt: req.body.prompt || "", image_url: req.body.image_url || "" },
+          parameters: { size: req.body.size || "1280*720", duration: req.body.duration || 5 },
+        };
+
+    try {
+      const response = await fetch(`${DASHSCOPE_BASE}/services/aigc/video-generation/video-synthesis`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "X-DashScope-Async": "enable",
+        },
+        body: JSON.stringify(dashBody),
+      });
+      const data: any = await response.json();
+      logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: response.ok ? "success" : "error", latencyMs: Date.now() });
+      res.status(response.status).json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+    }
   }
 }
 
 router.post("/image", handleImageToVideo);
 
 // ── 查询任务状态 ─────────────────────────────────────────────────
-// GET /v1/video/tasks/:taskId
-// GET /v1/tasks/:taskId (通过 index.ts 的 tasksRouter)
 router.get("/tasks/:taskId", async (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token || !validateApiKey(token)) {
@@ -194,24 +249,54 @@ router.get("/tasks/:taskId", async (req: Request, res: Response) => {
     return;
   }
 
-  const apiKey = getDashScopeKey();
-  if (!apiKey) {
-    res.status(500).json({ error: { message: "DashScope API key not configured.", code: "upstream_error" } });
-    return;
-  }
+  const taskId = req.params.taskId as string;
+  const channel = getPixVerseRuntimeChannel();
 
   try {
-    const response = await fetch(`${DASHSCOPE_BASE}/tasks/${req.params.taskId}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    const data: any = await response.json();
-    res.status(response.status).json(data);
+    if (channel.adapter === "pixverse") {
+      // PixVerse 官方轮询
+      const result = await pollPixVerseTask(channel.apiKey, taskId, channel.apiBaseUrl);
+      if (result.status === "succeeded") {
+        res.json({
+          request_id: randomUUID(),
+          output: {
+            task_id: taskId,
+            task_status: "SUCCEEDED",
+            video_url: result.output?.video_url || "",
+          },
+        });
+      } else if (result.status === "failed") {
+        res.json({
+          request_id: randomUUID(),
+          output: {
+            task_id: taskId,
+            task_status: "FAILED",
+            message: result.error || "Task failed",
+          },
+        });
+      } else {
+        res.json({
+          request_id: randomUUID(),
+          output: {
+            task_id: taskId,
+            task_status: "RUNNING",
+          },
+        });
+      }
+    } else {
+      // DashScope 轮询
+      const response = await fetch(`${DASHSCOPE_BASE}/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${channel.apiKey}` },
+      });
+      const data: any = await response.json();
+      res.status(response.status).json(data);
+    }
   } catch (err: any) {
     res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
   }
 });
 
-// 兼容旧路径 GET /v1/video/status/:taskId
+// 兼容旧路径
 router.get("/status/:taskId", async (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token || !validateApiKey(token)) {
@@ -219,18 +304,26 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
     return;
   }
 
-  const apiKey = getDashScopeKey();
-  if (!apiKey) {
-    res.status(500).json({ error: { message: "DashScope API key not configured.", code: "upstream_error" } });
-    return;
-  }
+  const taskId = req.params.taskId as string;
+  const channel = getPixVerseRuntimeChannel();
 
   try {
-    const response = await fetch(`${DASHSCOPE_BASE}/tasks/${req.params.taskId}`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    const data: any = await response.json();
-    res.status(response.status).json(data);
+    if (channel.adapter === "pixverse") {
+      const result = await pollPixVerseTask(channel.apiKey, taskId, channel.apiBaseUrl);
+      if (result.status === "succeeded") {
+        res.json({ request_id: randomUUID(), output: { task_id: taskId, task_status: "SUCCEEDED", video_url: result.output?.video_url || "" } });
+      } else if (result.status === "failed") {
+        res.json({ request_id: randomUUID(), output: { task_id: taskId, task_status: "FAILED", message: result.error || "Task failed" } });
+      } else {
+        res.json({ request_id: randomUUID(), output: { task_id: taskId, task_status: "RUNNING" } });
+      }
+    } else {
+      const response = await fetch(`${DASHSCOPE_BASE}/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${channel.apiKey}` },
+      });
+      const data: any = await response.json();
+      res.status(response.status).json(data);
+    }
   } catch (err: any) {
     res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
   }

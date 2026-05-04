@@ -8,6 +8,7 @@ const modelCategories = [
     provider: "阿里云",
     desc: "阿里云自研大模型，当前重点展示 Qwen3.6 与 Qwen3.5 系列，中文能力优秀，支持超长上下文",
     href: "/docs/models/qwen",
+    introHref: "/docs/models/qwen/intro",
     models: ["Qwen3.6 Max Preview", "Qwen3.6 Plus", "Qwen3.5 Plus", "Qwen3.5 Flash"],
     color: "#7c3aed",
     tag: null,
@@ -17,6 +18,7 @@ const modelCategories = [
     provider: "DeepSeek",
     desc: "开源高性能模型，代码能力突出，性价比高",
     href: "/docs/models/deepseek",
+    introHref: "/docs/models/deepseek/intro",
     models: ["DeepSeek V4 Pro", "DeepSeek V4 Flash", "DeepSeek R1", "DeepSeek V3"],
     color: "#0ea5e9",
     tag: "高性价比",
@@ -24,18 +26,30 @@ const modelCategories = [
   {
     name: "HappyHorse 专题",
     provider: "Alibaba",
-    desc: "HappyHorse 已通过 nexusflow 上线，可直接查看模型动态、能力说明和统一 API 接入方式",
+    desc: "VBench 排名第一的视频生成模型，支持文生视频、图生视频，已通过 nexusflow 统一接入",
     href: "/docs/models/happyhorse",
+    introHref: "/docs/models/happyhorse",
     models: ["happyhorse-1.0", "文生视频", "图生视频"],
     color: "#2563eb",
     tag: "最新",
   },
   {
+    name: "PixVerse 视频模型",
+    provider: "PixVerse",
+    desc: "专业视频生成模型，支持文生视频、图生视频、首尾帧和参考生视频等多种能力",
+    href: "/docs/models/pixverse",
+    introHref: "/docs/models/pixverse/intro",
+    models: ["PixVerse V6", "PixVerse V4.5", "PixVerse V4"],
+    color: "#06b6d4",
+    tag: null,
+  },
+  {
     name: "其他模型",
     provider: "多家供应商",
-    desc: "更多第三方模型，包括图像生成、视频生成等",
+    desc: "更多第三方模型，包括图像生成、视频生成、文本向量等",
     href: "/docs/models/other",
-    models: ["Flux", "Wanx", "GLM-4"],
+    introHref: "/docs/models/other/intro",
+    models: ["Flux", "Wanx", "GLM-4", "Kling"],
     color: "#64748b",
     tag: null,
   },
@@ -79,25 +93,14 @@ export default function ModelsOverviewPage() {
         </h2>
         <div style={{ display: "grid", gap: 16 }}>
           {modelCategories.map((cat) => (
-            <Link
+            <div
               key={cat.name}
-              href={cat.href}
               style={{
-                display: "block",
                 padding: 24,
                 background: "var(--bg)",
                 borderRadius: 12,
                 border: "1px solid var(--border)",
-                textDecoration: "none",
                 transition: "all 0.2s",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = cat.color;
-                e.currentTarget.style.boxShadow = `0 4px 20px ${cat.color}15`;
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.borderColor = "var(--border)";
-                e.currentTarget.style.boxShadow = "none";
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
@@ -122,14 +125,11 @@ export default function ModelsOverviewPage() {
                   </div>
                   <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>{cat.provider}</div>
                 </div>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={cat.color} strokeWidth="2">
-                  <path d="M5 12h14M12 5l7 7-7 7"/>
-                </svg>
               </div>
               <p style={{ fontSize: 14, color: "var(--text-secondary)", margin: "0 0 16px", lineHeight: 1.6 }}>
                 {cat.desc}
               </p>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
                 {cat.models.map((m) => (
                   <span
                     key={m}
@@ -146,7 +146,48 @@ export default function ModelsOverviewPage() {
                   </span>
                 ))}
               </div>
-            </Link>
+              <div style={{ display: "flex", gap: 10 }}>
+                <Link
+                  href={cat.introHref}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 16px",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    borderRadius: 7,
+                    background: cat.color,
+                    color: "#fff",
+                    textDecoration: "none",
+                    transition: "opacity 0.2s",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                  模型介绍
+                </Link>
+                <Link
+                  href={cat.href}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 16px",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    borderRadius: 7,
+                    background: "var(--bg-elevated)",
+                    color: "var(--text-primary)",
+                    textDecoration: "none",
+                    border: "1px solid var(--border)",
+                    transition: "opacity 0.2s",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  API 文档
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       </section>

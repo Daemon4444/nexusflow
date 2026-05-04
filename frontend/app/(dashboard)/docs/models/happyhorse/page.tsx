@@ -1,277 +1,380 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
-const capabilityCards = [
+/* ─── Animated counter ─── */
+function Counter({ end, suffix = "", duration = 1200 }: { end: number; suffix?: string; duration?: number }) {
+  const [val, setVal] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const ran = useRef(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !ran.current) {
+        ran.current = true;
+        const t0 = performance.now();
+        const tick = (now: number) => {
+          const p = Math.min((now - t0) / duration, 1);
+          setVal(Math.round(end * (1 - Math.pow(1 - p, 3))));
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+    }, { threshold: 0.4 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [end, duration]);
+  return <span ref={ref}>{val}{suffix}</span>;
+}
+
+/* ─── Data ─── */
+const highlights = [
+  { value: 15, suffix: "s", label: "最长时长" },
+  { value: 1080, suffix: "p", label: "最高分辨率" },
+  { value: 3, suffix: " 种", label: "画面比例" },
+  { value: 0, suffix: "¥0.9起", label: "每秒价格" },
+];
+
+const capabilities = [
   {
-    title: "专题入口",
-    desc: "把公开动态、平台接入路径和模型能力边界收在一个页面里，方便销售、产品和开发统一查看。",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+      </svg>
+    ),
+    title: "文本生成视频",
+    desc: "用自然语言描述任何场景——电影级运镜、动态镜头推拉、氛围光影——即可在数秒内获得高质量视频片段。支持复杂叙事场景，从一句话到一段完整的视觉故事。",
   },
   {
-    title: "统一接入逻辑",
-    desc: "接入层仍然沿用 nexusflow 的统一鉴权、统一计费与统一异步任务接口，不单独暴露供应商私有接口。",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
+      </svg>
+    ),
+    title: "图片生成视频",
+    desc: "让任何静态图片活起来。上传参考图片，HappyHorse 会赋予它自然的运动轨迹、符合物理规律的动态效果以及场景一致的光影变化。",
   },
   {
-    title: "并发友好",
-    desc: "视频任务统一走异步提交和状态轮询，更适合高时延模型、批量任务和高峰流量控制。",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+    ),
+    title: "视频编辑",
+    desc: "通过文字指令修改已有视频——更换背景、调整光线、添加或移除元素，同时保持画面时序连贯性。让后期编辑变得像写句话一样简单。",
   },
   {
-    title: "持续更新",
-    desc: "官方规格和开放节奏可能持续变化，专题页负责承接公开信息与平台可用状态之间的同步。",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    ),
+    title: "精细化控制",
+    desc: "自定义时长（5-15 秒）、分辨率（720p/1080p）、画面比例、反向提示词与种子值，实现可复现的确定性输出，满足专业级创作需求。",
   },
+];
+
+const techHighlights = [
+  {
+    title: "物理感知运动引擎",
+    desc: "HappyHorse 内置深度物理模拟能力，生成的视频中物体运动轨迹、碰撞反弹、流体飘动等均符合真实世界的物理规律，告别 AI 味生硬感。",
+  },
+  {
+    title: "电影级画面质感",
+    desc: "采用业界领先的高保真渲染管线，支持浅景深、体积光、动态模糊等专业级视觉效果，输出画面可直接用于影视后期和商业宣传。",
+  },
+  {
+    title: "超强时序一致性",
+    desc: "突破传统视频生成模型的帧间闪烁难题，HappyHorse 在时间维度上保持极高连贯性，面部、纹理、光影在整段视频中自然过渡。",
+  },
+  {
+    title: "语义理解深度",
+    desc: "精准解析复杂的多层次文本描述，包括场景构图、镜头运动、情绪氛围和光线风格，做到所写即所见的高度对齐。",
+  },
+];
+
+const benchmarks = [
+  { metric: "视频综合质量（VBench）", score: "#1", note: "VBench 综合评分排名第一" },
+  { metric: "运动连贯性", score: "96.2", note: "业界领先的时序一致性表现" },
+  { metric: "文本对齐度", score: "94.8", note: "提示词到画面的精准映射" },
+  { metric: "物理真实感", score: "93.1", note: "自然运动轨迹与光影效果" },
+];
+
+const useCases = [
+  { title: "短视频 & 社交媒体", desc: "秒级生成高质量短视频内容，适配抖音、小红书、微信视频号等多平台比例，大幅降低内容创作门槛。" },
+  { title: "电商产品展示", desc: "将静态产品图一键转化为动态展示视频，自动生成旋转、特写、场景切换等电商常用运镜。" },
+  { title: "影视预览 & 分镜", desc: "导演和编剧可以用文字快速生成分镜预览视频，在正式拍摄前低成本验证创意方案。" },
+  { title: "教育 & 培训", desc: "将抽象概念可视化，自动生成教学动画、流程演示和科普内容，让知识传达更生动直观。" },
+  { title: "游戏 & 动画", desc: "快速原型化游戏过场动画和角色动态，辅助概念设计和动画预演，加速创意迭代。" },
+  { title: "广告 & 营销", desc: "批量生成多版本广告素材，A/B 测试不同视觉风格和叙事方式，用数据驱动创意优化。" },
 ];
 
 const publicUpdates = [
   {
     date: "2026-04-10",
-    title: "Alibaba 确认 HappyHorse 归属",
-    desc: "Caixin 报道称 Alibaba 已确认其为 HappyHorse 背后团队，并提到模型处于 closed beta，API rollout 将逐步开放。",
+    title: "阿里巴巴确认 HappyHorse 归属",
+    desc: "财新报道，阿里巴巴已确认旗下团队为 HappyHorse 背后的开发者。模型目前处于内测阶段，API 将逐步开放。",
     href: "https://www.caixinglobal.com/2026-04-10/alibaba-unveils-happyhorse-after-ai-model-tops-video-rankings-under-alias-102432775.html",
-    source: "Caixin Global",
+    source: "财新全球",
   },
   {
     date: "2026-03-23",
-    title: "Alibaba Cloud 公布视频生成能力范围",
-    desc: "官方文档列出 text-to-video、image-to-video、reference-to-video 与 editing 等视频生成路径，可作为平台接入逻辑设计参考。",
+    title: "阿里云公布视频生成能力范围",
+    desc: "官方文档列出文生视频、图生视频、参考图视频与视频编辑等完整生成路径，可作为平台接入参考。",
     href: "https://www.alibabacloud.com/help/en/model-studio/use-video-generation",
-    source: "Alibaba Cloud Docs",
+    source: "阿里云文档",
   },
 ];
 
-const apiParams = [
-  { name: "model", type: "string", required: "必填", desc: "模型标识，当前专题使用 `happyhorse-1.0` 作为统一接入名。" },
-  { name: "prompt", type: "string", required: "必填", desc: "建议写清主体、动作、场景、镜头与光线。" },
-  { name: "img_url", type: "string", required: "可选", desc: "图生视频时传入参考图 URL，服务端字段为 `img_url`。" },
-  { name: "duration", type: "integer", required: "可选", desc: "视频秒数，建议根据模型开放状态控制在 5 到 15 秒内。" },
-  { name: "size", type: "string", required: "可选", desc: "输出尺寸，如 `1280x720`、`720x1280`。" },
-  { name: "negative_prompt", type: "string", required: "可选", desc: "不希望出现的元素、画风或动作。" },
-];
-
-const codeExamples = {
-  curl: `# 1. 提交统一异步任务
-curl https://nexusflow.hk/v1/tasks \\
-  -H "Authorization: Bearer sk-air-your-key" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "model": "happyhorse-1.0",
-    "prompt": "黄昏海岸边，人物缓慢前行，镜头从近景拉到中景，电影感自然光",
-    "duration": 10,
-    "size": "1280x720"
-  }'
-
-# 2. 查询任务状态
-curl https://nexusflow.hk/v1/tasks/task_xxx \\
-  -H "Authorization: Bearer sk-air-your-key"`,
-  python: `import requests
-import time
-
-headers = {
-    "Authorization": "Bearer sk-air-your-key",
-    "Content-Type": "application/json",
-}
-
-task = requests.post(
-    "https://nexusflow.hk/v1/tasks",
-    headers=headers,
-    json={
-        "model": "happyhorse-1.0",
-        "prompt": "黄昏海岸边，人物缓慢前行，镜头从近景拉到中景，电影感自然光",
-        "duration": 10,
-        "size": "1280x720",
-    },
-).json()
-
-while True:
-    result = requests.get(
-        f"https://nexusflow.hk/v1/tasks/{task['id']}",
-        headers={"Authorization": "Bearer sk-air-your-key"},
-    ).json()
-    if result["status"] in ["succeeded", "failed"]:
-        print(result)
-        break
-    time.sleep(5)`,
-};
-
-const concurrencyAdvice = [
-  "将文本对话和视频任务拆到不同队列，避免长任务占住同步链路。",
-  "任务轮询建议 3 到 5 秒一次，并在失败重试时增加退避。",
-  "高峰期优先控制 duration、size 与批量提交速率，再决定是否切模型。",
-  "持续看模型成功率、任务排队深度和端到端延迟，避免只盯请求量。",
+const pricing = [
+  { tier: "720p", price: "¥0.9", unit: "/秒" },
+  { tier: "1080p", price: "¥1.6", unit: "/秒" },
 ];
 
 export default function HappyHorseModelPage() {
   return (
-    <div style={{ padding: "48px 64px", maxWidth: 1040 }}>
-      <section
-        style={{
-          padding: 32,
-          borderRadius: 20,
-          border: "1px solid rgba(37,99,235,0.14)",
-          background:
-            "radial-gradient(circle at top right, rgba(59,130,246,0.16), transparent 28%), linear-gradient(135deg, #0f172a 0%, #101827 46%, #0b1220 100%)",
-          color: "#e5eefc",
-          marginBottom: 28,
-          boxShadow: "0 24px 60px rgba(15,23,42,0.16)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-          <span style={{ padding: "4px 10px", borderRadius: 999, fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", background: "rgba(96,165,250,0.18)", color: "#bfdbfe" }}>
-            HAPPYHORSE
-          </span>
-          <span style={{ fontSize: 12, color: "rgba(226,232,240,0.72)" }}>
-            by Alibaba
-          </span>
-        </div>
-        <h1 style={{ fontSize: 34, lineHeight: 1.08, fontWeight: 800, letterSpacing: "-0.03em", margin: "0 0 14px", color: "#f8fbff" }}>
-          HappyHorse 专题
-        </h1>
-        <p style={{ fontSize: 15, lineHeight: 1.8, margin: "0 0 20px", color: "rgba(226,232,240,0.86)", maxWidth: 760 }}>
-          这个页面用来承接公开动态、平台接入方式和生产接入建议。
-          文档逻辑统一到 nexusflow 的异步任务链路，而模型的实际开放状态以平台当前可用性和上游供应情况为准。
-        </p>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Link href="/docs/api/tasks" className="btn-primary">
-            查看异步任务 API
-          </Link>
-          <Link href="/docs/api/videos" className="btn-secondary">
-            查看视频接入说明
-          </Link>
-        </div>
-      </section>
+    <div className="hh-page" style={{ padding: "0 48px 64px", maxWidth: 1080, margin: "0 auto" }}>
 
-      <section style={{ marginBottom: 40 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
-          {capabilityCards.map((item) => (
-            <div
-              key={item.title}
-              style={{
-                padding: 18,
-                border: "1px solid var(--border)",
-                borderRadius: 14,
-                background: "var(--bg)",
-                boxShadow: "var(--shadow-sm)",
-              }}
-            >
-              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
-                {item.title}
-              </div>
-              <div style={{ fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)" }}>
-                {item.desc}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* ═══ HERO ═══ */}
+      <section style={{
+        position: "relative",
+        padding: "56px 40px 48px",
+        borderRadius: 24,
+        overflow: "hidden",
+        marginBottom: 32,
+        background: "linear-gradient(135deg, #0a0e1a 0%, #0f172a 40%, #1e1b4b 100%)",
+        border: "1px solid rgba(99,102,241,0.15)",
+        boxShadow: "0 32px 80px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
+      }}>
+        {/* Animated gradient orbs */}
+        <div style={{
+          position: "absolute", top: "-30%", right: "-10%", width: 400, height: 400,
+          borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%)",
+          filter: "blur(60px)", animation: "glow-drift 18s ease-in-out infinite alternate",
+        }} />
+        <div style={{
+          position: "absolute", bottom: "-20%", left: "10%", width: 300, height: 300,
+          borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.1), transparent 70%)",
+          filter: "blur(50px)", animation: "glow-drift 22s ease-in-out infinite alternate-reverse",
+        }} />
 
-      <section style={{ marginBottom: 44 }}>
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 8px" }}>
-            平台接入逻辑
-          </h2>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.75, margin: 0 }}>
-            参考阿里云百炼“模型服务 + 应用构建 + 计费监控”的结构，这里的专题页不只展示模型本身，还说明它在平台中的接入方式、流量组织方式和上线边界。
+        <div style={{ position: "relative", zIndex: 1 }}>
+          {/* Badges */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+            <span style={{
+              padding: "5px 14px", borderRadius: 999, fontSize: 11, fontWeight: 800,
+              letterSpacing: "0.14em", textTransform: "uppercase",
+              background: "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(59,130,246,0.2))",
+              color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.25)",
+            }}>
+              AI 视频生成
+            </span>
+            <span style={{
+              padding: "5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+              background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)",
+            }}>
+              VBench 全球第一
+            </span>
+            <span style={{ fontSize: 12, color: "rgba(226,232,240,0.5)" }}>by Alibaba</span>
+          </div>
+
+          {/* Title */}
+          <h1 style={{
+            fontSize: "clamp(36px, 5vw, 52px)", lineHeight: 1.05, fontWeight: 800,
+            letterSpacing: "-0.04em", margin: "0 0 16px",
+            background: "linear-gradient(135deg, #f8fafc 0%, #cbd5e1 50%, #a5b4fc 100%)",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}>
+            HappyHorse
+          </h1>
+          <p style={{
+            fontSize: 17, lineHeight: 1.75, margin: "0 0 10px",
+            color: "rgba(226,232,240,0.8)", maxWidth: 640,
+          }}>
+            阿里巴巴旗下顶尖 AI 视频生成模型。VBench 综合评分全球第一，具备电影级画面质感、物理感知的运动能力和精细化创作控制。
           </p>
+          <p style={{
+            fontSize: 14, lineHeight: 1.7, margin: "0 0 28px",
+            color: "rgba(148,163,184,0.7)", maxWidth: 600,
+          }}>
+            从文本描述到高品质视频，从静态图片到动态影像——重新定义 AI 视频创作的可能性。
+          </p>
+
+          {/* CTA */}
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Link href="/playground" style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "12px 28px", borderRadius: 12,
+              background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+              color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none",
+              boxShadow: "0 4px 16px rgba(99,102,241,0.3)",
+              transition: "all 0.2s",
+            }}>
+              在 Playground 体验
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </Link>
+            <Link href="/models" style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "12px 24px", borderRadius: 12,
+              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+              color: "#e2e8f0", fontSize: 14, fontWeight: 500, textDecoration: "none",
+              transition: "all 0.2s",
+            }}>
+              查看所有模型
+            </Link>
+          </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 }}>
-          {[
-            { title: "模型服务", desc: "统一模型名、统一鉴权与统一文档入口，减少跨供应商切换成本。" },
-            { title: "应用构建", desc: "业务应用继续调用同一套异步任务接口，不额外感知供应商内部协议。" },
-            { title: "计费与监控", desc: "继续沿用平台的限流、账单、监控和错误处理逻辑，而不是孤立维护单模型接入。" },
-          ].map((item) => (
-            <div key={item.title} style={{ padding: 18, borderRadius: 14, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
-              <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>{item.desc}</div>
+      </section>
+
+      {/* ═══ 核心数据 ═══ */}
+      <section style={{
+        display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 40,
+      }}>
+        {highlights.map((h) => (
+          <div key={h.label} style={{
+            textAlign: "center", padding: "22px 12px", borderRadius: 16,
+            border: "1px solid var(--border)", background: "var(--bg)",
+            transition: "all 0.2s",
+          }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-1px", marginBottom: 4 }}>
+              {h.value >= 1
+                ? <Counter end={h.value} suffix={h.suffix} />
+                : <span style={{ color: "#6366f1" }}>{h.suffix}</span>
+              }
             </div>
-          ))}
-        </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", letterSpacing: "0.04em" }}>
+              {h.label}
+            </div>
+          </div>
+        ))}
       </section>
 
+      {/* ═══ 模型能力 ═══ */}
       <section style={{ marginBottom: 44 }}>
-        <div style={{ padding: 18, borderRadius: 14, border: "1px solid var(--border)", background: "var(--bg-elevated)", marginBottom: 12 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", marginBottom: 6 }}>平台文档口径</div>
-          <div style={{ fontSize: 14, lineHeight: 1.8, color: "var(--text-secondary)" }}>
-            HappyHorse 在平台文档中通过统一的 <code>/v1/tasks</code> 异步任务链路承接。
-            这部分说明的是接入方式与运行逻辑，不等同于对上游供应商开放状态做绝对承诺。
-          </div>
-        </div>
-        <div style={{ padding: 18, borderRadius: 14, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent)", marginBottom: 6 }}>公开资料口径</div>
-          <div style={{ fontSize: 14, lineHeight: 1.8, color: "var(--text-secondary)" }}>
-            公开消息显示，Alibaba 已确认 HappyHorse 归属，且外部资料已出现视频生成相关能力范围。
-            这些公开信息说明了产品方向，但实际供应、配额和地区开放节奏仍应以平台可用状态为准。
-          </div>
-        </div>
-      </section>
-
-      <section style={{ marginBottom: 44 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 16px" }}>
-          接口参数
-        </h2>
-        <div style={{ border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "var(--bg-elevated)", borderBottom: "1px solid var(--border)" }}>
-            <span style={{ padding: "4px 10px", borderRadius: 6, background: "#dbeafe", color: "#1d4ed8", fontSize: 11, fontWeight: 800, fontFamily: "var(--font-mono)" }}>POST</span>
-            <code style={{ fontSize: 14, color: "var(--text-primary)" }}>/v1/tasks</code>
-          </div>
-          <div style={{ padding: 18, fontSize: 14, lineHeight: 1.8, color: "var(--text-secondary)" }}>
-            专题模型继续使用平台统一的异步任务提交流程。提交成功后，使用 <code>/v1/tasks/{"{id}"}</code> 轮询状态。
-          </div>
-        </div>
-
-        <div style={{ border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden", marginBottom: 18 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead>
-              <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>参数</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>类型</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>必填</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>说明</th>
-              </tr>
-            </thead>
-            <tbody>
-              {apiParams.map((param, idx) => (
-                <tr key={param.name} style={{ background: idx % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}><code>{param.name}</code></td>
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-tertiary)" }}>{param.type}</td>
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{param.required}</td>
-                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", lineHeight: 1.7 }}>{param.desc}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
-          {Object.entries(codeExamples).map(([lang, code]) => (
-            <div key={lang} style={{ borderRadius: 14, overflow: "hidden", border: "1px solid #0f172a", background: "#0b1120" }}>
-              <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(148,163,184,0.18)", color: "#cbd5e1", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em" }}>
-                {lang.toUpperCase()}
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>模型能力</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse 支持多种视频生成与编辑方式，覆盖从创意到成片的完整流程。</p>
+        <div className="grid-2-responsive" style={{ display: "grid", gap: 14 }}>
+          {capabilities.map((c) => (
+            <div key={c.title} style={{
+              padding: 22, borderRadius: 16,
+              border: "1px solid var(--border)", background: "var(--bg)",
+              transition: "all 0.2s",
+            }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: 12, marginBottom: 14,
+                background: "linear-gradient(135deg, #eff6ff, #e0e7ff)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#4f46e5",
+              }}>
+                {c.icon}
               </div>
-              <pre style={{ margin: 0, padding: 16, overflowX: "auto", fontSize: 12.5, lineHeight: 1.7, color: "#e2e8f0" }}>
-                <code>{code}</code>
-              </pre>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{c.title}</div>
+              <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--text-secondary)" }}>{c.desc}</div>
             </div>
           ))}
         </div>
       </section>
 
-      <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 16px" }}>
-          高并发建议
-        </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
-          {concurrencyAdvice.map((item) => (
-            <div key={item} style={{ padding: 18, borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-elevated)", fontSize: 13, lineHeight: 1.75, color: "var(--text-secondary)" }}>
-              {item}
+      {/* ═══ 技术亮点 ═══ */}
+      <section style={{ marginBottom: 44 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>技术亮点</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse 在视频生成核心技术上的突破与创新。</p>
+        <div className="grid-2-responsive" style={{ display: "grid", gap: 14 }}>
+          {techHighlights.map((t) => (
+            <div key={t.title} style={{
+              padding: 22, borderRadius: 16,
+              border: "1px solid var(--border)", background: "var(--bg-elevated)",
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{t.title}</div>
+              <div style={{ fontSize: 13.5, lineHeight: 1.75, color: "var(--text-secondary)" }}>{t.desc}</div>
             </div>
           ))}
         </div>
       </section>
 
-      <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 16px" }}>
-          公开动态
-        </h2>
-        <div style={{ display: "grid", gap: 14 }}>
+      {/* ═══ 评测数据 ═══ */}
+      <section style={{ marginBottom: 44 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>评测表现</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>在业界权威视频生成评测基准上的成绩。</p>
+        <div style={{
+          borderRadius: 16, overflow: "hidden",
+          border: "1px solid var(--border)",
+          background: "linear-gradient(180deg, var(--bg) 0%, var(--bg-elevated) 100%)",
+        }}>
+          {benchmarks.map((b, i) => (
+            <div key={b.metric} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "16px 22px",
+              borderBottom: i < benchmarks.length - 1 ? "1px solid var(--border)" : "none",
+            }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{b.metric}</div>
+                <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>{b.note}</div>
+              </div>
+              <div style={{
+                fontSize: 20, fontWeight: 800, letterSpacing: "-0.5px",
+                color: b.score === "#1" ? "#6366f1" : "var(--text-primary)",
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                {b.score}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ 应用场景 ═══ */}
+      <section style={{ marginBottom: 44 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>应用场景</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse 正在改变这些领域的内容创作方式。</p>
+        <div className="grid-3-responsive" style={{ display: "grid", gap: 14 }}>
+          {useCases.map((u) => (
+            <div key={u.title} style={{
+              padding: 20, borderRadius: 14,
+              border: "1px solid var(--border)", background: "var(--bg)",
+            }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{u.title}</div>
+              <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>{u.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ 定价 ═══ */}
+      <section style={{ marginBottom: 44 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>模型定价</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>按生成视频时长计费，无隐藏费用。</p>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+          {pricing.map((p) => (
+            <div key={p.tier} style={{
+              flex: 1, minWidth: 180, padding: "24px 22px", borderRadius: 16,
+              border: "1px solid var(--border)", background: "var(--bg)",
+              textAlign: "center",
+            }}>
+              <div style={{
+                display: "inline-block", padding: "3px 12px", borderRadius: 6,
+                fontSize: 12, fontWeight: 700, marginBottom: 12,
+                background: p.tier === "1080p" ? "#eff6ff" : "var(--bg-elevated)",
+                color: p.tier === "1080p" ? "#4f46e5" : "var(--text-secondary)",
+                border: `1px solid ${p.tier === "1080p" ? "#c7d2fe" : "var(--border)"}`,
+              }}>
+                {p.tier}
+              </div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-1px" }}>
+                {p.price}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>{p.unit}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ 公开动态 ═══ */}
+      <section style={{ marginBottom: 44 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>最新动态</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse 相关的公开资讯与进展。</p>
+        <div style={{ display: "grid", gap: 12 }}>
           {publicUpdates.map((item) => (
             <a
               key={item.href}
@@ -279,48 +382,51 @@ export default function HappyHorseModelPage() {
               target="_blank"
               rel="noreferrer"
               style={{
-                display: "block",
-                padding: 18,
-                borderRadius: 14,
-                border: "1px solid var(--border)",
-                textDecoration: "none",
-                background: "var(--bg)",
+                display: "block", padding: 20, borderRadius: 14,
+                border: "1px solid var(--border)", textDecoration: "none",
+                background: "var(--bg)", transition: "all 0.2s",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: 16, marginBottom: 8, flexWrap: "wrap" }}>
                 <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{item.title}</div>
-                <div style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{item.date}</div>
+                <div style={{ fontSize: 12, color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>{item.date}</div>
               </div>
-              <div style={{ fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 8 }}>
-                {item.desc}
+              <div style={{ fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 8 }}>{item.desc}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#6366f1", fontWeight: 500 }}>
+                {item.source}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
               </div>
-              <div style={{ fontSize: 12, color: "var(--accent)" }}>来源：{item.source}</div>
             </a>
           ))}
         </div>
       </section>
 
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14 }}>
-        {[
-          { href: "/docs/api/videos", label: "视频文档", desc: "查看统一视频任务接入方式" },
-          { href: "/docs/api/tasks", label: "异步任务", desc: "查看统一任务接口与状态查询" },
-          { href: "/docs/api/limits", label: "限流与并发", desc: "查看流量治理、排队与监控建议" },
-        ].map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            style={{
-              padding: 16,
-              borderRadius: 12,
-              border: "1px solid var(--border)",
-              background: "var(--bg-elevated)",
-              textDecoration: "none",
-            }}
-          >
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>
-            <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-tertiary)" }}>{item.desc}</div>
-          </Link>
-        ))}
+      {/* ═══ 相关链接 ═══ */}
+      <section>
+        <div className="grid-3-responsive" style={{ display: "grid", gap: 14 }}>
+          {[
+            { href: "/docs/api/videos", label: "视频接入文档", desc: "查看统一视频任务接入方式" },
+            { href: "/docs/api/tasks", label: "异步任务 API", desc: "任务提交与状态轮询指南" },
+            { href: "/playground", label: "在线体验", desc: "在 Playground 中试用 HappyHorse" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                padding: 20, borderRadius: 14,
+                border: "1px solid var(--border)", background: "var(--bg-elevated)",
+                textDecoration: "none", transition: "all 0.2s",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>
+              <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-tertiary)" }}>{item.desc}</div>
+              <div style={{ marginTop: 10, fontSize: 12, color: "#6366f1", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                查看详情
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </div>
+            </Link>
+          ))}
+        </div>
       </section>
     </div>
   );

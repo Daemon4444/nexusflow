@@ -5,6 +5,11 @@ import { fetchAPI } from "@/lib/api";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
+interface PricingTier {
+  label: string;
+  price: number;
+}
+
 interface AIModel {
   id: string;
   name: string;
@@ -13,6 +18,8 @@ interface AIModel {
   contextLength: number;
   promptPrice: number;
   completionPrice: number;
+  pricingType?: "token" | "per-image" | "per-second";
+  pricingTiers?: PricingTier[];
   category: string;
   tags: string[];
   isNew?: boolean;
@@ -278,51 +285,137 @@ export default function ModelDetailPage() {
         </p>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 16,
-          marginBottom: 20,
-        }}
-      >
-        <div className="stat-card">
-          <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-            上下文窗口
+      {(() => {
+        const isMedia = model.pricingType === "per-second" || model.pricingType === "per-image";
+        const hasTiers = model.pricingTiers && model.pricingTiers.length > 0;
+
+        if (isMedia) {
+          return (
+            <>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: 16,
+                  marginBottom: 20,
+                }}
+              >
+                <div className="stat-card">
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                    上下文窗口
+                  </div>
+                  <div className="stat-value" style={{ color: "#2563eb" }}>
+                    {formatTokens(model.contextLength)}
+                  </div>
+                  <div className="stat-label">tokens</div>
+                </div>
+                <div className="stat-card">
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                    起步价格
+                  </div>
+                  <div className="stat-value" style={{ color: "#10b981" }}>
+                    ¥{model.promptPrice}
+                  </div>
+                  <div className="stat-label">{model.pricingType === "per-second" ? "/ 秒" : "/ 张"}</div>
+                </div>
+                <div className="stat-card">
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                    计费方式
+                  </div>
+                  <div className="stat-value" style={{ color: "#0f766e", fontSize: 18 }}>
+                    {model.pricingType === "per-second" ? "按秒计费" : "按张计费"}
+                  </div>
+                </div>
+              </div>
+              {hasTiers && (
+                <div className="card" style={{ marginBottom: 20 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
+                    分辨率定价
+                  </h3>
+                  <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      padding: "10px 16px",
+                      background: "var(--bg-elevated)",
+                      borderBottom: "1px solid var(--border)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "var(--text-tertiary)",
+                      textTransform: "uppercase",
+                    }}>
+                      <span>规格</span>
+                      <span style={{ textAlign: "right" }}>价格</span>
+                    </div>
+                    {model.pricingTiers!.map((tier, i) => (
+                      <div key={i} style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        padding: "10px 16px",
+                        borderBottom: i < model.pricingTiers!.length - 1 ? "1px solid var(--border)" : "none",
+                        fontSize: 14,
+                      }}>
+                        <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{tier.label}</span>
+                        <span style={{ textAlign: "right", fontWeight: 600, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>
+                          ¥{tier.price}{model.pricingType === "per-second" ? " / 秒" : " / 张"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        }
+
+        return (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 16,
+              marginBottom: 20,
+            }}
+          >
+            <div className="stat-card">
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                上下文窗口
+              </div>
+              <div className="stat-value" style={{ color: "#2563eb" }}>
+                {formatTokens(model.contextLength)}
+              </div>
+              <div className="stat-label">tokens</div>
+            </div>
+            <div className="stat-card">
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                最大输出
+              </div>
+              <div className="stat-value" style={{ color: "#2563eb" }}>
+                {formatTokens(model.maxOutput)}
+              </div>
+              <div className="stat-label">tokens</div>
+            </div>
+            <div className="stat-card">
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                输入价格
+              </div>
+              <div className="stat-value" style={{ color: "#10b981" }}>
+                ¥{model.promptPrice}
+              </div>
+              <div className="stat-label">/ 百万 tokens</div>
+            </div>
+            <div className="stat-card">
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                输出价格
+              </div>
+              <div className="stat-value" style={{ color: "#0f766e" }}>
+                ¥{model.completionPrice}
+              </div>
+              <div className="stat-label">/ 百万 tokens</div>
+            </div>
           </div>
-          <div className="stat-value" style={{ color: "#2563eb" }}>
-            {formatTokens(model.contextLength)}
-          </div>
-          <div className="stat-label">tokens</div>
-        </div>
-        <div className="stat-card">
-          <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-            最大输出
-          </div>
-          <div className="stat-value" style={{ color: "#2563eb" }}>
-            {formatTokens(model.maxOutput)}
-          </div>
-          <div className="stat-label">tokens</div>
-        </div>
-        <div className="stat-card">
-          <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-            输入价格
-          </div>
-          <div className="stat-value" style={{ color: "#10b981" }}>
-            ¥{model.promptPrice}
-          </div>
-          <div className="stat-label">/ 百万 tokens</div>
-        </div>
-        <div className="stat-card">
-          <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-            输出价格
-          </div>
-          <div className="stat-value" style={{ color: "#0f766e" }}>
-            ¥{model.completionPrice}
-          </div>
-          <div className="stat-label">/ 百万 tokens</div>
-        </div>
-      </div>
+        );
+      })()}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
         <div className="card">

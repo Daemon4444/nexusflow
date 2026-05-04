@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import Link from "next/link";
 
+interface PricingTier {
+  label: string;
+  price: number;
+}
+
 interface AIModel {
   id: string;
   name: string;
@@ -11,6 +16,8 @@ interface AIModel {
   category: string;
   promptPrice: number;
   completionPrice: number;
+  pricingType?: "token" | "per-image" | "per-second";
+  pricingTiers?: PricingTier[];
 }
 
 export default function PricingPage() {
@@ -58,7 +65,7 @@ export default function PricingPage() {
           letterSpacing: "-1.5px",
           margin: "0 0 16px",
         }}>
-          Simple, transparent pricing
+          模型定价
         </h1>
         <p style={{
           fontSize: 17,
@@ -67,8 +74,7 @@ export default function PricingPage() {
           margin: "0 auto 32px",
           lineHeight: 1.6,
         }}>
-          Pay only for what you use. No hidden fees, no minimums. 
-          Prices are per million tokens.
+          按量计费，无最低消费。文本按百万token计费，视频按秒计费，图像按张计费。
         </p>
 
         {/* Billing model highlights */}
@@ -166,7 +172,7 @@ export default function PricingPage() {
                 {/* Table header */}
                 <div style={{
                   display: "grid",
-                  gridTemplateColumns: "2fr 1fr 1fr 1fr",
+                  gridTemplateColumns: "2fr 1fr 2fr",
                   padding: "12px 20px",
                   background: "var(--bg-elevated)",
                   borderBottom: "1px solid var(--border)",
@@ -178,18 +184,20 @@ export default function PricingPage() {
                 }}>
                   <span>Model</span>
                   <span style={{ textAlign: "right" }}>Category</span>
-                  <span style={{ textAlign: "right" }}>Input / 1M</span>
-                  <span style={{ textAlign: "right" }}>Output / 1M</span>
+                  <span style={{ textAlign: "right" }}>Pricing</span>
                 </div>
 
                 {/* Model rows */}
-                {providerModels.map((model) => (
+                {providerModels.map((model) => {
+                  const isMedia = model.pricingType === "per-second" || model.pricingType === "per-image";
+                  const hasTiers = model.pricingTiers && model.pricingTiers.length > 0;
+                  return (
                   <Link
                     key={model.id}
                     href={`/models/${encodeURIComponent(model.id)}`}
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "2fr 1fr 1fr 1fr",
+                      gridTemplateColumns: "2fr 1fr 2fr",
                       padding: "16px 20px",
                       borderBottom: "1px solid var(--border)",
                       textDecoration: "none",
@@ -205,26 +213,60 @@ export default function PricingPage() {
                     <span style={{ textAlign: "right", fontSize: 13, color: "var(--text-tertiary)" }}>
                       {model.category}
                     </span>
-                    <span style={{
-                      textAlign: "right",
-                      fontSize: 14,
-                      fontWeight: 550,
-                      color: model.promptPrice === 0 ? "var(--success)" : "var(--text-primary)",
-                      fontVariantNumeric: "tabular-nums",
-                    }}>
-                      {model.promptPrice === 0 ? "Free" : `¥${model.promptPrice}`}
-                    </span>
-                    <span style={{
-                      textAlign: "right",
-                      fontSize: 14,
-                      fontWeight: 550,
-                      color: model.completionPrice === 0 ? "var(--success)" : "var(--text-primary)",
-                      fontVariantNumeric: "tabular-nums",
-                    }}>
-                      {model.completionPrice === 0 ? "Free" : `¥${model.completionPrice}`}
-                    </span>
+                    {isMedia && hasTiers ? (
+                      <span style={{
+                        textAlign: "right",
+                        fontSize: 13,
+                        fontWeight: 550,
+                        color: "var(--text-primary)",
+                        fontVariantNumeric: "tabular-nums",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                        gap: "4px 12px",
+                      }}>
+                        {model.pricingTiers!.map((tier, idx) => (
+                          <span key={idx} style={{ whiteSpace: "nowrap" }}>
+                            {tier.label}：¥{tier.price}{model.pricingType === "per-second" ? "/秒" : "/张"}
+                          </span>
+                        ))}
+                      </span>
+                    ) : isMedia ? (
+                      <span style={{
+                        textAlign: "right",
+                        fontSize: 14,
+                        fontWeight: 550,
+                        color: "var(--text-primary)",
+                        fontVariantNumeric: "tabular-nums",
+                      }}>
+                        ¥{model.promptPrice}{model.pricingType === "per-second" ? "/秒" : "/张"}
+                      </span>
+                    ) : (
+                      <span style={{
+                        textAlign: "right",
+                        fontSize: 14,
+                        fontVariantNumeric: "tabular-nums",
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        gap: 4,
+                      }}>
+                        {model.promptPrice === 0 && model.completionPrice === 0 ? (
+                          <span style={{ fontWeight: 550, color: "var(--success)" }}>Free</span>
+                        ) : (
+                          <>
+                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>输入</span>
+                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>¥{model.promptPrice}</span>
+                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450, margin: "0 2px" }}>/</span>
+                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>输出</span>
+                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>¥{model.completionPrice}</span>
+                          </>
+                        )}
+                      </span>
+                    )}
                   </Link>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -303,9 +345,10 @@ export default function PricingPage() {
       }}>
         <strong style={{ color: "var(--text-primary)" }}>Pricing Notes:</strong>
         <ul style={{ margin: "12px 0 0", paddingLeft: 20 }}>
-          <li>All prices are in CNY (¥) per million tokens</li>
-          <li>Billing is calculated based on actual token usage</li>
-          <li>Minimum charge per request: ¥0.0001</li>
+          <li>All prices are in CNY (¥)</li>
+          <li>Text models: per million tokens billing based on actual token usage</li>
+          <li>Video models: per-second billing based on resolution and audio options</li>
+          <li>Image models: per-image billing</li>
           <li>Account balance can be recharged at any time</li>
           <li>Unused balance never expires</li>
         </ul>

@@ -1,27 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
-  { id: "kimi-k2.5", name: "Kimi K2.5", ctx: "131K", input: "¥1/M", output: "¥4/M", tags: ["最新", "长文本", "多轮对话"] },
+  { id: "kimi-k2.6", context: "262K", input: 2, output: 8, desc: "K2.6 旗舰，长文本创意写作" },
+  { id: "kimi-k2.5", context: "131K", input: 1, output: 4, desc: "K2.5 均衡模型" },
 ];
 
-const curlExample = (modelId: string) => `curl -X POST ${API_BASE}/v1/chat/completions \\
+const curlExample = `curl ${API_BASE}/v1/chat/completions \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "${modelId}",
+    "model": "kimi-k2.6",
     "messages": [
-      {"role": "system", "content": "你是Kimi，由月之暗面提供的AI助手。"},
-      {"role": "user", "content": "帮我总结一下这篇长文的核心观点"}
+      {"role": "user", "content": "帮我把这篇3000字的文章概括成300字的摘要"}
     ],
-    "temperature": 0.7,
-    "max_tokens": 4000
+    "stream": true
   }'`;
 
-const pythonExample = (modelId: string) => `from openai import OpenAI
+const pythonExample = `from openai import OpenAI
 
 client = OpenAI(
     api_key="sk-air-your-key",
@@ -29,83 +29,68 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="${modelId}",
+    model="kimi-k2.6",
     messages=[
-        {"role": "system", "content": "你是Kimi，由月之暗面提供的AI助手。"},
-        {"role": "user", "content": "帮我总结一下这篇长文的核心观点"}
+        {"role": "user", "content": "帮我把这篇3000字的文章概括成300字的摘要"}
     ],
-    temperature=0.7,
-    max_tokens=4000
+    stream=True,
 )
 
-print(response.choices[0].message.content)`;
-
-const streamExample = (modelId: string) => `from openai import OpenAI
-
-client = OpenAI(
-    api_key="sk-air-your-key",
-    base_url="${API_BASE}/v1",
-)
-
-stream = client.chat.completions.create(
-    model="${modelId}",
-    messages=[
-        {"role": "user", "content": "写一个关于人工智能发展的详细报告"}
-    ],
-    stream=True
-)
-
-for chunk in stream:
+for chunk in response:
     if chunk.choices[0].delta.content:
-        print(chunk.choices[0].delta.content, end="", flush=True)`;
+        print(chunk.choices[0].delta.content, end="")`;
 
-export default function KimiDocsPage() {
-  const [selectedModel, setSelectedModel] = useState("kimi-k2.5");
-  const [codeLang, setCodeLang] = useState<"curl" | "python" | "stream">("curl");
+export default function KimiApiPage() {
+  const [codeLang, setCodeLang] = useState<"curl" | "python">("curl");
 
   return (
-    <div style={{ padding: "48px 64px", maxWidth: 960 }}>
-      <div style={{ marginBottom: 8 }}>
-        <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 5, background: "#f0f9ff", color: "#0369a1", fontSize: 11, fontWeight: 600 }}>
+    <div style={{ padding: "48px 64px", maxWidth: 1000 }}>
+      <div style={{ marginBottom: 32 }}>
+        <span style={{
+          display: "inline-block", padding: "3px 10px", borderRadius: 5,
+          background: "#f5f3ff", color: "#6d28d9", fontSize: 11, fontWeight: 700, marginBottom: 12,
+        }}>
           月之暗面 / Moonshot
         </span>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
+          Kimi 系列模型 API
+        </h1>
+        <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
+          月之暗面 Kimi 系列模型，擅长长文本理解、多轮对话和创意写作。兼容 OpenAI SDK，支持超长上下文窗口。
+        </p>
       </div>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>月之暗面 (Kimi) 对话补全 API</h1>
-      <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 32, lineHeight: 1.6 }}>
-        通过 OpenAI 兼容接口调用月之暗面 Kimi 系列模型，擅长长文本理解和多轮对话。
-      </p>
 
-      <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>接口信息</h2>
-        <div style={{ background: "var(--bg-elevated)", borderRadius: 8, padding: "14px 18px", border: "1px solid var(--border)" }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ padding: "2px 8px", background: "#dbeafe", color: "#1d4ed8", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>POST</span>
-            <code style={{ fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>{API_BASE}/v1/chat/completions</code>
-          </div>
+      <section style={{ marginBottom: 32 }}>
+        <div style={{
+          padding: "12px 18px", background: "var(--bg-elevated)", borderRadius: 8,
+          border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>POST</span>
+          <code style={{ fontSize: 14 }}>{API_BASE}/v1/chat/completions</code>
         </div>
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>可用模型</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>模型列表</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead><tr style={{ background: "var(--bg-elevated)" }}>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型 ID</th>
-              <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>上下文</th>
-              <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输入价格</th>
-              <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输出价格</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>特点</th>
-            </tr></thead>
+            <thead>
+              <tr style={{ background: "var(--bg-elevated)" }}>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型 ID</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>上下文</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输入/百万</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输出/百万</th>
+              </tr>
+            </thead>
             <tbody>
               {models.map((m, i) => (
                 <tr key={m.id} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>{m.id}</code></td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.ctx}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.input}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.output}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-                    <div style={{ display: "flex", gap: 4 }}>{m.tags.map(t => <span key={t} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>{t}</span>)}</div>
-                  </td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{m.id}</code></td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{m.desc}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.context}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>¥{m.input}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>¥{m.output}</td>
                 </tr>
               ))}
             </tbody>
@@ -114,72 +99,37 @@ export default function KimiDocsPage() {
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>请求参数</h2>
-        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead><tr style={{ background: "var(--bg-elevated)" }}>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>参数</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-              <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>必选</th>
-              <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
-            </tr></thead>
-            <tbody>
-              {[
-                { name: "model", type: "string", req: true, desc: "模型 ID，如 kimi-k2.5" },
-                { name: "messages", type: "array", req: true, desc: "消息列表，支持 system / user / assistant" },
-                { name: "temperature", type: "float", req: false, desc: "采样温度，范围 0-2，默认 1" },
-                { name: "max_tokens", type: "integer", req: false, desc: "最大输出 token 数" },
-                { name: "stream", type: "boolean", req: false, desc: "是否流式输出，默认 false" },
-                { name: "top_p", type: "float", req: false, desc: "核采样阈值，范围 0-1" },
-              ].map((p, i) => (
-                <tr key={p.name} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{p.name}</code></td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{p.type}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{p.req ? <span style={{ color: "#dc2626", fontWeight: 600 }}>*</span> : "-"}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{p.desc}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>请求示例</h2>
-        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-          {([["curl", "cURL"], ["python", "Python"], ["stream", "流式输出"]] as const).map(([key, label]) => (
-            <button key={key} onClick={() => setCodeLang(key)} style={{
-              padding: "5px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", border: "1px solid var(--border)", borderRadius: 6, fontFamily: "inherit",
-              background: codeLang === key ? "var(--text-primary)" : "var(--bg)", color: codeLang === key ? "var(--bg)" : "var(--text-secondary)",
-            }}>{label}</button>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>请求示例</h2>
+        <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+          {(["curl", "python"] as const).map(lang => (
+            <button key={lang} onClick={() => setCodeLang(lang)} style={{
+              padding: "5px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer",
+              border: "1px solid var(--border)", borderRadius: 6, fontFamily: "inherit",
+              background: codeLang === lang ? "var(--text-primary)" : "var(--bg)",
+              color: codeLang === lang ? "var(--bg)" : "var(--text-secondary)",
+            }}>
+              {lang === "curl" ? "cURL" : "Python"}
+            </button>
           ))}
         </div>
-        <div style={{ background: "#1a1a1a", borderRadius: 8, padding: 16, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
-            {codeLang === "curl" ? curlExample(selectedModel) : codeLang === "python" ? pythonExample(selectedModel) : streamExample(selectedModel)}
+        <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
+          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
+            {codeLang === "curl" ? curlExample : pythonExample}
           </pre>
         </div>
       </section>
 
-      <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>响应示例</h2>
-        <div style={{ background: "#1a1a1a", borderRadius: 8, padding: 16, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
-{`{
-  "id": "chatcmpl-abc123",
-  "object": "chat.completion",
-  "model": "${selectedModel}",
-  "choices": [
-    {
-      "index": 0,
-      "message": { "role": "assistant", "content": "..." },
-      "finish_reason": "stop"
-    }
-  ],
-  "usage": { "prompt_tokens": 35, "completion_tokens": 1024, "total_tokens": 1059 }
-}`}
-          </pre>
-        </div>
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+        {[
+          { href: "/docs/api/chat", label: "Chat Completions", desc: "查看完整对话接口文档" },
+          { href: "/docs/quickstart", label: "快速开始", desc: "5 分钟接入指南" },
+          { href: "/pricing", label: "完整定价", desc: "查看所有模型价格" },
+        ].map((item) => (
+          <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>
+            <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-tertiary)" }}>{item.desc}</div>
+          </Link>
+        ))}
       </section>
     </div>
   );

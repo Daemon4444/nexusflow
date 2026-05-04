@@ -234,14 +234,44 @@ router.post("/", async (req: Request, res: Response) => {
 
     // Extract task ID from response
     let upstreamTaskId: string | undefined;
+
+    // Handle synchronous response (e.g., wan2.6-t2i returns result directly)
+    if (data.output?.choices?.[0]?.message?.content) {
+      const content = data.output.choices[0].message.content;
+      const imageUrls = content
+        .filter((c: any) => c.type === "image" || c.image)
+        .map((c: any) => c.image || c.url);
+      
+      if (imageUrls.length > 0) {
+        const output = { type: "image", image_url: imageUrls[0], images: imageUrls };
+        const model = models.find((m) => m.id === modelId);
+        const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
+        completeTask(task.id, output, cost);
+        if (model) billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+        res.status(202).json({
+          id: task.id,
+          object: "task",
+          status: "succeeded",
+          model: modelId,
+          type: modelType,
+          output,
+          created_at: task.created_at,
+          completed_at: new Date().toISOString(),
+        });
+        return;
+      }
+    }
     
     // DashScope format
     if (data.output?.task_id) {
       upstreamTaskId = data.output.task_id;
     }
-    // PixVerse format
+    // PixVerse format (official API returns video_id)
+    if (data.Resp?.video_id) {
+      upstreamTaskId = String(data.Resp.video_id);
+    }
     if (data.Resp?.task_id) {
-      upstreamTaskId = data.Resp.task_id;
+      upstreamTaskId = String(data.Resp.task_id);
     }
 
     if (upstreamTaskId) {

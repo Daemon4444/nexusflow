@@ -273,7 +273,7 @@ export default function LandingPage() {
             nexusflow 不只是模型聚合层，还把模型服务、应用接入、监控与限流、计费和任务链路放到同一套产品结构里。
           </p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16 }}>
+        <div className="grid-4-responsive" style={{ display: "grid", gap: 16 }}>
           {platformPillars.map((item) => (
             <div key={item.title} className="card" style={{ padding: 24 }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: "var(--text-primary)", marginBottom: 10 }}>{item.title}</div>
@@ -307,7 +307,7 @@ export default function LandingPage() {
             参考 Model Studio 的产品结构，首页把“接得上”和“跑得稳”分开表达。高并发不是一句 SLA，而是限流、队列、异步任务、监控和容量控制的组合。
           </p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
+        <div className="grid-2-responsive" style={{ display: "grid", gap: 16, marginBottom: 20 }}>
           {productionCards.map((item) => (
             <div key={item.title} className="card-static" style={{ padding: 24 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{item.title}</div>
@@ -317,7 +317,7 @@ export default function LandingPage() {
         </div>
         <div style={{ border: "1px solid var(--border)", borderRadius: 18, background: "var(--bg-elevated)", padding: 24 }}>
           <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".12em", color: "#1d4ed8", marginBottom: 12 }}>REQUEST FLOW</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+          <div className="grid-4-responsive" style={{ display: "grid", gap: 12 }}>
             {["应用请求进入", "统一限流与鉴权", "模型 / 任务链路执行", "监控与成本回写"].map((step, idx) => (
               <div key={step} style={{ padding: 16, borderRadius: 12, background: "#fff", border: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: "#1d4ed8", marginBottom: 6 }}>0{idx + 1}</div>
@@ -385,7 +385,7 @@ export default function LandingPage() {
             文本对话、异步视频生成、上线后的监控限流，应该分别走对的入口，而不是全部塞进一个“万能 API”叙事里。
           </p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16 }}>
+        <div className="grid-3-responsive" style={{ display: "grid", gap: 16 }}>
           {buildModes.map((item) => (
             <Link key={item.href} href={item.href} className="card" style={{ padding: 24, textDecoration: "none" }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{item.title}</div>

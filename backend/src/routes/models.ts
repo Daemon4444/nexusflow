@@ -25,7 +25,19 @@ function getAllModels(): AIModel[] {
   }));
   const modelMap = new Map<string, AIModel>();
   for (const model of models) modelMap.set(model.id, model);
-  for (const model of dynamicModels) modelMap.set(model.id, model);
+  for (const model of dynamicModels) {
+    const existing = modelMap.get(model.id);
+    if (existing) {
+      // Merge pricingType/pricingTiers from static data into dynamic model
+      modelMap.set(model.id, {
+        ...model,
+        pricingType: model.pricingType || existing.pricingType,
+        pricingTiers: model.pricingTiers || existing.pricingTiers,
+      });
+    } else {
+      modelMap.set(model.id, model);
+    }
+  }
   return Array.from(modelMap.values());
 }
 
@@ -68,6 +80,8 @@ router.get("/", (req: Request, res: Response) => {
     success: true,
     data: filtered.map((model) => ({
       ...model,
+      pricingType: model.pricingType,
+      pricingTiers: model.pricingTiers,
       supportedProtocols: getSupportedProtocols(model),
       supported_protocols: getSupportedProtocols(model),
     })),
@@ -89,6 +103,8 @@ router.get("/:id", (req: Request, res: Response) => {
     success: true,
     data: {
       ...model,
+      pricingType: model.pricingType,
+      pricingTiers: model.pricingTiers,
       supportedProtocols: getSupportedProtocols(model),
       supported_protocols: getSupportedProtocols(model),
     },

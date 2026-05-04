@@ -134,7 +134,7 @@ print(f"任务已创建: {task_id}")
 # 步骤2: 轮询查询结果
 while True:
     result = requests.get(
-        f"${API_BASE}/v1/tasks/{task_id}",
+        f"${API_BASE}/v1/video/tasks/{task_id}",
         headers={"Authorization": "Bearer sk-air-your-key"}
     ).json()
     status = result["output"]["task_status"]
@@ -173,7 +173,7 @@ task_id = response.json()["output"]["task_id"]
 # 步骤2: 轮询结果
 while True:
     result = requests.get(
-        f"{BASE}/v1/tasks/{task_id}",
+        f"{BASE}/v1/video/tasks/{task_id}",
         headers={"Authorization": f"Bearer {API_KEY}"}
     ).json()
     status = result["output"]["task_status"]
@@ -214,7 +214,7 @@ task_id = response.json()["output"]["task_id"]
 # 步骤2: 轮询结果
 while True:
     result = requests.get(
-        f"{BASE}/v1/tasks/{task_id}",
+        f"{BASE}/v1/video/tasks/{task_id}",
         headers={"Authorization": f"Bearer {API_KEY}"}
     ).json()
     status = result["output"]["task_status"]
@@ -255,7 +255,7 @@ task_id = response.json()["output"]["task_id"]
 # 步骤2: 轮询结果
 while True:
     result = requests.get(
-        f"{BASE}/v1/tasks/{task_id}",
+        f"{BASE}/v1/video/tasks/{task_id}",
         headers={"Authorization": f"Bearer {API_KEY}"}
     ).json()
     status = result["output"]["task_status"]
@@ -398,7 +398,7 @@ function PixVerseDocsInner() {
               borderRadius: 4, fontSize: 11, fontWeight: 700,
             }}>GET</span>
             <code style={{ fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>
-              {API_BASE}/v1/tasks/{"{task_id}"}
+              {API_BASE}/v1/video/tasks/{"{task_id}"}
             </code>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>

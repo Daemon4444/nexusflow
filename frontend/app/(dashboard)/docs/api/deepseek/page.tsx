@@ -1,42 +1,46 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
 
 const API_BASE = "https://nexusflow.hk";
 
 type TabKey = "chat" | "reasoning";
 
-const tabs: { key: TabKey; label: string }[] = [
-  { key: "chat", label: "对话补全" },
-  { key: "reasoning", label: "推理模型" },
+const models = [
+  { id: "deepseek-v4-pro", category: "推理模型", context: "131K", input: 4, output: 16, desc: "V4 旗舰推理模型" },
+  { id: "deepseek-v4-flash", category: "大语言模型", context: "131K", input: 1, output: 4, desc: "V4 高速对话模型" },
+  { id: "deepseek-v3.2", category: "大语言模型", context: "131K", input: 1, output: 4, desc: "V3.2 通用模型" },
+  { id: "deepseek-r1", category: "推理模型", context: "65K", input: 2, output: 8, desc: "R1 推理模型" },
+  { id: "deepseek-v3", category: "大语言模型", context: "65K", input: 0.5, output: 2, desc: "V3 通用模型" },
 ];
 
-const modelsByTab: Record<TabKey, { id: string; name: string; ctx: string; input: string; output: string; tags: string[] }[]> = {
-  chat: [
-    { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", ctx: "131K", input: "¥1/M", output: "¥4/M", tags: ["V4", "极速", "高并发"] },
-    { id: "deepseek-v3.2", name: "DeepSeek V3.2", ctx: "131K", input: "¥1/M", output: "¥4/M", tags: ["最新", "MoE", "编程"] },
-    { id: "deepseek-v3", name: "DeepSeek V3", ctx: "65K", input: "¥0.5/M", output: "¥2/M", tags: ["MoE", "通用"] },
-  ],
-  reasoning: [
-    { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", ctx: "131K", input: "¥4/M", output: "¥16/M", tags: ["V4", "旗舰", "复杂推理"] },
-    { id: "deepseek-r1", name: "DeepSeek R1", ctx: "65K", input: "¥2/M", output: "¥8/M", tags: ["推理", "思考链"] },
-  ],
-};
-
-const curlExample = (modelId: string) => `curl -X POST ${API_BASE}/v1/chat/completions \\
+const curlExamples: Record<TabKey, string> = {
+  chat: `curl ${API_BASE}/v1/chat/completions \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "${modelId}",
+    "model": "deepseek-v4-flash",
     "messages": [
-      {"role": "user", "content": "请推导欧拉公式 e^(iπ) + 1 = 0"}
+      {"role": "user", "content": "用 Python 写一个快速排序"}
     ],
-    "temperature": 0.7,
-    "max_tokens": 4000
-  }'`;
+    "stream": true
+  }'`,
+  reasoning: `curl ${API_BASE}/v1/chat/completions \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "deepseek-r1",
+    "messages": [
+      {"role": "user", "content": "一个水池有两个进水管和一个出水管，进水管A每小时进3吨水，进水管B每小时进2吨水，出水管每小时排1.5吨水。水池容量20吨，从空池开始多久能装满？"}
+    ],
+    "stream": true,
+    "enable_thinking": true
+  }'`,
+};
 
-const pythonExample = (modelId: string) => `from openai import OpenAI
+const pythonExamples: Record<TabKey, string> = {
+  chat: `from openai import OpenAI
 
 client = OpenAI(
     api_key="sk-air-your-key",
@@ -44,190 +48,187 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="${modelId}",
+    model="deepseek-v4-flash",
     messages=[
-        {"role": "user", "content": "请推导欧拉公式 e^(iπ) + 1 = 0"}
+        {"role": "user", "content": "用 Python 写一个快速排序"}
     ],
-    temperature=0.7,
-    max_tokens=4000
+    stream=True,
 )
 
-print(response.choices[0].message.content)`;
-
-const streamExample = (modelId: string) => `from openai import OpenAI
+for chunk in response:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")`,
+  reasoning: `from openai import OpenAI
 
 client = OpenAI(
     api_key="sk-air-your-key",
     base_url="${API_BASE}/v1",
 )
 
-stream = client.chat.completions.create(
-    model="${modelId}",
+response = client.chat.completions.create(
+    model="deepseek-r1",
     messages=[
-        {"role": "user", "content": "分析递归和动态规划的区别"}
+        {"role": "user", "content": "证明根号2是无理数"}
     ],
     stream=True,
-    stream_options={"include_usage": True},
-    enable_thinking=${modelId.includes("pro") || modelId.includes("r1") ? "True" : "False"}
+    extra_body={"enable_thinking": True},
 )
 
-for chunk in stream:
-    if chunk.choices[0].delta.content:
-        print(chunk.choices[0].delta.content, end="", flush=True)`;
+for chunk in response:
+    delta = chunk.choices[0].delta
+    # reasoning_content 包含思考过程
+    if hasattr(delta, "reasoning_content") and delta.reasoning_content:
+        print(f"[思考] {delta.reasoning_content}", end="")
+    if delta.content:
+        print(delta.content, end="")`,
+};
 
-function DeepSeekDocsInner() {
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const validTabs: TabKey[] = ["chat", "reasoning"];
-  const initialTab = validTabs.includes(tabParam as TabKey) ? (tabParam as TabKey) : "chat";
-  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
-  const [codeLang, setCodeLang] = useState<"curl" | "python" | "stream">("curl");
-
-  useEffect(() => {
-    if (validTabs.includes(tabParam as TabKey)) setActiveTab(tabParam as TabKey);
-  }, [tabParam]);
-
-  const currentModels = modelsByTab[activeTab];
-  const [selectedModel, setSelectedModel] = useState(currentModels[0].id);
-
-  useEffect(() => { setSelectedModel(modelsByTab[activeTab][0].id); }, [activeTab]);
+export default function DeepSeekApiPage() {
+  const [activeTab, setActiveTab] = useState<TabKey>("chat");
+  const [codeLang, setCodeLang] = useState<"curl" | "python">("curl");
 
   return (
-    <div style={{ padding: "48px 64px", maxWidth: 960 }}>
-      <div style={{ marginBottom: 8 }}>
-        <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 5, background: "#dbeafe", color: "#1d4ed8", fontSize: 11, fontWeight: 600 }}>
+    <div style={{ padding: "48px 64px", maxWidth: 1000 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <span style={{
+          display: "inline-block", padding: "3px 10px", borderRadius: 5,
+          background: "#f0f9ff", color: "#0369a1", fontSize: 11, fontWeight: 700,
+          marginBottom: 12,
+        }}>
           DeepSeek / 深度求索
         </span>
-      </div>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>DeepSeek API</h1>
-      <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 32, lineHeight: 1.6 }}>
-        通过 OpenAI 兼容接口调用 DeepSeek 系列模型，涵盖通用对话和推理能力。
-      </p>
-
-      <div style={{ display: "flex", gap: 6, marginBottom: 32 }}>
-        {tabs.map((tab) => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-            padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
-            border: activeTab === tab.key ? "1.5px solid var(--accent)" : "1px solid var(--border)",
-            background: activeTab === tab.key ? "var(--accent-bg)" : "var(--bg)",
-            color: activeTab === tab.key ? "var(--accent)" : "var(--text-secondary)",
-          }}>{tab.label}</button>
-        ))}
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
+          DeepSeek 系列模型 API
+        </h1>
+        <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
+          百炼接入的 DeepSeek 系列模型，兼容 OpenAI SDK，支持推理模式（展示完整思考链路）。所有模型统一走 Chat Completions 接口。
+        </p>
       </div>
 
-      <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>接口信息</h2>
-        <div style={{ background: "var(--bg-elevated)", borderRadius: 8, padding: "14px 18px", border: "1px solid var(--border)" }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <span style={{ padding: "2px 8px", background: "#dbeafe", color: "#1d4ed8", borderRadius: 4, fontSize: 11, fontWeight: 700 }}>POST</span>
-            <code style={{ fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>{API_BASE}/v1/chat/completions</code>
-          </div>
+      {/* Endpoint */}
+      <section style={{ marginBottom: 32 }}>
+        <div style={{
+          padding: "12px 18px", background: "var(--bg-elevated)", borderRadius: 8,
+          border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>POST</span>
+          <code style={{ fontSize: 14 }}>{API_BASE}/v1/chat/completions</code>
         </div>
       </section>
 
+      {/* Models table */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>可用模型</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>模型列表</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
                 <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型 ID</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>类型</th>
                 <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>上下文</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输入价格</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输出价格</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>特点</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输入/百万</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输出/百万</th>
               </tr>
             </thead>
             <tbody>
-              {currentModels.map((m, i) => (
-                <tr key={m.id} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)", cursor: "pointer" }} onClick={() => setSelectedModel(m.id)}>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-                    <code style={{ fontSize: 12, fontWeight: selectedModel === m.id ? 700 : 400, color: selectedModel === m.id ? "var(--accent)" : "inherit" }}>{m.id}</code>
-                  </td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.ctx}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.input}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.output}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      {m.tags.map(t => <span key={t} style={{ padding: "1px 6px", borderRadius: 4, fontSize: 11, background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>{t}</span>)}
-                    </div>
-                  </td>
+              {models.map((m, i) => (
+                <tr key={m.id} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{m.id}</code></td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{m.category}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.context}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>¥{m.input}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>¥{m.output}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>点击行可切换下方示例中的模型 ID</p>
       </section>
 
+      {/* Code examples */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>推理与流式参数</h2>
-        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", marginBottom: 24 }}>
-          {[
-            ["stream", "boolean", "启用 SSE 流式输出，适合长推理和交互式场景。"],
-            ["stream_options.include_usage", "boolean", "流式响应最后返回 usage，平台会据此记录 token 和费用。"],
-            ["enable_thinking", "boolean", "V4 Pro 和推理模型建议开启；Flash 可按低延迟场景关闭。"],
-            ["temperature", "number", "采样温度。推理任务建议 0.2 到 0.7，创意任务可适当提高。"],
-            ["top_p", "number", "核采样阈值，通常不要和 temperature 同时大幅调整。"],
-            ["stop", "string | string[]", "停止序列，命中后结束输出。"],
-          ].map(([name, type, desc], index) => (
-            <div key={name} style={{ display: "grid", gridTemplateColumns: "220px 130px 1fr", padding: "12px 14px", borderTop: index === 0 ? "none" : "1px solid var(--border)", background: index % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)", fontSize: 13 }}>
-              <code>{name}</code>
-              <span style={{ color: "var(--text-tertiary)" }}>{type}</span>
-              <span style={{ color: "var(--text-secondary)" }}>{desc}</span>
-            </div>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>请求示例</h2>
+        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+          {([["chat", "基础对话"], ["reasoning", "推理模式"]] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setActiveTab(key)} style={{
+              padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer",
+              border: activeTab === key ? "1.5px solid var(--accent)" : "1px solid var(--border)",
+              background: activeTab === key ? "var(--accent-bg)" : "var(--bg)",
+              color: activeTab === key ? "var(--accent)" : "var(--text-secondary)",
+              fontFamily: "inherit",
+            }}>
+              {label}
+            </button>
           ))}
         </div>
-      </section>
-
-      <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>请求示例</h2>
-        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-          {([["curl", "cURL"], ["python", "Python"], ["stream", "流式输出"]] as const).map(([key, label]) => (
-            <button key={key} onClick={() => setCodeLang(key)} style={{
-              padding: "5px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", border: "1px solid var(--border)", borderRadius: 6, fontFamily: "inherit",
-              background: codeLang === key ? "var(--text-primary)" : "var(--bg)", color: codeLang === key ? "var(--bg)" : "var(--text-secondary)",
-            }}>{label}</button>
+        <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+          {(["curl", "python"] as const).map(lang => (
+            <button key={lang} onClick={() => setCodeLang(lang)} style={{
+              padding: "5px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer",
+              border: "1px solid var(--border)", borderRadius: 6, fontFamily: "inherit",
+              background: codeLang === lang ? "var(--text-primary)" : "var(--bg)",
+              color: codeLang === lang ? "var(--bg)" : "var(--text-secondary)",
+            }}>
+              {lang === "curl" ? "cURL" : "Python"}
+            </button>
           ))}
         </div>
-        <div style={{ background: "#1a1a1a", borderRadius: 8, padding: 16, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
-            {codeLang === "curl" ? curlExample(selectedModel) : codeLang === "python" ? pythonExample(selectedModel) : streamExample(selectedModel)}
+        <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
+          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
+            {codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]}
           </pre>
         </div>
       </section>
 
+      {/* Reasoning mode */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>响应示例</h2>
-        <div style={{ background: "#1a1a1a", borderRadius: 8, padding: 16, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
-{`{
-  "id": "chatcmpl-abc123",
-  "object": "chat.completion",
-  "model": "${selectedModel}",
-  "choices": [
-    {
-      "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "..."
-      },
-      "finish_reason": "stop"
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>推理模式说明</h2>
+        <div style={{
+          padding: 16, background: "#eff6ff", border: "1px solid #bfdbfe",
+          borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#1e40af", marginBottom: 16,
+        }}>
+          DeepSeek R1 和 V4 Pro 支持推理模式，会在回答前展示完整的思考过程（reasoning_content）。
+          设置 <code>enable_thinking: true</code> 开启。
+        </div>
+        <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
+          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
+{`// 推理模式响应中，delta 包含 reasoning_content 字段
+{
+  "choices": [{
+    "delta": {
+      "reasoning_content": "让我一步步分析这个问题...",
+      "content": ""
     }
-  ],
-  "usage": {
-    "prompt_tokens": 28,
-    "completion_tokens": 1024,
-    "total_tokens": 1052
-  }
+  }]
+}
+
+// 思考完成后，切换到正式回答
+{
+  "choices": [{
+    "delta": {
+      "reasoning_content": "",
+      "content": "根据分析，答案是..."
+    }
+  }]
 }`}
           </pre>
         </div>
       </section>
+
+      {/* Related links */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+        {[
+          { href: "/docs/api/chat", label: "Chat Completions", desc: "查看完整对话接口文档" },
+          { href: "/docs/api/errors", label: "错误码参考", desc: "查看错误处理和重试策略" },
+          { href: "/pricing", label: "完整定价", desc: "查看所有模型价格" },
+        ].map((item) => (
+          <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>
+            <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-tertiary)" }}>{item.desc}</div>
+          </Link>
+        ))}
+      </section>
     </div>
   );
-}
-
-export default function DeepSeekDocsPage() {
-  return <Suspense fallback={null}><DeepSeekDocsInner /></Suspense>;
 }

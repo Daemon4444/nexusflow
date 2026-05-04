@@ -1,120 +1,241 @@
 "use client";
 
+import Link from "next/link";
+import { useState } from "react";
+
 const API_BASE = "https://nexusflow.hk";
 
-const generate = `curl "${API_BASE}/v1beta/models/qwen3-max:generateContent?key=$API_KEY" \\
+const curlExamples = {
+  basic: `curl ${API_BASE}/v1/models/gemini-pro:generateContent \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "contents": [
-      {
-        "role": "user",
-        "parts": [{"text": "用三句话解释边缘计算。"}]
-      }
+      {"role": "user", "parts": [{"text": "解释什么是机器学习"}]}
+    ]
+  }'`,
+  stream: `curl ${API_BASE}/v1/models/gemini-pro:streamGenerateContent \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "contents": [
+      {"role": "user", "parts": [{"text": "写一首关于秋天的诗"}]}
     ],
     "generationConfig": {
-      "temperature": 0.7,
-      "topP": 0.9,
-      "maxOutputTokens": 512,
-      "stopSequences": ["END"]
+      "temperature": 0.9,
+      "maxOutputTokens": 1024
     }
-  }'`;
+  }'`,
+};
 
-const stream = `curl "${API_BASE}/v1beta/models/qwen3-max:streamGenerateContent?key=$API_KEY&alt=sse" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "contents": [{"role": "user", "parts": [{"text": "写一个产品发布会开场白。"}]}],
-    "generationConfig": {
-      "temperature": 0.8,
-      "maxOutputTokens": 800
-    }
-  }'`;
+const pythonExamples = {
+  basic: `import requests
 
-const tools = `curl "${API_BASE}/v1beta/models/qwen3-max:generateContent?key=$API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "contents": [{"role": "user", "parts": [{"text": "查询杭州天气"}]}],
-    "tools": [{
-      "functionDeclarations": [{
-        "name": "get_weather",
-        "description": "查询城市天气",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "city": {"type": "string"}
-          },
-          "required": ["city"]
-        }
-      }]
-    }]
-  }'`;
+API_KEY = "sk-air-your-key"
+BASE = "${API_BASE}/v1"
 
-const params = [
-  { name: "contents", desc: "消息数组。每条消息包含 role 和 parts，文本内容放在 parts[].text。" },
-  { name: "systemInstruction", desc: "系统提示词，转换为 OpenAI system message。" },
-  { name: "contents[].parts[].inlineData", desc: "base64 图片内容，转换为 image_url。需模型支持视觉理解。" },
-  { name: "contents[].parts[].fileData", desc: "文件 URL，转换为 image_url。" },
-  { name: "contents[].parts[].functionCall", desc: "模型函数调用，转换为 OpenAI tool_calls。" },
-  { name: "contents[].parts[].functionResponse", desc: "工具执行结果，转换为 OpenAI tool 消息。" },
-  { name: "generationConfig.temperature", desc: "采样温度，值越高输出越发散。生产环境建议按模型能力在 0.2 到 1.0 内调参。" },
-  { name: "generationConfig.topP", desc: "核采样阈值。通常不要和 temperature 同时大幅调整。" },
-  { name: "generationConfig.maxOutputTokens", desc: "最大输出 token 数，对应 OpenAI 的 max_tokens。" },
-  { name: "generationConfig.stopSequences", desc: "停止序列，对应 OpenAI 的 stop。" },
-  { name: "tools.functionDeclarations", desc: "函数声明，会转换到 OpenAI tools 并走同一套模型路由。" },
-  { name: "toolConfig.functionCallingConfig.mode", desc: "AUTO / ANY / NONE，分别映射到 auto / required / none。" },
-];
+response = requests.post(
+    f"{BASE}/models/gemini-pro:generateContent",
+    headers={
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json={
+        "contents": [
+            {"role": "user", "parts": [{"text": "解释什么是机器学习"}]}
+        ]
+    },
+).json()
+
+text = response["candidates"][0]["content"]["parts"][0]["text"]
+print(text)`,
+  stream: `import requests
+
+API_KEY = "sk-air-your-key"
+BASE = "${API_BASE}/v1"
+
+response = requests.post(
+    f"{BASE}/models/gemini-pro:streamGenerateContent",
+    headers={
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json={
+        "contents": [
+            {"role": "user", "parts": [{"text": "写一首关于秋天的诗"}]}
+        ],
+        "generationConfig": {
+            "temperature": 0.9,
+            "maxOutputTokens": 1024,
+        },
+    },
+    stream=True,
+)
+
+for line in response.iter_lines():
+    if line:
+        print(line.decode())`,
+};
+
+type TabKey = "basic" | "stream";
 
 export default function GeminiApiPage() {
+  const [activeTab, setActiveTab] = useState<TabKey>("basic");
+  const [codeLang, setCodeLang] = useState<"curl" | "python">("curl");
+
   return (
-    <div style={{ padding: "48px 64px", maxWidth: 960 }}>
+    <div style={{ padding: "48px 64px", maxWidth: 1000 }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8, fontWeight: 600 }}>协议</div>
-        <h1 style={{ fontSize: 30, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
-          Gemini GenerateContent
+        <span style={{
+          display: "inline-block", padding: "3px 10px", borderRadius: 5,
+          background: "#ecfdf5", color: "#047857", fontSize: 11, fontWeight: 700, marginBottom: 12,
+        }}>
+          Gemini 兼容层
+        </span>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
+          Gemini 协议兼容 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          Gemini 兼容层支持 <code>generateContent</code> 和 <code>streamGenerateContent</code>，内部转换到统一 OpenAI Chat Completions 链路。
+          提供 Google Gemini 原生协议格式的兼容接口，适合已有 Gemini SDK 集成的项目无缝迁移。底层路由到平台模型（如 qwen3-max），但请求/响应格式保持 Gemini 原生风格。
         </p>
       </div>
 
-      <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>端点</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      {/* Endpoints */}
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>接口地址</h2>
+        <div style={{ display: "grid", gap: 10 }}>
           {[
-            ["/v1beta/models/{model}:generateContent", "非流式生成"],
-            ["/v1beta/models/{model}:streamGenerateContent", "SSE 流式生成"],
-          ].map(([path, desc]) => (
-            <div key={path} style={{ padding: 18, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)" }}>
-              <code style={{ fontSize: 13 }}>{path}</code>
-              <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>{desc}</div>
+            { method: "POST", path: "/v1/models/{model}:generateContent", desc: "同步生成" },
+            { method: "POST", path: "/v1/models/{model}:streamGenerateContent", desc: "流式生成" },
+          ].map((ep) => (
+            <div key={ep.path} style={{
+              padding: "12px 18px", background: "var(--bg-elevated)", borderRadius: 8,
+              border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>{ep.method}</span>
+              <code style={{ fontSize: 13, flex: 1 }}>{API_BASE}{ep.path}</code>
+              <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{ep.desc}</span>
             </div>
           ))}
         </div>
       </section>
 
+      {/* Params */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>参数说明</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>请求参数</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-          {params.map((param, index) => (
-            <div key={param.name} style={{ display: "grid", gridTemplateColumns: "240px 1fr", padding: "12px 16px", borderTop: index === 0 ? "none" : "1px solid var(--border)", background: index % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)", fontSize: 13 }}>
-              <code>{param.name}</code>
-              <span style={{ color: "var(--text-secondary)" }}>{param.desc}</span>
-            </div>
-          ))}
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--bg-elevated)" }}>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>参数</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>必选</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["contents", true, "对话内容数组，每项包含 role（user/model）和 parts（text 数组）"],
+                ["generationConfig.temperature", false, "采样温度 [0, 2]，默认 1.0"],
+                ["generationConfig.maxOutputTokens", false, "最大输出 token 数"],
+                ["generationConfig.topP", false, "Top-P 采样"],
+                ["generationConfig.topK", false, "Top-K 采样"],
+                ["generationConfig.stopSequences", false, "停止序列数组"],
+                ["tools", false, "工具/函数定义数组（Function Calling）"],
+              ].map(([name, required, desc], i) => (
+                <tr key={name as string} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{name as string}</code></td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                    {required ? <span style={{ color: "#dc2626", fontWeight: 600 }}>*</span> : "-"}
+                  </td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", lineHeight: 1.6 }}>{desc as string}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
-      {[
-        ["基础调用", generate],
-        ["流式输出", stream],
-        ["工具调用", tools],
-      ].map(([title, code]) => (
-        <section key={title} style={{ marginBottom: 32 }}>
-          <h2 style={{ fontSize: 18, color: "var(--text-primary)", marginBottom: 10 }}>{title}</h2>
-          <pre style={{ margin: 0, padding: 18, background: "#111827", color: "#e5e7eb", borderRadius: 8, overflowX: "auto", fontSize: 12.5, lineHeight: 1.7 }}>
-            <code>{code}</code>
+      {/* Code examples */}
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>请求示例</h2>
+        <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+          {([["basic", "同步调用"], ["stream", "流式调用"]] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setActiveTab(key)} style={{
+              padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: "pointer",
+              border: activeTab === key ? "1.5px solid var(--accent)" : "1px solid var(--border)",
+              background: activeTab === key ? "var(--accent-bg)" : "var(--bg)",
+              color: activeTab === key ? "var(--accent)" : "var(--text-secondary)",
+              fontFamily: "inherit",
+            }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+          {(["curl", "python"] as const).map(lang => (
+            <button key={lang} onClick={() => setCodeLang(lang)} style={{
+              padding: "5px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer",
+              border: "1px solid var(--border)", borderRadius: 6, fontFamily: "inherit",
+              background: codeLang === lang ? "var(--text-primary)" : "var(--bg)",
+              color: codeLang === lang ? "var(--bg)" : "var(--text-secondary)",
+            }}>
+              {lang === "curl" ? "cURL" : "Python"}
+            </button>
+          ))}
+        </div>
+        <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
+          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
+            {codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]}
           </pre>
-        </section>
-      ))}
+        </div>
+      </section>
+
+      {/* Response */}
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>响应格式</h2>
+        <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
+          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
+{`{
+  "candidates": [{
+    "content": {
+      "parts": [{"text": "机器学习是人工智能的一个分支..."}],
+      "role": "model"
+    },
+    "finishReason": "STOP"
+  }],
+  "usageMetadata": {
+    "promptTokenCount": 12,
+    "candidatesTokenCount": 256,
+    "totalTokenCount": 268
+  }
+}`}
+          </pre>
+        </div>
+      </section>
+
+      {/* Notes */}
+      <section style={{ marginBottom: 36 }}>
+        <div style={{
+          padding: 16, background: "#eff6ff", border: "1px solid #bfdbfe",
+          borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#1e40af",
+        }}>
+          <strong>说明：</strong>Gemini 兼容层会将请求自动转换为平台内部格式，路由到对应模型后再将响应转回 Gemini 格式。
+          如无特殊需要，建议直接使用 <code>/v1/chat/completions</code>（OpenAI 格式）以获得更完整的功能支持。
+        </div>
+      </section>
+
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+        {[
+          { href: "/docs/api/chat", label: "Chat Completions", desc: "OpenAI 格式对话接口" },
+          { href: "/docs/multi-protocol", label: "多协议支持", desc: "查看所有兼容协议" },
+          { href: "/pricing", label: "完整定价", desc: "查看所有模型价格" },
+        ].map((item) => (
+          <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>
+            <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-tertiary)" }}>{item.desc}</div>
+          </Link>
+        ))}
+      </section>
     </div>
   );
 }

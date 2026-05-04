@@ -16,6 +16,7 @@ const providers: ProviderItem[] = [
     key: "qwen",
     label: "通义千问",
     children: [
+      { href: "/docs/models/qwen/intro", label: "模型介绍" },
       { href: "/docs/api/qwen", label: "对话补全" },
       { href: "/docs/api/qwen?tab=reasoning", label: "推理模型" },
       { href: "/docs/api/qwen?tab=multimodal", label: "多模态" },
@@ -29,6 +30,7 @@ const providers: ProviderItem[] = [
     key: "deepseek",
     label: "DeepSeek",
     children: [
+      { href: "/docs/models/deepseek/intro", label: "模型介绍" },
       { href: "/docs/api/deepseek", label: "对话补全" },
       { href: "/docs/api/deepseek?tab=reasoning", label: "推理模型" },
     ],
@@ -45,11 +47,19 @@ const providers: ProviderItem[] = [
     key: "pixverse",
     label: "PixVerse (爱诗)",
     children: [
-      { href: "/docs/models/pixverse", label: "模型介绍" },
+      { href: "/docs/models/pixverse/intro", label: "模型介绍" },
       { href: "/docs/api/pixverse?tab=t2v", label: "文生视频" },
       { href: "/docs/api/pixverse?tab=i2v", label: "图生视频（首帧）" },
       { href: "/docs/api/pixverse?tab=kf2v", label: "图生视频（首尾帧）" },
       { href: "/docs/api/pixverse?tab=r2v", label: "参考生视频" },
+    ],
+  },
+  {
+    key: "other",
+    label: "更多模型",
+    children: [
+      { href: "/docs/models/other/intro", label: "模型介绍" },
+      { href: "/docs/models/other", label: "API 文档" },
     ],
   },
   {

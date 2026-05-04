@@ -161,7 +161,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value.trim())}
                 autoComplete="email"
-                style={{ fontSize: 15 }}
+                style={{ fontSize: 16 }}
               />
             </div>
 
@@ -169,7 +169,7 @@ export default function LoginPage() {
             {mode === "code" ? (
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>验证码</label>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div className="login-code-row" style={{ display: "flex", gap: 8 }}>
                   <input
                     className="input"
                     type="text"
@@ -177,7 +177,7 @@ export default function LoginPage() {
                     maxLength={6}
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                    style={{ flex: 1, fontSize: 15, letterSpacing: "2px" }}
+                    style={{ flex: 1, fontSize: 16, letterSpacing: "2px" }}
                     onKeyDown={(e) => e.key === "Enter" && handleLogin(e)}
                   />
                   <button
@@ -186,7 +186,7 @@ export default function LoginPage() {
                     disabled={sendingCode || countdown > 0 || !isValidEmail}
                     style={{
                       flexShrink: 0,
-                      padding: "9px 16px",
+                      padding: "9px 14px",
                       background: (sendingCode || countdown > 0 || !isValidEmail)
                         ? "var(--bg-elevated)" : "#111",
                       border: "1px solid var(--border)",
@@ -216,7 +216,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
-                  style={{ fontSize: 15 }}
+                  style={{ fontSize: 16 }}
                   onKeyDown={(e) => e.key === "Enter" && handleLogin(e)}
                 />
               </div>
