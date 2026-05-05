@@ -36,6 +36,43 @@ const endpoints: ApiEndpoint[] = [
   }'`,
   },
   {
+    method: "POST",
+    path: "/v1/messages",
+    desc: "Anthropic Messages 兼容接口，适合复用 Anthropic SDK",
+    href: "/docs/api/anthropic",
+    params: [
+      { name: "model", type: "string", required: true, desc: "NexusFlow 模型 ID，如 qwen3.6-plus" },
+      { name: "messages", type: "array", required: true, desc: "Anthropic Messages 格式消息数组" },
+      { name: "max_tokens", type: "integer", required: true, desc: "最大输出 token 数" },
+      { name: "stream", type: "boolean", required: false, desc: "是否返回 Anthropic SSE 事件流" },
+    ],
+    example: `curl https://nexusflow.hk/v1/messages \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "qwen3.6-plus",
+    "max_tokens": 1024,
+    "messages": [{"role": "user", "content": "你好！"}]
+  }'`,
+  },
+  {
+    method: "POST",
+    path: "/v1beta/models/{model}:generateContent",
+    desc: "Gemini GenerateContent 兼容接口，适合已有 Gemini SDK 迁移",
+    href: "/docs/api/gemini",
+    params: [
+      { name: "model", type: "path string", required: true, desc: "NexusFlow 模型 ID，如 qwen3.6-plus" },
+      { name: "contents", type: "array", required: true, desc: "Gemini contents 消息数组" },
+      { name: "generationConfig", type: "object", required: false, desc: "生成参数，如 maxOutputTokens、temperature" },
+    ],
+    example: `curl "https://nexusflow.hk/v1beta/models/qwen3.6-plus:generateContent?key=$API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "contents": [{"parts": [{"text": "你好！"}]}],
+    "generationConfig": {"maxOutputTokens": 1024}
+  }'`,
+  },
+  {
     method: "GET",
     path: "/v1/models",
     desc: "获取可用模型列表及其信息",
@@ -91,10 +128,16 @@ const endpoints: ApiEndpoint[] = [
 ];
 
 const features = [
-  { title: "OpenAI 兼容", desc: "对话与向量接口保持 OpenAI 风格，迁移现有应用成本更低。" },
+  { title: "三协议兼容", desc: "OpenAI、Anthropic Messages、Gemini-compatible 共用一套 Key、计费和监控。" },
   { title: "流式响应", desc: "聊天接口支持 SSE 流式输出，适合实时交互和低等待感体验。" },
   { title: "异步任务", desc: "图像与视频统一走任务接口，适合高时延和高并发场景。" },
   { title: "上线前校验", desc: "配合限流、错误码和监控页，帮助你在生产前识别流量风险。" },
+];
+
+const protocolCards = [
+  { title: "OpenAI", href: "/docs/api/chat", endpoint: "/v1/chat/completions", desc: "默认推荐，兼容 OpenAI SDK。" },
+  { title: "Anthropic Messages", href: "/docs/api/anthropic", endpoint: "/v1/messages", desc: "复用 Anthropic SDK 和 Messages 格式。" },
+  { title: "Gemini-compatible", href: "/docs/api/gemini", endpoint: "/v1beta/models/{model}:generateContent", desc: "复用 Gemini GenerateContent 格式。" },
 ];
 
 export default function ApiOverviewPage() {
@@ -114,7 +157,7 @@ export default function ApiOverviewPage() {
         API 参考
       </h1>
       <p style={{ fontSize: 15, color: "#666", marginBottom: 40, lineHeight: 1.7 }}>
-        nexusflow 的接入逻辑分成两条主线：文本与推理模型使用同步接口，多媒体生成使用异步任务接口。这样更适合真实生产环境的延迟与并发特征。
+        nexusflow 的接入逻辑分成三类兼容协议和一套异步任务接口。OpenAI、Anthropic Messages、Gemini-compatible 请求都会接入同一套模型路由、计费和监控链路。
       </p>
 
       <section style={{ marginBottom: 48 }}>
@@ -124,6 +167,19 @@ export default function ApiOverviewPage() {
               <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 6 }}>{item.title}</div>
               <div style={{ fontSize: 13, lineHeight: 1.7, color: "#666" }}>{item.desc}</div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 48 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "#111", marginBottom: 20 }}>兼容协议</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {protocolCards.map((item) => (
+            <Link key={item.title} href={item.href} style={{ padding: 18, background: "#fff", borderRadius: 10, border: "1px solid #e5e5e5", textDecoration: "none" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 8 }}>{item.title}</div>
+              <code style={{ display: "block", fontSize: 12, color: "#2563eb", marginBottom: 10, fontFamily: "var(--font-mono)" }}>{item.endpoint}</code>
+              <div style={{ fontSize: 13, lineHeight: 1.7, color: "#666" }}>{item.desc}</div>
+            </Link>
           ))}
         </div>
       </section>
@@ -149,9 +205,9 @@ export default function ApiOverviewPage() {
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "#111", marginBottom: 20 }}>推荐接入方式</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
           {[
-            { title: "Chat", desc: "文本、推理、代码模型使用 `/v1/chat/completions`。" },
+            { title: "Chat", desc: "默认使用 `/v1/chat/completions`，兼容 OpenAI SDK。" },
+            { title: "Protocol", desc: "已有 Anthropic 或 Gemini 客户端时，直接使用对应兼容入口。" },
             { title: "Tasks", desc: "图像、视频模型统一使用 `/v1/tasks` 与 `/v1/tasks/:id`。" },
-            { title: "Production", desc: "高峰流量上线前，先确认限流、监控和错误处理策略。" },
           ].map((item) => (
             <div key={item.title} style={{ padding: 18, background: "#fafafa", borderRadius: 10, border: "1px solid #eee" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 6 }}>{item.title}</div>
@@ -185,7 +241,7 @@ export default function ApiOverviewPage() {
                   <span style={{ display: "inline-block", padding: "4px 10px", fontSize: 11, fontWeight: 600, borderRadius: 4, background: `${methodColor}15`, color: methodColor, fontFamily: "var(--font-mono)" }}>
                     {ep.method}
                   </span>
-                  <code style={{ fontSize: 14, fontFamily: "var(--font-mono)", color: "#111", flex: "0 0 200px" }}>{ep.path}</code>
+                  <code style={{ fontSize: 13, fontFamily: "var(--font-mono)", color: "#111", flex: "0 0 330px", overflowWrap: "anywhere" }}>{ep.path}</code>
                   <span style={{ fontSize: 14, color: "#666", flex: 1 }}>{ep.desc}</span>
                 </div>
 

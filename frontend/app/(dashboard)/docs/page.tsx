@@ -21,7 +21,7 @@ const quickLinks = [
   },
   {
     title: "API 参考",
-    desc: "对话、异步任务、限流与错误处理",
+    desc: "OpenAI、Anthropic、Gemini 兼容协议",
     href: "/docs/api",
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
     color: "#3b82f6",
@@ -47,9 +47,17 @@ const popularModels = [
 
 const apiEndpoints = [
   { method: "POST", path: "/v1/chat/completions", desc: "对话补全" },
+  { method: "POST", path: "/v1/messages", desc: "Anthropic Messages 兼容" },
+  { method: "POST", path: "/v1beta/models/{model}:generateContent", desc: "Gemini GenerateContent 兼容" },
   { method: "POST", path: "/v1/embeddings", desc: "文本向量" },
   { method: "POST", path: "/v1/tasks", desc: "图像 / 视频异步任务提交" },
   { method: "GET", path: "/v1/tasks/:id", desc: "异步任务轮询" },
+];
+
+const protocols = [
+  { name: "OpenAI-compatible", endpoint: "/v1/chat/completions", href: "/docs/api/chat", desc: "推荐默认接入方式，覆盖对话、推理、工具调用和多数语言 SDK。" },
+  { name: "Anthropic Messages", endpoint: "/v1/messages", href: "/docs/api/anthropic", desc: "适合复用 Anthropic SDK、Claude Code 风格客户端和 Messages 请求格式。" },
+  { name: "Gemini-compatible", endpoint: "/v1beta/models/{model}:generateContent", href: "/docs/api/gemini", desc: "适合已有 Gemini SDK 或 GenerateContent HTTP 调用迁移。" },
 ];
 
 export default function DocsPage() {
@@ -68,7 +76,7 @@ export default function DocsPage() {
           nexusflow 开发者文档
         </h1>
         <p style={{ fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 600 }}>
-          一站式接入通义千问、DeepSeek、GLM、Kimi、HappyHorse 等模型。文档按模型服务、异步任务、限流与监控三层组织，适合从 Demo 一路走到生产环境。
+          一站式接入通义千问、DeepSeek、GLM、Kimi、HappyHorse 等模型。支持 OpenAI、Anthropic Messages、Gemini-compatible 三类协议，统一计费、密钥和监控。
         </p>
       </div>
 
@@ -80,7 +88,7 @@ export default function DocsPage() {
         }}>
           {[
             { title: "模型服务", desc: "统一模型列表、价格和能力入口" },
-            { title: "应用接入", desc: "OpenAI 兼容对话 + 异步任务模式" },
+            { title: "三协议接入", desc: "OpenAI / Anthropic / Gemini 兼容入口" },
             { title: "监控评测", desc: "监控页、错误码、性能指标说明" },
             { title: "高并发准备", desc: "限流、队列、任务链路与容量提升入口" },
           ].map((item) => (
@@ -88,6 +96,31 @@ export default function DocsPage() {
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
               <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>{item.desc}</div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 56 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 18 }}>
+          三种兼容协议
+        </h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+          {protocols.map((protocol) => (
+            <Link
+              key={protocol.name}
+              href={protocol.href}
+              style={{
+                padding: 18,
+                borderRadius: 12,
+                border: "1px solid var(--border)",
+                background: "var(--bg)",
+                textDecoration: "none",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{protocol.name}</div>
+              <code style={{ display: "block", fontSize: 12, color: "var(--accent)", fontFamily: "var(--font-mono)", marginBottom: 10 }}>{protocol.endpoint}</code>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65 }}>{protocol.desc}</div>
+            </Link>
           ))}
         </div>
       </section>

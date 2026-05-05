@@ -79,7 +79,7 @@ const providers: ProviderItem[] = [
 
 const platformLinks = [
   { href: "/docs/principles", label: "平台优势" },
-  { href: "/docs/multi-protocol", label: "多协议支持" },
+  { href: "/docs/multi-protocol", label: "三协议接入" },
   { href: "/docs/provider-routing", label: "供应商路由" },
   { href: "/docs/model-fallback", label: "模型降级" },
   { href: "/docs/api-keys", label: "API 密钥管理" },
@@ -88,7 +88,7 @@ const platformLinks = [
 const refLinks = [
   { href: "/docs/api/parameters", label: "参数矩阵" },
   { href: "/docs/api/tasks", label: "异步任务 API" },
-  { href: "/docs/api/claude", label: "Anthropic 协议" },
+  { href: "/docs/api/anthropic", label: "Anthropic Messages" },
   { href: "/docs/api/gemini", label: "Gemini 协议" },
   { href: "/docs/api/errors", label: "错误码" },
   { href: "/docs/api/limits", label: "限流说明" },

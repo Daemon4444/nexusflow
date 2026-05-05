@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import ClaudeDocsPage from "../claude/page";
 
 export default function AnthropicApiAliasPage() {
-  redirect("/docs/api/claude");
+  return <ClaudeDocsPage />;
 }

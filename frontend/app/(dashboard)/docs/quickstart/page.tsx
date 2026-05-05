@@ -70,6 +70,27 @@ const asyncTaskExample = `curl -X POST ${API_BASE}/v1/tasks \\
 curl ${API_BASE}/v1/tasks/task_xxx \\
   -H "Authorization: Bearer sk-air-your-key"`;
 
+const protocols = [
+  {
+    title: "OpenAI-compatible",
+    endpoint: `${API_BASE}/v1/chat/completions`,
+    href: "/docs/api/chat",
+    desc: "默认推荐。适合 OpenAI SDK、Chat Completions、工具调用和流式输出。",
+  },
+  {
+    title: "Anthropic Messages",
+    endpoint: `${API_BASE}/v1/messages`,
+    href: "/docs/api/anthropic",
+    desc: "适合已有 Anthropic SDK、Messages 请求格式或 Claude Code 风格客户端。",
+  },
+  {
+    title: "Gemini-compatible",
+    endpoint: `${API_BASE}/v1beta/models/{model}:generateContent`,
+    href: "/docs/api/gemini",
+    desc: "适合沿用 Gemini GenerateContent 请求格式。模型名填写 NexusFlow 模型 ID。",
+  },
+];
+
 export default function QuickstartPage() {
   const [lang, setLang] = useState("python");
 
@@ -80,14 +101,14 @@ export default function QuickstartPage() {
           快速开始
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", margin: 0, lineHeight: 1.7 }}>
-          从第一个对话请求开始，并理解什么时候应该切换到异步任务模式。
+          从第一个请求开始，选择 OpenAI、Anthropic Messages 或 Gemini-compatible 协议，并理解什么时候切换到异步任务模式。
         </p>
       </div>
 
       <section style={{ marginBottom: 40 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
           {[
-            { title: "同步对话", desc: "文本、推理、代码模型优先使用 `/v1/chat/completions`。" },
+            { title: "三协议同步", desc: "OpenAI、Anthropic、Gemini 兼容入口共用同一套模型。" },
             { title: "异步任务", desc: "图像和视频统一走 `/v1/tasks` 提交与轮询。" },
             { title: "生产流量", desc: "上线前同时看限流说明、错误码和监控页。" },
           ].map((item) => (
@@ -95,6 +116,21 @@ export default function QuickstartPage() {
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
               <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>{item.desc}</div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 40 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
+          选择兼容协议
+        </h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {protocols.map((protocol) => (
+            <Link key={protocol.title} href={protocol.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg)", textDecoration: "none" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{protocol.title}</div>
+              <code style={{ display: "block", fontSize: 11.5, lineHeight: 1.5, color: "var(--accent)", fontFamily: "'JetBrains Mono', monospace", marginBottom: 10 }}>{protocol.endpoint}</code>
+              <div style={{ fontSize: 12.5, lineHeight: 1.7, color: "var(--text-secondary)" }}>{protocol.desc}</div>
+            </Link>
           ))}
         </div>
       </section>
@@ -116,7 +152,7 @@ export default function QuickstartPage() {
           <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>安装 SDK</h2>
         </div>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.7 }}>
-          nexusflow 与 OpenAI SDK 兼容，无需安装额外专用依赖。
+          默认使用 OpenAI SDK。已有 Anthropic 或 Gemini 客户端时，可直接查看对应兼容协议文档。
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
@@ -214,9 +250,9 @@ export default function QuickstartPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
           {[
             "把聊天请求和多媒体任务拆到不同队列，避免互相争抢吞吐。",
+            "同一个 API Key 可用于 OpenAI、Anthropic Messages、Gemini-compatible 三类协议。",
             "任务轮询建议 3-5 秒一次，并使用指数退避处理失败重试。",
             "压测前先确认限流页中的 RPM / TPM 与并发策略。",
-            "上线后持续查看监控页中的 TTFT、成功率和模型级延迟变化。",
           ].map((text) => (
             <div key={text} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>
               {text}
@@ -231,6 +267,7 @@ export default function QuickstartPage() {
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.9 }}>
             <li>将 <code>model</code> 参数替换为其他模型 ID 即可切换模型</li>
             <li>所有模型共用同一个 API Key，无需分别申请</li>
+            <li>OpenAI、Anthropic Messages、Gemini-compatible 三种协议共用同一套余额与用量记录</li>
             <li>支持流式输出，设置 <code>stream: true</code> 即可</li>
             <li>图像与视频建议通过 <code>/v1/tasks</code> 接入，避免同步阻塞</li>
           </ul>
@@ -244,7 +281,7 @@ export default function QuickstartPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
             { href: "/docs/models", label: "浏览模型", desc: "查看全部 45+ 可用模型" },
-            { href: "/docs/api/chat", label: "Chat API", desc: "完整的同步对话参数文档" },
+            { href: "/docs/multi-protocol", label: "三协议接入", desc: "OpenAI / Anthropic / Gemini 兼容说明" },
             { href: "/docs/api/tasks", label: "异步任务", desc: "图像 / 视频统一任务接口" },
             { href: "/docs/api/limits", label: "限流与并发", desc: "查看高并发下的限制与优化建议" },
           ].map((link) => (
