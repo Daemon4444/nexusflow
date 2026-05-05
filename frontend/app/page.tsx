@@ -226,11 +226,11 @@ export default function LandingPage() {
 
       <section className="nf-final">
         <div>
-          <h2>Start with the console, scale through the API.</h2>
-          <p>Use Playground for validation, then move the same model names and credentials into your backend services.</p>
+          <h2>从 Playground 到生产 API</h2>
+          <p>同一套模型名、密钥和账单，先验证，再接入业务。</p>
         </div>
         <Link href={user ? "/keys" : "/login"} className="nf-btn nf-btn-primary nf-btn-lg">
-          {user ? "Create API key" : "Create account"}
+          {user ? "创建 API Key" : "创建账号"}
         </Link>
       </section>
     </main>
