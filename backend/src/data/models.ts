@@ -333,6 +333,21 @@ export const models: AIModel[] = [
 
   // ========== 向量模型 ==========
   {
+    id: "text-embedding-v4",
+    name: "Text Embedding V4",
+    provider: "通义千问",
+    description: "通义千问最新文本向量模型，支持 100+ 语种和多种编程语言，向量维度可选 2048、1536、1024、768、512、256、128、64，适用于语义检索、聚类、推荐和 RAG。",
+    contextLength: 8192,
+    promptPrice: 0.5,
+    completionPrice: 0,
+    category: "向量模型",
+    tags: ["向量", "嵌入", "语义搜索", "RAG"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 1,
+    supported: ["文本到向量"]
+  },
+  {
     id: "text-embedding-v3",
     name: "Text Embedding V3",
     provider: "通义千问",

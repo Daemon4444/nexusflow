@@ -69,6 +69,9 @@ app.use("/v1/video", pixverseRouter);
 // 阿里云百炼兼容路径 — 视频生成
 app.use("/v1/services/aigc/video-generation", pixverseRouter);
 
+// OpenAI-style video generation alias for NexusFlow async video tasks.
+app.use("/v1/videos", videoRouter);
+
 // 异步任务 API（/v1/tasks）
 app.use("/v1/tasks", tasksRouter);
 

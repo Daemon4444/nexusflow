@@ -86,8 +86,9 @@ async function canAccessTask(req: Request, taskUserId: string | null, taskApiKey
   return !!session && !!taskUserId && session.id === taskUserId;
 }
 
-// POST /api/video/generate - Submit video generation task
-router.post("/generate", async (req: Request, res: Response) => {
+// Submit video generation task. Mounted as /api/video/generate and
+// /v1/videos/generations for clients that expect an OpenAI-style video path.
+const handleGenerate = async (req: Request, res: Response) => {
   const startTime = Date.now();
   const { 
     model: modelId, prompt, duration, aspect_ratio, quality, negative_prompt, size,
@@ -293,7 +294,10 @@ router.post("/generate", async (req: Request, res: Response) => {
       message: `请求失败: ${err.message}`,
     });
   }
-});
+};
+
+router.post("/generate", handleGenerate);
+router.post("/generations", handleGenerate);
 
 // GET /api/video/status/:taskId - Get video generation status
 router.get("/status/:taskId", async (req: Request, res: Response) => {

@@ -143,7 +143,12 @@ router.post("/recharge", async (req: Request, res: Response) => {
   const result = await createFn(userId, normalizedAmount);
 
   if (!result.success) {
-    res.status(500).json({ success: false, message: result.message });
+    res.status(503).json({
+      success: false,
+      message: result.message,
+      code: "payment_not_configured",
+      data: getAlipayConfigStatus(),
+    });
     return;
   }
 

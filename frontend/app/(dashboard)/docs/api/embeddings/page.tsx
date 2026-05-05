@@ -15,7 +15,7 @@ const exampleTabs: { key: ExampleKey; label: string }[] = [
 ];
 
 const requestParams: { name: string; type: string; required: boolean; desc: string }[] = [
-  { name: "model", type: "string", required: true, desc: "嵌入模型 ID，固定值：text-embedding-v3。" },
+  { name: "model", type: "string", required: true, desc: "嵌入模型 ID，固定值：text-embedding-v4。" },
   { name: "input", type: "string | string[]", required: true, desc: "要嵌入的文本。可以是单个字符串或字符串数组（批量处理）。" },
   { name: "encoding_format", type: "string", required: false, desc: '返回向量的编码格式，可选值："float"（默认）或 "base64"。' },
 ];
@@ -26,7 +26,7 @@ const codeExamples: Record<ExampleKey, Record<LangKey, string>> = {
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "text-embedding-v3",
+    "model": "text-embedding-v4",
     "input": "nexusflow 是一个统一的大模型 API 平台"
   }'`,
     python: `from openai import OpenAI
@@ -37,7 +37,7 @@ client = OpenAI(
 )
 
 response = client.embeddings.create(
-    model="text-embedding-v3",
+    model="text-embedding-v4",
     input="nexusflow 是一个统一的大模型 API 平台",
 )
 
@@ -52,7 +52,7 @@ const client = new OpenAI({
 });
 
 const response = await client.embeddings.create({
-  model: "text-embedding-v3",
+  model: "text-embedding-v4",
   input: "nexusflow 是一个统一的大模型 API 平台",
 });
 
@@ -65,7 +65,7 @@ console.log("前 5 个值:", embedding.slice(0, 5));`,
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "text-embedding-v3",
+    "model": "text-embedding-v4",
     "input": [
       "什么是机器学习？",
       "深度学习和机器学习的区别",
@@ -87,7 +87,7 @@ texts = [
 ]
 
 response = client.embeddings.create(
-    model="text-embedding-v3",
+    model="text-embedding-v4",
     input=texts,
 )
 
@@ -109,7 +109,7 @@ const texts = [
 ];
 
 const response = await client.embeddings.create({
-  model: "text-embedding-v3",
+  model: "text-embedding-v4",
   input: texts,
 });
 
@@ -125,7 +125,7 @@ curl -X POST '${API_BASE}/v1/embeddings' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "text-embedding-v3",
+    "model": "text-embedding-v4",
     "input": ["我喜欢吃苹果", "苹果是我最爱的水果"]
   }'
 
@@ -144,7 +144,7 @@ def cosine_similarity(a, b):
 
 # 获取两个文本的嵌入向量
 response = client.embeddings.create(
-    model="text-embedding-v3",
+    model="text-embedding-v4",
     input=[
         "我喜欢吃苹果",
         "苹果是我最爱的水果",
@@ -171,7 +171,7 @@ function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 const response = await client.embeddings.create({
-  model: "text-embedding-v3",
+  model: "text-embedding-v4",
   input: ["我喜欢吃苹果", "苹果是我最爱的水果"],
 });
 
@@ -237,7 +237,7 @@ export default function EmbeddingsApiPage() {
             <tbody>
               <tr style={{ background: "var(--bg)" }}>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
-                  <code style={{ fontSize: 12 }}>text-embedding-v3</code>
+                  <code style={{ fontSize: 12 }}>text-embedding-v4</code>
                 </td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>阿里云</td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>1024</td>
@@ -343,7 +343,7 @@ export default function EmbeddingsApiPage() {
       "embedding": [0.0023064255, -0.009327292, 0.015797347, ...]
     }
   ],
-  "model": "text-embedding-v3",
+  "model": "text-embedding-v4",
   "usage": {
     "prompt_tokens": 12,
     "total_tokens": 12

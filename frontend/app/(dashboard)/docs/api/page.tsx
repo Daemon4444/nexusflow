@@ -59,7 +59,7 @@ const endpoints: ApiEndpoint[] = [
     ],
     example: `curl https://nexusflow.hk/v1/embeddings \\
   -H "Authorization: Bearer $API_KEY" \\
-  -d '{"model": "text-embedding-v3", "input": "测试文本"}'`,
+  -d '{"model": "text-embedding-v4", "input": "测试文本"}'`,
   },
   {
     method: "POST",

@@ -58,7 +58,7 @@ const carouselModels = [
   { name: "Kimi K2.6", provider: "Moonshot AI", ctx: "262K context", price: "In ¥6.5 · Out ¥27", badge: "Long", tone: "teal" },
   { name: "Kimi K2.5", provider: "Moonshot AI", ctx: "131K context", price: "In ¥4 · Out ¥21", badge: "Writing", tone: "teal" },
   { name: "MiniMax M2.5", provider: "MiniMax", ctx: "131K context", price: "In ¥2.1 · Out ¥8.4", badge: "Text", tone: "slate" },
-  { name: "Text Embedding V3", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
+  { name: "Text Embedding V4", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
   { name: "Wan 2.6 Image", provider: "Tongyi Qianwen", ctx: "Image", price: "¥0.20/image", badge: "Image", tone: "orange" },
   { name: "Wan 2.6 T2V", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.6/s", badge: "Video", tone: "orange" },
   { name: "Wan 2.6 I2V Flash", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },

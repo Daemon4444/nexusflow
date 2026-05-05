@@ -50,7 +50,7 @@ const openaiImage = `response = client.images.generate(
 print(response.data[0].url)`;
 
 const openaiEmbedding = `response = client.embeddings.create(
-    model="text-embedding-v3",
+    model="text-embedding-v4",
     input="Your text string goes here",
 )
 print(response.data[0].embedding[:5])`;
