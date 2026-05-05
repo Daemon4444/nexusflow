@@ -33,10 +33,10 @@ const translations = {
   quickTest: { zh: "快速测试", en: "Quick Test" },
 
   // ======== Header Nav ========
-  navModels: { zh: "模型", en: "Models" },
-  navPlayground: { zh: "体验", en: "Playground" },
-  navDocs: { zh: "文档", en: "Docs" },
-  navPricing: { zh: "定价", en: "Pricing" },
+  navModels: { zh: "Models", en: "Models" },
+  navPlayground: { zh: "Playground", en: "Playground" },
+  navDocs: { zh: "Docs", en: "Docs" },
+  navPricing: { zh: "Pricing", en: "Pricing" },
   navKeys: { zh: "密钥", en: "Keys" },
   navBilling: { zh: "账单", en: "Billing" },
   navMonitor: { zh: "监控", en: "Monitor" },

@@ -143,11 +143,11 @@ export default function LandingPage() {
         </div>
         <div className="nf-nav-actions">
           {user ? (
-            <Link href="/playground" className="nf-btn nf-btn-primary">打开控制台</Link>
+            <Link href="/playground" className="nf-btn nf-btn-primary">Open Console</Link>
           ) : (
             <>
-              <Link href="/login" className="nf-btn nf-btn-secondary">登录</Link>
-              <Link href="/login" className="nf-btn nf-btn-primary">开始使用</Link>
+              <Link href="/login" className="nf-btn nf-btn-secondary">Log in</Link>
+              <Link href="/login" className="nf-btn nf-btn-primary">Start building</Link>
             </>
           )}
         </div>
@@ -226,11 +226,11 @@ export default function LandingPage() {
 
       <section className="nf-final">
         <div>
-          <h2>从 Playground 到生产 API</h2>
-          <p>同一套模型名、密钥和账单，先验证，再接入业务。</p>
+          <h2>Validate in Playground. Ship through the API.</h2>
+          <p>Use the same model names, keys and billing from testing to production.</p>
         </div>
         <Link href={user ? "/keys" : "/login"} className="nf-btn nf-btn-primary nf-btn-lg">
-          {user ? "创建 API Key" : "创建账号"}
+          {user ? "Create API key" : "Create account"}
         </Link>
       </section>
     </main>
