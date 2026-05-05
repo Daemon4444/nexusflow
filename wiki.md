@@ -297,4 +297,248 @@ Qoder CLI 的对话记录存储在以下位置：
 
 ---
 
-*最后更新: 2026-05-01*
+---
+
+## 2026-05 最近项目状态与踩坑记录
+
+### 最近工作概览
+
+最近两轮主要围绕首页模型圆环、模型价格/目录、文档协议、真实线上测试和路由兼容性修复。
+
+当前主分支最新关键提交：
+
+| Commit | 说明 |
+| --- | --- |
+| `6e81714` | Fix live review routing and catalog gaps |
+| `9e1d3c5` | Fix review issues in docs and task auth |
+| `ca4e5f7` | Boost rear carousel depth |
+
+以上提交已推送到 `origin/main`。
+
+### 首页与视觉调整记录
+
+首页 hero 已从原先偏啰嗦的英文文案压缩为更短的产品表达：
+
+- `One API for leading text, vision, image and video models.`
+
+首页关键数字从默认 QPM 一类不强的指标，改为更有产品说服力的指标：
+
+- `45+ model options`
+- `¥0.15/s video from`
+- `VBench #1 HappyHorse video`
+
+模型圆环曾多次迭代。最终方向：
+
+- 仍保持单轨圆环，不使用三条轨道，避免视觉太乱。
+- 前景卡片数量要少，约 3 张可见，不要密集。
+- 卡片之间要有明显间隔。
+- 背面卡片需要存在感，不能太淡；保留“弧背后也有卡片，只是隐去”的感觉。
+- 圆环整体略向右移动，避免压住主文案。
+
+踩坑：
+
+- 卡片太多会显得廉价和拥挤。
+- 背面透明度太低时用户会认为“背后没有了”。
+- 阴影太弱会导致圆环缺少空间感。
+
+### 模型价格与目录修复
+
+用户曾提供阿里云百炼文档大段价格内容，但该文档并不等同于 nexusflow 线上展示价格，不能直接全文搬运。实际应以 nexusflow 自己要售卖/展示的价格体系为准。
+
+重点价格确认：
+
+- `glm-5.1` 线上真实 `/api/models` 当前字段为：
+  - `promptPrice: 6`
+  - `completionPrice: 24`
+- 之前用户贴过一版 GLM 文档表中 `glm-5.1` 是 `¥2.5 / ¥10`，但线上真实测试和项目当前口径已经改为 `¥6 / ¥24`。
+
+已经修复/调整：
+
+- 删除“更多模型/other”这类错误文档入口。
+- GLM 价格修正。
+- Qwen/DeepSeek/视频模型等文档和模型目录做过一轮价格一致性修复。
+- `qwen3.6-flash` 已在本地代码 `backend/src/data/models.ts` 中加入，价格 `¥1.2 / ¥7.2`，上下文 `1M`。
+- `text-embedding-v4` 已加入模型目录，价格 `¥0.5 / 百万输入 token`。
+- 文档和首页默认向量模型已从 `text-embedding-v3` 统一改为 `text-embedding-v4`。
+
+注意：
+
+- 线上 `/api/models` 曾仍返回 45 个模型，说明线上未部署最新 main 时会看不到 `qwen3.6-flash` 和 `text-embedding-v4`。
+- 如果部署后仍缺模型，优先查 `backend/src/routes/models.ts` 中静态模型和数据库动态模型合并逻辑，以及数据库是否覆盖了静态模型字段。
+
+### 文档和协议
+
+项目当前支持三种主要兼容协议：
+
+| 协议 | 路径 | 状态 |
+| --- | --- | --- |
+| OpenAI Chat Completions | `/v1/chat/completions` | 已真实调用通过 |
+| Anthropic Messages | `/v1/messages` | 已真实调用通过 |
+| Gemini GenerateContent | `/v1beta/models/:model:generateContent` | 已真实调用通过 |
+
+已修复文档路由：
+
+- `/docs/api/openai` 现在 redirect 到 `/docs/api/chat`。
+- `/docs/api/anthropic` 现在 redirect 到 `/docs/api/claude`。
+- `/docs/api/claude` 实际是 Anthropic Messages 兼容协议文档，不代表托管 Claude 原生模型。
+- `/docs/multi-protocol` 已包含 OpenAI / Anthropic / Gemini 三协议说明。
+
+踩坑：
+
+- 用户会直觉访问 `/docs/api/openai` 和 `/docs/api/anthropic`，即使导航里真实链接是 `/docs/api/chat` 和 `/docs/api/claude`，也应该提供别名路由。
+- 文档里写“Claude”容易被误解成平台已接 Claude 模型。当前更准确的说法是“Anthropic Messages 兼容层”。
+
+### 真实线上测试结果
+
+线上测试域名：
+
+- `https://nexusflow.hk`
+
+真实验证码登录曾成功，用户余额当时约 `3.999949`。测试时创建过临时 API Key，并完成三次真实付费调用。
+
+真实付费调用结果：
+
+| 协议 | 路径 | 模型 | 结果 |
+| --- | --- | --- | --- |
+| OpenAI | `/v1/chat/completions` | `qwen3.5-flash` | 200 |
+| Anthropic | `/v1/messages` | `qwen3.5-flash` | 200 |
+| Gemini | `/v1beta/models/qwen3.5-flash:generateContent` | `qwen3.5-flash` | 200 |
+
+账单结果：
+
+- 调用数从 17 增加到 20。
+- 余额减少约 `0.000895`。
+- 三次真实调用的扣费链路是通的。
+
+注意：
+
+- 不要把用户密码、验证码、API Key 写入文档或日志。
+- 测试脚本输出 API Key 时必须 mask。
+- 真实测试创建的临时 API Key 需要登录后清理。如果测试进程中断，可能需要重新验证码登录后到 `/api/keys` 删除。
+
+### 线上测试发现的问题与修复状态
+
+| 问题 | 状态 | 处理 |
+| --- | --- | --- |
+| `/dashboard` 404 | 已修复 | 新增页面并 redirect 到 `/playground` |
+| `/docs/api/openai` 404 | 已修复 | redirect 到 `/docs/api/chat` |
+| `/docs/api/anthropic` 404 | 已修复 | redirect 到 `/docs/api/claude` |
+| `/api/models` 缺 `qwen3.6-flash` | 本地已修复 | 需要部署最新 main 验证 |
+| `/api/models` 缺 `text-embedding-v4` | 已修复 | 新增静态模型 |
+| `/v1/videos/generations` 404 | 已修复 | 新增 `/v1/videos` 挂载并复用 videoRouter |
+| `GET /v1/tasks/:id` 无 key 返回 404 | 本地已修复 | `9e1d3c5` 已加鉴权，线上需部署 |
+| 支付未配置时错误不清晰 | 已修复 | `/api/billing/recharge` 返回 `503 payment_not_configured` |
+| 支付宝配置缺失 | 运维配置问题 | 需要配置 `ALIPAY_*` |
+| `/api/billing/transactions` 一次登录态请求长时间不返回 | 待复测 | 可能是线上 DB 查询/连接抖动，需要登录态单独测 |
+
+### 需要部署后复测的清单
+
+部署最新 `main` 后建议马上跑：
+
+```bash
+curl -I https://nexusflow.hk/dashboard
+curl -I https://nexusflow.hk/docs/api/openai
+curl -I https://nexusflow.hk/docs/api/anthropic
+curl -s https://nexusflow.hk/api/models | jq '.data[] | select(.id=="qwen3.6-flash" or .id=="text-embedding-v4")'
+```
+
+API 鉴权复测：
+
+```bash
+curl -s https://nexusflow.hk/v1/tasks/fake-task-id
+```
+
+期望未带 Key 返回 401，而不是 404。
+
+视频兼容路径复测：
+
+```bash
+curl -s -X POST https://nexusflow.hk/v1/videos/generations \
+  -H "Content-Type: application/json" \
+  -d '{"model":"happyhorse-1.0-t2v","prompt":"cat"}'
+```
+
+未带 Key 期望返回 401。
+
+支付未配置复测（需要登录 token）：
+
+```bash
+curl -s -X POST https://nexusflow.hk/api/billing/recharge \
+  -H "Authorization: Bearer $SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"amount":1,"method":"page"}'
+```
+
+如果支付宝未配置，期望返回：
+
+- HTTP 503
+- `code: "payment_not_configured"`
+- `data.missing` 包含缺失的 `ALIPAY_*`
+
+### 本地验证记录
+
+最近一次修复后已经通过：
+
+```bash
+npm run build:backend
+npm run build:frontend
+git diff --check
+```
+
+本地后端黑盒未跑起来的原因：
+
+- 当前机器没有本地 PostgreSQL 服务。
+- 启动 `backend/dist/index.js` 时连接 `127.0.0.1:5432` 失败。
+- 这不是 TypeScript 构建问题，是本机 DB 环境问题。
+
+### 重要踩坑
+
+1. **不要只看文档源代码判断线上**
+   - 很多问题是“线上未部署最新 main”，本地已修但线上仍旧。
+   - 真实测试必须直接打 `https://nexusflow.hk`。
+
+2. **API 路径不要凭直觉猜**
+   - API Key 管理真实路径是 `/api/keys`，不是 `/api/api-keys`。
+   - 验证码登录真实路径是 `/api/auth/login`，不是 `/api/auth/login-code`。
+   - 发送验证码路径是 `/api/auth/send-code`。
+
+3. **验证码会被消费**
+   - 用错登录路径不会消费，但成功登录后验证码不能复用。
+   - 测试中断后如果 session token 在脚本内存里丢失，需要重新发验证码。
+
+4. **真实调用会扣费**
+   - 即使 `max_tokens` 很小，Qwen 思考模式可能返回较长 `reasoning_content`。
+   - `qwen3.5-flash` 真实测试中虽然用户要求 `Reply only OK`，返回仍包含较长 reasoning，导致输出 token 偏高。
+   - 后续可考虑对默认 `enable_thinking` 策略做更明确控制，或在文档中提醒。
+
+5. **支付接口不是 mock**
+   - 线上 `mock` 充值不可用是正确行为。
+   - 支付宝未配置时不能让用户以为能充值，应明确返回 `payment_not_configured`。
+
+6. **视频模型路径要兼容用户预期**
+   - 文档主要推荐异步任务 `/v1/tasks` 和专用视频接口。
+   - 但用户/开发者会自然尝试 `/v1/videos/generations`，所以已补别名。
+
+7. **模型目录和文档必须同步**
+   - 文档有 `text-embedding-v4`，模型目录没有，会影响用户信任。
+   - 首页展示、文档示例、模型目录、价格页应尽量引用同一模型 ID。
+
+### 下一步建议
+
+1. 服务器部署最新 `main`，重启前后端。
+2. 登录后删除之前真实测试创建的临时 API Key。
+3. 复测 `/api/billing/transactions` 是否还会卡住。
+4. 配置支付宝生产或沙箱参数，完成真实充值闭环。
+5. 对 `qwen3.5-flash` 默认思考模式做策略选择：
+   - 简单任务默认关闭思考，降低 token 和扣费；
+   - 或在 Playground/文档中暴露 `enable_thinking`。
+6. 用 Playwright 或浏览器自动化补一次登录态 UI 测试：
+   - 登录
+   - Keys 创建/删除
+   - Billing 充值按钮
+   - Playground 三协议/模型调用
+   - Docs 关键路径
+
+---
+
+*最后更新: 2026-05-05*
