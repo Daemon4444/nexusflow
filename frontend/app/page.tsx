@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { NexusflowLogo } from "@/components/QuadrantLogo";
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const modelRows = [
   { model: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", context: "262K", price: "input ¥9 / output ¥54 per 1M" },
@@ -40,16 +40,90 @@ const workflow = [
   "Track cost, latency, errors and rate limits in the console",
 ];
 
-const orbitModels = [
-  { name: "Qwen", meta: "up to 10M", angle: 0 },
-  { name: "DeepSeek", meta: "reasoning", angle: 45 },
-  { name: "GLM", meta: "131K context", angle: 90 },
-  { name: "Kimi", meta: "262K context", angle: 135 },
-  { name: "Messages", meta: "Anthropic API", angle: 180 },
-  { name: "PixVerse", meta: "video", angle: 225 },
-  { name: "MiniMax", meta: "text", angle: 270 },
-  { name: "HappyHorse", meta: "async", angle: 315 },
+const carouselModels = [
+  { name: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", ctx: "262K", price: "¥9 / ¥54", badge: "Flagship" },
+  { name: "Qwen Long", provider: "Tongyi Qianwen", ctx: "10M", price: "¥0.5 / ¥2", badge: "Long" },
+  { name: "Qwen3.6 Plus", provider: "Tongyi Qianwen", ctx: "1M", price: "¥2 / ¥12", badge: "Popular" },
+  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "131K", price: "¥4 / ¥16", badge: "Reasoning" },
+  { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "131K", price: "¥1 / ¥4", badge: "Fast" },
+  { name: "GLM 5", provider: "Zhipu AI", ctx: "131K", price: "¥2 / ¥8", badge: "Chat" },
+  { name: "Kimi K2.6", provider: "Moonshot AI", ctx: "262K", price: "¥2 / ¥8", badge: "Long" },
+  { name: "MiniMax M2.5", provider: "MiniMax", ctx: "131K", price: "¥1.5 / ¥6", badge: "Text" },
+  { name: "PixVerse V6", provider: "PixVerse", ctx: "Async", price: "from ¥0.15/s", badge: "Video" },
+  { name: "HappyHorse 1.0", provider: "Tongyi Qianwen", ctx: "Async", price: "from ¥0.9/s", badge: "Video" },
 ];
+
+function CylinderCarousel({ items }: { items: typeof carouselModels }) {
+  const [offset, setOffset] = useState(0);
+  const animRef = useRef<number>(0);
+  const itemAngle = 360 / items.length;
+
+  useEffect(() => {
+    let last = performance.now();
+    const speed = 0.01;
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      setOffset((prev) => (prev + speed * dt) % 360);
+      animRef.current = requestAnimationFrame(tick);
+    };
+    animRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animRef.current);
+  }, []);
+
+  const deg = Math.PI / 180;
+  const radius = 320;
+  const tiltAngle = 14 * deg;
+  const sinTilt = Math.sin(tiltAngle);
+  const cosTilt = Math.cos(tiltAngle);
+
+  return (
+    <div className="ld-cylinder-wrap">
+      <div className="ld-cylinder">
+        {items.map((item, i) => {
+          const angle = i * itemAngle - offset;
+          const norm = ((angle % 360) + 540) % 360 - 180;
+          const sinA = Math.sin(norm * deg);
+          const cosA = Math.cos(norm * deg);
+          const y = sinA * radius;
+          const x = -cosA * sinTilt * radius;
+          const zFactor = cosA * cosTilt;
+          const depth = (zFactor + 1) / 2;
+          const scale = 0.3 + 0.7 * depth;
+          const opacity = 0.08 + 0.92 * depth;
+          const blur = depth < 0.22 ? (0.22 - depth) * 12 : 0;
+
+          return (
+            <div
+              key={item.name}
+              className="ld-cyl-item"
+              style={{
+                transform: `translate(${x}px, ${y}px) scale(${scale})`,
+                opacity,
+                zIndex: Math.round(depth * 100),
+                filter: blur > 0 ? `blur(${blur}px)` : "none",
+              }}
+            >
+              <div className="ld-cyl-card">
+                <div className="ld-cyl-card-top">
+                  <span className="ld-cyl-card-name">{item.name}</span>
+                  <span className="ld-cyl-card-badge">{item.badge}</span>
+                </div>
+                <div className="ld-cyl-card-meta">
+                  <span>{item.provider}</span>
+                  <span className="ld-cyl-card-ctx">{item.ctx}</span>
+                  <span className="ld-cyl-card-price">{item.price}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="ld-cylinder-mask-top" />
+      <div className="ld-cylinder-mask-btm" />
+    </div>
+  );
+}
 
 export default function LandingPage() {
   const { user } = useAuth();
@@ -102,33 +176,8 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="nf-orbit-shell" aria-label="Unified model gateway">
-          <div className="nf-orbit-stage">
-            <div className="nf-orbit-ring nf-orbit-ring-outer" />
-            <div className="nf-orbit-ring nf-orbit-ring-mid" />
-            <div className="nf-orbit-ring nf-orbit-ring-inner" />
-            <div className="nf-orbit-axis" />
-            <div className="nf-orbit-core">
-              <span>nexusflow</span>
-              <strong>one gateway</strong>
-              <small>chat · image · video · messages</small>
-            </div>
-            {orbitModels.map((item) => (
-              <div
-                className="nf-orbit-node"
-                key={item.name}
-                style={{ "--angle": `${item.angle}deg` } as CSSProperties}
-              >
-                <strong>{item.name}</strong>
-                <span>{item.meta}</span>
-              </div>
-            ))}
-          </div>
-          <div className="nf-orbit-caption">
-            <span className="nf-dot green" />
-            <span>routing healthy</span>
-            <strong>45 models</strong>
-          </div>
+        <div className="nf-cylinder-shell" aria-label="Unified model gateway">
+          <CylinderCarousel items={carouselModels} />
         </div>
       </section>
 
