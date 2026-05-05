@@ -185,7 +185,7 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="nf-hero-metrics">
-            <div><strong>50+</strong><span>model options</span></div>
+            <div><strong>45+</strong><span>model options</span></div>
             <div><strong>¥0.15/s</strong><span>video from</span></div>
             <div><strong>VBench #1</strong><span>HappyHorse video</span></div>
           </div>

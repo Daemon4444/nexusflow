@@ -88,6 +88,7 @@ const platformLinks = [
 const refLinks = [
   { href: "/docs/api/parameters", label: "参数矩阵" },
   { href: "/docs/api/tasks", label: "异步任务 API" },
+  { href: "/docs/api/claude", label: "Anthropic 协议" },
   { href: "/docs/api/gemini", label: "Gemini 协议" },
   { href: "/docs/api/errors", label: "错误码" },
   { href: "/docs/api/limits", label: "限流说明" },

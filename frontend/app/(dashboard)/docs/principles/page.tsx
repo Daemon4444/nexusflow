@@ -30,8 +30,8 @@ export default function PrinciplesPage() {
           {[
             {
               title: "多协议原生支持",
-              code: "import OpenAI | import anthropic",
-              desc: "原生支持 OpenAI 和 Anthropic (Claude) 协议。使用官方 SDK，只需修改 Base URL 即可接入，无需协议转换。完整保留流式输出、工具调用、视觉输入等全部特性。",
+              code: "OpenAI | Anthropic | Gemini",
+              desc: "原生支持 OpenAI、Anthropic Messages 和 Gemini-compatible 三种协议。使用官方 SDK 或兼容 HTTP 格式，只需修改 Base URL 即可接入。",
             },
             {
               title: "智能路由",
@@ -50,7 +50,7 @@ export default function PrinciplesPage() {
             },
             {
               title: "模型丰富",
-              code: "models.list() → 50+",
+              code: "models.list() → 45+",
               desc: "接入通义千问、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse 等国内头部模型。涵盖文本、推理、视觉、编程、图像、视频、向量等类别。",
             },
             {
@@ -121,7 +121,7 @@ export default function PrinciplesPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
             { href: "/docs/quickstart", label: "快速开始", desc: "三步上手调用大模型" },
-            { href: "/docs/multi-protocol", label: "多协议支持", desc: "使用 OpenAI、Anthropic 协议" },
+            { href: "/docs/multi-protocol", label: "多协议支持", desc: "使用 OpenAI、Anthropic、Gemini 协议" },
             { href: "/docs/provider-routing", label: "供应商路由", desc: "智能路由与自动降级" },
             { href: "/docs/model-fallback", label: "模型降级", desc: "配置备选模型提高可用性" },
           ].map((link) => (

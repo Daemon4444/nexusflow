@@ -306,10 +306,30 @@ router.post("/", async (req: Request, res: Response) => {
 
 // GET /v1/tasks/:id - Get task status
 router.get("/:id", async (req: Request, res: Response) => {
+  const token = extractToken(req);
+  if (!token) {
+    res.status(401).json({
+      error: { message: "Missing API key", type: "invalid_request_error", code: "missing_api_key" },
+    });
+    return;
+  }
+
+  const apiKeyRecord = await validateApiKey(token);
+  if (!apiKeyRecord) {
+    res.status(401).json({
+      error: { message: "Invalid API key", type: "invalid_request_error", code: "invalid_api_key" },
+    });
+    return;
+  }
+
   const taskId = req.params.id as string;
   const task = await getTaskById(taskId);
 
-  if (!task) {
+  if (
+    !task ||
+    (task.api_key_id && task.api_key_id !== apiKeyRecord.id) ||
+    (task.user_id && task.user_id !== apiKeyRecord.user_id)
+  ) {
     res.status(404).json({
       error: { message: "Task not found", type: "invalid_request_error", code: "task_not_found" },
     });

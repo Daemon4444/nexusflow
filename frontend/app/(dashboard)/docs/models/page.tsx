@@ -48,6 +48,7 @@ const modelCategories = [
 const pricingTable = [
   { model: "qwen3.6-max-preview", ctx: "262K", input: "¥9", output: "¥54", category: "旗舰" },
   { model: "qwen3.6-plus", ctx: "1M", input: "¥2", output: "¥12", category: "均衡" },
+  { model: "qwen3.6-flash", ctx: "1M", input: "¥1.2", output: "¥7.2", category: "极速" },
   { model: "qwen3.5-plus", ctx: "1M", input: "¥0.8", output: "¥4.8", category: "均衡" },
   { model: "qwen3.5-flash", ctx: "1M", input: "¥0.2", output: "¥2", category: "极速" },
   { model: "deepseek-v4-pro", ctx: "1M", input: "¥12", output: "¥24", category: "推理旗舰" },

@@ -84,6 +84,20 @@ export const models: AIModel[] = [
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
+    id: "qwen3.6-flash",
+    name: "Qwen3.6 Flash",
+    provider: "通义千问",
+    description: "通义千问3.6代闪电版，适合简单任务，速度快、成本低。支持百万级上下文窗口和上下文缓存。",
+    contextLength: 1000000,
+    promptPrice: 1.2,
+    completionPrice: 7.2,
+    category: "大语言模型",
+    tags: ["极速", "低成本", "百万上下文"],
+    isNew: true,
+    maxOutput: 65536,
+    supported: ["文本", "函数调用", "思考模式"]
+  },
+  {
     id: "qwen3.5-flash",
     name: "Qwen3.5 Flash",
     provider: "通义千问",

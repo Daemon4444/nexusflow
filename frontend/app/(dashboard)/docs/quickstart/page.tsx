@@ -243,7 +243,7 @@ export default function QuickstartPage() {
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
-            { href: "/docs/models", label: "浏览模型", desc: "查看全部 50+ 可用模型" },
+            { href: "/docs/models", label: "浏览模型", desc: "查看全部 45+ 可用模型" },
             { href: "/docs/api/chat", label: "Chat API", desc: "完整的同步对话参数文档" },
             { href: "/docs/api/tasks", label: "异步任务", desc: "图像 / 视频统一任务接口" },
             { href: "/docs/api/limits", label: "限流与并发", desc: "查看高并发下的限制与优化建议" },

@@ -1,91 +1,124 @@
 import Link from "next/link";
 
-const alternatives = [
-  {
-    href: "/docs/models/qwen",
-    label: "通义千问",
-    desc: "当前主力通用模型，支持 OpenAI 兼容调用。",
-  },
-  {
-    href: "/docs/models/deepseek",
-    label: "DeepSeek",
-    desc: "适合推理、代码和高性价比对话场景。",
-  },
-  {
-    href: "/docs/api/chat",
-    label: "对话补全 API",
-    desc: "查看统一接口、参数和请求示例。",
-  },
-];
+const API_BASE = "https://nexusflow.hk";
+
+const curlExample = `curl ${API_BASE}/v1/messages \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "qwen3.6-plus",
+    "max_tokens": 1024,
+    "messages": [
+      {"role": "user", "content": "用三句话解释什么是模型网关"}
+    ]
+  }'`;
+
+const streamExample = `curl ${API_BASE}/v1/messages \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "qwen3.6-plus",
+    "max_tokens": 1024,
+    "stream": true,
+    "messages": [
+      {"role": "user", "content": "写一段产品发布文案"}
+    ]
+  }'`;
 
 export default function ClaudeDocsPage() {
   return (
-    <div style={{ padding: "48px 64px", maxWidth: 960 }}>
-      <div style={{ marginBottom: 12 }}>
+    <div style={{ padding: "48px 64px", maxWidth: 1000 }}>
+      <div style={{ marginBottom: 32 }}>
         <span
           style={{
             display: "inline-block",
-            padding: "4px 10px",
-            borderRadius: 999,
-            background: "#fef2f2",
-            color: "#b91c1c",
+            padding: "3px 10px",
+            borderRadius: 5,
+            background: "#f5f3ff",
+            color: "#6d28d9",
             fontSize: 11,
             fontWeight: 700,
-            letterSpacing: "0.04em",
+            marginBottom: 12,
           }}
         >
-          UNAVAILABLE
+          Anthropic Messages 兼容层
         </span>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
+          Anthropic Messages 兼容 API
+        </h1>
+        <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 760, margin: 0 }}>
+          NexusFlow 提供 Anthropic Messages 请求/响应格式兼容入口，适合已有 Anthropic SDK 或 Claude Code 风格客户端迁移。
+          这里是协议兼容层，不代表当前实例托管 Claude 原生模型；<code>model</code> 必须填写 NexusFlow 模型 ID，例如 <code>qwen3.6-plus</code>。
+        </p>
       </div>
 
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 10 }}>
-        Claude API 当前未在此实例开放
-      </h1>
-      <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 32, lineHeight: 1.7, maxWidth: 720 }}>
-        当前 nexusflow 线上实例使用统一网关聚合已接入的 Qwen、DeepSeek、GLM、Kimi、MiniMax、HappyHorse
-        等模型能力。Claude 相关路由暂未对外开放，因此本页不再提供可调用模型列表和示例代码，避免与实际可用能力不一致。
-      </p>
-
       <section style={{ marginBottom: 32 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>接口地址</h2>
         <div
           style={{
-            padding: 24,
-            borderRadius: 16,
-            background: "linear-gradient(135deg, rgba(248,113,113,0.08), rgba(251,191,36,0.06))",
-            border: "1px solid rgba(239,68,68,0.18)",
+            padding: "12px 18px",
+            background: "var(--bg-elevated)",
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
           }}
         >
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>
-            当前状态
+          <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>POST</span>
+          <code style={{ fontSize: 13, flex: 1 }}>{API_BASE}/v1/messages</code>
+          <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>同步 / 流式</span>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>请求参数</h2>
+        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--bg-elevated)" }}>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>参数</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>必选</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["model", true, "NexusFlow 模型 ID，例如 qwen3.6-plus、deepseek-v4-flash、glm-5.1"],
+                ["messages", true, "Anthropic Messages 格式消息数组"],
+                ["max_tokens", true, "最大输出 token 数"],
+                ["stream", false, "设为 true 时返回 Anthropic SSE 事件流"],
+                ["system", false, "系统提示词，会自动转换到内部对话格式"],
+              ].map(([name, required, desc], i) => (
+                <tr key={String(name)} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code>{String(name)}</code></td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center", color: required ? "#dc2626" : "var(--text-tertiary)" }}>{required ? "是" : "否"}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{String(desc)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>调用示例</h2>
+        <div style={{ display: "grid", gap: 14 }}>
+          <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
+            <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "var(--font-mono)", lineHeight: 1.65 }}>{curlExample}</pre>
           </div>
-          <div style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            本站公开文档、模型目录和统一 API 只展示已在后端模型注册表中启用并通过联调验证的能力。
-            如果后续重新接入 Claude，这个页面会恢复为真实可调用的接口文档。
+          <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
+            <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "var(--font-mono)", lineHeight: 1.65 }}>{streamExample}</pre>
           </div>
         </div>
       </section>
 
-      <section>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          你现在可以直接使用
-        </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-          {alternatives.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                padding: 18,
-                background: "var(--bg-elevated)",
-                borderRadius: 10,
-                border: "1px solid var(--border)",
-                textDecoration: "none",
-              }}
-            >
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>
-              <div style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6 }}>{item.desc}</div>
-            </Link>
-          ))}
+      <section style={{ padding: 18, border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg-elevated)" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>相关文档</div>
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 13 }}>
+          <Link href="/docs/multi-protocol" style={{ color: "#1d4ed8" }}>多协议支持</Link>
+          <Link href="/docs/api/chat" style={{ color: "#1d4ed8" }}>OpenAI Chat Completions</Link>
+          <Link href="/docs/api/gemini" style={{ color: "#1d4ed8" }}>Gemini 协议</Link>
         </div>
       </section>
     </div>
