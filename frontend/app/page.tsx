@@ -5,11 +5,11 @@ import { useAuth } from "@/lib/auth";
 import type { CSSProperties } from "react";
 
 const modelRows = [
-  { model: "Qwen3.6 Max Preview", provider: "Alibaba Cloud", context: "262K", use: "Reasoning, coding" },
-  { model: "DeepSeek V4 Pro", provider: "DeepSeek", context: "131K", use: "Agent workflows" },
-  { model: "GLM 5", provider: "Zhipu AI", context: "128K", use: "General production" },
-  { model: "Kimi K2", provider: "Moonshot", context: "128K", use: "Long-form tasks" },
-  { model: "PixVerse v6", provider: "PixVerse", context: "Async", use: "Video generation" },
+  { model: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", context: "262K", price: "input ¥9 / output ¥54 per 1M" },
+  { model: "DeepSeek V4 Pro", provider: "DeepSeek", context: "131K", price: "input ¥4 / output ¥16 per 1M" },
+  { model: "GLM 5", provider: "Zhipu AI", context: "131K", price: "input ¥2 / output ¥8 per 1M" },
+  { model: "Kimi K2.6", provider: "Moonshot AI", context: "262K", price: "input ¥2 / output ¥8 per 1M" },
+  { model: "PixVerse V6", provider: "PixVerse", context: "Async video", price: "from ¥0.15 / second" },
 ];
 
 const capabilities = [
@@ -39,13 +39,13 @@ const workflow = [
 ];
 
 const orbitModels = [
-  { name: "Qwen", meta: "1M context", angle: 0 },
+  { name: "Qwen", meta: "up to 10M", angle: 0 },
   { name: "DeepSeek", meta: "reasoning", angle: 45 },
-  { name: "GLM", meta: "general", angle: 90 },
-  { name: "Kimi", meta: "long text", angle: 135 },
-  { name: "Claude", meta: "messages", angle: 180 },
+  { name: "GLM", meta: "131K context", angle: 90 },
+  { name: "Kimi", meta: "262K context", angle: 135 },
+  { name: "Messages", meta: "Anthropic API", angle: 180 },
   { name: "PixVerse", meta: "video", angle: 225 },
-  { name: "MiniMax", meta: "voice", angle: 270 },
+  { name: "MiniMax", meta: "text", angle: 270 },
   { name: "HappyHorse", meta: "async", angle: 315 },
 ];
 
@@ -94,7 +94,7 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="nf-hero-metrics">
-            <div><strong>45+</strong><span>models</span></div>
+            <div><strong>45</strong><span>catalog models</span></div>
             <div><strong>3</strong><span>protocols</span></div>
             <div><strong>60 QPM</strong><span>default guardrail</span></div>
           </div>
@@ -125,7 +125,7 @@ export default function LandingPage() {
           <div className="nf-orbit-caption">
             <span className="nf-dot green" />
             <span>routing healthy</span>
-            <strong>45+ models</strong>
+            <strong>45 models</strong>
           </div>
         </div>
       </section>
@@ -142,7 +142,7 @@ export default function LandingPage() {
               <strong>{row.model}</strong>
               <span>{row.provider}</span>
               <span>{row.context}</span>
-              <span>{row.use}</span>
+              <span>{row.price}</span>
             </div>
           ))}
         </div>
