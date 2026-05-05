@@ -98,12 +98,11 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
           const norm = ((angle % 360) + 540) % 360 - 180;
           const sinA = Math.sin(norm * deg);
           const cosA = Math.cos(norm * deg);
-          const lane = (i % 3) - 1;
-          const y = sinA * radius * 0.82 + lane * 20;
-          const x = -cosA * sinTilt * radius + lane * 116;
+          const y = sinA * radius;
+          const x = -cosA * sinTilt * radius;
           const zFactor = cosA * cosTilt;
           const depth = (zFactor + 1) / 2;
-          const scale = (0.32 + 0.54 * depth) * (1 - Math.abs(lane) * 0.05);
+          const scale = 0.34 + 0.54 * depth;
           const opacity = 0.16 + 0.84 * depth;
           const blur = depth < 0.36 ? (0.36 - depth) * 12 : 0;
 
