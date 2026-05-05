@@ -85,7 +85,7 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
   }, []);
 
   const deg = Math.PI / 180;
-  const radius = 286;
+  const radius = 330;
   const tiltAngle = 24 * deg;
   const sinTilt = Math.sin(tiltAngle);
   const cosTilt = Math.cos(tiltAngle);

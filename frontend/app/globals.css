@@ -429,8 +429,8 @@ body {
   .nf-cylinder-shell { min-height: 340px; }
   .nf-cylinder-shell .ld-cylinder-wrap { height: 340px; }
   .nf-cylinder-shell .ld-cyl-item {
-    width: 220px;
-    margin-left: -110px;
+    width: 204px;
+    margin-left: -102px;
   }
   .nf-cylinder-shell .ld-cyl-card { padding: 11px 12px; }
   .nf-model-row { grid-template-columns: 1fr; gap: 6px; }
@@ -1377,7 +1377,7 @@ code {
 }
 .ld-cyl-item {
   position: absolute; top: 50%; left: 54%;
-  width: 236px; margin-left: -118px; margin-top: -30px;
+  width: 218px; margin-left: -109px; margin-top: -30px;
   will-change: transform, opacity;
   pointer-events: none;
 }
