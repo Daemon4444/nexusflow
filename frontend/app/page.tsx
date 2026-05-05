@@ -60,7 +60,7 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
 
   useEffect(() => {
     let last = performance.now();
-    const speed = 0.01;
+    const speed = 0.014;
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
@@ -72,8 +72,8 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
   }, []);
 
   const deg = Math.PI / 180;
-  const radius = 320;
-  const tiltAngle = 14 * deg;
+  const radius = 230;
+  const tiltAngle = 10 * deg;
   const sinTilt = Math.sin(tiltAngle);
   const cosTilt = Math.cos(tiltAngle);
 
@@ -89,9 +89,9 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
           const x = -cosA * sinTilt * radius;
           const zFactor = cosA * cosTilt;
           const depth = (zFactor + 1) / 2;
-          const scale = 0.3 + 0.7 * depth;
-          const opacity = 0.08 + 0.92 * depth;
-          const blur = depth < 0.22 ? (0.22 - depth) * 12 : 0;
+          const scale = 0.46 + 0.5 * depth;
+          const opacity = 0.16 + 0.84 * depth;
+          const blur = depth < 0.32 ? (0.32 - depth) * 10 : 0;
 
           return (
             <div

@@ -259,14 +259,14 @@ body {
 }
 .nf-cylinder-shell {
   position: relative;
-  min-height: 540px;
+  min-height: 440px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
 }
 .nf-cylinder-shell .ld-cylinder-wrap {
-  height: 560px;
+  height: 430px;
 }
 .nf-cylinder-shell .ld-cylinder-mask-top {
   background: linear-gradient(to bottom, #fff 5%, transparent 100%);
@@ -401,7 +401,7 @@ body {
   .nf-nav-links { order: 3; width: 100%; overflow-x: auto; }
   .nf-hero, .nf-workflow { grid-template-columns: 1fr; }
   .nf-console { max-width: 620px; }
-  .nf-cylinder-shell { min-height: 500px; max-width: 620px; margin: 0 auto; }
+  .nf-cylinder-shell { min-height: 430px; max-width: 620px; margin: 0 auto; }
   .nf-cap-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nf-model-row { grid-template-columns: 1fr 1fr; }
   .nf-final { flex-direction: column; align-items: flex-start; }
@@ -412,8 +412,8 @@ body {
   .nf-hero-metrics, .nf-console-grid, .nf-cap-grid { grid-template-columns: 1fr; }
   .nf-console-card { border-right: 0; }
   .nf-console-card:nth-last-child(2) { border-bottom: 1px solid var(--border); }
-  .nf-cylinder-shell { min-height: 380px; }
-  .nf-cylinder-shell .ld-cylinder-wrap { height: 400px; }
+  .nf-cylinder-shell { min-height: 340px; }
+  .nf-cylinder-shell .ld-cylinder-wrap { height: 340px; }
   .nf-cylinder-shell .ld-cyl-item {
     width: 280px;
     margin-left: -140px;
@@ -1355,27 +1355,27 @@ code {
 
 /* Cylinder Carousel */
 .ld-cylinder-wrap {
-  position: relative; width: 100%; height: 640px;
+  position: relative; width: 100%; height: 430px;
   overflow: hidden;
 }
 .ld-cylinder {
   position: relative; width: 100%; height: 100%;
 }
 .ld-cyl-item {
-  position: absolute; top: 50%; left: 54%;
-  width: 360px; margin-left: -180px; margin-top: -38px;
+  position: absolute; top: 50%; left: 53%;
+  width: 300px; margin-left: -150px; margin-top: -34px;
   will-change: transform, opacity;
   pointer-events: none;
 }
 .ld-cyl-card {
   position: relative;
-  padding: 18px 22px;
-  border-radius: 14px;
+  padding: 14px 17px;
+  border-radius: 11px;
   background:
     linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.94)),
     #fff;
   border: 1px solid rgba(15, 23, 42, .10);
-  box-shadow: 0 16px 44px rgba(15, 23, 42, .09);
+  box-shadow: 0 12px 34px rgba(15, 23, 42, .085);
   overflow: hidden;
 }
 .ld-cyl-card::before {
@@ -1390,24 +1390,24 @@ code {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 .ld-cyl-card-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 760;
   letter-spacing: 0;
   color: #0d0d0d;
 }
 .ld-cyl-card-badge {
   flex: 0 0 auto;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 760;
-  padding: 3px 9px;
+  padding: 2px 7px;
   border-radius: 5px;
   background: color-mix(in srgb, var(--cyl-accent, #2563eb) 12%, white);
   color: var(--cyl-accent, #2563eb);
@@ -1415,8 +1415,8 @@ code {
 .ld-cyl-card-meta {
   position: relative;
   display: flex;
-  gap: 12px;
-  font-size: 12px;
+  gap: 10px;
+  font-size: 11.5px;
   color: #71717a;
   font-weight: 520;
   min-width: 0;
@@ -1430,17 +1430,17 @@ code {
 .ld-cyl-card-ctx {
   color: var(--cyl-accent, #2563eb);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 11px;
   flex: 0 0 auto;
 }
 .ld-cyl-card-price {
   position: relative;
-  margin-top: 10px;
-  padding-top: 9px;
+  margin-top: 8px;
+  padding-top: 7px;
   border-top: 1px solid rgba(15, 23, 42, .07);
   color: #27272a;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 560;
 }
 .ld-cyl-card.tone-blue { --cyl-accent: #2563eb; }
