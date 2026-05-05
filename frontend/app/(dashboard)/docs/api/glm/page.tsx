@@ -6,8 +6,8 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
-  { id: "glm-5.1", context: "131K", input: 2.5, output: 10, desc: "GLM-5.1 增强版旗舰" },
-  { id: "glm-5", context: "131K", input: 2, output: 8, desc: "GLM-5 旗舰模型" },
+  { id: "glm-5.1", context: "131K", input: 6, output: 24, desc: "GLM-5.1 增强版旗舰" },
+  { id: "glm-5", context: "131K", input: 4, output: 18, desc: "GLM-5 旗舰模型" },
   { id: "glm-4.7", context: "131K", input: 3, output: 14, desc: "GLM-4.7 通用模型" },
 ];
 

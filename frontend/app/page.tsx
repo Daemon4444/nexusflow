@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 const modelRows = [
   { model: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", context: "262K", price: "input ¥9 / output ¥54 per 1M" },
   { model: "DeepSeek V4 Pro", provider: "DeepSeek", context: "1M", price: "input ¥12 / output ¥24 per 1M" },
-  { model: "GLM 5", provider: "Zhipu AI", context: "131K", price: "input ¥2 / output ¥8 per 1M" },
+  { model: "GLM 5", provider: "Zhipu AI", context: "131K", price: "input ¥4 / output ¥18 per 1M" },
   { model: "Kimi K2.6", provider: "Moonshot AI", context: "262K", price: "input ¥6.5 / output ¥27 per 1M" },
   { model: "PixVerse V6", provider: "PixVerse", context: "Async video", price: "from ¥0.15 / second" },
 ];
@@ -53,8 +53,8 @@ const carouselModels = [
   { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "1M context", price: "In ¥1 · Out ¥2", badge: "Fast", tone: "red" },
   { name: "DeepSeek R1", provider: "DeepSeek", ctx: "64K context", price: "In ¥4 · Out ¥16", badge: "Reasoning", tone: "red" },
   { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },
-  { name: "GLM 5.1", provider: "Zhipu AI", ctx: "131K context", price: "In ¥2.5 · Out ¥10", badge: "Flagship", tone: "violet" },
-  { name: "GLM 5", provider: "Zhipu AI", ctx: "131K context", price: "In ¥2 · Out ¥8", badge: "General", tone: "violet" },
+  { name: "GLM 5.1", provider: "Zhipu AI", ctx: "131K context", price: "In ¥6 · Out ¥24", badge: "Flagship", tone: "violet" },
+  { name: "GLM 5", provider: "Zhipu AI", ctx: "131K context", price: "In ¥4 · Out ¥18", badge: "General", tone: "violet" },
   { name: "Kimi K2.6", provider: "Moonshot AI", ctx: "262K context", price: "In ¥6.5 · Out ¥27", badge: "Long", tone: "teal" },
   { name: "Kimi K2.5", provider: "Moonshot AI", ctx: "131K context", price: "In ¥4 · Out ¥21", badge: "Writing", tone: "teal" },
   { name: "MiniMax M2.5", provider: "MiniMax", ctx: "131K context", price: "In ¥2.1 · Out ¥8.4", badge: "Text", tone: "slate" },
