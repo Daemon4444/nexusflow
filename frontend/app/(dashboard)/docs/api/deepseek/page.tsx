@@ -8,11 +8,11 @@ const API_BASE = "https://nexusflow.hk";
 type TabKey = "chat" | "reasoning";
 
 const models = [
-  { id: "deepseek-v4-pro", category: "推理模型", context: "131K", input: 4, output: 16, desc: "V4 旗舰推理模型" },
-  { id: "deepseek-v4-flash", category: "大语言模型", context: "131K", input: 1, output: 4, desc: "V4 高速对话模型" },
-  { id: "deepseek-v3.2", category: "大语言模型", context: "131K", input: 1, output: 4, desc: "V3.2 通用模型" },
-  { id: "deepseek-r1", category: "推理模型", context: "65K", input: 2, output: 8, desc: "R1 推理模型" },
-  { id: "deepseek-v3", category: "大语言模型", context: "65K", input: 0.5, output: 2, desc: "V3 通用模型" },
+  { id: "deepseek-v4-pro", category: "推理模型", context: "1M", input: 12, output: 24, desc: "V4 旗舰推理模型" },
+  { id: "deepseek-v4-flash", category: "大语言模型", context: "1M", input: 1, output: 2, desc: "V4 高速对话模型" },
+  { id: "deepseek-v3.2", category: "大语言模型", context: "131K", input: 2, output: 3, desc: "V3.2 通用模型" },
+  { id: "deepseek-r1", category: "推理模型", context: "65K", input: 4, output: 16, desc: "R1 推理模型" },
+  { id: "deepseek-v3", category: "大语言模型", context: "65K", input: 2, output: 8, desc: "V3 通用模型" },
 ];
 
 const curlExamples: Record<TabKey, string> = {

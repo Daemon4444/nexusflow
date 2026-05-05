@@ -8,9 +8,9 @@ import { useEffect, useRef, useState } from "react";
 
 const modelRows = [
   { model: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", context: "262K", price: "input ¥9 / output ¥54 per 1M" },
-  { model: "DeepSeek V4 Pro", provider: "DeepSeek", context: "131K", price: "input ¥4 / output ¥16 per 1M" },
-  { model: "GLM 5", provider: "Zhipu AI", context: "131K", price: "input ¥2 / output ¥8 per 1M" },
-  { model: "Kimi K2.6", provider: "Moonshot AI", context: "262K", price: "input ¥2 / output ¥8 per 1M" },
+  { model: "DeepSeek V4 Pro", provider: "DeepSeek", context: "1M", price: "input ¥12 / output ¥24 per 1M" },
+  { model: "GLM 5", provider: "Zhipu AI", context: "131K", price: "input ¥4 / output ¥18 per 1M" },
+  { model: "Kimi K2.6", provider: "Moonshot AI", context: "262K", price: "input ¥6.5 / output ¥27 per 1M" },
   { model: "PixVerse V6", provider: "PixVerse", context: "Async video", price: "from ¥0.15 / second" },
 ];
 
@@ -42,13 +42,26 @@ const workflow = [
 
 const carouselModels = [
   { name: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥9 · Out ¥54", badge: "Flagship", tone: "blue" },
+  { name: "Qwen3 Max", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥2.5 · Out ¥10", badge: "Stable", tone: "blue" },
   { name: "Qwen Long", provider: "Tongyi Qianwen", ctx: "10M context", price: "In ¥0.5 · Out ¥2", badge: "Long", tone: "teal" },
   { name: "Qwen3.6 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥2 · Out ¥12", badge: "Popular", tone: "blue" },
-  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "131K context", price: "In ¥4 · Out ¥16", badge: "Reasoning", tone: "red" },
-  { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "131K context", price: "In ¥1 · Out ¥4", badge: "Fast", tone: "red" },
-  { name: "GLM 5", provider: "Zhipu AI", ctx: "131K context", price: "In ¥2 · Out ¥8", badge: "General", tone: "violet" },
-  { name: "Kimi K2.6", provider: "Moonshot AI", ctx: "262K context", price: "In ¥2 · Out ¥8", badge: "Long", tone: "teal" },
-  { name: "MiniMax M2.5", provider: "MiniMax", ctx: "131K context", price: "In ¥1.5 · Out ¥6", badge: "Text", tone: "slate" },
+  { name: "Qwen3.5 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.8 · Out ¥4.8", badge: "Balanced", tone: "blue" },
+  { name: "Qwen3.5 Flash", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.2 · Out ¥2", badge: "Fast", tone: "teal" },
+  { name: "Qwen VL Flash", provider: "Tongyi Qianwen", ctx: "262K vision", price: "In ¥0.15 · Out ¥1.5", badge: "Vision", tone: "violet" },
+  { name: "Qwen Coder Flash", provider: "Tongyi Qianwen", ctx: "1M code", price: "In ¥1 · Out ¥4", badge: "Code", tone: "slate" },
+  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "1M context", price: "In ¥12 · Out ¥24", badge: "Reasoning", tone: "red" },
+  { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "1M context", price: "In ¥1 · Out ¥2", badge: "Fast", tone: "red" },
+  { name: "DeepSeek R1", provider: "DeepSeek", ctx: "64K context", price: "In ¥4 · Out ¥16", badge: "Reasoning", tone: "red" },
+  { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },
+  { name: "GLM 5.1", provider: "Zhipu AI", ctx: "131K context", price: "In ¥6 · Out ¥24", badge: "Flagship", tone: "violet" },
+  { name: "GLM 5", provider: "Zhipu AI", ctx: "131K context", price: "In ¥4 · Out ¥18", badge: "General", tone: "violet" },
+  { name: "Kimi K2.6", provider: "Moonshot AI", ctx: "262K context", price: "In ¥6.5 · Out ¥27", badge: "Long", tone: "teal" },
+  { name: "Kimi K2.5", provider: "Moonshot AI", ctx: "131K context", price: "In ¥4 · Out ¥21", badge: "Writing", tone: "teal" },
+  { name: "MiniMax M2.5", provider: "MiniMax", ctx: "131K context", price: "In ¥2.1 · Out ¥8.4", badge: "Text", tone: "slate" },
+  { name: "Text Embedding V3", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
+  { name: "Wan 2.6 Image", provider: "Tongyi Qianwen", ctx: "Image", price: "¥0.20/image", badge: "Image", tone: "orange" },
+  { name: "Wan 2.6 T2V", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.6/s", badge: "Video", tone: "orange" },
+  { name: "Wan 2.6 I2V Flash", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
   { name: "PixVerse V6", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
   { name: "HappyHorse 1.0", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.9/s", badge: "Video", tone: "orange" },
 ];
@@ -72,8 +85,8 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
   }, []);
 
   const deg = Math.PI / 180;
-  const radius = 230;
-  const tiltAngle = 10 * deg;
+  const radius = 258;
+  const tiltAngle = 24 * deg;
   const sinTilt = Math.sin(tiltAngle);
   const cosTilt = Math.cos(tiltAngle);
 
@@ -89,9 +102,9 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
           const x = -cosA * sinTilt * radius;
           const zFactor = cosA * cosTilt;
           const depth = (zFactor + 1) / 2;
-          const scale = 0.46 + 0.5 * depth;
-          const opacity = 0.16 + 0.84 * depth;
-          const blur = depth < 0.32 ? (0.32 - depth) * 10 : 0;
+          const scale = 0.34 + 0.58 * depth;
+          const opacity = 0.10 + 0.90 * depth;
+          const blur = depth < 0.36 ? (0.36 - depth) * 12 : 0;
 
           return (
             <div

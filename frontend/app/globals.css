@@ -259,14 +259,14 @@ body {
 }
 .nf-cylinder-shell {
   position: relative;
-  min-height: 440px;
+  min-height: 470px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
 }
 .nf-cylinder-shell .ld-cylinder-wrap {
-  height: 430px;
+  height: 460px;
 }
 .nf-cylinder-shell .ld-cylinder-mask-top {
   background: linear-gradient(to bottom, #fff 5%, transparent 100%);
@@ -429,10 +429,10 @@ body {
   .nf-cylinder-shell { min-height: 340px; }
   .nf-cylinder-shell .ld-cylinder-wrap { height: 340px; }
   .nf-cylinder-shell .ld-cyl-item {
-    width: 280px;
-    margin-left: -140px;
+    width: 250px;
+    margin-left: -125px;
   }
-  .nf-cylinder-shell .ld-cyl-card { padding: 14px 16px; }
+  .nf-cylinder-shell .ld-cyl-card { padding: 12px 14px; }
   .nf-model-row { grid-template-columns: 1fr; gap: 6px; }
 }
 
@@ -1369,21 +1369,21 @@ code {
 
 /* Cylinder Carousel */
 .ld-cylinder-wrap {
-  position: relative; width: 100%; height: 430px;
+  position: relative; width: 100%; height: 460px;
   overflow: hidden;
 }
 .ld-cylinder {
   position: relative; width: 100%; height: 100%;
 }
 .ld-cyl-item {
-  position: absolute; top: 50%; left: 53%;
-  width: 300px; margin-left: -150px; margin-top: -34px;
+  position: absolute; top: 50%; left: 54%;
+  width: 272px; margin-left: -136px; margin-top: -32px;
   will-change: transform, opacity;
   pointer-events: none;
 }
 .ld-cyl-card {
   position: relative;
-  padding: 14px 17px;
+  padding: 12px 15px;
   border-radius: 11px;
   background:
     linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.94)),
@@ -1412,14 +1412,14 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 760;
   letter-spacing: 0;
   color: #0d0d0d;
 }
 .ld-cyl-card-badge {
   flex: 0 0 auto;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 760;
   padding: 2px 7px;
   border-radius: 5px;
@@ -1430,7 +1430,7 @@ code {
   position: relative;
   display: flex;
   gap: 10px;
-  font-size: 11.5px;
+  font-size: 10.5px;
   color: #71717a;
   font-weight: 520;
   min-width: 0;
@@ -1444,7 +1444,7 @@ code {
 .ld-cyl-card-ctx {
   color: var(--cyl-accent, #2563eb);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   flex: 0 0 auto;
 }
 .ld-cyl-card-price {
@@ -1454,7 +1454,7 @@ code {
   border-top: 1px solid rgba(15, 23, 42, .07);
   color: #27272a;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 560;
 }
 .ld-cyl-card.tone-blue { --cyl-accent: #2563eb; }

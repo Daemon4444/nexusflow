@@ -55,14 +55,6 @@ const providers: ProviderItem[] = [
     ],
   },
   {
-    key: "other",
-    label: "更多模型",
-    children: [
-      { href: "/docs/models/other/intro", label: "模型介绍" },
-      { href: "/docs/models/other", label: "API 文档" },
-    ],
-  },
-  {
     key: "glm",
     label: "智谱AI (GLM)",
     children: [

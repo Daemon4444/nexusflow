@@ -24,8 +24,8 @@ const codeTabs: { key: CodeTabKey; label: string }[] = [
 
 const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string; output: string }[]> = {
   llm: [
-    { id: "qwen3-max", ctx: "131K", input: "¥2.5/M", output: "¥10/M" },
-    { id: "qwen3.6-max-preview", ctx: "256K", input: "¥9/M", output: "¥54/M" },
+    { id: "qwen3-max", ctx: "262K", input: "¥2.5/M", output: "¥10/M" },
+    { id: "qwen3.6-max-preview", ctx: "262K", input: "¥9/M", output: "¥54/M" },
     { id: "qwen3.6-plus", ctx: "1M", input: "¥2/M", output: "¥12/M" },
     { id: "qwen3.5-plus", ctx: "1M", input: "¥0.8/M", output: "¥4.8/M" },
     { id: "qwen3.5-flash", ctx: "1M", input: "¥0.2/M", output: "¥2/M" },
@@ -33,17 +33,18 @@ const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string;
     { id: "qwen-turbo", ctx: "131K", input: "¥0.3/M", output: "¥0.6/M" },
   ],
   reasoning: [
-    { id: "qwq-plus", ctx: "131K", input: "¥1/M", output: "¥4/M" },
+    { id: "qwq-plus", ctx: "131K", input: "¥1.6/M", output: "¥4/M" },
     { id: "qwen-math-plus", ctx: "4K", input: "¥4/M", output: "¥12/M" },
   ],
   vision: [
-    { id: "qwen-vl-max", ctx: "32K", input: "¥3/M", output: "¥9/M" },
-    { id: "qwen-vl-plus", ctx: "32K", input: "¥1.5/M", output: "¥4.5/M" },
+    { id: "qwen-vl-max", ctx: "131K", input: "¥1.6/M", output: "¥4/M" },
+    { id: "qwen-vl-plus", ctx: "131K", input: "¥0.8/M", output: "¥2/M" },
     { id: "qwen3-vl-plus", ctx: "262K", input: "¥1/M", output: "¥10/M" },
+    { id: "qwen3-vl-flash", ctx: "262K", input: "¥0.15/M", output: "¥1.5/M" },
   ],
   coding: [
     { id: "qwen3-coder-plus", ctx: "1M", input: "¥4/M", output: "¥16/M" },
-    { id: "qwen3-coder-flash", ctx: "131K", input: "免费", output: "免费" },
+    { id: "qwen3-coder-flash", ctx: "1M", input: "¥1/M", output: "¥4/M" },
   ],
 };
 

@@ -16,7 +16,7 @@ const modelCategories = [
   {
     name: "DeepSeek 系列",
     provider: "DeepSeek",
-    desc: "开源高性能模型，代码能力突出，性价比高",
+    desc: "高性能推理与通用模型，代码能力突出，适合复杂任务和高并发场景",
     href: "/docs/models/deepseek",
     introHref: "/docs/models/deepseek/intro",
     models: ["DeepSeek V4 Pro", "DeepSeek V4 Flash", "DeepSeek R1", "DeepSeek V3"],
@@ -43,25 +43,15 @@ const modelCategories = [
     color: "#06b6d4",
     tag: null,
   },
-  {
-    name: "其他模型",
-    provider: "多家供应商",
-    desc: "更多第三方模型，包括图像生成、视频生成、文本向量等",
-    href: "/docs/models/other",
-    introHref: "/docs/models/other/intro",
-    models: ["Flux", "Wanx", "GLM-4", "Kling"],
-    color: "#64748b",
-    tag: null,
-  },
 ];
 
 const pricingTable = [
-  { model: "qwen3.6-max-preview", ctx: "256K", input: "¥9.742", output: "¥58.455", category: "旗舰" },
-  { model: "qwen3.6-plus", ctx: "1M", input: "¥3.7471", output: "¥22.4826", category: "均衡" },
-  { model: "qwen3.5-plus", ctx: "1M", input: "¥2.936", output: "¥17.614", category: "均衡" },
+  { model: "qwen3.6-max-preview", ctx: "262K", input: "¥9", output: "¥54", category: "旗舰" },
+  { model: "qwen3.6-plus", ctx: "1M", input: "¥2", output: "¥12", category: "均衡" },
+  { model: "qwen3.5-plus", ctx: "1M", input: "¥0.8", output: "¥4.8", category: "均衡" },
   { model: "qwen3.5-flash", ctx: "1M", input: "¥0.2", output: "¥2", category: "极速" },
-  { model: "deepseek-v4-pro", ctx: "131K", input: "¥4", output: "¥16", category: "推理旗舰" },
-  { model: "deepseek-v4-flash", ctx: "131K", input: "¥1", output: "¥4", category: "高速" },
+  { model: "deepseek-v4-pro", ctx: "1M", input: "¥12", output: "¥24", category: "推理旗舰" },
+  { model: "deepseek-v4-flash", ctx: "1M", input: "¥1", output: "¥2", category: "高速" },
   { model: "deepseek-r1", ctx: "64K", input: "¥4", output: "¥16", category: "推理" },
   { model: "deepseek-v3", ctx: "64K", input: "¥2", output: "¥8", category: "通用" },
 ];

@@ -21,12 +21,6 @@ const modelFamilies = [
     desc: "采用创新的 MoE（混合专家）架构，在保持强大通用能力的同时实现极致性价比。代码、数学和多语言任务全面均衡。",
     models: ["DeepSeek V3"],
   },
-  {
-    name: "DeepSeek Coder",
-    badge: "代码专精",
-    desc: "专为软件开发优化的编程模型，深度理解代码结构和编程语言语法，在代码生成、补全、重构和调试任务上持续领先。",
-    models: ["DeepSeek Coder V2"],
-  },
 ];
 
 const capabilities = [
@@ -46,7 +40,7 @@ const capabilities = [
       </svg>
     ),
     title: "代码能力一流",
-    desc: "从 Python 脚本到分布式系统，DeepSeek 在代码理解和生成上表现出色。Coder 系列在 HumanEval、MBPP 和 SWE-bench 等编程基准上名列前茅。",
+    desc: "从 Python 脚本到分布式系统，DeepSeek 在代码理解和生成上表现出色，适合代码生成、补全、重构和调试任务。",
   },
   {
     icon: (
@@ -79,7 +73,7 @@ const techHighlights = [
   },
   {
     title: "极致性价比",
-    desc: "通过 MoE 架构和高效训练策略，DeepSeek 在同等性能水平下的推理成本显著低于同类模型。V4 Flash 以 ¥1/百万 Token 的价格提供旗舰级能力。",
+    desc: "通过 MoE 架构和高效训练策略，DeepSeek 在同等性能水平下保持较高性价比。V4 Flash 按输入 ¥1 / 输出 ¥2 每百万 Token 计费。",
   },
   {
     title: "长上下文理解",
@@ -90,7 +84,7 @@ const techHighlights = [
 const useCases = [
   { title: "数学与科学推理", desc: "R1 模型的深度推理能力使其成为数学证明、科学分析和复杂逻辑推导的首选工具。" },
   { title: "AI Agent 开发", desc: "V4 系列的函数调用和工具使用能力，让开发者可以构建能自主完成复杂任务的智能体。" },
-  { title: "代码开发辅助", desc: "Coder 系列深度理解代码语义，提供从代码补全、Bug 修复到架构重构的全方位编程支持。" },
+  { title: "代码开发辅助", desc: "DeepSeek 模型深度理解代码语义，提供从代码补全、Bug 修复到架构重构的全方位编程支持。" },
   { title: "高并发在线服务", desc: "V4 Flash 的低延迟高吞吐特性，适合构建在线客服、实时问答等高并发应用场景。" },
   { title: "学术研究辅助", desc: "强大的推理和长文本处理能力，帮助研究者进行论文分析、文献综述和研究规划。" },
   { title: "数据分析 & 报告", desc: "擅长从大量数据中提取洞见、生成分析报告，是数据驱动决策的得力助手。" },
