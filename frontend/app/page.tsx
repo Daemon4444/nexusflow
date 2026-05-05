@@ -41,16 +41,16 @@ const workflow = [
 ];
 
 const carouselModels = [
-  { name: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", ctx: "262K", price: "¥9 / ¥54", badge: "Flagship" },
-  { name: "Qwen Long", provider: "Tongyi Qianwen", ctx: "10M", price: "¥0.5 / ¥2", badge: "Long" },
-  { name: "Qwen3.6 Plus", provider: "Tongyi Qianwen", ctx: "1M", price: "¥2 / ¥12", badge: "Popular" },
-  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "131K", price: "¥4 / ¥16", badge: "Reasoning" },
-  { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "131K", price: "¥1 / ¥4", badge: "Fast" },
-  { name: "GLM 5", provider: "Zhipu AI", ctx: "131K", price: "¥2 / ¥8", badge: "Chat" },
-  { name: "Kimi K2.6", provider: "Moonshot AI", ctx: "262K", price: "¥2 / ¥8", badge: "Long" },
-  { name: "MiniMax M2.5", provider: "MiniMax", ctx: "131K", price: "¥1.5 / ¥6", badge: "Text" },
-  { name: "PixVerse V6", provider: "PixVerse", ctx: "Async", price: "from ¥0.15/s", badge: "Video" },
-  { name: "HappyHorse 1.0", provider: "Tongyi Qianwen", ctx: "Async", price: "from ¥0.9/s", badge: "Video" },
+  { name: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥9 · Out ¥54", badge: "Flagship", tone: "blue" },
+  { name: "Qwen Long", provider: "Tongyi Qianwen", ctx: "10M context", price: "In ¥0.5 · Out ¥2", badge: "Long", tone: "teal" },
+  { name: "Qwen3.6 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥2 · Out ¥12", badge: "Popular", tone: "blue" },
+  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "131K context", price: "In ¥4 · Out ¥16", badge: "Reasoning", tone: "red" },
+  { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "131K context", price: "In ¥1 · Out ¥4", badge: "Fast", tone: "red" },
+  { name: "GLM 5", provider: "Zhipu AI", ctx: "131K context", price: "In ¥2 · Out ¥8", badge: "General", tone: "violet" },
+  { name: "Kimi K2.6", provider: "Moonshot AI", ctx: "262K context", price: "In ¥2 · Out ¥8", badge: "Long", tone: "teal" },
+  { name: "MiniMax M2.5", provider: "MiniMax", ctx: "131K context", price: "In ¥1.5 · Out ¥6", badge: "Text", tone: "slate" },
+  { name: "PixVerse V6", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
+  { name: "HappyHorse 1.0", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.9/s", badge: "Video", tone: "orange" },
 ];
 
 function CylinderCarousel({ items }: { items: typeof carouselModels }) {
@@ -104,7 +104,7 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
                 filter: blur > 0 ? `blur(${blur}px)` : "none",
               }}
             >
-              <div className="ld-cyl-card">
+              <div className={`ld-cyl-card tone-${item.tone}`}>
                 <div className="ld-cyl-card-top">
                   <span className="ld-cyl-card-name">{item.name}</span>
                   <span className="ld-cyl-card-badge">{item.badge}</span>
@@ -112,8 +112,8 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
                 <div className="ld-cyl-card-meta">
                   <span>{item.provider}</span>
                   <span className="ld-cyl-card-ctx">{item.ctx}</span>
-                  <span className="ld-cyl-card-price">{item.price}</span>
                 </div>
+                <div className="ld-cyl-card-price">{item.price}</div>
               </div>
             </div>
           );
