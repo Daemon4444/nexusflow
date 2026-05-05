@@ -69,6 +69,7 @@ router.get("/transactions", async (req: Request, res: Response) => {
         amount: r.amount,
         balanceAfter: r.balance_after,
         description: r.description,
+        refId: r.ref_id,
         createdAt: r.created_at,
       })),
       total,

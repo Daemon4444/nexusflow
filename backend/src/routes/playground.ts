@@ -227,7 +227,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
-      if (totalCost > 0) await consume(session.id, totalCost, `Playground 调用: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
+      if (totalCost > 0) await consume(session.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
       return;
     }
 
@@ -260,7 +260,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
-    if (totalCost > 0) await consume(session.id, totalCost, `Playground 调用: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
+    if (totalCost > 0) await consume(session.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
 
     res.setHeader("X-RateLimit-Remaining", rpmCheck.remaining.toString());
     res.json(data);

@@ -11,7 +11,7 @@ import OnboardingGuide, { useOnboarding } from "@/components/OnboardingGuide";
 import SmartRecharge from "@/components/SmartRechargeRecommendation";
 
 interface BillingSummary { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; }
-interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; createdAt: string; }
+interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; }
 interface ApiKeyInfo { id: string; key: string; name: string; }
 type PayMethod = "mock" | "alipay";
 type AlipayMode = "page" | "qr";
@@ -138,6 +138,9 @@ export default function BillingPage() {
   }
   function typeColor(type: string) {
     switch (type) { case "recharge": return "#10b981"; case "consumption": return "#ef4444"; case "refund": return "#d97706"; default: return "#78716c"; }
+  }
+  function isPlaygroundTx(tx: Transaction) {
+    return tx.refId?.startsWith("playground:") || tx.description?.startsWith("Playground");
   }
 
   const presetAmounts = [10, 50, 100, 500];
@@ -304,7 +307,14 @@ export default function BillingPage() {
               {transactions.map((tx) => (
                 <div key={tx.id} className="table-row" style={{ gridTemplateColumns: "80px 1fr 100px 100px 150px" }}>
                   <span><span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 9999, fontSize: 11, fontWeight: 500, background: `${typeColor(tx.type)}12`, color: typeColor(tx.type), border: `1px solid ${typeColor(tx.type)}25` }}>{typeLabel(tx.type)}</span></span>
-                  <span style={{ color: "var(--text-primary)", fontSize: 12.5 }}>{tx.description || "-"}</span>
+                  <span style={{ color: "var(--text-primary)", fontSize: 12.5, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description || "-"}</span>
+                    {isPlaygroundTx(tx) && (
+                      <span style={{ flex: "0 0 auto", padding: "2px 7px", borderRadius: 9999, fontSize: 10.5, fontWeight: 600, color: "#2563eb", background: "rgba(37, 99, 235, 0.09)", border: "1px solid rgba(37, 99, 235, 0.18)" }}>
+                        Playground
+                      </span>
+                    )}
+                  </span>
                   <span style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{tx.type === "recharge" ? "+" : "-"}{formatCnyPrecise(tx.amount)}</span>
                   <span style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCnyPrecise(tx.balanceAfter)}</span>
                   <span style={{ textAlign: "right", color: "var(--text-tertiary)", fontSize: 12 }}>{formatDate(tx.createdAt)}</span>

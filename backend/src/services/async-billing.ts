@@ -33,6 +33,19 @@ function hasAudio(params: AsyncCostParams): boolean {
   return raw === "true" || raw === "audio" || raw === "with_audio" || raw === "有声";
 }
 
+function billingDescription(task: AsyncTask, model: AIModel): { description: string; refId?: string } {
+  if (!task.api_key_id && task.user_id) {
+    return {
+      description: `Playground ${model.category}: ${task.model}`,
+      refId: `playground:${task.user_id}`,
+    };
+  }
+  return {
+    description: `${model.category}: ${task.model}`,
+    refId: task.api_key_id || undefined,
+  };
+}
+
 function getVideoUnitPrice(modelId: string, params: AsyncCostParams): number {
   const resolution = normalizeResolution(params);
   const audio = hasAudio(params);
@@ -94,7 +107,8 @@ export async function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: nu
   });
 
   if (task.user_id && cost > 0) {
-    await consume(task.user_id, cost, `${model.category}: ${task.model}`, task.api_key_id || undefined);
+    const billing = billingDescription(task, model);
+    await consume(task.user_id, cost, billing.description, billing.refId);
   }
 }
 
