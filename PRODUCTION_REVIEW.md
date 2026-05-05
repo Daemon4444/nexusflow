@@ -102,3 +102,5 @@ This document records the production review and live test findings for `nexusflo
 - Playground image/video generation now accepts session auth as well as API keys.
 - Async image/video task status endpoints now require auth and validate task ownership before returning task results.
 - User usage overview now counts only successful paid requests as `totalRequests`.
+- PostgreSQL migration tooling was added: schema migration, SQLite-to-PostgreSQL copy, and PostgreSQL verification scripts. Runtime still defaults to SQLite until a dedicated cutover is performed.
+- The public landing page and console-wide visual system were redesigned toward a denser production SaaS interface.

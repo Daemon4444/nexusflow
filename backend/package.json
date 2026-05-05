@@ -8,7 +8,10 @@
     "start": "node dist/index.js",
     "test": "echo \"Use npm run test:smoke\" && exit 1",
     "test:smoke": "ts-node scripts/smoke.ts",
-    "db:migrate": "ts-node src/db/migrate.ts"
+    "db:migrate": "ts-node src/db/migrate.ts",
+    "db:pg:migrate": "ts-node src/db/migrate.ts",
+    "db:pg:copy": "ts-node src/db/copy-sqlite-to-pg.ts",
+    "db:pg:verify": "ts-node src/db/verify-pg.ts"
   },
   "keywords": [],
   "author": "",

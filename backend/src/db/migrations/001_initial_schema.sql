@@ -6,12 +6,16 @@
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    phone TEXT NOT NULL UNIQUE,
+    phone TEXT UNIQUE,
+    email TEXT UNIQUE,
     nickname TEXT NOT NULL DEFAULT '',
     balance REAL NOT NULL DEFAULT 0,
+    password_hash TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- 会话表
 CREATE TABLE IF NOT EXISTS sessions (
@@ -68,6 +72,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
     user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     key TEXT NOT NULL UNIQUE,
+    key_hash TEXT UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     last_used TIMESTAMP WITH TIME ZONE,
     usage_count INTEGER NOT NULL DEFAULT 0,
@@ -75,7 +80,23 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 
 CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key);
+CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
 CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+
+-- 用户级限流表
+CREATE TABLE IF NOT EXISTS user_rate_limits (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    model TEXT NOT NULL DEFAULT '*',
+    qpm INTEGER NOT NULL DEFAULT 60,
+    tpm INTEGER NOT NULL DEFAULT 100000,
+    source TEXT NOT NULL DEFAULT 'default',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id, model)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_rate_limits_user ON user_rate_limits(user_id);
 
 -- 限额申请表
 CREATE TABLE IF NOT EXISTS rate_limit_requests (
@@ -108,6 +129,8 @@ CREATE TABLE IF NOT EXISTS usage_logs (
     cost REAL NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'success',
     latency_ms INTEGER NOT NULL DEFAULT 0,
+    ttft_ms INTEGER NOT NULL DEFAULT 0,
+    tpot_ms REAL NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
@@ -208,6 +231,15 @@ CREATE TABLE IF NOT EXISTS provider_capacity (
 CREATE INDEX IF NOT EXISTS idx_provider_capacity_model ON provider_capacity(model_id);
 CREATE INDEX IF NOT EXISTS idx_provider_capacity_provider ON provider_capacity(provider_id);
 
+-- 供应商多渠道配置表
+CREATE TABLE IF NOT EXISTS provider_channel_configs (
+    provider_id TEXT PRIMARY KEY REFERENCES providers(id) ON DELETE CASCADE,
+    active_channel TEXT NOT NULL,
+    channels TEXT NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
 -- 供应商健康记录表
 CREATE TABLE IF NOT EXISTS provider_health (
     id TEXT PRIMARY KEY,
@@ -224,6 +256,26 @@ CREATE TABLE IF NOT EXISTS provider_health (
 );
 
 CREATE INDEX IF NOT EXISTS idx_provider_health_provider ON provider_health(provider_id);
+
+-- 工单表
+CREATE TABLE IF NOT EXISTS tickets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type TEXT NOT NULL DEFAULT 'rate_limit',
+    subject TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    model TEXT,
+    requested_qpm INTEGER,
+    requested_tpm INTEGER,
+    status TEXT NOT NULL DEFAULT 'open',
+    admin_reply TEXT,
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
 
 -- Webhook 配置表
 CREATE TABLE IF NOT EXISTS webhooks (
@@ -267,23 +319,43 @@ END;
 $$ language 'plpgsql';
 
 -- 为需要自动更新 updated_at 的表创建触发器
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_providers_updated_at BEFORE UPDATE ON providers
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_provider_models_updated_at BEFORE UPDATE ON provider_models
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_async_tasks_updated_at BEFORE UPDATE ON async_tasks
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_provider_capacity_updated_at BEFORE UPDATE ON provider_capacity
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_provider_health_updated_at BEFORE UPDATE ON provider_health
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_webhooks_updated_at BEFORE UPDATE ON webhooks
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_users_updated_at') THEN
+        CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_providers_updated_at') THEN
+        CREATE TRIGGER update_providers_updated_at BEFORE UPDATE ON providers
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_provider_models_updated_at') THEN
+        CREATE TRIGGER update_provider_models_updated_at BEFORE UPDATE ON provider_models
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_async_tasks_updated_at') THEN
+        CREATE TRIGGER update_async_tasks_updated_at BEFORE UPDATE ON async_tasks
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_provider_capacity_updated_at') THEN
+        CREATE TRIGGER update_provider_capacity_updated_at BEFORE UPDATE ON provider_capacity
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_provider_channel_configs_updated_at') THEN
+        CREATE TRIGGER update_provider_channel_configs_updated_at BEFORE UPDATE ON provider_channel_configs
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_provider_health_updated_at') THEN
+        CREATE TRIGGER update_provider_health_updated_at BEFORE UPDATE ON provider_health
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_tickets_updated_at') THEN
+        CREATE TRIGGER update_tickets_updated_at BEFORE UPDATE ON tickets
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_webhooks_updated_at') THEN
+        CREATE TRIGGER update_webhooks_updated_at BEFORE UPDATE ON webhooks
+            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END
+$$;
