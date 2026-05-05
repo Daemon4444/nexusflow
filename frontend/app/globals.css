@@ -429,10 +429,10 @@ body {
   .nf-cylinder-shell { min-height: 340px; }
   .nf-cylinder-shell .ld-cylinder-wrap { height: 340px; }
   .nf-cylinder-shell .ld-cyl-item {
-    width: 250px;
-    margin-left: -125px;
+    width: 220px;
+    margin-left: -110px;
   }
-  .nf-cylinder-shell .ld-cyl-card { padding: 12px 14px; }
+  .nf-cylinder-shell .ld-cyl-card { padding: 11px 12px; }
   .nf-model-row { grid-template-columns: 1fr; gap: 6px; }
 }
 
@@ -1377,13 +1377,13 @@ code {
 }
 .ld-cyl-item {
   position: absolute; top: 50%; left: 54%;
-  width: 272px; margin-left: -136px; margin-top: -32px;
+  width: 236px; margin-left: -118px; margin-top: -30px;
   will-change: transform, opacity;
   pointer-events: none;
 }
 .ld-cyl-card {
   position: relative;
-  padding: 12px 15px;
+  padding: 11px 13px;
   border-radius: 11px;
   background:
     linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.94)),
@@ -1412,14 +1412,14 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 760;
   letter-spacing: 0;
   color: #0d0d0d;
 }
 .ld-cyl-card-badge {
   flex: 0 0 auto;
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 760;
   padding: 2px 7px;
   border-radius: 5px;
@@ -1429,8 +1429,8 @@ code {
 .ld-cyl-card-meta {
   position: relative;
   display: flex;
-  gap: 10px;
-  font-size: 10.5px;
+  gap: 8px;
+  font-size: 10px;
   color: #71717a;
   font-weight: 520;
   min-width: 0;
@@ -1449,8 +1449,8 @@ code {
 }
 .ld-cyl-card-price {
   position: relative;
-  margin-top: 8px;
-  padding-top: 7px;
+  margin-top: 7px;
+  padding-top: 6px;
   border-top: 1px solid rgba(15, 23, 42, .07);
   color: #27272a;
   font-family: var(--font-mono);

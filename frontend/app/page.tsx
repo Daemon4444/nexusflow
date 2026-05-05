@@ -73,7 +73,7 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
 
   useEffect(() => {
     let last = performance.now();
-    const speed = 0.014;
+    const speed = 0.026;
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
@@ -98,12 +98,13 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
           const norm = ((angle % 360) + 540) % 360 - 180;
           const sinA = Math.sin(norm * deg);
           const cosA = Math.cos(norm * deg);
-          const y = sinA * radius;
-          const x = -cosA * sinTilt * radius;
+          const lane = (i % 3) - 1;
+          const y = sinA * radius * 0.82 + lane * 20;
+          const x = -cosA * sinTilt * radius + lane * 116;
           const zFactor = cosA * cosTilt;
           const depth = (zFactor + 1) / 2;
-          const scale = 0.34 + 0.58 * depth;
-          const opacity = 0.10 + 0.90 * depth;
+          const scale = (0.32 + 0.54 * depth) * (1 - Math.abs(lane) * 0.05);
+          const opacity = 0.16 + 0.84 * depth;
           const blur = depth < 0.36 ? (0.36 - depth) * 12 : 0;
 
           return (
@@ -171,8 +172,7 @@ export default function LandingPage() {
           <div className="nf-eyebrow">Production AI infrastructure for builders</div>
           <h1>NexusFlow</h1>
           <p className="nf-hero-lead">
-            A unified model gateway for teams that need multi-provider access, account billing, rate limits,
-            observability and a developer console that is ready for real users.
+            One API for leading text, vision, image and video models.
           </p>
           <div className="nf-hero-actions">
             <Link href={user ? "/playground" : "/login"} className="nf-btn nf-btn-primary nf-btn-lg">
@@ -183,9 +183,9 @@ export default function LandingPage() {
             </Link>
           </div>
           <div className="nf-hero-metrics">
-            <div><strong>45</strong><span>catalog models</span></div>
-            <div><strong>3</strong><span>protocols</span></div>
-            <div><strong>60 QPM</strong><span>default guardrail</span></div>
+            <div><strong>50+</strong><span>model options</span></div>
+            <div><strong>¥0.15/s</strong><span>video from</span></div>
+            <div><strong>VBench #1</strong><span>HappyHorse video</span></div>
           </div>
         </div>
 
