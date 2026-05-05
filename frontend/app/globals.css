@@ -1392,6 +1392,15 @@ code {
   box-shadow: 0 12px 34px rgba(15, 23, 42, .085);
   overflow: hidden;
 }
+.ld-cyl-item.is-rear .ld-cyl-card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.9), rgba(226,232,240,.84)),
+    #fff;
+  border-color: rgba(15, 23, 42, .16);
+  box-shadow:
+    0 22px 52px rgba(15, 23, 42, .24),
+    0 2px 10px rgba(15, 23, 42, .16);
+}
 .ld-cyl-card::before {
   content: "";
   position: absolute;

@@ -107,11 +107,12 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
           const rearPresence = 0.18 + Math.min(depth, 0.72) * 0.18;
           const opacity = Math.max(rearPresence, visibility * (0.36 + 0.64 * depth));
           const blur = visibility > 0 ? 0 : Math.min(4, 1.2 + (0.8 - depth) * 4);
+          const isRear = visibility === 0;
 
           return (
             <div
               key={item.name}
-              className="ld-cyl-item"
+              className={`ld-cyl-item${isRear ? " is-rear" : ""}`}
               style={{
                 transform: `translate(${x}px, ${y}px) scale(${scale})`,
                 opacity,
