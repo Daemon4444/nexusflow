@@ -179,7 +179,7 @@ PIXVERSE_API_KEY=sk-your-pixverse-api-key
 
 | 模型 ID | 名称 | 上下文窗口 | 输出维度 | 输入价格 | 输出价格 | 应用场景 |
 |---------|------|------------|----------|----------|----------|----------|
-| `text-embedding-v3` | Text Embedding V3 | 8K | 高维向量 | ¥0.7/M | ¥0/M | 语义搜索、聚类 |
+| `text-embedding-v4` | Text Embedding V4 | 8K | 64-2048 维可选 | ¥0.5/M | ¥0/M | 语义搜索、聚类、推荐、分类 |
 
 ---
 
@@ -310,7 +310,7 @@ Content-Type: application/json
 Authorization: Bearer YOUR_API_KEY
 
 {
-  "model": "text-embedding-v3",
+  "model": "text-embedding-v4",
   "input": "需要嵌入的文本"
 }
 ```
@@ -329,26 +329,26 @@ Authorization: Bearer YOUR_API_KEY
 }
 ```
 
-### 视频生成 API (Playground)
+### 视频生成 API (异步任务)
 
 ```
-POST /api/video/generate
+POST /v1/tasks
 Content-Type: application/json
 Authorization: Bearer YOUR_API_KEY
 
 {
-  "model": "pixverse-v6",
+  "model": "wan2.6-t2v",
   "prompt": "描述视频内容",
+  "size": "1280*720",
   "duration": 5,
-  "resolution": "720p",
-  "aspect_ratio": "16:9"
+  "prompt_extend": false
 }
 ```
 
 ### 视频状态查询 API
 
 ```
-GET /api/video/status/:taskId
+GET /v1/tasks/:taskId
 Authorization: Bearer YOUR_API_KEY
 ```
 
@@ -383,7 +383,7 @@ Authorization: Bearer YOUR_API_KEY
 
 ## 更新日期
 
-文档生成时间: 2026-04-28
+文档更新时间: 2026-05-05
 模型数据来源: `/api/models` API + 代码配置文件
 
 ---

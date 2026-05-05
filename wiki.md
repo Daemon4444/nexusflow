@@ -19,7 +19,7 @@ Nexusflow（原名 Quadrant AI Router Platform）是一个统一的 AI 模型聚
 | 前端 | Next.js 16 (App Router) + React 19 + TypeScript | |
 | 样式 | Tailwind CSS v4 + 自定义暗色主题 | |
 | 后端 | Express 5 + TypeScript | |
-| 数据库 | SQLite (better-sqlite3, WAL 模式) | v12 |
+| 数据库 | PostgreSQL (`pg` connection pool) | 16 |
 | 缓存 | Redis（可选，不可用时降级内存） | |
 | 进程管理 | PM2 | |
 | Node.js | v20.x / v24.x | |
@@ -32,7 +32,7 @@ Nexusflow（原名 Quadrant AI Router Platform）是一个统一的 AI 模型聚
 2. **45+ 模型聚合** — Qwen、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse、万相等
 3. **智能路由** — 供应商级路由 + 双通道架构（百炼/官方）
 4. **双层限流** — Provider 级 + Consumer 级 RPM/TPM 控制
-5. **异步任务** — 图片/视频生成任务轮询 + Webhook 回调
+5. **异步任务** — 图片/视频生成任务创建 + 轮询；public API 当前不依赖 webhook 回调
 6. **支付充值** — Alipay + mock，支持 page/qr 三种方式
 7. **管理后台** — `/admin` 管理员入口，渠道管理、工单处理
 8. **用量监控** — 用户侧 + 渠道侧监控，内存滑动窗口
@@ -48,13 +48,13 @@ nexusflow/
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts              # Express 入口
-│   │   ├── db/                   # SQLite 初始化 + 迁移
+│   │   ├── db/                   # PostgreSQL 初始化 + 迁移
 │   │   ├── data/                 # 数据层（models, providers, apikeys, usage, tasks...）
 │   │   ├── routes/               # API 路由（v1, tasks, billing, provider, admin...）
 │   │   ├── services/             # 业务服务（adapters, rate-limiter, alipay, webhook...）
 │   │   ├── middleware/           # 中间件（auth, admin）
 │   │   └── utils/                # 工具（provider-secrets 加密）
-│   └── data/ai-router.db         # SQLite 数据库
+│   └── data/ai-router.db         # 历史迁移来源，不是当前主库
 ├── frontend/
 │   ├── app/
 │   │   ├── (dashboard)/          # Dashboard（playground, models, keys, billing, activity...）
@@ -76,7 +76,7 @@ nexusflow/
 1. API Key 校验 → 2. 限流检查 → 3. 余额校验 → 4. Provider 选择 → 5. 请求上游 → 6. 记录 usage + 扣费
 
 ### 异步任务链路（视频/图片生成）
-创建任务 → 提交上游 → 轮询状态 → 回写结果 → Webhook 通知
+创建任务 → 提交上游 → 轮询状态 → 回写结果
 
 ### PixVerse 双通道架构
 - **百炼渠道**: 通过阿里云百炼平台调用，adapter=dashscope
@@ -108,8 +108,20 @@ nexusflow/
 
 ## 关键 API 端点
 
-### OpenAI 兼容
-- `GET /v1/models`、`POST /v1/chat/completions`、`POST /v1/embeddings`、`POST /v1/tasks`
+### Public API 协议边界
+
+| 能力 | Public endpoint | 状态 | 说明 |
+| --- | --- | --- | --- |
+| Models | `GET /v1/models` | 可用 | OpenAI 风格模型列表 |
+| Chat | `POST /v1/chat/completions` | 可用 | OpenAI Chat Completions |
+| Messages | `POST /v1/messages` | 可用 | Anthropic Messages 兼容层，不代表托管 Claude 原生模型 |
+| Gemini | `POST /v1beta/models/:model:generateContent` | 可用 | Gemini GenerateContent 兼容层 |
+| Embeddings | `POST /v1/embeddings` | 可用 | OpenAI Embeddings |
+| Images | `POST /v1/images/generations` | 可用 | OpenAI Images 风格，当前接万相图像 |
+| Tasks | `POST /v1/tasks`, `GET /v1/tasks/:id` | 可用 | 图像/视频异步任务 |
+| Videos alias | `POST /v1/videos/generations` | 可用 | 兼容用户直觉路径 |
+| Responses API | `/v1/responses` | 未开放 | 阿里云百炼文档可作参考，当前 public API 不暴露 |
+| DashScope native | 原生 DashScope/Qwen API | 未开放 | 当前只开放上表兼容协议 |
 
 ### 认证
 - `POST /api/auth/send-code`、`POST /api/auth/login`、`GET /api/auth/me`
@@ -262,8 +274,9 @@ Qoder CLI 的对话记录存储在以下位置：
 3. 编辑后必须用 Read 验证结果
 
 ### 数据库操作
-1. 数据库路径: `backend/data/ai-router.db`（不是 `data/ai-router.db`）
-2. 修改模型配置后需要同步更新数据库和代码
+1. 当前主库是 PostgreSQL，数据访问主链路走 `backend/src/db/client.ts` 的 `pg.Pool`
+2. `backend/data/ai-router.db` 只作为历史迁移来源或旧环境遗留文件，不是当前线上主库
+3. 修改模型配置后需要同步更新数据库和代码
 
 ### 部署运维
 1. PM2 进程名是 `quadrant-backend`，不是 `nexusflow-backend`
@@ -303,7 +316,11 @@ Qoder CLI 的对话记录存储在以下位置：
 
 ### 最近工作概览
 
-最近两轮主要围绕首页模型圆环、模型价格/目录、文档协议、真实线上测试和路由兼容性修复。
+最近几轮主要围绕首页模型圆环、模型价格/目录、阿里云百炼原始资料沉淀、API 文档协议、真实线上测试和路由兼容性修复。
+
+内部模型源文档：
+
+- `internal/model-sources/aliyun-bailian-2026-05-05.md`：保存用户提供的阿里云百炼模型、价格和阶梯定价资料，供后续补模型和迭代，不直接在前端展示给用户。
 
 当前主分支最新关键提交：
 
@@ -410,6 +427,25 @@ Qoder CLI 的对话记录存储在以下位置：
 - 余额减少约 `0.000895`。
 - 三次真实调用的扣费链路是通的。
 
+2026-05-05 部署后又补充验证：
+
+| 能力 | 路径 | 模型 | 结果 |
+| --- | --- | --- | --- |
+| Models | `/v1/models` | - | 200 |
+| Chat | `/v1/chat/completions` | `qwen3.5-flash` | 200 |
+| Anthropic Messages | `/v1/messages` | `qwen3.5-flash` | 200 |
+| Gemini GenerateContent | `/v1beta/models/qwen3.6-flash:generateContent` | `qwen3.6-flash` | 200 |
+| Embeddings | `/v1/embeddings` | `text-embedding-v4` | 200 |
+| Images | `/v1/images/generations` | `wan2.6-t2i` | 200，真实返回图片 URL |
+| Video Task | `/v1/tasks` | `wan2.6-t2v` | 202，轮询后 `succeeded`，真实返回 mp4 URL |
+| Docs | `/docs/api`, `/docs/multi-protocol`, `/docs/api/qwen` | - | 200 |
+
+图片/视频真实测试参数：
+
+- 图片：`wan2.6-t2i`，`1024x1024`，生成 1 张。
+- 视频：`wan2.6-t2v`，`1280*720`，3 秒，任务成功。
+- 文档和 wiki 中只保留 `$API_KEY` 占位符，不记录真实密钥。
+
 注意：
 
 - 不要把用户密码、验证码、API Key 写入文档或日志。
@@ -485,11 +521,11 @@ npm run build:frontend
 git diff --check
 ```
 
-本地后端黑盒未跑起来的原因：
+本地后端黑盒如果跑不起来，优先检查：
 
-- 当前机器没有本地 PostgreSQL 服务。
-- 启动 `backend/dist/index.js` 时连接 `127.0.0.1:5432` 失败。
-- 这不是 TypeScript 构建问题，是本机 DB 环境问题。
+- 当前机器是否有本地 PostgreSQL 服务。
+- `PG_HOST/PG_PORT/PG_USER/PG_PASSWORD/PG_DATABASE` 是否与 `docker-compose.yml` 一致。
+- 启动 `backend/dist/index.js` 时连接 `127.0.0.1:5432` 失败通常是本机 DB 环境问题，不是 TypeScript 构建问题。
 
 ### 重要踩坑
 

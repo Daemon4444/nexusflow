@@ -1,416 +1,262 @@
-# Quadrant AI Router Platform
+# Nexusflow
 
-> One API. Every Model. — 统一的 AI 模型聚合路由平台
+> One API for leading text, vision, image and video models.
 
-## 项目简介
+Nexusflow 是统一 AI 模型聚合路由平台，提供 OpenAI、Anthropic Messages、Gemini-compatible 等公共兼容协议，并把阿里云百炼、PixVerse、HappyHorse、万相等上游能力收敛到一个入口。
 
-Quadrant 是一个类似 OpenRouter 的 AI 模型聚合路由平台，提供 OpenAI、Anthropic Messages、Gemini-compatible 等公共兼容协议，支持多供应商、多模型的智能路由和负载均衡。
+线上域名：`https://nexusflow.hk`
 
-### 核心特性
+## 核心能力
 
-- **多协议兼容 API** — 支持 OpenAI Chat/Images/Embeddings、Anthropic Messages、Gemini-compatible GenerateContent
-- **多供应商聚合** — 通义千问、DeepSeek、Kimi、GLM、MiniMax、PixVerse、HappyHorse 等 40+ 模型
-- **智能 Fallback** — 上游故障自动切换备用供应商，保障服务可用性
-- **流式响应** — SSE 实时输出，支持 Playground 在线测试
-- **双层限流** — Provider 级 + Consumer 级 RPM/TPM 控制
-- **语义缓存** — 相似请求智能复用，降低成本和延迟
-- **Webhook 回调** — 异步任务完成自动通知
-- **用量统计** — Token 消耗、费用计算、请求日志
+- **多协议公共 API**：OpenAI Chat/Images/Embeddings、Anthropic Messages、Gemini GenerateContent、Nexusflow Tasks。
+- **多模型聚合**：Qwen、DeepSeek、GLM、Kimi、MiniMax、万相、PixVerse、HappyHorse 等文本、向量、图像、视频模型。
+- **异步任务**：图像/视频任务通过 `/v1/tasks` 创建和轮询；public API 当前不依赖 webhook 回调。
+- **限流与计费**：API Key 鉴权、Provider/Consumer 双层限流、用量记录、余额扣费。
+- **用户与管理后台**：API Key、账单、用量、工单、Provider 管理、渠道监控。
+- **内部模型源文档**：`internal/model-sources/aliyun-bailian-2026-05-05.md` 保存阿里云百炼模型/价格原始资料，供后续迭代补模型用，不在前端文档中直接展示。
 
-## 技术架构
+## 技术栈
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Frontend (Next.js 16)                   │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │
-│  │  Landing │ │  Models  │ │ Playground│ │  API Docs        │ │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────────────┘ │
-└─────────────────────────────┬───────────────────────────────┘
-                              │ HTTP/SSE
-┌─────────────────────────────▼───────────────────────────────┐
-│                    Backend (Express + TypeScript)            │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │
-│  │  Router  │ │ Fallback │ │ RateLimit│ │  Semantic Cache  │ │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────────────┘ │
-└─────────────────────────────┬───────────────────────────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-┌───────▼───────┐     ┌───────▼───────┐     ┌───────▼───────┐
-│     Redis     │     │  PostgreSQL   │     │   Providers   │
-│  Rate Limit   │     │   User Data   │     │ Qwen/DS/GLM/...│
-│  Session Cache│     │  API Keys     │     │  Kimi/GLM/... │
-└───────────────┘     └───────────────┘     └───────────────┘
-```
+| 层级 | 技术 |
+| --- | --- |
+| Frontend | Next.js 16 App Router, React, TypeScript, Tailwind CSS |
+| Backend | Express, TypeScript |
+| Database | PostgreSQL 16, `pg` connection pool |
+| Cache | Redis，可不可用降级 |
+| Process | PM2 |
+| Upstream | DashScope/百炼、PixVerse Official |
 
 ## 目录结构
 
-```
-ai-router-platform/
-├── frontend/                    # Next.js 前端
-│   ├── app/
-│   │   ├── (dashboard)/         # Dashboard 页面组
-│   │   │   ├── models/          # 模型列表 & 详情
-│   │   │   ├── playground/      # 在线测试
-│   │   │   ├── docs/api/        # API 文档
-│   │   │   ├── keys/            # API Key 管理
-│   │   │   └── billing/         # 账单 & 用量
-│   │   └── (landing)/           # Landing 页面
-│   ├── components/              # 共享组件
-│   └── lib/                     # API 工具函数
-│
-├── backend/                     # Express 后端
+```txt
+nexusflow/
+├── backend/
 │   ├── src/
-│   │   ├── routes/              # API 路由
-│   │   │   ├── v1.ts            # OpenAI 兼容接口
-│   │   │   ├── protocols.ts     # Anthropic / Gemini 兼容接口
-│   │   │   ├── models.ts        # 模型管理
-│   │   │   ├── keys.ts          # API Key 管理
-│   │   │   └── tasks.ts         # 异步任务
-│   │   ├── services/
-│   │   │   ├── fallback.ts      # Fallback 机制
-│   │   │   ├── rate-limiter.ts  # 双层限流
-│   │   │   ├── redis.ts         # Redis 服务
-│   │   │   └── webhook.ts       # Webhook 回调
-│   │   ├── db/
-│   │   │   ├── pg.ts            # PostgreSQL 数据层
-│   │   │   └── migrations/      # 数据库迁移
-│   │   └── data/                # 内存数据 (开发)
-│   └── dist/                    # 编译产物
-│
-├── docker-compose.yml           # Docker 服务编排
-├── ecosystem.config.js          # PM2 进程配置
-└── package.json                 # Monorepo 配置
+│   │   ├── db/                  # PostgreSQL client, migrations, sqlite-to-pg migration tools
+│   │   ├── data/                # users, keys, usage, tasks, providers
+│   │   ├── routes/              # v1, protocols, tasks, billing, provider, admin
+│   │   ├── services/            # adapters, rate limiter, providers, alipay
+│   │   └── utils/               # protocol helpers, provider secret encryption
+│   └── dist/
+├── frontend/
+│   ├── app/
+│   │   ├── (dashboard)/docs/    # public docs pages
+│   │   ├── (dashboard)/models/
+│   │   ├── (dashboard)/playground/
+│   │   └── admin/
+│   └── components/
+├── internal/model-sources/      # upstream source docs for internal iteration
+├── MODELS.md                    # model catalog and pricing notes
+├── WIKI.md
+├── wiki.md
+└── docker-compose.yml
 ```
 
-## 快速开始
-
-### 1. 环境准备
-
-```bash
-# 安装依赖
-npm install
-
-# 启动 Docker 服务 (Redis + PostgreSQL)
-docker compose up -d
-```
-
-### 2. 配置环境变量
-
-后端 `.env` 文件：
+## 环境变量
 
 ```env
-# 服务端口
 PORT=3001
 NODE_ENV=production
 
-# Redis 配置
-REDIS_HOST=localhost
+# PostgreSQL
+PG_HOST=127.0.0.1
+PG_PORT=5432
+PG_USER=quadrant
+PG_PASSWORD=quadrant_dev_password
+PG_DATABASE=quadrant
+
+# Redis
+REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 
-# PostgreSQL 配置
-DATABASE_URL=postgresql://quadrant:quadrant_dev@localhost:5432/quadrant
+# Upstream providers
+DASHSCOPE_API_KEY=sk-xxx
+PIXVERSE_API_KEY=sk-xxx
 
-# 上游 API Keys (按需配置)
-DASHSCOPE_API_KEY=sk-xxx      # DashScope 兼容网关（Qwen / DeepSeek / GLM / Kimi / MiniMax / HappyHorse 等）
+# Admin
+ADMIN_EMAILS=admin@example.com
+ADMIN_USER_IDS=
+
+# Optional provider key encryption
+PROVIDER_SECRET_KEY=
 ```
 
-前端 `.env.local` 文件：
+`DATABASE_URL` 不是当前主链路读取项；当前代码通过 `PG_HOST/PG_PORT/PG_USER/PG_PASSWORD/PG_DATABASE` 初始化 PostgreSQL 连接池。
 
-```env
-NEXT_PUBLIC_API_URL=http://your-ip:3001
-```
-
-### 3. 启动服务
-
-**开发模式：**
-```bash
-# 后端
-cd backend && npm run dev
-
-# 前端
-cd frontend && npm run dev
-```
-
-**生产部署：**
-```bash
-# 构建
-npm run build
-
-# PM2 启动
-pm2 start ecosystem.config.js
-
-# 保存进程列表 (开机自启)
-pm2 save
-```
-
-### 4. 验证服务
+## 启动与部署
 
 ```bash
-# 检查后端健康
-curl http://localhost:3001/api/health
-
-# 检查模型列表
-curl http://localhost:3001/api/models
-```
-
-## API 使用示例
-
-### 获取模型列表
-
-```bash
-curl https://nexusflow.hk/v1/models \
-  -H "Authorization: Bearer $API_KEY"
-```
-
-### 聊天补全 (非流式)
-
-```bash
-curl https://nexusflow.hk/v1/chat/completions \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "qwen3.5-plus",
-    "messages": [{"role": "user", "content": "你好！"}]
-  }'
-```
-
-### 聊天补全 (流式)
-
-```bash
-curl https://nexusflow.hk/v1/chat/completions \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "deepseek-r1",
-    "messages": [{"role": "user", "content": "解释量子计算"}],
-    "stream": true
-  }'
-```
-
-### 异步任务 (图像/视频生成)
-
-```bash
-# 创建任务
-curl -X POST https://nexusflow.hk/v1/tasks \
-  -H "Authorization: Bearer $API_KEY" \
-  -d '{"model": "wan2.6-t2i", "prompt": "生成风景图"}'
-
-# 查询任务状态
-curl https://nexusflow.hk/v1/tasks/$TASK_ID \
-  -H "Authorization: Bearer $API_KEY"
-```
-
-## 核心功能详解
-
-### Fallback 机制
-
-当上游供应商故障时，自动切换到备用供应商：
-
-```typescript
-// 供应商配置示例
-const providers = [
-  { id: "qwen-primary", priority: 1, weight: 70 },
-  { id: "qwen-backup", priority: 2, weight: 30 },
-  { id: "deepseek", priority: 3, weight: 50 },
-];
-```
-
-- 健康检测：60s 心跳检测供应商状态
-- 自动切换：故障时按 priority + weight 选择备用
-- 重试机制：最多 3 次重试，递增延迟
-
-### 双层限流
-
-```
-┌─────────────────────────────────────┐
-│         Consumer Level              │
-│   API Key: 100 RPM / 10000 TPM      │
-├─────────────────────────────────────┤
-│         Provider Level              │
-│   Qwen: 500 RPM / 50000 TPM         │
-│   DeepSeek: 300 RPM / 30000 TPM     │
-└─────────────────────────────────────┘
-```
-
-- Redis 滑动窗口算法
-- 超限返回 429 + Retry-After
-
-### 语义缓存
-
-相似请求复用历史结果：
-
-```typescript
-// 配置
-SEMANTIC_CACHE_ENABLED=true
-SEMANTIC_CACHE_THRESHOLD=0.95   // 相似度阈值
-SEMANTIC_CACHE_TTL=3600         // 缓存时长 (秒)
-```
-
-## 部署指南
-
-### Docker 部署
-
-```bash
-# 启动基础设施
-docker compose up -d
-
-# 查看容器状态
-docker compose ps
-
-# Redis 测试
-redis-cli ping  # => PONG
-
-# PostgreSQL 测试
-psql -U quadrant -d quadrant -c "SELECT 1"
-```
-
-### PM2 进程管理
-
-```bash
-pm2 status              # 查看进程状态
-pm2 logs                # 查看日志
-pm2 restart all         # 重启所有服务
-pm2 restart quadrant-backend   # 重启后端
-pm2 monit               # 实时监控
-```
-
-### Git 提交与服务器部署速查
-
-提交前建议先跑构建，避免把不能启动的代码推到服务器：
-
-```bash
-cd /path/to/nexusflow
-npm run build
-git status --short
-git add <changed-files>
-git commit -m "Update model catalog and API docs"
-git push origin main
-```
-
-如果新机器第一次提交时提示 `Author identity unknown`，在仓库内配置本地身份即可：
-
-```bash
-git config user.name "Codex"
-git config user.email "codex@nexusflow.local"
-```
-
-另一台服务器首次部署：
-
-```bash
-git clone git@github.com:Daemon4444/nexusflow.git
-cd nexusflow
 npm install
-cat > backend/.env <<'EOF'
-DASHSCOPE_API_KEY=your-dashscope-key
-PORT=3001
-EOF
+docker compose up -d postgres redis
 npm run build
 pm2 start ecosystem.config.js
 pm2 save
 ```
 
-已有部署更新：
+健康检查：
 
 ```bash
-cd /path/to/nexusflow
+curl http://127.0.0.1:3001/api/health
+curl -I http://127.0.0.1:19999
+curl -I https://nexusflow.hk/
+```
+
+已有线上部署更新：
+
+```bash
 git pull origin main
 npm install
 npm run build
 pm2 restart all
 ```
 
-### Nginx 反向代理 (可选)
+## Public API
 
-```nginx
-server {
-    listen 80;
-    server_name nexusflow.hk;
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-    }
-
-    location /v1/ {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_set_header Host $host;
-        proxy_buffering off;  # 流式响应
-    }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:3001;
-        proxy_set_header Host $host;
-    }
-}
-```
-
-## 数据库表结构
-
-### 主要表
-
-| 表名 | 说明 |
-|------|------|
-| `users` | 用户账户 |
-| `api_keys` | API Key 管理 |
-| `transactions` | 交易流水 |
-| `tasks` | 异步任务记录 |
-| `webhooks` | Webhook 配置 |
-| `webhook_deliveries` | Webhook 发送记录 |
-
-### 迁移脚本
+所有 Bearer 鉴权接口使用用户自己的 Nexusflow API Key：
 
 ```bash
-# 执行迁移
-psql -U quadrant -d quadrant -f backend/src/db/migrations/001_initial_schema.sql
+export API_KEY="sk-air-..."
 ```
 
-## 前端页面
+### 协议边界
 
-| 页面 | 路径 | 说明 |
-|------|------|------|
-| Landing | `/` | 产品首页 |
-| 模型列表 | `/models` | 50+ 模型浏览 |
-| 模型详情 | `/models/[id]` | 参数、定价、API 示例 |
-| Playground | `/playground` | 在线测试模型 |
-| API 文档 | `/docs/api` | 交互式 API 参考 |
-| API Key | `/keys` | 创建/管理密钥 |
-| 账单 | `/billing` | 用量统计、充值 |
+| 能力 | Public endpoint | 状态 | 说明 |
+| --- | --- | --- | --- |
+| Models | `GET /v1/models` | 可用 | OpenAI 风格模型列表 |
+| Chat | `POST /v1/chat/completions` | 可用 | OpenAI Chat Completions |
+| Messages | `POST /v1/messages` | 可用 | Anthropic Messages 兼容层，不代表托管 Claude 原生模型 |
+| Gemini | `POST /v1beta/models/:model:generateContent` | 可用 | Gemini GenerateContent 兼容层 |
+| Embeddings | `POST /v1/embeddings` | 可用 | OpenAI Embeddings |
+| Images | `POST /v1/images/generations` | 可用 | OpenAI Images 风格，当前接万相图像 |
+| Tasks | `POST /v1/tasks`, `GET /v1/tasks/:id` | 可用 | 图像/视频异步任务 |
+| Videos alias | `POST /v1/videos/generations` | 可用 | 兼容用户直觉路径，内部复用任务/视频路由 |
+| Responses API | `/v1/responses` | 未开放 | 上游文档可作参考，但当前 public API 不暴露 |
+| DashScope native | 原生 DashScope/Qwen API | 未开放 | Nexusflow 只暴露上表兼容协议 |
 
-## 技术栈
+### OpenAI Chat
 
-| 层级 | 技术 |
-|------|------|
-| Frontend | Next.js 16, Turbopack, TypeScript |
-| Backend | Express 5, TypeScript |
-| Database | PostgreSQL 16 |
-| Cache | Redis 7 |
-| Process | PM2 |
-| Container | Docker Compose |
+```bash
+curl https://nexusflow.hk/v1/chat/completions \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3.5-flash",
+    "messages": [{"role": "user", "content": "Reply only OK"}],
+    "max_tokens": 8
+  }'
+```
 
-## 开发指南
+### Anthropic Messages
 
-### 添加新模型供应商
+```bash
+curl https://nexusflow.hk/v1/messages \
+  -H "x-api-key: $API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3.5-flash",
+    "max_tokens": 8,
+    "messages": [{"role": "user", "content": "Reply only OK"}]
+  }'
+```
 
-1. 在 `backend/src/data/models.ts` 添加模型定义
-2. 在 `backend/src/services/fallback.ts` 配置供应商
-3. 添加对应 API Key 到 `.env`
+### Gemini GenerateContent
 
-### 添加新 API 端点
+```bash
+curl "https://nexusflow.hk/v1beta/models/qwen3.5-flash:generateContent?key=$API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "contents": [{
+      "role": "user",
+      "parts": [{"text": "Reply only OK"}]
+    }],
+    "generationConfig": {"maxOutputTokens": 8}
+  }'
+```
 
-1. 在 `backend/src/routes/` 创建路由文件
-2. 在 `backend/src/index.ts` 注册路由
-3. 在 `frontend/app/(dashboard)/docs/api/page.tsx` 添加文档
+### Embeddings
 
-## 许可证
+```bash
+curl https://nexusflow.hk/v1/embeddings \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "text-embedding-v4",
+    "input": "Nexusflow routes models through one API."
+  }'
+```
 
-MIT License
+### Image Generation
 
-## 联系方式
+```bash
+curl https://nexusflow.hk/v1/images/generations \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "wan2.6-t2i",
+    "prompt": "A small red cube on a white table, product photo, clean lighting",
+    "size": "1024x1024",
+    "n": 1
+  }'
+```
 
-- GitHub Issues: 项目问题反馈
-- Email: support@nexusflow.ai
+### Video Task
 
----
+```bash
+TASK_ID=$(
+  curl -s https://nexusflow.hk/v1/tasks \
+    -H "Authorization: Bearer $API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "wan2.6-t2v",
+      "prompt": "A small red cube slowly rotating on a white table, clean studio lighting",
+      "size": "1280*720",
+      "duration": 3,
+      "prompt_extend": false
+    }' | jq -r '.id'
+)
 
-**Quadrant** — 让 AI 模型调用更简单。
+curl https://nexusflow.hk/v1/tasks/$TASK_ID \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+## Model Catalog
+
+模型和价格有三层资料：
+
+1. `backend/src/data/models.ts`：运行时静态模型定义。
+2. `MODELS.md`：当前平台展示/售卖口径的模型目录和价格说明。
+3. `internal/model-sources/aliyun-bailian-2026-05-05.md`：阿里云百炼原始参考资料，用于后续补充模型和阶梯定价，不直接展示给用户。
+
+新增模型时至少同步：
+
+1. `backend/src/data/models.ts`
+2. `MODELS.md`
+3. 对应前端 docs 页面
+4. 必要时补 `internal/model-sources/*` 原始来源
+5. 线上部署后用 `/v1/models` 和真实协议调用复测
+
+## 2026-05-05 线上验证
+
+域名：`https://nexusflow.hk`
+
+| 项目 | 结果 |
+| --- | --- |
+| `GET /v1/models` | 200 |
+| `POST /v1/chat/completions` | 200 |
+| `POST /v1/messages` | 200 |
+| `POST /v1beta/models/qwen3.6-flash:generateContent` | 200 |
+| `POST /v1/embeddings` | 200 |
+| `POST /v1/images/generations` | 200，真实返回图片 URL |
+| `POST /v1/tasks` with `wan2.6-t2v` | 202，轮询后 `succeeded`，真实返回 mp4 URL |
+| `/docs/api`, `/docs/multi-protocol`, `/docs/api/qwen` | 200 |
+
+验证说明：
+
+- 图片测试使用 `wan2.6-t2i`，生成 1 张 1024x1024 图片。
+- 视频测试使用 `wan2.6-t2v`，生成 3 秒 720P 视频任务，最终成功。
+- 文档和示例中只使用 `$API_KEY` 占位符，不记录真实用户密钥。
+
+## License
+
+MIT

@@ -1,14 +1,14 @@
 # Nexusflow Wiki (Unified)
 
-本文档是 `ai-router-platform` 的统一项目文档，覆盖当前代码库的真实逻辑、运行链路、管理后台、支付、监控与部署说明。
+本文档是 `nexusflow` 的统一项目文档，覆盖当前代码库的真实逻辑、运行链路、管理后台、支付、监控与部署说明。
 
-更新时间：2026-04-28
+更新时间：2026-05-05
 
 ---
 
 ## 1. 项目定位
 
-Nexusflow 是一个统一 AI 网关平台，提供 OpenAI 兼容接口，对接多个模型能力（当前以 DashScope 统一入口为主），并包含：
+Nexusflow 是一个统一 AI 网关平台，提供 OpenAI、Anthropic Messages、Gemini-compatible 等公共兼容协议，对接多个模型能力（当前以 DashScope/百炼和 PixVerse Official 为主），并包含：
 
 - 用户认证与会话
 - API Key 管理
@@ -27,7 +27,7 @@ Nexusflow 是一个统一 AI 网关平台，提供 OpenAI 兼容接口，对接�
 
 - 前端：Next.js 16（App Router）+ React + TypeScript
 - 后端：Express + TypeScript
-- 主库：SQLite（`better-sqlite3`，WAL 模式）
+- 主库：PostgreSQL 16（`pg` 连接池）
 - 缓存/限流：Redis（可选，不可用时降级到内存）
 - 进程：Node + PM2（或手动启动）
 
@@ -36,14 +36,14 @@ Nexusflow 是一个统一 AI 网关平台，提供 OpenAI 兼容接口，对接�
 - 前端：`19999`（当前线上 Nginx 反代到该端口）
 - 后端：`3001`
 
-说明：仓库中存在旧文档提到 `3000` 入口，当前线上实际以 Nginx 指向 `19999` 为准。
+说明：仓库中存在旧文档提到 `3000` 或 SQLite 入口，当前线上实际以 Nginx 指向前端 `19999`，后端数据主链路为 PostgreSQL。
 
 ---
 
 ## 3. 目录结构（核心）
 
 ```txt
-ai-router-platform/
+nexusflow/
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts
@@ -53,7 +53,7 @@ ai-router-platform/
 │   │   ├── services/
 │   │   ├── middleware/
 │   │   └── utils/
-│   └── data/ai-router.db
+│   └── data/ai-router.db       # 历史迁移来源，不是当前主库
 ├── frontend/
 │   ├── app/
 │   ├── components/
@@ -71,27 +71,28 @@ ai-router-platform/
 2. 用户/模型限流 + API Key 限流
 3. 余额校验
 4. provider 选择（当前模型统一路由到 `dashscope`）
-5. 请求上游，返回 OpenAI 兼容响应
+5. 请求上游，返回 OpenAI / Anthropic / Gemini 兼容响应
 6. 记录 usage、扣费、交易记录
 7. 更新 provider 级流量统计（RPM/TPM）
 
 关键文件：
 
-- [v1.ts](/root/distiny/ai-router-platform/backend/src/routes/v1.ts)
-- [providers.ts](/root/distiny/ai-router-platform/backend/src/services/providers.ts)
-- [rate-limiter.ts](/root/distiny/ai-router-platform/backend/src/services/rate-limiter.ts)
-- [usage.ts](/root/distiny/ai-router-platform/backend/src/data/usage.ts)
+- [v1.ts](/root/.codex/nexusflow/backend/src/routes/v1.ts)
+- [providers.ts](/root/.codex/nexusflow/backend/src/services/providers.ts)
+- [rate-limiter.ts](/root/.codex/nexusflow/backend/src/services/rate-limiter.ts)
+- [usage.ts](/root/.codex/nexusflow/backend/src/data/usage.ts)
 
 ### 4.2 异步任务链路（`/v1/tasks`）
 
 - 图片/视频模型走异步任务接口
 - 创建任务 -> 提交上游 -> 轮询状态 -> 回写任务结果
+- public API 当前以轮询为准，不依赖 webhook 回调作为用户可见交付路径
 
 关键文件：
 
-- [tasks.ts](/root/distiny/ai-router-platform/backend/src/routes/tasks.ts)
-- [tasks.ts](/root/distiny/ai-router-platform/backend/src/data/tasks.ts)
-- [adapters.ts](/root/distiny/ai-router-platform/backend/src/services/adapters.ts)
+- [tasks.ts](/root/.codex/nexusflow/backend/src/routes/tasks.ts)
+- [tasks.ts](/root/.codex/nexusflow/backend/src/data/tasks.ts)
+- [adapters.ts](/root/.codex/nexusflow/backend/src/services/adapters.ts)
 
 ### 4.3 支付与充值链路
 
@@ -101,9 +102,9 @@ ai-router-platform/
 
 关键文件：
 
-- [billing.ts](/root/distiny/ai-router-platform/backend/src/routes/billing.ts)
-- [paymentOrders.ts](/root/distiny/ai-router-platform/backend/src/data/paymentOrders.ts)
-- [alipay.ts](/root/distiny/ai-router-platform/backend/src/services/alipay.ts)
+- [billing.ts](/root/.codex/nexusflow/backend/src/routes/billing.ts)
+- [paymentOrders.ts](/root/.codex/nexusflow/backend/src/data/paymentOrders.ts)
+- [alipay.ts](/root/.codex/nexusflow/backend/src/services/alipay.ts)
 
 ---
 
@@ -136,8 +137,8 @@ ai-router-platform/
 
 数据库初始化与迁移：
 
-- [db/index.ts](/root/distiny/ai-router-platform/backend/src/db/index.ts)
-- [001_initial_schema.sql](/root/distiny/ai-router-platform/backend/src/db/migrations/001_initial_schema.sql)
+- [client.ts](/root/.codex/nexusflow/backend/src/db/client.ts)
+- [001_initial_schema.sql](/root/.codex/nexusflow/backend/src/db/migrations/001_initial_schema.sql)
 
 ---
 
@@ -153,7 +154,7 @@ ai-router-platform/
   - `ADMIN_EMAILS`
   - `ADMIN_USER_IDS`
 - 中间件：
-  - [admin.ts](/root/distiny/ai-router-platform/backend/src/middleware/admin.ts)
+  - [admin.ts](/root/.codex/nexusflow/backend/src/middleware/admin.ts)
 
 ### 6.3 已收敛后台入口
 
@@ -162,8 +163,8 @@ ai-router-platform/
 
 关键前端文件：
 
-- [admin/page.tsx](/root/distiny/ai-router-platform/frontend/app/admin/page.tsx)
-- [admin/dashboard/page.tsx](/root/distiny/ai-router-platform/frontend/app/admin/dashboard/page.tsx)
+- [admin/page.tsx](/root/.codex/nexusflow/frontend/app/admin/page.tsx)
+- [admin/dashboard/page.tsx](/root/.codex/nexusflow/frontend/app/admin/dashboard/page.tsx)
 
 ---
 
@@ -182,8 +183,8 @@ ai-router-platform/
 
 关键文件：
 
-- [providers.ts](/root/distiny/ai-router-platform/backend/src/data/providers.ts)
-- [provider.ts](/root/distiny/ai-router-platform/backend/src/routes/provider.ts)
+- [providers.ts](/root/.codex/nexusflow/backend/src/data/providers.ts)
+- [provider.ts](/root/.codex/nexusflow/backend/src/routes/provider.ts)
 
 ---
 
@@ -234,9 +235,9 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 
 ### 8.5 关键文件
 
-- [providers.ts](/root/distiny/nexusflow/backend/src/data/providers.ts) - 渠道配置与切换
-- [tasks.ts](/root/distiny/nexusflow/backend/src/routes/tasks.ts) - 渠道感知任务轮询
-- [adapters.ts](/root/distiny/nexusflow/backend/src/services/adapters.ts) - PixVerse API 适配器
+- [providers.ts](/root/.codex/nexusflow/backend/src/data/providers.ts) - 渠道配置与切换
+- [tasks.ts](/root/.codex/nexusflow/backend/src/routes/tasks.ts) - 渠道感知任务轮询
+- [adapters.ts](/root/.codex/nexusflow/backend/src/services/adapters.ts) - PixVerse API 适配器
 
 ---
 
@@ -251,15 +252,15 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 
 关键文件：
 
-- [provider-secrets.ts](/root/distiny/ai-router-platform/backend/src/utils/provider-secrets.ts)
-- [providers.ts](/root/distiny/ai-router-platform/backend/src/data/providers.ts)
-- [db/index.ts](/root/distiny/ai-router-platform/backend/src/db/index.ts)
+- [provider-secrets.ts](/root/.codex/nexusflow/backend/src/utils/provider-secrets.ts)
+- [providers.ts](/root/.codex/nexusflow/backend/src/data/providers.ts)
+- [client.ts](/root/.codex/nexusflow/backend/src/db/client.ts)
 
 ---
 
-## 9. 监控体系（当前状态）
+## 10. 监控体系（当前状态）
 
-### 9.1 用户侧监控（已可用）
+### 10.1 用户侧监控（已可用）
 
 用户可通过：
 
@@ -271,7 +272,7 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 
 查看个人请求与性能数据。
 
-### 9.2 渠道侧监控（已接通基础链路）
+### 10.2 渠道侧监控（已接通基础链路）
 
 管理员可通过：
 
@@ -287,22 +288,22 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 
 关键文件：
 
-- [provider-monitor.ts](/root/distiny/ai-router-platform/backend/src/routes/provider-monitor.ts)
-- [v1.ts](/root/distiny/ai-router-platform/backend/src/routes/v1.ts)
-- [rate-limiter.ts](/root/distiny/ai-router-platform/backend/src/services/rate-limiter.ts)
+- [provider-monitor.ts](/root/.codex/nexusflow/backend/src/routes/provider-monitor.ts)
+- [v1.ts](/root/.codex/nexusflow/backend/src/routes/v1.ts)
+- [rate-limiter.ts](/root/.codex/nexusflow/backend/src/services/rate-limiter.ts)
 
 ---
 
-## 10. 前端信息架构（当前）
+## 11. 前端信息架构（当前）
 
-### 10.1 公共站点
+### 11.1 公共站点
 
 - 首页：`/`
 - 文档：`/docs/*`
 - 模型页：`/models/*`
 - 登录：`/login`
 
-### 10.2 用户看板
+### 11.2 用户看板
 
 - `/keys`
 - `/billing`
@@ -312,36 +313,43 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 - `/tickets`
 - `/settings`
 
-### 10.3 管理后台
+### 11.3 管理后台
 
 - `/admin`（单一入口）
 
 ---
 
-## 11. 关键 API 一览
+## 12. 关键 API 一览
 
-### 11.1 OpenAI 兼容
+### 12.1 Public API 协议边界
 
-- `GET /v1/models`
-- `POST /v1/chat/completions`
-- `POST /v1/embeddings`
-- `POST /v1/tasks`
-- `GET /v1/tasks/:id`
+| 能力 | Public endpoint | 状态 | 说明 |
+| --- | --- | --- | --- |
+| Models | `GET /v1/models` | 可用 | OpenAI 风格模型列表 |
+| Chat | `POST /v1/chat/completions` | 可用 | OpenAI Chat Completions |
+| Messages | `POST /v1/messages` | 可用 | Anthropic Messages 兼容层，不代表托管 Claude 原生模型 |
+| Gemini | `POST /v1beta/models/:model:generateContent` | 可用 | Gemini GenerateContent 兼容层 |
+| Embeddings | `POST /v1/embeddings` | 可用 | OpenAI Embeddings |
+| Images | `POST /v1/images/generations` | 可用 | OpenAI Images 风格，当前接万相图像 |
+| Tasks | `POST /v1/tasks`, `GET /v1/tasks/:id` | 可用 | 图像/视频异步任务 |
+| Videos alias | `POST /v1/videos/generations` | 可用 | 兼容用户直觉路径，内部复用任务/视频路由 |
+| Responses API | `/v1/responses` | 未开放 | 阿里云百炼文档可作参考，当前 public API 不暴露 |
+| DashScope native | 原生 DashScope/Qwen API | 未开放 | 当前只开放上表兼容协议 |
 
-### 11.2 认证
+### 12.2 认证
 
 - `POST /api/auth/send-code`
 - `POST /api/auth/login`
 - `POST /api/auth/login-password`
 - `GET /api/auth/me`
 
-### 11.3 密钥
+### 12.3 密钥
 
 - `GET /api/keys`
 - `POST /api/keys`
 - `DELETE /api/keys/:id`
 
-### 11.4 计费
+### 12.4 计费
 
 - `GET /api/billing/summary`
 - `GET /api/billing/transactions`
@@ -350,7 +358,7 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 - `GET /api/billing/payment/config`
 - `POST /api/billing/alipay/notify`
 
-### 11.5 使用统计
+### 12.5 使用统计
 
 - `GET /api/usage`
 - `GET /api/usage/overview`
@@ -359,7 +367,7 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 - `GET /api/usage/monitor/overview`
 - `GET /api/usage/monitor/recent`
 
-### 11.6 内部渠道管理
+### 12.6 内部渠道管理
 
 - `GET /api/provider/admin/providers`
 - `GET /api/provider/admin/providers/:id`
@@ -371,32 +379,42 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 - `POST /api/provider/admin/models/:id/disable`
 - `PUT /api/provider/:providerId/capacity/:modelId`（管理员）
 
-### 11.7 渠道监控
+### 12.7 渠道监控
 
 - `GET /api/provider-monitor/overview`
 - `GET /api/provider-monitor/provider/:providerId`
 
 ---
 
-## 12. 环境变量（必须关注）
+## 13. 环境变量（必须关注）
 
-### 12.1 后端基础
+### 13.1 后端基础
 
 - `PORT`
 - `NODE_ENV`
 - `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD`
 
-### 12.2 管理员权限
+### 13.2 管理员权限
 
 - `ADMIN_EMAILS`
 - `ADMIN_USER_IDS`
 
-### 12.3 模型上游
+### 13.3 模型上游
 
 - `DASHSCOPE_API_KEY`
 - `PIXVERSE_API_KEY`
 
-### 12.4 支付
+### 13.4 PostgreSQL
+
+- `PG_HOST`
+- `PG_PORT`
+- `PG_USER`
+- `PG_PASSWORD`
+- `PG_DATABASE`
+
+说明：`DATABASE_URL` 不是当前主链路读取项；当前代码通过 `backend/src/db/client.ts` 初始化 `pg.Pool`。
+
+### 13.5 支付
 
 - `ALIPAY_APP_ID`
 - `ALIPAY_PRIVATE_KEY`
@@ -406,33 +424,33 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
 - `ALIPAY_EXPECT_APP_ID`（可选）
 - `ALIPAY_EXPECT_SELLER_ID`（可选）
 
-### 12.5 渠道密钥加密
+### 13.6 渠道密钥加密
 
 - `PROVIDER_SECRET_KEY`
 
 模板文件：
 
-- [backend/.env.example](/root/distiny/ai-router-platform/backend/.env.example)
+- [backend/.env.example](/root/.codex/nexusflow/backend/.env.example)
 
 ---
 
-## 13. 部署与运维
+## 14. 部署与运维
 
-### 13.1 构建
+### 14.1 构建
 
 ```bash
 cd backend && npm run build
 cd frontend && npm run build -- --webpack
 ```
 
-### 13.2 启动（手动）
+### 14.2 启动（手动）
 
 ```bash
 cd backend && node dist/index.js
 cd frontend && npx next start -H 0.0.0.0 -p 19999
 ```
 
-### 13.3 健康检查
+### 14.3 健康检查
 
 ```bash
 curl http://127.0.0.1:3001/api/health
@@ -442,16 +460,17 @@ curl -I https://nexusflow.hk/
 
 ---
 
-## 14. 当前已知限制 / 风险
+## 15. 当前已知限制 / 风险
 
 1. `provider-monitor` 目前主要基于内存窗口与健康记录，不是持久化时序库，重启后窗口会重置。
 2. 管理后台存在 Nginx 层 Basic Auth + 应用层管理员鉴权双层控制，后续可统一体验。
 3. 渠道监控中的趋势数据当前是轻量近实时视图，不等同于完整历史分析系统。
 4. 如果未配置 `PROVIDER_SECRET_KEY`，渠道 key 仍会走兼容模式，不会强制加密存储。
+5. 独立 GitHub Wiki 仓库当前不可访问或未启用；主仓库内维护 `WIKI.md` 和 `wiki.md` 作为 wiki 源。
 
 ---
 
-## 15. 推荐后续迭代
+## 16. 推荐后续迭代
 
 1. 给监控指标落库（按分钟聚合），补 1h/24h 趋势图与告警历史。
 2. 将告警联动到通知通道（邮件/飞书/webhook）。
@@ -460,7 +479,40 @@ curl -I https://nexusflow.hk/
 
 ---
 
-## 16. Playground 视频生成与文件上传（2026-04-28 更新）
+## 17. 2026-05-05 API 文档与线上验证
+
+### 17.1 文档资料位置
+
+| 文件 | 用途 |
+| --- | --- |
+| `README.md` | 项目入口、部署、公共 API 示例、线上验证快照 |
+| `WIKI.md` | 统一项目 wiki |
+| `wiki.md` | 迭代记录与踩坑日志 |
+| `MODELS.md` | 平台展示/售卖口径的模型目录和价格 |
+| `internal/model-sources/aliyun-bailian-2026-05-05.md` | 阿里云百炼原始模型和阶梯定价资料，仅供内部后续补模型，不在前端直接展示 |
+
+### 17.2 已确认可用的线上 Public API
+
+| 项目 | 结果 |
+| --- | --- |
+| `GET /v1/models` | 200 |
+| `POST /v1/chat/completions` | 200 |
+| `POST /v1/messages` | 200 |
+| `POST /v1beta/models/qwen3.6-flash:generateContent` | 200 |
+| `POST /v1/embeddings` | 200 |
+| `POST /v1/images/generations` | 200，真实返回图片 URL |
+| `POST /v1/tasks` with `wan2.6-t2v` | 202，轮询后 `succeeded`，真实返回 mp4 URL |
+| `/docs/api`, `/docs/multi-protocol`, `/docs/api/qwen` | 200 |
+
+### 17.3 图片/视频真实调用结果
+
+- 图片：`/v1/images/generations`，模型 `wan2.6-t2i`，`1024x1024`，成功生成 1 张图。
+- 视频：`/v1/tasks`，模型 `wan2.6-t2v`，`1280*720`，3 秒，任务最终 `succeeded`，返回 1 个 mp4 URL。
+- 测试中使用真实 API Key 和真实余额链路；文档中只保留 `$API_KEY` 占位符，不记录真实密钥。
+
+---
+
+## 18. Playground 视频生成与文件上传（2026-04-28 更新）
 
 ### 16.1 视频参数动态配置
 
@@ -547,7 +599,7 @@ UPDATE provider_models SET max_output = 15 WHERE model_id = 'pixverse-v6';
 
 ---
 
-## 17. 本次更新改动汇总（2026-04-28）
+## 19. 本次更新改动汇总（2026-04-28）
 
 ### 新增文件
 
@@ -581,7 +633,7 @@ UPDATE provider_models SET max_output = 15 WHERE model_id = 'pixverse-v6';
 
 ---
 
-## 18. 部署验证清单
+## 20. 部署验证清单
 
 每次更新后建议验证：
 
@@ -594,7 +646,7 @@ UPDATE provider_models SET max_output = 15 WHERE model_id = 'pixverse-v6';
 
 ---
 
-## 19. 自动化测试报告（2026-04-28）
+## 21. 自动化测试报告（2026-04-28）
 
 使用 Playwright 进行全站自动化测试：
 
