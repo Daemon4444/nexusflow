@@ -214,13 +214,13 @@ PixVerse（拍我AI）作为独立供应商集成到平台，支持通过两个�
       "name": "百炼渠道",
       "adapter": "dashscope",
       "api_base_url": "https://dashscope.aliyuncs.com/api/v1",
-      "api_key": "sk-27b3ca3cb4944f379c214b6444e08210"
+      "api_key": "sk-your-dashscope-api-key"
     },
     "official": {
       "name": "拍我官方",
       "adapter": "pixverse",
       "api_base_url": "https://app-api.pixverse.ai/openapi/v2",
-      "api_key": "sk-b2803a285c787974e5eb786435dce3c1"
+      "api_key": "sk-your-pixverse-api-key"
     }
   }
 }

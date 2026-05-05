@@ -1,8 +1,10 @@
-import { Router, Request } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import sharp from "sharp";
+import { validateSession } from "../data/users";
+import { validateApiKey } from "../data/apikeys";
 
 const router = Router();
 
@@ -51,6 +53,22 @@ const upload = multer({
     fileSize: 100 * 1024 * 1024, // 100MB
   },
 });
+
+function requireUploadAuth(req: Request, res: Response, next: NextFunction): void {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "上传需要登录或 API Key" });
+    return;
+  }
+
+  const token = auth.slice(7).trim();
+  if (validateSession(token) || validateApiKey(token)) {
+    next();
+    return;
+  }
+
+  res.status(401).json({ success: false, message: "上传凭证无效或已过期" });
+}
 
 function jpegFilename(filename: string): string {
   const parsed = path.parse(filename);
@@ -107,7 +125,7 @@ async function compressImageIfNeeded(file: Express.Multer.File): Promise<UploadR
 }
 
 // POST /api/upload - single file upload
-router.post("/", upload.single("file"), async (req, res) => {
+router.post("/", requireUploadAuth, upload.single("file"), async (req, res) => {
   console.log("[Upload API] Received request, file:", req.file?.originalname, "size:", req.file?.size);
   if (!req.file) {
     console.log("[Upload API] No file in request");

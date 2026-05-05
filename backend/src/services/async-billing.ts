@@ -98,7 +98,7 @@ export function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: number, 
   }
 }
 
-export function billAsyncError(apiKey: { id: string; user_id: string | null } | null, modelId: string, latencyMs: number): void {
+export function billAsyncError(apiKey: { id: string | null; user_id: string | null } | null, modelId: string, latencyMs: number): void {
   logUsage({
     apiKeyId: apiKey?.id || null,
     userId: apiKey?.user_id || null,

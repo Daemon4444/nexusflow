@@ -72,10 +72,10 @@ PixVerse 模型支持两种渠道切换：
 
 ```bash
 # 阿里云百炼 API Key (DashScope)
-DASHSCOPE_API_KEY=sk-27b3ca3cb4944f379c214b6444e08210
+DASHSCOPE_API_KEY=sk-your-dashscope-api-key
 
 # PixVerse 官方 API Key
-PIXVERSE_API_KEY=sk-bdb524726ddf7104e5c5a80f3188ea64
+PIXVERSE_API_KEY=sk-your-pixverse-api-key
 ```
 
 ---

@@ -11,8 +11,7 @@ import { Router, Request, Response } from "express";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { getUserById } from "../data/users";
-import { consume } from "../data/billing";
+import { consume, hasSufficientBalance } from "../data/billing";
 import { checkConsumerLimits, checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
@@ -211,6 +210,30 @@ function parseSseEvent(line: string): any | null {
   }
 }
 
+function roughTokenCount(value: unknown): number {
+  if (value === undefined || value === null) return 0;
+  if (typeof value === "string") return Math.ceil(value.length / 2);
+  if (Array.isArray(value)) return value.reduce((sum, item) => sum + roughTokenCount(item), 0);
+  if (typeof value === "object") return Math.ceil(JSON.stringify(value).length / 2);
+  return Math.ceil(String(value).length / 2);
+}
+
+function estimateMessageMaxCost(model: any, body: any): number {
+  const promptTokens = Math.max(1, roughTokenCount(body.system) + roughTokenCount(body.messages));
+  const completionTokens = Math.max(1, Math.min(Number(body.max_tokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  return (promptTokens / 1_000_000) * model.promptPrice + (completionTokens / 1_000_000) * model.completionPrice;
+}
+
+function rejectInsufficientBalance(res: Response): void {
+  res.status(402).json({
+    type: "error",
+    error: {
+      type: "invalid_request_error",
+      message: "Insufficient balance for estimated maximum cost. Please recharge your account or lower max_tokens.",
+    },
+  });
+}
+
 // POST /v1/messages — Anthropic Messages compatible
 router.post("/", async (req: Request, res: Response) => {
   const token = extractAnthropicToken(req);
@@ -315,19 +338,10 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  // Balance check
-  if (apiKeyRecord.user_id) {
-    const owner = getUserById(apiKeyRecord.user_id);
-    if (owner && owner.balance <= 0) {
-      res.status(402).json({
-        type: "error",
-        error: {
-          type: "invalid_request_error",
-          message: "Insufficient balance. Please recharge your account.",
-        },
-      });
-      return;
-    }
+  const estimatedCost = estimateMessageMaxCost(model, req.body);
+  if (!hasSufficientBalance(apiKeyRecord.user_id, estimatedCost)) {
+    rejectInsufficientBalance(res);
+    return;
   }
 
   // Convert Anthropic request to OpenAI format

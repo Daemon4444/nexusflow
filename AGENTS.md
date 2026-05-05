@@ -86,8 +86,8 @@ ai-router-platform/
 ### backend/.env
 
 ```env
-DASHSCOPE_API_KEY=sk-961f22390b544d20869e9832d627590e   # 阿里云百炼 API Key
-PIXVERSE_API_KEY=sk-7526c74b4d826452a190c4a8220c25de    # 拍我AI (PixVerse) API Key
+DASHSCOPE_API_KEY=sk-your-dashscope-api-key   # 阿里云百炼 API Key
+PIXVERSE_API_KEY=sk-your-pixverse-api-key    # 拍我AI (PixVerse) API Key
 PORT=3001                                                # 后端端口
 ```
 
@@ -269,8 +269,8 @@ cd /root/ai-router-platform/frontend && npx next build
 # 后端改动 -> 重启后端即可（ts-node 直接运行 TypeScript）
 fuser -k 3001/tcp; sleep 2
 cd /root/ai-router-platform/backend && \
-  DASHSCOPE_API_KEY=sk-961f22390b544d20869e9832d627590e \
-  PIXVERSE_API_KEY=sk-7526c74b4d826452a190c4a8220c25de \
+  DASHSCOPE_API_KEY=sk-your-dashscope-api-key \
+  PIXVERSE_API_KEY=sk-your-pixverse-api-key \
   PORT=3001 \
   nohup node node_modules/.bin/ts-node --project tsconfig.json src/index.ts > /tmp/backend.log 2>&1 &
 

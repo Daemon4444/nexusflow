@@ -105,6 +105,16 @@ export function consume(
   };
 }
 
+/** 调用前余额校验，用于避免明显超过余额的上游请求先成功后扣费失败。 */
+export function hasSufficientBalance(userId: string | null | undefined, estimatedAmount: number): boolean {
+  if (!userId) return true;
+  const normalizedAmount = roundBalance(Math.max(0, estimatedAmount));
+  if (normalizedAmount <= 0) return true;
+  const user = getUserById(userId);
+  if (!user) return false;
+  return user.balance >= normalizedAmount;
+}
+
 /** 获取用户交易记录（分页） */
 export function getTransactions(userId: string, limit = 20, offset = 0) {
   const rows = stmts.getByUser.all(userId, limit, offset) as Transaction[];

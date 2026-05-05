@@ -133,6 +133,10 @@ function isSmtpConfigured(): boolean {
   );
 }
 
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
 function getTransporter(): nodemailer.Transporter {
   if (!transporter) {
     const port = Number(process.env.SMTP_PORT) || 465;
@@ -223,6 +227,11 @@ export async function sendEmailCode(email: string): Promise<{ success: boolean; 
 
   const code = generateCode();
   const isReal = isSmtpConfigured();
+
+  if (!isReal && isProduction()) {
+    console.error("[EMAIL] SMTP 未配置，生产环境拒绝发送验证码");
+    return { success: false, message: "验证码服务暂不可用，请稍后重试" };
+  }
 
   if (isReal) {
     const sent = await sendCodeEmail(email, code);

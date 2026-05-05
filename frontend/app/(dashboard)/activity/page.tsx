@@ -5,7 +5,7 @@ import { fetchAPI } from "@/lib/api";
 import { authHeaders } from "@/lib/auth";
 import UserLayout from "@/components/UserLayout";
 import { useI18n } from "@/lib/i18n";
-import { formatCny } from "@/lib/money";
+import { formatCny, formatCnyPrecise } from "@/lib/money";
 
 interface UsageData {
   overview: {
@@ -181,7 +181,7 @@ export default function ActivityPage() {
                     <span style={{ color: "var(--text-primary)", fontSize: 12.5 }}>{d.date}</span>
                     <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{d.requests.toLocaleString()}</span>
                     <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatTokensCompact(d.tokens)}</span>
-                    <span style={{ color: "#10b981", fontWeight: 500, fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCny(d.cost)}</span>
+                    <span style={{ color: "#10b981", fontWeight: 500, fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCnyPrecise(d.cost)}</span>
                   </div>
                 ))}
               </div>
@@ -209,7 +209,7 @@ export default function ActivityPage() {
                     </span>
                     <span style={{ color: "var(--text-primary)", fontSize: 12.5, fontWeight: 500 }}>{r.model}</span>
                     <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{r.tokens.toLocaleString()}</span>
-                    <span style={{ color: "#10b981", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCny(r.cost)}</span>
+                    <span style={{ color: "#10b981", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCnyPrecise(r.cost)}</span>
                     <span>
                       <span style={{
                         width: 7, height: 7, borderRadius: "50%", display: "inline-block",

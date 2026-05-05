@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { fetchAPI } from "@/lib/api";
+import { authHeaders, useAuth } from "@/lib/auth";
 import CostEstimate from "@/components/CostEstimate";
 import PlaygroundHistory, { saveToHistory, HistoryEntry } from "@/components/PlaygroundHistory";
 import PromptTemplates from "@/components/PromptTemplates";
@@ -243,6 +244,7 @@ function MarkdownBlock({ text, compact = false }: { text: string; compact?: bool
 }
 
 function PlaygroundInner() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const requestedModel = searchParams.get("model") || "";
   const [models, setModels] = useState<AIModel[]>([]);
@@ -270,6 +272,25 @@ function PlaygroundInner() {
   const [videoDuration, setVideoDuration] = useState(5);
   const [videoResolution, setVideoResolution] = useState("720p");
   const [videoRatio, setVideoRatio] = useState("16:9");
+  const canUsePlayground = Boolean(apiKey || user);
+
+  function getChatEndpoint() {
+    if (user && !apiKey) return "/api/playground/chat/completions";
+    return `${process.env.NEXT_PUBLIC_API_URL || ""}/v1/chat/completions`;
+  }
+
+  function getChatHeaders(): Record<string, string> {
+    if (user && !apiKey) return { ...authHeaders(), "Content-Type": "application/json" };
+    return {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    };
+  }
+
+  function getPlaygroundAuthHeaders(): Record<string, string> {
+    if (apiKey) return { Authorization: `Bearer ${apiKey}` };
+    return authHeaders();
+  }
 
   useEffect(() => {
     async function loadModels() {
@@ -342,10 +363,9 @@ function PlaygroundInner() {
     abortControllerRef.current = new AbortController();
 
     try {
-      // 检查 API Key
-      if (!apiKey) {
+      if (!canUsePlayground) {
         updateLastMessage({
-          content: "请先设置 API Key。点击右上角「API Key」按钮输入。",
+          content: "请先登录或设置 API Key 后再使用 Playground。",
           isStreaming: false,
           status: "error",
         });
@@ -353,12 +373,9 @@ function PlaygroundInner() {
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/v1/chat/completions`, {
+      const response = await fetch(getChatEndpoint(), {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers: getChatHeaders(),
         body: JSON.stringify({
           model: selectedModel,
           messages: allMsgs.map(m => ({ role: m.role, content: m.content })),
@@ -489,11 +506,10 @@ function PlaygroundInner() {
   async function sendChatMessageNonStream() {
     if (!input.trim() || sending) return;
 
-    // 检查 API Key
-    if (!apiKey) {
+    if (!canUsePlayground) {
       setMessages((p) => [...p, {
         role: "assistant",
-        content: "请先设置 API Key。点击右上角「API Key」按钮输入。",
+        content: "请先登录或设置 API Key 后再使用 Playground。",
         type: "text",
         status: "error",
       }]);
@@ -512,12 +528,9 @@ function PlaygroundInner() {
     setSending(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/v1/chat/completions`, {
+      const res = await fetch(getChatEndpoint(), {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
+        headers: getChatHeaders(),
         body: JSON.stringify({
           model: selectedModel,
           messages: allMsgs.map(m => ({ role: m.role, content: m.content })),
@@ -571,10 +584,10 @@ function PlaygroundInner() {
   async function generateImage() {
     if (!input.trim() || sending) return;
 
-    if (!apiKey) {
+    if (!canUsePlayground) {
       setMessages((p) => [...p, {
         role: "assistant",
-        content: "请先设置 API Key。点击右上角「API Key」按钮输入。",
+        content: "请先登录或设置 API Key 后再使用 Playground。",
         type: "text",
         status: "error",
       }]);
@@ -605,7 +618,7 @@ function PlaygroundInner() {
 
       const res = await fetchAPI("/api/image/generate", {
         method: "POST",
-        headers: { "Authorization": `Bearer ${apiKey}` },
+        headers: getPlaygroundAuthHeaders(),
         body: JSON.stringify(body),
       });
 
@@ -632,7 +645,9 @@ function PlaygroundInner() {
       }
 
       try {
-        const res = await fetchAPI(`/api/image/status/${taskId}`);
+        const res = await fetchAPI(`/api/image/status/${taskId}`, {
+          headers: getPlaygroundAuthHeaders(),
+        });
         if (res.success) {
           if (res.data.task_status === "SUCCEEDED") {
             clearInterval(pollingRef.current!);
@@ -666,10 +681,10 @@ function PlaygroundInner() {
   async function generateVideo() {
     if (!input.trim() || sending) return;
 
-    if (!apiKey) {
+    if (!canUsePlayground) {
       setMessages((p) => [...p, {
         role: "assistant",
-        content: "请先设置 API Key。点击右上角「API Key」按钮输入。",
+        content: "请先登录或设置 API Key 后再使用 Playground。",
         type: "text",
         status: "error",
       }]);
@@ -717,7 +732,7 @@ function PlaygroundInner() {
 
       const res = await fetchAPI("/api/video/generate", {
         method: "POST",
-        headers: { "Authorization": `Bearer ${apiKey}` },
+        headers: getPlaygroundAuthHeaders(),
         body: JSON.stringify(body),
       });
 
@@ -744,7 +759,9 @@ function PlaygroundInner() {
       }
 
       try {
-        const res = await fetchAPI(`/api/video/status/${taskId}`);
+        const res = await fetchAPI(`/api/video/status/${taskId}`, {
+          headers: getPlaygroundAuthHeaders(),
+        });
         if (res.success) {
           const s = res.data.status;
           if (s === "successful") {
@@ -948,6 +965,7 @@ function PlaygroundInner() {
 
         const res = await fetch("/api/upload", {
           method: "POST",
+          headers: authHeaders(),
           body: formData,
         });
 
@@ -1172,11 +1190,11 @@ function PlaygroundInner() {
                 />
               )}
               <button
-                className={apiKey ? "btn-secondary" : "btn-danger"}
+                className={apiKey || user ? "btn-secondary" : "btn-danger"}
                 style={{ padding: "5px 12px", fontSize: 12.5 }}
                 onClick={() => setShowApiKeyInput(!showApiKeyInput)}
               >
-                {apiKey ? "API Key ✓" : "设置 API Key"}
+                {apiKey ? "API Key ✓" : user ? "登录态 ✓" : "设置 API Key"}
               </button>
               {mode === "chat" && (
                 <>
@@ -1208,13 +1226,13 @@ function PlaygroundInner() {
           <div style={{
             padding: "12px 18px",
             borderBottom: "1px solid var(--border)",
-            background: apiKey ? "var(--bg-elevated)" : "rgba(239,68,68,0.04)",
+            background: apiKey || user ? "var(--bg-elevated)" : "rgba(239,68,68,0.04)",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <label style={{ fontSize: 12, color: apiKey ? "var(--text-secondary)" : "#ef4444", fontWeight: 600, letterSpacing: "0.03em" }}>
-                {apiKey ? "API KEY ✓" : "API KEY (必填)"}
+              <label style={{ fontSize: 12, color: apiKey || user ? "var(--text-secondary)" : "#ef4444", fontWeight: 600, letterSpacing: "0.03em" }}>
+                {apiKey ? "API KEY ✓" : user ? "登录态可用" : "API KEY (必填)"}
               </label>
-              {!apiKey && (
+              {!apiKey && !user && (
                 <span style={{
                   padding: "2px 8px",
                   borderRadius: 4,
@@ -1234,7 +1252,7 @@ function PlaygroundInner() {
                 style={{
                   flex: 1,
                   fontSize: 13,
-                  borderColor: apiKey ? "var(--border)" : "#ef4444",
+                  borderColor: apiKey || user ? "var(--border)" : "#ef4444",
                 }}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
@@ -1249,7 +1267,7 @@ function PlaygroundInner() {
               </button>
             </div>
             <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 6 }}>
-              从 <Link href="/keys" style={{ color: "var(--accent)" }}>API Key 管理</Link> 获取密钥
+              登录后可直接使用账户余额；也可以从 <Link href="/keys" style={{ color: "var(--accent)" }}>API Key 管理</Link> 获取密钥进行调用。
             </div>
           </div>
         )}
@@ -1653,8 +1671,8 @@ function PlaygroundInner() {
             />
           )}
 
-          {/* API Key required warning */}
-          {!apiKey && (
+          {/* Credential required warning */}
+          {!canUsePlayground && (
             <div style={{
               padding: "12px 16px",
               borderRadius: 10,
@@ -1672,10 +1690,10 @@ function PlaygroundInner() {
                 </svg>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#ef4444", marginBottom: 4 }}>
-                    必须设置 API Key 才能使用
+                    请先登录或设置 API Key
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    请在上方输入框填写 API Key，或从 <Link href="/keys" style={{ color: "var(--accent)" }}>API Key 管理</Link> 获取密钥
+                    登录后会直接使用账户余额；也可以在上方输入 API Key。
                   </div>
                 </div>
               </div>
@@ -1698,16 +1716,16 @@ function PlaygroundInner() {
               disabled={sending && mode !== "chat"}
             />
             <button
-              className={apiKey ? "btn-primary" : "btn-secondary"}
-              style={{ padding: "9px 18px", alignSelf: "flex-end", flexShrink: 0, opacity: apiKey ? 1 : 0.6 }}
+              className={canUsePlayground ? "btn-primary" : "btn-secondary"}
+              style={{ padding: "9px 18px", alignSelf: "flex-end", flexShrink: 0, opacity: canUsePlayground ? 1 : 0.6 }}
               onClick={handleSend}
-              disabled={sending || !input.trim() || !apiKey}
-              title={!apiKey ? "请先设置 API Key" : ""}
+              disabled={sending || !input.trim() || !canUsePlayground}
+              title={!canUsePlayground ? "请先登录或设置 API Key" : ""}
             >
               {sending ? (
                 <span className="spinner" style={{ width: 13, height: 13 }} />
-              ) : !apiKey ? (
-                <span style={{ fontSize: 12 }}>需设置 Key</span>
+              ) : !canUsePlayground ? (
+                <span style={{ fontSize: 12 }}>需登录</span>
               ) : mode === "chat" ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               ) : "生成"}

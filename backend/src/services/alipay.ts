@@ -29,11 +29,9 @@
  *   - 设置 ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
  *   - 使用沙箱的 AppID、密钥、账号
  * 
- * ====== 未配置时的行为 ======
- * 
- * 未设置环境变量时自动进入模拟模式：
- *   - 充值即时到账，不走真实支付
- *   - 控制台打印提示信息
+ * ====== 测试支付 ======
+ *
+ * 模拟支付必须显式设置 ENABLE_MOCK_PAYMENT=true，且生产环境永不允许。
  */
 
 import { AlipaySdk } from "alipay-sdk";
@@ -49,6 +47,10 @@ function isAlipayConfigured(): boolean {
     process.env.ALIPAY_PRIVATE_KEY &&
     process.env.ALIPAY_PUBLIC_KEY
   );
+}
+
+export function isMockPaymentAllowed(): boolean {
+  return process.env.ENABLE_MOCK_PAYMENT === "true" && process.env.NODE_ENV !== "production";
 }
 
 export function getAlipayConfigStatus() {
@@ -67,6 +69,7 @@ export function getAlipayConfigStatus() {
     appId: process.env.ALIPAY_APP_ID || "",
     notifyUrl: process.env.ALIPAY_NOTIFY_URL || "",
     returnUrl: process.env.ALIPAY_RETURN_URL || "",
+    mockEnabled: isMockPaymentAllowed(),
   };
 }
 
@@ -124,12 +127,15 @@ export async function createPagePayment(
   const orderNo = generateOrderNo();
 
   if (!isAlipayConfigured()) {
-    console.log(`[ALIPAY-MOCK] 模拟支付: 用户=${userId}, 金额=${amount}, 订单=${orderNo}`);
-    return {
-      success: true,
-      message: "模拟支付成功（未配置支付宝，充值即时到账）",
-      data: { orderNo, mockPaid: true },
-    };
+    if (isMockPaymentAllowed()) {
+      console.log(`[ALIPAY-MOCK] 模拟支付: 用户=${userId}, 金额=${amount}, 订单=${orderNo}`);
+      return {
+        success: true,
+        message: "模拟支付成功（未配置支付宝，充值即时到账）",
+        data: { orderNo, mockPaid: true },
+      };
+    }
+    return { success: false, message: "支付服务暂未配置，请稍后重试" };
   }
 
   try {
@@ -176,12 +182,15 @@ export async function createQrPayment(
   const orderNo = generateOrderNo();
 
   if (!isAlipayConfigured()) {
-    console.log(`[ALIPAY-MOCK] 模拟支付: 用户=${userId}, 金额=${amount}, 订单=${orderNo}`);
-    return {
-      success: true,
-      message: "模拟支付成功（未配置支付宝，充值即时到账）",
-      data: { orderNo, mockPaid: true },
-    };
+    if (isMockPaymentAllowed()) {
+      console.log(`[ALIPAY-MOCK] 模拟支付: 用户=${userId}, 金额=${amount}, 订单=${orderNo}`);
+      return {
+        success: true,
+        message: "模拟支付成功（未配置支付宝，充值即时到账）",
+        data: { orderNo, mockPaid: true },
+      };
+    }
+    return { success: false, message: "支付服务暂未配置，请稍后重试" };
   }
 
   try {

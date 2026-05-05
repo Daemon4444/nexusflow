@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { formatCny } from "@/lib/money";
+import { formatCny, formatCnyPrecise } from "@/lib/money";
 import UserLayout from "@/components/UserLayout";
 import { BalanceWarning } from "@/components/BalanceWarning";
 import OnboardingGuide, { useOnboarding } from "@/components/OnboardingGuide";
@@ -22,6 +22,7 @@ interface PaymentConfigStatus {
   appId: string;
   notifyUrl: string;
   returnUrl: string;
+  mockEnabled?: boolean;
 }
 
 export default function BillingPage() {
@@ -34,7 +35,7 @@ export default function BillingPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [showRecharge, setShowRecharge] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState("");
-  const [payMethod, setPayMethod] = useState<PayMethod>("mock");
+  const [payMethod, setPayMethod] = useState<PayMethod>("alipay");
   const [recharging, setRecharging] = useState(false);
   const [rechargeMsg, setRechargeMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pollOrderId, setPollOrderId] = useState<string | null>(null);
@@ -147,7 +148,6 @@ export default function BillingPage() {
       {showOnboarding && user && (
         <OnboardingGuide
           hasApiKey={!!firstApiKey}
-          apiKey={firstApiKey?.key}
           onClose={markCompleted}
         />
       )}
@@ -215,7 +215,7 @@ export default function BillingPage() {
               <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>{t("paymentMethod")}</label>
               <div style={{ display: "flex", gap: 10 }}>
                 {([
-                  { key: "mock" as PayMethod, label: t("testMode"), desc: t("testModeDesc"), icon: "⚡" },
+                  ...(paymentConfig?.mockEnabled ? [{ key: "mock" as PayMethod, label: t("testMode"), desc: t("testModeDesc"), icon: "⚡" }] : []),
                   { key: "alipay" as PayMethod, label: "Alipay", desc: t("alipayDesc"), icon: "💳" },
                 ]).map((pm) => (
                   <button key={pm.key} onClick={() => setPayMethod(pm.key)} style={{ flex: 1, padding: "12px 14px", borderRadius: 8, cursor: "pointer", border: payMethod === pm.key ? "2px solid #111" : "1px solid var(--border)", background: payMethod === pm.key ? "rgba(0,0,0,0.02)" : "var(--bg-card)", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s" }}>
@@ -305,8 +305,8 @@ export default function BillingPage() {
                 <div key={tx.id} className="table-row" style={{ gridTemplateColumns: "80px 1fr 100px 100px 150px" }}>
                   <span><span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 9999, fontSize: 11, fontWeight: 500, background: `${typeColor(tx.type)}12`, color: typeColor(tx.type), border: `1px solid ${typeColor(tx.type)}25` }}>{typeLabel(tx.type)}</span></span>
                   <span style={{ color: "var(--text-primary)", fontSize: 12.5 }}>{tx.description || "-"}</span>
-                  <span style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{tx.type === "recharge" ? "+" : "-"}{formatCny(tx.amount)}</span>
-                  <span style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCny(tx.balanceAfter)}</span>
+                  <span style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{tx.type === "recharge" ? "+" : "-"}{formatCnyPrecise(tx.amount)}</span>
+                  <span style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCnyPrecise(tx.balanceAfter)}</span>
                   <span style={{ textAlign: "right", color: "var(--text-tertiary)", fontSize: 12 }}>{formatDate(tx.createdAt)}</span>
                 </div>
               ))}

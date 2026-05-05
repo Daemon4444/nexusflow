@@ -56,13 +56,13 @@ return Array.from(modelMap.values());
       "name": "百炼渠道",
       "adapter": "dashscope",
       "api_base_url": "https://dashscope.aliyuncs.com/api/v1",
-      "api_key": "sk-27b3ca3cb4944f379c214b6444e08210"
+      "api_key": "sk-your-dashscope-api-key"
     },
     "official": {
       "name": "拍我官方",
       "adapter": "pixverse",
       "api_base_url": "https://app-api.pixverseai.cn/openapi/v2",
-      "api_key": "sk-b2803a285c787974e5eb786435dce3c1"
+      "api_key": "sk-your-pixverse-api-key"
     }
   }
 }
@@ -73,7 +73,7 @@ return Array.from(modelMap.values());
 ## 3. API Key 和余额问题
 
 ### 3.1 百炼渠道 "Account in arrears"
-**问题**: 使用百炼 API Key (`sk-27b3ca3cb4944f379c214b6444e08210`) 调用 pixverse-v6 时返回 "Your account is in arrears. Please check your account status."
+**问题**: 使用百炼 API Key (`sk-your-dashscope-api-key`) 调用 pixverse-v6 时返回 "Your account is in arrears. Please check your account status."
 
 **原因**: 阿里云百炼账号欠费了。
 

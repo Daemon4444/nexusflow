@@ -7,6 +7,7 @@ import {
   verifyAlipayNotify,
   queryTradeStatus,
   getAlipayConfigStatus,
+  isMockPaymentAllowed,
 } from "../services/alipay";
 import {
   createPaymentOrder,
@@ -114,6 +115,10 @@ router.post("/recharge", async (req: Request, res: Response) => {
   const payMethod = method || "page";
 
   if (payMethod === "mock") {
+    if (!isMockPaymentAllowed()) {
+      res.status(403).json({ success: false, message: "当前环境不允许模拟充值" });
+      return;
+    }
     // 模拟充值（测试用）
     const tx = recharge(userId, normalizedAmount);
     if (!tx) {

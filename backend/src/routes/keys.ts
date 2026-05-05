@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { getKeysByUser, createApiKey, deleteApiKeyByUser } from "../data/apikeys";
+import { getKeysByUser, createApiKey, deleteApiKeyByUser, maskApiKey } from "../data/apikeys";
 import { validateSession } from "../data/users";
 
 const router = Router();
@@ -25,7 +25,8 @@ router.get("/", (req: Request, res: Response) => {
     id: k.id,
     user_id: k.user_id,
     name: k.name,
-    key: k.key,
+    key: maskApiKey(k.key),
+    keyPreview: maskApiKey(k.key),
     created_at: k.created_at,
     createdAt: k.created_at,
     last_used: k.last_used,
@@ -59,6 +60,7 @@ router.post("/", (req: Request, res: Response) => {
       id: newKey.id,
       name: newKey.name,
       key: newKey.key,
+      keyPreview: maskApiKey(newKey.key),
       createdAt: newKey.created_at,
       rateLimit: newKey.rate_limit,
     },

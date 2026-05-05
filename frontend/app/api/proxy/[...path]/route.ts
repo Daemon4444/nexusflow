@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
 
+function forwardedHeaders(request: NextRequest): HeadersInit {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const auth = request.headers.get("authorization");
+  if (auth) headers.Authorization = auth;
+  return headers;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -12,9 +21,7 @@ export async function GET(
   
   try {
     const res = await fetch(`${BACKEND_URL}${apiPath}${search}`, {
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: forwardedHeaders(request),
     });
     const data = await res.json();
     return NextResponse.json(data);
@@ -34,9 +41,7 @@ export async function POST(
     const body = await request.json();
     const res = await fetch(`${BACKEND_URL}${apiPath}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: forwardedHeaders(request),
       body: JSON.stringify(body),
     });
     const data = await res.json();
@@ -56,9 +61,7 @@ export async function DELETE(
   try {
     const res = await fetch(`${BACKEND_URL}${apiPath}`, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: forwardedHeaders(request),
     });
     const data = await res.json();
     return NextResponse.json(data);

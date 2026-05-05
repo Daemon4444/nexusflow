@@ -81,6 +81,7 @@ db.exec(`
     user_id TEXT,
     name TEXT NOT NULL,
     key TEXT NOT NULL UNIQUE,
+    key_hash TEXT UNIQUE,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     last_used TEXT,
     usage_count INTEGER NOT NULL DEFAULT 0,
@@ -286,6 +287,10 @@ try {
   if (!cols.find((c: any) => c.name === "user_id")) {
     db.exec("ALTER TABLE api_keys ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE");
   }
+  if (!cols.find((c: any) => c.name === "key_hash")) {
+    db.exec("ALTER TABLE api_keys ADD COLUMN key_hash TEXT");
+  }
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash)");
 } catch {}
 
 // 迁移：给已有的 usage_logs 表添加 user_id 列（如果不存在）

@@ -35,20 +35,31 @@ router.post("/", (req: Request, res: Response) => {
 
   const { type = "rate_limit", subject, description, model, requestedQpm, requestedTpm } = req.body || {};
 
-  if (!subject?.trim()) {
+  const cleanSubject = typeof subject === "string" ? subject.trim() : "";
+  const cleanDescription = typeof description === "string" ? description.trim() : "";
+
+  if (!cleanSubject) {
     res.status(400).json({ success: false, message: "标题不能为空" });
     return;
   }
-  if (!description?.trim()) {
+  if (cleanSubject.length < 5) {
+    res.status(400).json({ success: false, message: "标题至少 5 个字符" });
+    return;
+  }
+  if (!cleanDescription) {
     res.status(400).json({ success: false, message: "描述不能为空" });
+    return;
+  }
+  if (cleanDescription.length < 20) {
+    res.status(400).json({ success: false, message: "请补充更完整的问题描述，至少 20 个字符" });
     return;
   }
 
   const ticket = createTicket({
     userId,
     type,
-    subject: subject.trim(),
-    description: description.trim(),
+    subject: cleanSubject.slice(0, 120),
+    description: cleanDescription.slice(0, 5000),
     model: model?.trim() || undefined,
     requestedQpm: requestedQpm ? Number(requestedQpm) : undefined,
     requestedTpm: requestedTpm ? Number(requestedTpm) : undefined,

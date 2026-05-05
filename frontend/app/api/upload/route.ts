@@ -8,8 +8,10 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
 
     // Forward to backend
+    const auth = request.headers.get("authorization");
     const res = await fetch(`${BACKEND_URL}/api/upload`, {
       method: "POST",
+      headers: auth ? { Authorization: auth } : undefined,
       body: formData,
     });
 

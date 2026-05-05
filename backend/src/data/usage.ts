@@ -22,7 +22,7 @@ const stmts = {
   ),
   overview: db.prepare(`
     SELECT
-      COUNT(*) as totalRequests,
+      SUM(CASE WHEN status = 'success' AND cost > 0 THEN 1 ELSE 0 END) as totalRequests,
       COALESCE(SUM(total_tokens), 0) as totalTokens,
       COALESCE(SUM(cost), 0) as totalCost,
       COUNT(DISTINCT model) as activeModels,
@@ -128,7 +128,7 @@ export function getOverview(userId?: string) {
   const { clause, params } = whereByUser(userId);
   const row: any = db.prepare(`
     SELECT
-      COUNT(*) as totalRequests,
+      SUM(CASE WHEN status = 'success' AND cost > 0 THEN 1 ELSE 0 END) as totalRequests,
       COALESCE(SUM(total_tokens), 0) as totalTokens,
       COALESCE(SUM(cost), 0) as totalCost,
       COUNT(DISTINCT model) as activeModels,
@@ -138,7 +138,7 @@ export function getOverview(userId?: string) {
     ${clause}
   `).get(...params);
   return {
-    totalRequests: row.totalRequests,
+    totalRequests: row.totalRequests || 0,
     totalTokens: row.totalTokens,
     // Keep micro-cost precision; frontend controls display precision.
     totalCost: Number((row.totalCost || 0).toFixed(6)),

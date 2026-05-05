@@ -15,6 +15,7 @@ import pixverseRouter from "./routes/pixverse";
 import imageRouter from "./routes/image";
 import videoRouter from "./routes/video";
 import uploadRouter from "./routes/upload";
+import playgroundRouter from "./routes/playground";
 import authRouter from "./routes/auth";
 import billingRouter from "./routes/billing";
 import providerRouter from "./routes/provider";
@@ -28,6 +29,18 @@ import { errorHandler, notFoundHandler } from "./middleware/error";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
+
+app.disable("x-powered-by");
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
 
 app.use(cors({
   origin: [
@@ -70,6 +83,7 @@ app.use("/api/usage", usageRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/image", imageRouter);
 app.use("/api/video", videoRouter);
+app.use("/api/playground", playgroundRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/uploads", uploadRouter);
 app.use("/api/rate-limits", rateLimitsRouter);

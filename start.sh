@@ -21,8 +21,7 @@ stop_services() {
 start_backend() {
   echo "启动后端..."
   cd "$BACKEND_DIR"
-  DASHSCOPE_API_KEY=sk-961f22390b544d20869e9832d627590e PORT=3001 \
-    nohup npx ts-node --project tsconfig.json src/index.ts \
+  PORT="${PORT:-3001}" nohup npx ts-node --project tsconfig.json src/index.ts \
     > /tmp/backend.log 2>&1 &
   echo $! > "$BACKEND_PID_FILE"
   echo "后端 PID: $(cat $BACKEND_PID_FILE)"

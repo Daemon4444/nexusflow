@@ -11,6 +11,7 @@
 import { Router, Request, Response } from "express";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
+import { validateSession } from "../data/users";
 import { 
   createTask, 
   getTaskById, 
@@ -24,6 +25,12 @@ import { billAsyncError, billAsyncSuccess, estimateAsyncCost, hasEnoughBalance }
 
 const router = Router();
 
+type Caller = {
+  userId: string | null;
+  apiKeyId: string | null;
+  errorIdentity: { id: string | null; user_id: string | null } | null;
+};
+
 function getApiKey(): string {
   return process.env.DASHSCOPE_API_KEY || "";
 }
@@ -32,6 +39,42 @@ function extractToken(req: Request): string | null {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
   return auth.slice(7).trim();
+}
+
+function authenticateCaller(req: Request): Caller | null {
+  const token = extractToken(req);
+  if (!token) return null;
+
+  const apiKeyRecord = validateApiKey(token);
+  if (apiKeyRecord) {
+    return {
+      userId: apiKeyRecord.user_id,
+      apiKeyId: apiKeyRecord.id,
+      errorIdentity: apiKeyRecord,
+    };
+  }
+
+  const session = validateSession(token);
+  if (session) {
+    return {
+      userId: session.id,
+      apiKeyId: null,
+      errorIdentity: { id: null, user_id: session.id },
+    };
+  }
+
+  return null;
+}
+
+function canAccessTask(req: Request, taskUserId: string | null, taskApiKeyId: string | null): boolean {
+  const token = extractToken(req);
+  if (!token) return false;
+  const apiKeyRecord = validateApiKey(token);
+  if (apiKeyRecord) {
+    return (!!taskApiKeyId && apiKeyRecord.id === taskApiKeyId) || (!!taskUserId && apiKeyRecord.user_id === taskUserId);
+  }
+  const session = validateSession(token);
+  return !!session && !!taskUserId && session.id === taskUserId;
 }
 
 // POST /api/image/generate - Submit image generation task
@@ -58,21 +101,20 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
+  const caller = authenticateCaller(req);
+  if (!caller) {
+    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
+    return;
+  }
+
   const model = models.find((m) => m.id === modelId);
   if (!model || model.category !== "图像生成") {
     res.status(404).json({ success: false, message: "图像生成模型不存在" });
     return;
   }
 
-  const token = extractToken(req);
-  const apiKeyRecord = token ? validateApiKey(token) : null;
-  if (!apiKeyRecord) {
-    res.status(401).json({ success: false, message: "请提供有效的 API Key" });
-    return;
-  }
-
   const estimatedCost = estimateAsyncCost(model, { n });
-  if (!hasEnoughBalance(apiKeyRecord.user_id, estimatedCost)) {
+  if (!hasEnoughBalance(caller.userId, estimatedCost)) {
     res.status(402).json({ success: false, message: "余额不足，请先充值" });
     return;
   }
@@ -114,8 +156,8 @@ router.post("/generate", async (req: Request, res: Response) => {
 
   // Create internal task record
   const task = createTask({
-    userId: apiKeyRecord.user_id,
-    apiKeyId: apiKeyRecord.id,
+    userId: caller.userId,
+    apiKeyId: caller.apiKeyId,
     type: "image",
     model: modelId,
     provider: "dashscope",
@@ -150,7 +192,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     if (!response.ok || data.code) {
       const errorMsg = data.message || `HTTP ${response.status}`;
       failTask(task.id, errorMsg);
-      billAsyncError(apiKeyRecord, modelId, Date.now() - startTime);
+      billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
       res.status(response.status || 400).json({
         success: false,
         message: errorMsg,
@@ -181,7 +223,7 @@ router.post("/generate", async (req: Request, res: Response) => {
         });
       } else {
         failTask(task.id, "No image generated");
-        billAsyncError(apiKeyRecord, modelId, Date.now() - startTime);
+        billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
         res.status(500).json({
           success: false,
           message: "图像生成失败，未返回结果",
@@ -205,7 +247,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     failTask(task.id, err.message);
-    billAsyncError(apiKeyRecord, modelId, Date.now() - startTime);
+    billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
     res.status(500).json({
       success: false,
       message: `请求失败: ${err.message}`,
@@ -216,6 +258,11 @@ router.post("/generate", async (req: Request, res: Response) => {
 // GET /api/image/status/:taskId - Get image generation status
 router.get("/status/:taskId", async (req: Request, res: Response) => {
   const taskId = req.params.taskId as string;
+
+  if (!authenticateCaller(req)) {
+    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
+    return;
+  }
   
   const DASHSCOPE_API_KEY = getApiKey();
   if (!DASHSCOPE_API_KEY) {
@@ -227,6 +274,11 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   const task = getTaskById(taskId);
   
   if (task) {
+    if (!canAccessTask(req, task.user_id, task.api_key_id)) {
+      res.status(403).json({ success: false, message: "无权查看该任务" });
+      return;
+    }
+
     // Use our task system
     if (task.status === "succeeded" || task.status === "failed") {
       res.json({
@@ -268,7 +320,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
         });
       } else if (result.status === "failed") {
         failTask(task.id, result.error || "Task failed");
-        billAsyncError(task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
+        billAsyncError(task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {
@@ -299,6 +351,11 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   }
 
   // Fallback: treat as direct DashScope task ID
+  if (!authenticateCaller(req)) {
+    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
+    return;
+  }
+
   try {
     const result = await pollDashScopeTask(DASHSCOPE_API_KEY, taskId);
 

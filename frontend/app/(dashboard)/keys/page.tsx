@@ -31,23 +31,11 @@ export default function KeysPage() {
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyLimit, setNewKeyLimit] = useState(60);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+  const [createdKey, setCreatedKey] = useState<ApiKey | null>(null);
 
   useEffect(() => {
     if (user) loadKeys();
   }, [user]);
-
-  function toggleReveal(id: string) {
-    setRevealedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }
 
   async function loadKeys() {
     setDataLoading(true);
@@ -70,6 +58,7 @@ export default function KeysPage() {
         body: JSON.stringify({ name: newKeyName, rateLimit: newKeyLimit }),
       });
       if (res.success) {
+        setCreatedKey(res.data);
         setNewKeyName("");
         setNewKeyLimit(60);
         setShowCreate(false);
@@ -186,6 +175,33 @@ export default function KeysPage() {
         </div>
       )}
 
+      {createdKey && (
+        <div className="usr-section animate-fadeIn" style={{ marginBottom: 20, borderColor: "rgba(16,185,129,0.3)" }}>
+          <div className="usr-section-header">
+            <h3>API Key 已创建</h3>
+            <button
+              onClick={() => setCreatedKey(null)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 18, lineHeight: 1 }}
+            >
+              ×
+            </button>
+          </div>
+          <div className="usr-section-body">
+            <p style={{ margin: "0 0 10px", fontSize: 13, color: "var(--text-secondary)" }}>
+              请立即复制保存。出于安全原因，关闭后将只显示脱敏 Key。
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 14px", background: "#1c1917", borderRadius: 8, border: "1px solid #30363d" }}>
+              <code style={{ flex: 1, fontSize: 12.5, color: "#e7e5e4", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
+                {createdKey.key}
+              </code>
+              <button className="btn-secondary" style={{ padding: "5px 14px", flexShrink: 0, fontSize: 12 }} onClick={() => copyKey(createdKey.key, createdKey.id)}>
+                {copiedId === createdKey.id ? t("copied") : t("copy")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Keys list */}
       {dataLoading ? (
         <div style={{ textAlign: "center", padding: 60, color: "var(--text-tertiary)" }}>{t("loading")}</div>
@@ -244,29 +260,9 @@ export default function KeysPage() {
                   flex: 1, fontSize: 12.5, color: "#e7e5e4",
                   fontFamily: "var(--font-mono)", wordBreak: "break-all",
                 }}>
-                  {revealedIds.has(key.id) ? key.key : maskApiKey(key.key)}
+                  {maskApiKey(key.key)}
                 </code>
-                <button
-                  className="btn-secondary"
-                  style={{
-                    padding: "5px 10px", flexShrink: 0, fontSize: 12,
-                  }}
-                  onClick={() => toggleReveal(key.id)}
-                >
-                  {revealedIds.has(key.id) ? "隐藏" : "显示"}
-                </button>
-                <button
-                  className="btn-secondary"
-                  style={{
-                    padding: "5px 14px", flexShrink: 0, fontSize: 12,
-                    background: copiedId === key.id ? "rgba(16,185,129,0.1)" : undefined,
-                    borderColor: copiedId === key.id ? "rgba(16,185,129,0.3)" : undefined,
-                    color: copiedId === key.id ? "#059669" : undefined,
-                  }}
-                  onClick={() => copyKey(key.key, key.id)}
-                >
-                  {copiedId === key.id ? t("copied") : t("copy")}
-                </button>
+                <span style={{ flexShrink: 0, fontSize: 12, color: "#a8a29e" }}>仅创建时可复制完整 Key</span>
               </div>
             </div>
           ))}

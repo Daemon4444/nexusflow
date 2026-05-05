@@ -11,8 +11,7 @@ import { Router, Request, Response } from "express";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { getUserById } from "../data/users";
-import { consume } from "../data/billing";
+import { consume, hasSufficientBalance } from "../data/billing";
 import { checkConsumerLimits, checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType, adaptImageRequest, pollDashScopeTask } from "../services/adapters";
@@ -96,6 +95,35 @@ function buildChatCompletionFromSse(events: any[]): any {
     ],
     usage,
   };
+}
+
+function roughTokenCount(value: unknown): number {
+  if (value === undefined || value === null) return 0;
+  if (typeof value === "string") return Math.ceil(value.length / 2);
+  if (Array.isArray(value)) return value.reduce((sum, item) => sum + roughTokenCount(item), 0);
+  if (typeof value === "object") return Math.ceil(JSON.stringify(value).length / 2);
+  return Math.ceil(String(value).length / 2);
+}
+
+function estimateChatMaxCost(model: any, messages: unknown[], maxTokens?: number): number {
+  const promptTokens = Math.max(1, roughTokenCount(messages));
+  const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  return (promptTokens / 1_000_000) * model.promptPrice + (completionTokens / 1_000_000) * model.completionPrice;
+}
+
+function estimateEmbeddingCost(model: any, input: unknown): number {
+  const promptTokens = Math.max(1, roughTokenCount(input));
+  return (promptTokens / 1_000_000) * model.promptPrice;
+}
+
+function rejectInsufficientBalance(res: Response): void {
+  res.status(402).json({
+    error: {
+      message: "Insufficient balance for estimated maximum cost. Please recharge your account or lower max_tokens.",
+      type: "billing_error",
+      code: "insufficient_balance",
+    },
+  });
 }
 
 // GET /v1/models — OpenAI compatible model list
@@ -253,18 +281,10 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     return;
   }
 
-  if (apiKeyRecord.user_id) {
-    const owner = getUserById(apiKeyRecord.user_id);
-    if (owner && owner.balance <= 0) {
-      res.status(402).json({
-        error: {
-          message: "Insufficient balance. Please recharge your account.",
-          type: "billing_error",
-          code: "insufficient_balance",
-        },
-      });
-      return;
-    }
+  const estimatedImageCost = (n || 1) * model.promptPrice;
+  if (!hasSufficientBalance(apiKeyRecord.user_id, estimatedImageCost)) {
+    rejectInsufficientBalance(res);
+    return;
   }
 
   const startTime = Date.now();
@@ -524,19 +544,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  // Balance check
-  if (apiKeyRecord.user_id) {
-    const owner = getUserById(apiKeyRecord.user_id);
-    if (owner && owner.balance <= 0) {
-      res.status(402).json({
-        error: {
-          message: "Insufficient balance. Please recharge your account.",
-          type: "billing_error",
-          code: "insufficient_balance",
-        },
-      });
-      return;
-    }
+  const estimatedChatCost = estimateChatMaxCost(model, messages, max_tokens);
+  if (!hasSufficientBalance(apiKeyRecord.user_id, estimatedChatCost)) {
+    rejectInsufficientBalance(res);
+    return;
   }
 
   // Build request
@@ -936,19 +947,10 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     return;
   }
 
-  // Balance check
-  if (apiKeyRecord.user_id) {
-    const owner = getUserById(apiKeyRecord.user_id);
-    if (owner && owner.balance <= 0) {
-      res.status(402).json({
-        error: {
-          message: "Insufficient balance. Please recharge your account.",
-          type: "billing_error",
-          code: "insufficient_balance",
-        },
-      });
-      return;
-    }
+  const estimatedEmbeddingCost = estimateEmbeddingCost(model, input);
+  if (!hasSufficientBalance(apiKeyRecord.user_id, estimatedEmbeddingCost)) {
+    rejectInsufficientBalance(res);
+    return;
   }
 
   const requestBody: any = { model: modelId, input };
