@@ -47,8 +47,8 @@ export const providers: ProviderConfig[] = [
  * All models go through DashScope
  */
 export function findProvider(modelId: string): ProviderConfig | null {
-  const dynamic = trySelectDynamicProvider(modelId);
-  return dynamic || providers[0];
+  void modelId;
+  return providers[0];
 }
 
 /**
@@ -58,29 +58,10 @@ export function getProviderApiKey(provider: ProviderConfig): string {
   return process.env[provider.apiKeyEnv] || "";
 }
 
-function trySelectDynamicProvider(modelId: string): ProviderConfig | null {
-  try {
-    ensureRoutingDefaults();
-    const { selectProvider } = require("./scheduler") as typeof import("./scheduler");
-    const endpoint = selectProvider(modelId);
-    if (!endpoint) return null;
-    return {
-      id: endpoint.providerId,
-      name: endpoint.providerName,
-      baseUrl: endpoint.apiBaseUrl.replace(/\/$/, ""),
-      apiKeyEnv: "",
-      models: [modelId],
-      apiKey: endpoint.apiKey,
-    } as ProviderConfig & { apiKey: string };
-  } catch {
-    return null;
-  }
-}
-
-function ensureRoutingDefaults(): void {
+export async function ensureRoutingDefaults(): Promise<void> {
   const { ensureProvider, getCapacity, upsertCapacity } = require("../data/providers") as typeof import("../data/providers");
   const { models } = require("../data/models") as typeof import("../data/models");
-  const dashscope = ensureProvider({
+  const dashscope = await ensureProvider({
     id: "dashscope",
     name: "阿里云百炼",
     slug: "dashscope",
@@ -92,7 +73,7 @@ function ensureRoutingDefaults(): void {
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
   });
-  ensureProvider({
+  await ensureProvider({
     id: "volcengine-ark",
     name: "火山方舟",
     slug: "volcengine-ark",
@@ -105,9 +86,9 @@ function ensureRoutingDefaults(): void {
     status: "enabled",
   });
   for (const model of models) {
-    if (getCapacity(dashscope.id, model.id)) continue;
+    if (await getCapacity(dashscope.id, model.id)) continue;
     const isTaskModel = model.category === "图像生成" || model.category === "视频生成";
-    upsertCapacity(dashscope.id, model.id, {
+    await upsertCapacity(dashscope.id, model.id, {
       rpm_limit: 1000,
       tpm_limit: isTaskModel ? 0 : 1000000,
       daily_limit: 100000,

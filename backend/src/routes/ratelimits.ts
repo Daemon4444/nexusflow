@@ -12,13 +12,13 @@ import { requireAdmin, getSessionUser } from "../middleware/admin";
 
 const router = Router();
 
-function requireAuth(req: Request, res: Response): string | null {
+async function requireAuth(req: Request, res: Response): Promise<string | null> {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
     res.status(401).json({ success: false, message: "未登录" });
     return null;
   }
-  const session = validateSession(auth.slice(7).trim());
+  const session = await validateSession(auth.slice(7).trim());
   if (!session) {
     res.status(401).json({ success: false, message: "登录已过期" });
     return null;
@@ -27,30 +27,30 @@ function requireAuth(req: Request, res: Response): string | null {
 }
 
 /** GET /api/rate-limits — Get current user's limits overview */
-router.get("/", (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+router.get("/", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   res.json({
     success: true,
-    data: getUserLimitsOverview(userId),
+    data: await getUserLimitsOverview(userId),
   });
 });
 
 /** GET /api/rate-limits/requests — Get current user's request history */
-router.get("/requests", (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+router.get("/requests", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   res.json({
     success: true,
-    data: getUserLimitsOverview(userId).requests || [],
+    data: (await getUserLimitsOverview(userId)).requests || [],
   });
 });
 
 /** POST /api/rate-limits/request — Submit a direct rate limit request */
-router.post("/request", (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+router.post("/request", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const { model = "*", requestedQpm, requestedTpm, reason = "" } = req.body || {};
@@ -65,7 +65,7 @@ router.post("/request", (req: Request, res: Response) => {
     return;
   }
 
-  const request = submitRateLimitRequest({
+  const request = await submitRateLimitRequest({
     userId,
     model: String(model || "*"),
     requestedQpm: Math.round(qpm),
@@ -77,29 +77,29 @@ router.post("/request", (req: Request, res: Response) => {
 });
 
 /** GET /api/rate-limits/:model — Get effective limit for a specific model */
-router.get("/:model", (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+router.get("/:model", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   res.json({
     success: true,
-    data: getEffectiveRateLimit(userId, req.params.model as string),
+    data: await getEffectiveRateLimit(userId, req.params.model as string),
   });
 });
 
 /** GET /api/rate-limits/admin/requests — Admin list rate-limit requests */
-router.get("/admin/requests", requireAdmin, (req: Request, res: Response) => {
+router.get("/admin/requests", requireAdmin, async (req: Request, res: Response) => {
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
-  const requests = getAdminRateLimitRequests(status);
+  const requests = await getAdminRateLimitRequests(status);
   res.json({ success: true, data: requests });
 });
 
 /** POST /api/rate-limits/admin/requests/:id/approve — Approve request */
-router.post("/admin/requests/:id/approve", requireAdmin, (req: Request, res: Response) => {
-  const admin = getSessionUser(req, res);
+router.post("/admin/requests/:id/approve", requireAdmin, async (req: Request, res: Response) => {
+  const admin = await getSessionUser(req, res);
   if (!admin) return;
   const { model, qpm, tpm, reply } = req.body || {};
-  const request = approveRateLimitRequest(req.params.id as string, admin.id, {
+  const request = await approveRateLimitRequest(req.params.id as string, admin.id, {
     model: typeof model === "string" ? model : undefined,
     qpm: qpm !== undefined ? Number(qpm) : undefined,
     tpm: tpm !== undefined ? Number(tpm) : undefined,
@@ -113,11 +113,11 @@ router.post("/admin/requests/:id/approve", requireAdmin, (req: Request, res: Res
 });
 
 /** POST /api/rate-limits/admin/requests/:id/reject — Reject request */
-router.post("/admin/requests/:id/reject", requireAdmin, (req: Request, res: Response) => {
-  const admin = getSessionUser(req, res);
+router.post("/admin/requests/:id/reject", requireAdmin, async (req: Request, res: Response) => {
+  const admin = await getSessionUser(req, res);
   if (!admin) return;
   const { reply } = req.body || {};
-  const request = rejectRateLimitRequest(req.params.id as string, admin.id, typeof reply === "string" ? reply : undefined);
+  const request = await rejectRateLimitRequest(req.params.id as string, admin.id, typeof reply === "string" ? reply : undefined);
   if (!request) {
     res.status(404).json({ success: false, message: "申请不存在或已处理" });
     return;

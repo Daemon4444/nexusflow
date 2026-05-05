@@ -1,5 +1,3 @@
-import { getProviderChannel, getProviderChannelConfig } from "../data/provider-channels";
-
 export type PixVerseRuntimeChannel = {
   id: string;
   name: string;
@@ -36,10 +34,9 @@ function normalizePixVerseBaseUrl(apiBaseUrl: string): string {
 }
 
 export function getPixVerseRuntimeChannel(channelId?: string): PixVerseRuntimeChannel {
-  const stored = getProviderChannel("pixverse", channelId);
-  const fallbackId = channelId || getProviderChannelConfig("pixverse")?.active_channel || "bailian";
+  const fallbackId = channelId || "bailian";
   const fallback = DEFAULT_CHANNELS[fallbackId as keyof typeof DEFAULT_CHANNELS] || DEFAULT_CHANNELS.bailian;
-  const selected = stored || { id: fallbackId, ...fallback };
+  const selected = { id: fallbackId, ...fallback };
   const envKey = selected.adapter === "dashscope" ? process.env.DASHSCOPE_API_KEY : process.env.PIXVERSE_API_KEY;
   const apiKey = selected.api_key || envKey || "";
 

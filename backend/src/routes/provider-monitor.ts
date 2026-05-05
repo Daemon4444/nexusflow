@@ -28,10 +28,12 @@ function getFallbackState(health: HealthState): "closed" | "monitoring" | "open"
 
 router.use(requireAdmin);
 
-router.get("/overview", (_req: Request, res: Response) => {
-  const providers = getAllProviders();
-  const capacity = getAllCapacity();
-  const health = getAllHealthRecords();
+router.get("/overview", async (_req: Request, res: Response) => {
+  const [providers, capacity, health] = await Promise.all([
+    getAllProviders(),
+    getAllCapacity(),
+    getAllHealthRecords(),
+  ]);
   const totals = {
     currentRpm: 0,
     currentTpm: 0,
@@ -158,16 +160,21 @@ router.get("/overview", (_req: Request, res: Response) => {
   });
 });
 
-router.get("/provider/:providerId", (req: Request, res: Response) => {
+router.get("/provider/:providerId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  const provider = getAllProviders().find((item) => item.id === providerId);
+  const [providers, allCapacity, allHealth] = await Promise.all([
+    getAllProviders(),
+    getAllCapacity(),
+    getAllHealthRecords(),
+  ]);
+  const provider = providers.find((item) => item.id === providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "渠道不存在" });
     return;
   }
 
-  const capacity = getAllCapacity().filter((item) => item.provider_id === providerId);
-  const health = getAllHealthRecords().filter((item) => item.providerId === providerId);
+  const capacity = allCapacity.filter((item) => item.provider_id === providerId);
+  const health = allHealth.filter((item) => item.providerId === providerId);
 
   const routes = capacity.map((cap) => {
     const catalog = staticModels.find((model) => model.id === cap.model_id);

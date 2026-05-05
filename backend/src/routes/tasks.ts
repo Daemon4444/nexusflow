@@ -58,7 +58,7 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const apiKeyRecord = validateApiKey(token);
+  const apiKeyRecord = await validateApiKey(token);
   if (!apiKeyRecord) {
     res.status(401).json({
       error: { message: "Invalid API key", type: "invalid_request_error", code: "invalid_api_key" },
@@ -77,7 +77,7 @@ router.post("/", async (req: Request, res: Response) => {
 
   // Balance check
   if (apiKeyRecord.user_id) {
-    const owner = getUserById(apiKeyRecord.user_id);
+    const owner = await getUserById(apiKeyRecord.user_id);
     if (owner && owner.balance <= 0) {
       res.status(402).json({
         error: { message: "Insufficient balance", type: "billing_error", code: "insufficient_balance" },
@@ -117,7 +117,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   const estimatedCost = estimateAsyncCost(model, params);
-  if (!hasEnoughBalance(apiKeyRecord.user_id, estimatedCost)) {
+  if (!(await hasEnoughBalance(apiKeyRecord.user_id, estimatedCost))) {
     res.status(402).json({
       error: { message: "Insufficient balance", type: "billing_error", code: "insufficient_balance" },
     });
@@ -178,7 +178,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // Create task record
-  const task = createTask({
+  const task = await createTask({
     userId: apiKeyRecord.user_id,
     apiKeyId: apiKeyRecord.id,
     type: modelType as "image" | "video",
@@ -205,7 +205,7 @@ router.post("/", async (req: Request, res: Response) => {
       adapted = adaptVideoRequest(upstreamApiKey, { model: modelId, prompt, ...params });
     }
   } catch (err: any) {
-    failTask(task.id, `Adapter error: ${err.message}`);
+    await failTask(task.id, `Adapter error: ${err.message}`);
     res.status(500).json({
       error: { message: `Failed to prepare request: ${err.message}`, type: "server_error", code: "adapter_error" },
     });
@@ -224,8 +224,8 @@ router.post("/", async (req: Request, res: Response) => {
 
     if (!response.ok || data.code || (data.ErrCode !== undefined && data.ErrCode !== 0)) {
       const errorMsg = data.message || data.error?.message || data.ErrMsg || `HTTP ${response.status}`;
-      failTask(task.id, errorMsg);
-      billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
+      await failTask(task.id, errorMsg);
+      await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
       res.status(response.ok ? 400 : response.status).json({
         error: { message: errorMsg, type: "upstream_error", code: "upstream_error" },
       });
@@ -246,8 +246,8 @@ router.post("/", async (req: Request, res: Response) => {
         const output = { type: "image", image_url: imageUrls[0], images: imageUrls };
         const model = models.find((m) => m.id === modelId);
         const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
-        completeTask(task.id, output, cost);
-        if (model) billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+        await completeTask(task.id, output, cost);
+        if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
         res.status(202).json({
           id: task.id,
           object: "task",
@@ -275,10 +275,10 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     if (upstreamTaskId) {
-      setUpstreamTaskId(task.id, upstreamTaskId);
+      await setUpstreamTaskId(task.id, upstreamTaskId);
     } else {
       // Unexpected response format
-      failTask(task.id, "No task_id in upstream response");
+      await failTask(task.id, "No task_id in upstream response");
       res.status(500).json({
         error: { message: "No task_id returned from upstream", type: "upstream_error", code: "unexpected_response" },
       });
@@ -296,8 +296,8 @@ router.post("/", async (req: Request, res: Response) => {
     });
 
   } catch (err: any) {
-    failTask(task.id, `Request failed: ${err.message}`);
-    billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
+    await failTask(task.id, `Request failed: ${err.message}`);
+    await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
     res.status(500).json({
       error: { message: `Upstream request failed: ${err.message}`, type: "server_error", code: "upstream_error" },
     });
@@ -307,7 +307,7 @@ router.post("/", async (req: Request, res: Response) => {
 // GET /v1/tasks/:id - Get task status
 router.get("/:id", async (req: Request, res: Response) => {
   const taskId = req.params.id as string;
-  const task = getTaskById(taskId);
+  const task = await getTaskById(taskId);
 
   if (!task) {
     res.status(404).json({
@@ -360,13 +360,13 @@ router.get("/:id", async (req: Request, res: Response) => {
     if (result.status === "succeeded") {
       const model = models.find((m) => m.id === task.model);
       const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
-      completeTask(task.id, result.output, cost);
-      if (model) billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+      await completeTask(task.id, result.output, cost);
+      if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
     } else if (result.status === "failed") {
-      failTask(task.id, result.error || "Task failed");
-      billAsyncError(task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
+      await failTask(task.id, result.error || "Task failed");
+      await billAsyncError(task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
     } else {
-      updateTaskStatus(task.id, result.status, result.progress || 0);
+      await updateTaskStatus(task.id, result.status, result.progress || 0);
     }
 
     res.json({
@@ -397,9 +397,9 @@ router.get("/", async (req: Request, res: Response) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
 
   if (token) {
-    const apiKeyRecord = validateApiKey(token);
+    const apiKeyRecord = await validateApiKey(token);
     if (apiKeyRecord?.user_id) {
-      const tasks = getTasksByUser(apiKeyRecord.user_id, limit);
+      const tasks = await getTasksByUser(apiKeyRecord.user_id, limit);
       res.json({
         object: "list",
         data: tasks.map((t) => ({

@@ -21,14 +21,14 @@ import {
 const router = Router();
 
 /** 从请求头提取 session token 并验证用户 */
-function requireAuth(req: Request, res: Response): string | null {
+async function requireAuth(req: Request, res: Response): Promise<string | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) {
     res.status(401).json({ success: false, message: "未登录" });
     return null;
   }
   const token = auth.slice(7).trim();
-  const session = validateSession(token);
+  const session = await validateSession(token);
   if (!session) {
     res.status(401).json({ success: false, message: "登录已过期，请重新登录" });
     return null;
@@ -43,23 +43,23 @@ function asAmount(value: unknown): number {
 }
 
 // GET /api/billing/summary — 账单概览
-router.get("/summary", (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+router.get("/summary", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
-  const summary = getBillingSummary(userId);
+  const summary = await getBillingSummary(userId);
   res.json({ success: true, data: summary });
 });
 
 // GET /api/billing/transactions — 交易记录列表
-router.get("/transactions", (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+router.get("/transactions", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const limit = Math.min(Number(req.query.limit) || 20, 100);
   const offset = Number(req.query.offset) || 0;
 
-  const { rows, total } = getTransactions(userId, limit, offset);
+  const { rows, total } = await getTransactions(userId, limit, offset);
   res.json({
     success: true,
     data: {
@@ -79,17 +79,17 @@ router.get("/transactions", (req: Request, res: Response) => {
 });
 
 // GET /api/billing/monthly — 月度统计
-router.get("/monthly", (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+router.get("/monthly", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
-  const stats = getMonthlyStats(userId);
+  const stats = await getMonthlyStats(userId);
   res.json({ success: true, data: stats });
 });
 
 // GET /api/billing/payment/config — 支付配置状态（用于前端提示）
-router.get("/payment/config", (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+router.get("/payment/config", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
   if (!userId) return;
   const status = getAlipayConfigStatus();
   res.json({ success: true, data: status });
@@ -97,7 +97,7 @@ router.get("/payment/config", (req: Request, res: Response) => {
 
 // POST /api/billing/recharge — 充值（支付宝电脑网站支付）
 router.post("/recharge", async (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const { amount, method } = req.body;
@@ -120,7 +120,7 @@ router.post("/recharge", async (req: Request, res: Response) => {
       return;
     }
     // 模拟充值（测试用）
-    const tx = recharge(userId, normalizedAmount);
+    const tx = await recharge(userId, normalizedAmount);
     if (!tx) {
       res.status(500).json({ success: false, message: "充值失败" });
       return;
@@ -149,7 +149,7 @@ router.post("/recharge", async (req: Request, res: Response) => {
 
   // 模拟模式（未配置支付宝时）直接到账
   if (result.data?.mockPaid) {
-    const tx = recharge(userId, normalizedAmount, `充值 ¥${normalizedAmount.toFixed(2)}（模拟支付）`);
+    const tx = await recharge(userId, normalizedAmount, `充值 ¥${normalizedAmount.toFixed(2)}（模拟支付）`);
     if (!tx) {
       res.status(500).json({ success: false, message: "充值失败" });
       return;
@@ -168,14 +168,14 @@ router.post("/recharge", async (req: Request, res: Response) => {
   }
 
   // 记录持久化订单
-  createPaymentOrder({
+  await createPaymentOrder({
     orderNo: result.data!.orderNo,
     userId,
     amount: normalizedAmount,
     method: payMethod === "qr" ? "qr" : "page",
     channel: "alipay",
   });
-  markOrderPending(result.data!.orderNo);
+  await markOrderPending(result.data!.orderNo);
 
   res.json({
     success: true,
@@ -192,7 +192,7 @@ router.post("/recharge", async (req: Request, res: Response) => {
 });
 
 // POST /api/billing/alipay/notify — 支付宝异步通知回调
-router.post("/alipay/notify", (req: Request, res: Response) => {
+router.post("/alipay/notify", async (req: Request, res: Response) => {
   const params = req.body as Record<string, string>;
   const outTradeNo = params.out_trade_no;
   const tradeStatus = params.trade_status;
@@ -227,14 +227,14 @@ router.post("/alipay/notify", (req: Request, res: Response) => {
   // 2. 检查交易状态
   if (tradeStatus !== "TRADE_SUCCESS" && tradeStatus !== "TRADE_FINISHED") {
     if (tradeStatus === "TRADE_CLOSED") {
-      setOrderStatus(outTradeNo, "closed");
+      await setOrderStatus(outTradeNo, "closed");
     }
     res.send("success");
     return;
   }
 
   // 3. 查找订单
-  const order = getPaymentOrder(outTradeNo);
+  const order = await getPaymentOrder(outTradeNo);
   if (!order) {
     console.warn(`[ALIPAY-NOTIFY] 未知订单: ${outTradeNo}`);
     res.send("success");
@@ -264,9 +264,9 @@ router.post("/alipay/notify", (req: Request, res: Response) => {
   }
 
   // 7. 执行充值
-  const tx = recharge(userId, totalAmount, `支付宝充值 ¥${totalAmount.toFixed(2)} (${outTradeNo})`);
+  const tx = await recharge(userId, totalAmount, `支付宝充值 ¥${totalAmount.toFixed(2)} (${outTradeNo})`);
   if (tx) {
-    markOrderPaid({
+    await markOrderPaid({
       orderNo: outTradeNo,
       providerTradeNo: params.trade_no,
       notifyPayload: JSON.stringify(params),
@@ -274,7 +274,7 @@ router.post("/alipay/notify", (req: Request, res: Response) => {
     });
     console.log(`[ALIPAY-NOTIFY] 充值成功: 用户=${userId}, 金额=¥${totalAmount}, 订单=${outTradeNo}`);
   } else {
-    setOrderStatus(outTradeNo, "failed");
+    await setOrderStatus(outTradeNo, "failed");
     console.error(`[ALIPAY-NOTIFY] 充值失败: 用户=${userId}, 订单=${outTradeNo}`);
   }
 
@@ -284,7 +284,7 @@ router.post("/alipay/notify", (req: Request, res: Response) => {
 
 // GET /api/billing/order/status — 查询支付订单状态
 router.get("/order/status", async (req: Request, res: Response) => {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const orderNo = (req.query.orderNo || req.query.orderId) as string;
@@ -293,7 +293,7 @@ router.get("/order/status", async (req: Request, res: Response) => {
     return;
   }
 
-  const order = getPaymentOrderForUser(orderNo, userId);
+  const order = await getPaymentOrderForUser(orderNo, userId);
   if (!order) {
     res.json({ success: true, data: { status: "unknown" } });
     return;
@@ -310,9 +310,9 @@ router.get("/order/status", async (req: Request, res: Response) => {
   if (tradeResult.success && tradeResult.status === "TRADE_SUCCESS") {
     // 支付成功但回调还没到，手动处理
     if (!order.processed) {
-      const tx = recharge(order.user_id, order.amount, `支付宝充值 ¥${order.amount.toFixed(2)} (${orderNo})`);
+      const tx = await recharge(order.user_id, order.amount, `支付宝充值 ¥${order.amount.toFixed(2)} (${orderNo})`);
       if (tx) {
-        markOrderPaid({
+        await markOrderPaid({
           orderNo,
           providerTradeNo: tradeResult.tradeNo,
           notifyPayload: JSON.stringify(tradeResult.raw || {}),
@@ -320,7 +320,7 @@ router.get("/order/status", async (req: Request, res: Response) => {
         });
         console.log(`[ALIPAY-POLL] 充值成功: 用户=${order.user_id}, 金额=¥${order.amount}`);
       } else {
-        setOrderStatus(orderNo, "failed");
+        await setOrderStatus(orderNo, "failed");
       }
     }
     res.json({ success: true, data: { status: "paid" } });
@@ -328,7 +328,7 @@ router.get("/order/status", async (req: Request, res: Response) => {
   }
 
   if (tradeResult.success && tradeResult.status === "TRADE_CLOSED") {
-    setOrderStatus(orderNo, "closed");
+    await setOrderStatus(orderNo, "closed");
     res.json({ success: true, data: { status: "closed" } });
     return;
   }

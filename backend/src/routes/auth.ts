@@ -37,7 +37,7 @@ router.post("/login", validateBody(LoginSchema), async (req: Request, res: Respo
     return;
   }
 
-  const result = loginByEmail(email);
+  const result = await loginByEmail(email);
   if (!result) {
     res.status(500).json({ success: false, message: "登录失败" });
     return;
@@ -66,10 +66,10 @@ const PasswordLoginSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-router.post("/login-password", validateBody(PasswordLoginSchema), (req: Request, res: Response) => {
+router.post("/login-password", validateBody(PasswordLoginSchema), async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
-  const result = loginByPassword(email, password);
+  const result = await loginByPassword(email, password);
   if (!result) {
     res.status(401).json({ success: false, message: "邮箱或密码错误" });
     return;
@@ -97,21 +97,21 @@ const SetPasswordSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters").max(128),
 });
 
-router.post("/set-password", validateBody(SetPasswordSchema), (req: Request, res: Response) => {
+router.post("/set-password", validateBody(SetPasswordSchema), async (req: Request, res: Response) => {
   const token = extractSessionToken(req);
   if (!token) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
 
-  const session = validateSession(token);
+  const session = await validateSession(token);
   if (!session) {
     res.status(401).json({ success: false, message: "登录已过期，请重新登录" });
     return;
   }
 
   const { password } = req.body;
-  const success = setUserPassword(session.id, password);
+  const success = await setUserPassword(session.id, password);
   if (!success) {
     res.status(500).json({ success: false, message: "设置密码失败" });
     return;
@@ -121,20 +121,20 @@ router.post("/set-password", validateBody(SetPasswordSchema), (req: Request, res
 });
 
 // GET /api/auth/me — 获取当前用户信息
-router.get("/me", (req: Request, res: Response) => {
+router.get("/me", async (req: Request, res: Response) => {
   const token = extractSessionToken(req);
   if (!token) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
 
-  const session = validateSession(token);
+  const session = await validateSession(token);
   if (!session) {
     res.status(401).json({ success: false, message: "登录已过期，请重新登录" });
     return;
   }
 
-  const user = getUserById(session.id);
+  const user = await getUserById(session.id);
   if (!user) {
     res.status(401).json({ success: false, message: "用户不存在" });
     return;
@@ -154,10 +154,10 @@ router.get("/me", (req: Request, res: Response) => {
 });
 
 // POST /api/auth/logout — 登出
-router.post("/logout", (req: Request, res: Response) => {
+router.post("/logout", async (req: Request, res: Response) => {
   const token = extractSessionToken(req);
   if (token) {
-    logout(token);
+    await logout(token);
   }
   res.json({ success: true, message: "已登出" });
 });
@@ -167,20 +167,20 @@ const UpdateProfileSchema = z.object({
   nickname: z.string().min(1, "昵称不能为空").max(20, "昵称最多 20 个字符"),
 });
 
-router.put("/profile", validateBody(UpdateProfileSchema), (req: Request, res: Response) => {
+router.put("/profile", validateBody(UpdateProfileSchema), async (req: Request, res: Response) => {
   const token = extractSessionToken(req);
   if (!token) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  const session = validateSession(token);
+  const session = await validateSession(token);
   if (!session) {
     res.status(401).json({ success: false, message: "登录已过期" });
     return;
   }
 
   const { nickname } = req.body;
-  const success = updateNickname(session.id, nickname.trim());
+  const success = await updateNickname(session.id, nickname.trim());
   if (!success) {
     res.status(500).json({ success: false, message: "更新失败" });
     return;
@@ -195,19 +195,19 @@ const ChangePasswordSchema = z.object({
   newPassword: z.string().min(6, "新密码至少 6 个字符").max(128),
 });
 
-router.post("/change-password", validateBody(ChangePasswordSchema), (req: Request, res: Response) => {
+router.post("/change-password", validateBody(ChangePasswordSchema), async (req: Request, res: Response) => {
   const token = extractSessionToken(req);
   if (!token) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  const session = validateSession(token);
+  const session = await validateSession(token);
   if (!session) {
     res.status(401).json({ success: false, message: "登录已过期" });
     return;
   }
 
-  const user = getUserById(session.id);
+  const user = await getUserById(session.id);
   if (!user) {
     res.status(401).json({ success: false, message: "用户不存在" });
     return;
@@ -223,7 +223,7 @@ router.post("/change-password", validateBody(ChangePasswordSchema), (req: Reques
     }
   }
 
-  const success = setUserPassword(session.id, newPassword);
+  const success = await setUserPassword(session.id, newPassword);
   if (!success) {
     res.status(500).json({ success: false, message: "修改失败" });
     return;

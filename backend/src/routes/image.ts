@@ -41,11 +41,11 @@ function extractToken(req: Request): string | null {
   return auth.slice(7).trim();
 }
 
-function authenticateCaller(req: Request): Caller | null {
+async function authenticateCaller(req: Request): Promise<Caller | null> {
   const token = extractToken(req);
   if (!token) return null;
 
-  const apiKeyRecord = validateApiKey(token);
+  const apiKeyRecord = await validateApiKey(token);
   if (apiKeyRecord) {
     return {
       userId: apiKeyRecord.user_id,
@@ -54,7 +54,7 @@ function authenticateCaller(req: Request): Caller | null {
     };
   }
 
-  const session = validateSession(token);
+  const session = await validateSession(token);
   if (session) {
     return {
       userId: session.id,
@@ -66,14 +66,14 @@ function authenticateCaller(req: Request): Caller | null {
   return null;
 }
 
-function canAccessTask(req: Request, taskUserId: string | null, taskApiKeyId: string | null): boolean {
+async function canAccessTask(req: Request, taskUserId: string | null, taskApiKeyId: string | null): Promise<boolean> {
   const token = extractToken(req);
   if (!token) return false;
-  const apiKeyRecord = validateApiKey(token);
+  const apiKeyRecord = await validateApiKey(token);
   if (apiKeyRecord) {
     return (!!taskApiKeyId && apiKeyRecord.id === taskApiKeyId) || (!!taskUserId && apiKeyRecord.user_id === taskUserId);
   }
-  const session = validateSession(token);
+  const session = await validateSession(token);
   return !!session && !!taskUserId && session.id === taskUserId;
 }
 
@@ -101,7 +101,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
-  const caller = authenticateCaller(req);
+  const caller = await authenticateCaller(req);
   if (!caller) {
     res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
     return;
@@ -114,7 +114,7 @@ router.post("/generate", async (req: Request, res: Response) => {
   }
 
   const estimatedCost = estimateAsyncCost(model, { n });
-  if (!hasEnoughBalance(caller.userId, estimatedCost)) {
+  if (!(await hasEnoughBalance(caller.userId, estimatedCost))) {
     res.status(402).json({ success: false, message: "余额不足，请先充值" });
     return;
   }
@@ -155,7 +155,7 @@ router.post("/generate", async (req: Request, res: Response) => {
   }
 
   // Create internal task record
-  const task = createTask({
+  const task = await createTask({
     userId: caller.userId,
     apiKeyId: caller.apiKeyId,
     type: "image",
@@ -191,8 +191,8 @@ router.post("/generate", async (req: Request, res: Response) => {
 
     if (!response.ok || data.code) {
       const errorMsg = data.message || `HTTP ${response.status}`;
-      failTask(task.id, errorMsg);
-      billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+      await failTask(task.id, errorMsg);
+      await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
       res.status(response.status || 400).json({
         success: false,
         message: errorMsg,
@@ -211,8 +211,8 @@ router.post("/generate", async (req: Request, res: Response) => {
       }).filter(Boolean);
 
       if (results.length > 0) {
-        completeTask(task.id, { type: "image", results }, estimatedCost);
-        billAsyncSuccess(task, model, estimatedCost, Date.now() - startTime);
+        await completeTask(task.id, { type: "image", results }, estimatedCost);
+        await billAsyncSuccess(task, model, estimatedCost, Date.now() - startTime);
         res.json({
           success: true,
           data: {
@@ -222,8 +222,8 @@ router.post("/generate", async (req: Request, res: Response) => {
           },
         });
       } else {
-        failTask(task.id, "No image generated");
-        billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+        await failTask(task.id, "No image generated");
+        await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
         res.status(500).json({
           success: false,
           message: "图像生成失败，未返回结果",
@@ -234,7 +234,7 @@ router.post("/generate", async (req: Request, res: Response) => {
 
     // Async response - store upstream task ID for polling
     if (data.output?.task_id) {
-      setUpstreamTaskId(task.id, data.output.task_id);
+      await setUpstreamTaskId(task.id, data.output.task_id);
     }
 
     res.json({
@@ -246,8 +246,8 @@ router.post("/generate", async (req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    failTask(task.id, err.message);
-    billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+    await failTask(task.id, err.message);
+    await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
     res.status(500).json({
       success: false,
       message: `请求失败: ${err.message}`,
@@ -259,7 +259,7 @@ router.post("/generate", async (req: Request, res: Response) => {
 router.get("/status/:taskId", async (req: Request, res: Response) => {
   const taskId = req.params.taskId as string;
 
-  if (!authenticateCaller(req)) {
+  if (!(await authenticateCaller(req))) {
     res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
     return;
   }
@@ -271,10 +271,10 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   }
 
   // First try to find our internal task
-  const task = getTaskById(taskId);
+  const task = await getTaskById(taskId);
   
   if (task) {
-    if (!canAccessTask(req, task.user_id, task.api_key_id)) {
+    if (!(await canAccessTask(req, task.user_id, task.api_key_id))) {
       res.status(403).json({ success: false, message: "无权查看该任务" });
       return;
     }
@@ -308,8 +308,8 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
       if (result.status === "succeeded") {
         const model = models.find((m) => m.id === task.model);
         const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
-        completeTask(task.id, result.output, cost);
-        if (model) billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+        await completeTask(task.id, result.output, cost);
+        if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {
@@ -319,8 +319,8 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
           },
         });
       } else if (result.status === "failed") {
-        failTask(task.id, result.error || "Task failed");
-        billAsyncError(task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
+        await failTask(task.id, result.error || "Task failed");
+        await billAsyncError(task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {
@@ -330,7 +330,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
           },
         });
       } else {
-        updateTaskStatus(task.id, result.status, result.progress || 0);
+        await updateTaskStatus(task.id, result.status, result.progress || 0);
         res.json({
           success: true,
           data: {
@@ -351,7 +351,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   }
 
   // Fallback: treat as direct DashScope task ID
-  if (!authenticateCaller(req)) {
+  if (!(await authenticateCaller(req))) {
     res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
     return;
   }

@@ -24,7 +24,7 @@ function getDashScopePixVerseModel(model: string): string {
 // ── 创建视频生成任务 ──────────────────────────────────────────────
 async function handleVideoSynthesis(req: Request, res: Response) {
   const token = extractToken(req);
-  const keyRecord = token ? validateApiKey(token) : null;
+  const keyRecord = token ? await validateApiKey(token) : null;
   if (!token || !keyRecord) {
     res.status(401).json({ error: { message: "Invalid API key.", code: "invalid_api_key" } });
     return;
@@ -32,7 +32,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
 
   // 余额检查
   if (keyRecord.user_id) {
-    const owner = getUserById(keyRecord.user_id);
+    const owner = await getUserById(keyRecord.user_id);
     if (owner && owner.balance <= 0) {
       res.status(402).json({
         error: { message: "Insufficient balance. Please recharge your account.", type: "billing_error", code: "insufficient_balance" },
@@ -69,7 +69,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
       const data: any = await response.json();
       const latencyMs = Date.now() - startTime;
 
-      logUsage({
+      await logUsage({
         apiKeyId: keyRecord.id,
         model,
         promptTokens: 0, completionTokens: 0, totalTokens: 0,
@@ -92,7 +92,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
         },
       });
     } catch (err: any) {
-      logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: "error", latencyMs: Date.now() - startTime });
+      await logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: "error", latencyMs: Date.now() - startTime });
       res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
     }
   } else {
@@ -138,7 +138,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
       const data: any = await response.json();
       const latencyMs = Date.now() - startTime;
 
-      logUsage({
+      await logUsage({
         apiKeyId: keyRecord.id, model,
         promptTokens: 0, completionTokens: 0, totalTokens: 0,
         cost: 0, status: response.ok ? "success" : "error", latencyMs,
@@ -150,7 +150,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
       }
       res.json(data);
     } catch (err: any) {
-      logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: "error", latencyMs: Date.now() - startTime });
+      await logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: "error", latencyMs: Date.now() - startTime });
       res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
     }
   }
@@ -162,7 +162,7 @@ router.post("/video-synthesis", handleVideoSynthesis);
 // ── 图生视频（首帧）──────────────────────────────────────────────
 async function handleImageToVideo(req: Request, res: Response) {
   const token = extractToken(req);
-  const keyRecord = token ? validateApiKey(token) : null;
+  const keyRecord = token ? await validateApiKey(token) : null;
   if (!token || !keyRecord) {
     res.status(401).json({ error: { message: "Invalid API key.", code: "invalid_api_key" } });
     return;
@@ -191,7 +191,7 @@ async function handleImageToVideo(req: Request, res: Response) {
         body: JSON.stringify(adapted.body),
       });
       const data: any = await response.json();
-      logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: data.ErrCode === 0 ? "success" : "error", latencyMs: Date.now() });
+      await logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: data.ErrCode === 0 ? "success" : "error", latencyMs: Date.now() });
 
       if (data.ErrCode !== 0) {
         res.status(400).json({ error: { message: data.ErrMsg || "PixVerse request failed", code: "upstream_error" } });
@@ -231,7 +231,7 @@ async function handleImageToVideo(req: Request, res: Response) {
         body: JSON.stringify(dashBody),
       });
       const data: any = await response.json();
-      logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: response.ok ? "success" : "error", latencyMs: Date.now() });
+      await logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: response.ok ? "success" : "error", latencyMs: Date.now() });
       res.status(response.status).json(data);
     } catch (err: any) {
       res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
@@ -244,7 +244,7 @@ router.post("/image", handleImageToVideo);
 // ── 查询任务状态 ─────────────────────────────────────────────────
 router.get("/tasks/:taskId", async (req: Request, res: Response) => {
   const token = extractToken(req);
-  if (!token || !validateApiKey(token)) {
+  if (!token || !await validateApiKey(token)) {
     res.status(401).json({ error: { message: "Invalid API key.", code: "invalid_api_key" } });
     return;
   }
@@ -299,7 +299,7 @@ router.get("/tasks/:taskId", async (req: Request, res: Response) => {
 // 兼容旧路径
 router.get("/status/:taskId", async (req: Request, res: Response) => {
   const token = extractToken(req);
-  if (!token || !validateApiKey(token)) {
+  if (!token || !await validateApiKey(token)) {
     res.status(401).json({ error: { message: "Invalid API key.", code: "invalid_api_key" } });
     return;
   }

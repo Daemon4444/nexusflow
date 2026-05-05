@@ -1,14 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
-import db from "../db";
+import { db } from "../db/client";
 
 export type PaymentMethod = "mock" | "page" | "qr";
-export type PaymentStatus =
-  | "created"
-  | "pending"
-  | "paid"
-  | "failed"
-  | "closed"
-  | "expired";
+export type PaymentStatus = "created" | "pending" | "paid" | "failed" | "closed" | "expired";
 
 export interface PaymentOrder {
   id: string;
@@ -21,128 +15,69 @@ export interface PaymentOrder {
   provider_trade_no: string | null;
   paid_at: string | null;
   notify_payload: string | null;
-  processed: number;
+  processed: boolean;
   created_at: string;
   updated_at: string;
 }
 
-const stmts = {
-  insert: db.prepare(
-    `INSERT INTO payment_orders (
-      id, order_no, user_id, amount, method, channel, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ),
-  getByOrderNo: db.prepare(`SELECT * FROM payment_orders WHERE order_no = ?`),
-  getByOrderNoUserId: db.prepare(
-    `SELECT * FROM payment_orders WHERE order_no = ? AND user_id = ?`
-  ),
-  markPending: db.prepare(
-    `UPDATE payment_orders
-       SET status = 'pending', updated_at = ?
-     WHERE order_no = ? AND status = 'created'`
-  ),
-  markPaid: db.prepare(
-    `UPDATE payment_orders
-       SET status = 'paid',
-           provider_trade_no = ?,
-           paid_at = ?,
-           notify_payload = ?,
-           processed = ?,
-           updated_at = ?
-     WHERE order_no = ?`
-  ),
-  updateStatus: db.prepare(
-    `UPDATE payment_orders
-       SET status = ?, updated_at = ?
-     WHERE order_no = ?`
-  ),
-  getLatestByUser: db.prepare(
-    `SELECT * FROM payment_orders
-      WHERE user_id = ?
-      ORDER BY created_at DESC
-      LIMIT ? OFFSET ?`
-  ),
-};
-
-export function createPaymentOrder(args: {
+export async function createPaymentOrder(args: {
   orderNo: string;
   userId: string;
   amount: number;
   method: PaymentMethod;
   channel?: string;
-}): PaymentOrder {
+}): Promise<PaymentOrder> {
   const now = new Date().toISOString();
-  const row: PaymentOrder = {
-    id: uuidv4(),
-    order_no: args.orderNo,
-    user_id: args.userId,
-    amount: args.amount,
-    method: args.method,
-    channel: args.channel || "alipay",
-    status: "created",
-    provider_trade_no: null,
-    paid_at: null,
-    notify_payload: null,
-    processed: 0,
-    created_at: now,
-    updated_at: now,
-  };
-
-  stmts.insert.run(
-    row.id,
-    row.order_no,
-    row.user_id,
-    row.amount,
-    row.method,
-    row.channel,
-    row.status,
-    row.created_at,
-    row.updated_at
+  const row = await db.queryOne<PaymentOrder>(
+    `INSERT INTO payment_orders (id, order_no, user_id, amount, method, channel, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     RETURNING *`,
+    [uuidv4(), args.orderNo, args.userId, args.amount, args.method, args.channel || "alipay", "created", now, now]
   );
-  return row;
+  return row!;
 }
 
-export function markOrderPending(orderNo: string): void {
-  stmts.markPending.run(new Date().toISOString(), orderNo);
+export async function markOrderPending(orderNo: string): Promise<void> {
+  await db.execute("UPDATE payment_orders SET status = 'pending', updated_at = ? WHERE order_no = ? AND status = 'created'", [
+    new Date().toISOString(),
+    orderNo,
+  ]);
 }
 
-export function getPaymentOrder(orderNo: string): PaymentOrder | null {
-  const row = stmts.getByOrderNo.get(orderNo) as PaymentOrder | undefined;
-  return row || null;
+export async function getPaymentOrder(orderNo: string): Promise<PaymentOrder | null> {
+  return db.queryOne<PaymentOrder>("SELECT * FROM payment_orders WHERE order_no = ?", [orderNo]);
 }
 
-export function getPaymentOrderForUser(
-  orderNo: string,
-  userId: string
-): PaymentOrder | null {
-  const row = stmts.getByOrderNoUserId.get(orderNo, userId) as
-    | PaymentOrder
-    | undefined;
-  return row || null;
+export async function getPaymentOrderForUser(orderNo: string, userId: string): Promise<PaymentOrder | null> {
+  return db.queryOne<PaymentOrder>("SELECT * FROM payment_orders WHERE order_no = ? AND user_id = ?", [orderNo, userId]);
 }
 
-export function markOrderPaid(args: {
+export async function markOrderPaid(args: {
   orderNo: string;
   providerTradeNo?: string;
   notifyPayload?: string;
   processed?: boolean;
-}): void {
+}): Promise<void> {
   const now = new Date().toISOString();
-  stmts.markPaid.run(
-    args.providerTradeNo || null,
-    now,
-    args.notifyPayload || null,
-    args.processed ? 1 : 0,
-    now,
-    args.orderNo
+  await db.execute(
+    `UPDATE payment_orders
+       SET status = 'paid', provider_trade_no = ?, paid_at = ?, notify_payload = ?, processed = ?, updated_at = ?
+     WHERE order_no = ?`,
+    [args.providerTradeNo || null, now, args.notifyPayload || null, !!args.processed, now, args.orderNo]
   );
 }
 
-export function setOrderStatus(orderNo: string, status: PaymentStatus): void {
-  stmts.updateStatus.run(status, new Date().toISOString(), orderNo);
+export async function setOrderStatus(orderNo: string, status: PaymentStatus): Promise<void> {
+  await db.execute("UPDATE payment_orders SET status = ?, updated_at = ? WHERE order_no = ?", [
+    status,
+    new Date().toISOString(),
+    orderNo,
+  ]);
 }
 
-export function listUserPaymentOrders(userId: string, limit = 20, offset = 0) {
-  return stmts.getLatestByUser.all(userId, limit, offset) as PaymentOrder[];
+export async function listUserPaymentOrders(userId: string, limit = 20, offset = 0): Promise<PaymentOrder[]> {
+  return db.queryMany<PaymentOrder>(
+    "SELECT * FROM payment_orders WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+    [userId, limit, offset]
+  );
 }
-

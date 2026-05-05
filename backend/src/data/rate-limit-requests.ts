@@ -1,5 +1,5 @@
 import { v4 as uuid } from "uuid";
-import db from "../db";
+import { db } from "../db/client";
 
 export interface RateLimitRequest {
   id: string;
@@ -16,35 +16,27 @@ export interface RateLimitRequest {
   updated_at: string;
 }
 
-export function createRateLimitRequest(data: {
+export async function createRateLimitRequest(data: {
   userId: string;
   model?: string;
   requestedQpm: number;
   requestedTpm: number;
   reason?: string;
-}): RateLimitRequest {
-  const id = uuid();
-  db.prepare(`
-    INSERT INTO rate_limit_requests (
-      id, user_id, model, requested_qpm, requested_tpm, reason
-    ) VALUES (?, ?, ?, ?, ?, ?)
-  `).run(
-    id,
-    data.userId,
-    data.model?.trim() || "*",
-    data.requestedQpm,
-    data.requestedTpm,
-    data.reason?.trim() || ""
+}): Promise<RateLimitRequest> {
+  const row = await db.queryOne<RateLimitRequest>(
+    `INSERT INTO rate_limit_requests (id, user_id, model, requested_qpm, requested_tpm, reason)
+     VALUES (?, ?, ?, ?, ?, ?)
+     RETURNING *`,
+    [uuid(), data.userId, data.model?.trim() || "*", data.requestedQpm, data.requestedTpm, data.reason?.trim() || ""]
   );
-  return getRateLimitRequestById(id)!;
+  return row!;
 }
 
-export function getRateLimitRequestById(id: string): RateLimitRequest | null {
-  const row = db.prepare("SELECT * FROM rate_limit_requests WHERE id = ?").get(id) as RateLimitRequest | undefined;
-  return row || null;
+export async function getRateLimitRequestById(id: string): Promise<RateLimitRequest | null> {
+  return db.queryOne<RateLimitRequest>("SELECT * FROM rate_limit_requests WHERE id = ?", [id]);
 }
 
-export function getRateLimitRequests(userId?: string, status?: string): RateLimitRequest[] {
+export async function getRateLimitRequests(userId?: string, status?: string): Promise<RateLimitRequest[]> {
   const clauses: string[] = [];
   const params: any[] = [];
   if (userId) {
@@ -56,14 +48,10 @@ export function getRateLimitRequests(userId?: string, status?: string): RateLimi
     params.push(status);
   }
   const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-  return db.prepare(`
-    SELECT * FROM rate_limit_requests
-    ${where}
-    ORDER BY created_at DESC
-  `).all(...params) as RateLimitRequest[];
+  return db.queryMany<RateLimitRequest>(`SELECT * FROM rate_limit_requests ${where} ORDER BY created_at DESC`, params);
 }
 
-export function reviewRateLimitRequest(
+export async function reviewRateLimitRequest(
   requestId: string,
   status: "approved" | "rejected",
   data: {
@@ -73,21 +61,15 @@ export function reviewRateLimitRequest(
     approvedQpm?: number;
     approvedTpm?: number;
   } = {}
-): RateLimitRequest | null {
-  const existing = getRateLimitRequestById(requestId);
+): Promise<RateLimitRequest | null> {
+  const existing = await getRateLimitRequestById(requestId);
   if (!existing || existing.status !== "pending") return null;
 
-  db.prepare(`
-    UPDATE rate_limit_requests
-    SET status = ?, admin_reply = ?, reviewed_by = ?, reviewed_at = ?, updated_at = datetime('now')
-    WHERE id = ?
-  `).run(
-    status,
-    data.adminReply || null,
-    data.reviewedBy || null,
-    new Date().toISOString(),
-    requestId
+  return db.queryOne<RateLimitRequest>(
+    `UPDATE rate_limit_requests
+     SET status = ?, admin_reply = ?, reviewed_by = ?, reviewed_at = ?, updated_at = ?
+     WHERE id = ?
+     RETURNING *`,
+    [status, data.adminReply || null, data.reviewedBy || null, new Date().toISOString(), new Date().toISOString(), requestId]
   );
-
-  return getRateLimitRequestById(requestId);
 }

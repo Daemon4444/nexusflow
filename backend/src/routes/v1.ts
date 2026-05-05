@@ -127,9 +127,9 @@ function rejectInsufficientBalance(res: Response): void {
 }
 
 // GET /v1/models — OpenAI compatible model list
-router.get("/models", (req: Request, res: Response) => {
+router.get("/models", async (req: Request, res: Response) => {
   const token = extractToken(req);
-  if (!token || !validateApiKey(token)) {
+  if (!token || !(await validateApiKey(token))) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -157,7 +157,7 @@ router.get("/models", (req: Request, res: Response) => {
 // POST /v1/images/generations — OpenAI compatible image generation
 router.post("/images/generations", async (req: Request, res: Response) => {
   const token = extractToken(req);
-  if (!token || !validateApiKey(token)) {
+  if (!token || !await validateApiKey(token)) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -268,7 +268,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     return;
   }
 
-  const apiKeyRecord = validateApiKey(token)!;
+  const apiKeyRecord = (await validateApiKey(token))!;
   const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
     res.status(429).json({
@@ -282,7 +282,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
   }
 
   const estimatedImageCost = (n || 1) * model.promptPrice;
-  if (!hasSufficientBalance(apiKeyRecord.user_id, estimatedImageCost)) {
+  if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedImageCost)) {
     rejectInsufficientBalance(res);
     return;
   }
@@ -371,7 +371,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
 
     const imageCount = imageUrls.length;
     const cost = (n || imageCount || 1) * model.promptPrice;
-    logUsage({
+    await logUsage({
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -384,7 +384,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     });
 
     if (apiKeyRecord.user_id && cost > 0) {
-      consume(
+      await consume(
         apiKeyRecord.user_id,
         cost,
         `Image generation: ${modelId} (${imageCount} images)`,
@@ -398,7 +398,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
       data: imageUrls.map((url) => ({ url, revised_prompt: prompt || null })),
     });
   } catch (err: any) {
-    logUsage({
+    await logUsage({
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -424,7 +424,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
 router.post("/chat/completions", async (req: Request, res: Response) => {
   // Auth
   const token = extractToken(req);
-  if (!token || !validateApiKey(token)) {
+  if (!token || !await validateApiKey(token)) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -513,11 +513,11 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const apiKeyRecord = validateApiKey(token)!;
+  const apiKeyRecord = (await validateApiKey(token))!;
 
   // Per-model user-level rate limit check
   if (apiKeyRecord.user_id) {
-    const userLimits = getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
+    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
     const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
     if (!rpmCheck.allowed) {
       res.status(429).json({
@@ -545,7 +545,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   }
 
   const estimatedChatCost = estimateChatMaxCost(model, messages, max_tokens);
-  if (!hasSufficientBalance(apiKeyRecord.user_id, estimatedChatCost)) {
+  if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedChatCost)) {
     rejectInsufficientBalance(res);
     return;
   }
@@ -673,7 +673,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         ? streamDuration / (streamTokens.completion_tokens - 1)
         : 0;
 
-      logUsage({
+      await logUsage({
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -689,7 +689,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       recordProviderTokens(provider.id, modelId, streamTokens.total_tokens || 0);
 
       if (apiKeyRecord.user_id && totalCost > 0) {
-        consume(
+        await consume(
           apiKeyRecord.user_id,
           totalCost,
           `API 调用: ${modelId} (${streamTokens.total_tokens} tokens, stream)`,
@@ -747,7 +747,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const completionCost = ((usage.completion_tokens || 0) / 1_000_000) * model.completionPrice;
       const totalCost = promptCost + completionCost;
 
-      logUsage({
+      await logUsage({
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -761,7 +761,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
 
       if (apiKeyRecord.user_id && totalCost > 0) {
-        consume(
+        await consume(
           apiKeyRecord.user_id,
           totalCost,
           `API 调用: ${modelId} (${usage.total_tokens || 0} tokens)`,
@@ -804,7 +804,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     const promptCost = ((usage.prompt_tokens || 0) / 1_000_000) * model.promptPrice;
     const completionCost = ((usage.completion_tokens || 0) / 1_000_000) * model.completionPrice;
     
-    logUsage({
+    await logUsage({
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -820,7 +820,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     // Auto-billing
     const totalCost = promptCost + completionCost;
     if (apiKeyRecord.user_id && totalCost > 0) {
-      consume(
+      await consume(
         apiKeyRecord.user_id,
         totalCost,
         `API 调用: ${modelId} (${usage.total_tokens || 0} tokens)`,
@@ -833,7 +833,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     res.json(data);
 
   } catch (err: any) {
-    logUsage({
+    await logUsage({
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -859,7 +859,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 router.post("/embeddings", async (req: Request, res: Response) => {
   // Auth
   const token = extractToken(req);
-  if (!token || !validateApiKey(token)) {
+  if (!token || !await validateApiKey(token)) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -932,7 +932,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     return;
   }
 
-  const apiKeyRecord = validateApiKey(token)!;
+  const apiKeyRecord = (await validateApiKey(token))!;
 
   // Rate limit check
   const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
@@ -948,7 +948,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   }
 
   const estimatedEmbeddingCost = estimateEmbeddingCost(model, input);
-  if (!hasSufficientBalance(apiKeyRecord.user_id, estimatedEmbeddingCost)) {
+  if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedEmbeddingCost)) {
     rejectInsufficientBalance(res);
     return;
   }
@@ -989,7 +989,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     const usage = data.usage || {};
     const cost = ((usage.prompt_tokens || 0) / 1_000_000) * model.promptPrice;
 
-    logUsage({
+    await logUsage({
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -1003,7 +1003,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
 
     if (apiKeyRecord.user_id && cost > 0) {
-      consume(
+      await consume(
         apiKeyRecord.user_id,
         cost,
         `Embedding: ${modelId} (${usage.prompt_tokens || 0} tokens)`,
@@ -1015,7 +1015,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     res.json(data);
 
   } catch (err: any) {
-    logUsage({
+    await logUsage({
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,

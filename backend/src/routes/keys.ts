@@ -5,22 +5,22 @@ import { validateSession } from "../data/users";
 const router = Router();
 
 /** 从请求头提取 session token */
-function getSessionUserId(req: Request): string | null {
+async function getSessionUserId(req: Request): Promise<string | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
   const token = auth.slice(7).trim();
-  const session = validateSession(token);
+  const session = await validateSession(token);
   return session?.id || null;
 }
 
 // 获取密钥：必须登录
-router.get("/", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  const keys = getKeysByUser(userId);
+  const keys = await getKeysByUser(userId);
   const data = keys.map((k) => ({
     id: k.id,
     user_id: k.user_id,
@@ -40,8 +40,8 @@ router.get("/", (req: Request, res: Response) => {
 });
 
 // 创建新密钥（需要登录）
-router.post("/", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.post("/", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
@@ -52,7 +52,7 @@ router.post("/", (req: Request, res: Response) => {
     return;
   }
 
-  const newKey = createApiKey(name, rateLimit, userId);
+  const newKey = await createApiKey(name, rateLimit, userId);
 
   res.json({
     success: true,
@@ -69,15 +69,15 @@ router.post("/", (req: Request, res: Response) => {
 });
 
 // 删除密钥（需要登录）
-router.delete("/:id", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.delete("/:id", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
   const keyId = req.params.id as string;
 
-  const success = deleteApiKeyByUser(keyId, userId);
+  const success = await deleteApiKeyByUser(keyId, userId);
 
   if (!success) {
     res.status(404).json({ success: false, message: "密钥不存在" });

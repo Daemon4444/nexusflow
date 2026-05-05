@@ -74,14 +74,14 @@ export function estimateAsyncCost(model: AIModel, params: AsyncCostParams): numb
   return 0;
 }
 
-export function hasEnoughBalance(userId: string | null | undefined, amount: number): boolean {
+export async function hasEnoughBalance(userId: string | null | undefined, amount: number): Promise<boolean> {
   if (!userId || amount <= 0) return true;
-  const user = getUserById(userId);
+  const user = await getUserById(userId);
   return !!user && user.balance >= amount;
 }
 
-export function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: number, latencyMs: number): void {
-  logUsage({
+export async function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: number, latencyMs: number): Promise<void> {
+  await logUsage({
     apiKeyId: task.api_key_id,
     userId: task.user_id,
     model: task.model,
@@ -94,12 +94,12 @@ export function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: number, 
   });
 
   if (task.user_id && cost > 0) {
-    consume(task.user_id, cost, `${model.category}: ${task.model}`, task.api_key_id || undefined);
+    await consume(task.user_id, cost, `${model.category}: ${task.model}`, task.api_key_id || undefined);
   }
 }
 
-export function billAsyncError(apiKey: { id: string | null; user_id: string | null } | null, modelId: string, latencyMs: number): void {
-  logUsage({
+export async function billAsyncError(apiKey: { id: string | null; user_id: string | null } | null, modelId: string, latencyMs: number): Promise<void> {
+  await logUsage({
     apiKeyId: apiKey?.id || null,
     userId: apiKey?.user_id || null,
     model: modelId,

@@ -8,14 +8,14 @@ function parseEnvList(value?: string): string[] {
     .filter(Boolean);
 }
 
-export function getSessionUser(req: Request, res: Response) {
+export async function getSessionUser(req: Request, res: Response) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
     res.status(401).json({ success: false, message: "未登录" });
     return null;
   }
 
-  const session = validateSession(auth.slice(7).trim());
+  const session = await validateSession(auth.slice(7).trim());
   if (!session) {
     res.status(401).json({ success: false, message: "登录已过期" });
     return null;
@@ -32,8 +32,8 @@ export function isAdminSession(session: { id: string; email: string | null }) {
   return adminIds.includes(session.id.toLowerCase()) || (!!email && adminEmails.includes(email));
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  const session = getSessionUser(req, res);
+export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const session = await getSessionUser(req, res);
   if (!session) return;
 
   if (!isAdminSession(session)) {
@@ -44,4 +44,3 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   (req as any).admin = session;
   next();
 }
-

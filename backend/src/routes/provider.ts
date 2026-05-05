@@ -26,8 +26,8 @@ function maskSecret(secret: string): string {
   return `${secret.slice(0, 4)}********${secret.slice(-4)}`;
 }
 
-function ensureInternalProviders(): void {
-  const dashscope = ensureProvider({
+async function ensureInternalProviders(): Promise<void> {
+  const dashscope = await ensureProvider({
     id: "dashscope",
     name: "阿里云百炼",
     slug: "dashscope",
@@ -39,7 +39,7 @@ function ensureInternalProviders(): void {
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
   });
-  ensureProvider({
+  await ensureProvider({
     id: "pixverse",
     name: "PixVerse 双通道",
     slug: "pixverse",
@@ -51,7 +51,7 @@ function ensureInternalProviders(): void {
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
   });
-  ensureProvider({
+  await ensureProvider({
     id: "volcengine-ark",
     name: "火山方舟",
     slug: "volcengine-ark",
@@ -65,9 +65,9 @@ function ensureInternalProviders(): void {
   });
 
   for (const model of staticModels) {
-    if (getCapacity(dashscope.id, model.id)) continue;
+    if (await getCapacity(dashscope.id, model.id)) continue;
     const isTaskModel = model.category === "图像生成" || model.category === "视频生成";
-    upsertCapacity(dashscope.id, model.id, {
+    await upsertCapacity(dashscope.id, model.id, {
       rpm_limit: 1000,
       tpm_limit: isTaskModel ? 0 : 1000000,
       daily_limit: 100000,
@@ -78,9 +78,9 @@ function ensureInternalProviders(): void {
     });
   }
 
-  ensurePixVerseChannelConfig();
-  if (!getCapacity("pixverse", "pixverse-v6")) {
-    upsertCapacity("pixverse", "pixverse-v6", {
+  await ensurePixVerseChannelConfig();
+  if (!(await getCapacity("pixverse", "pixverse-v6"))) {
+    await upsertCapacity("pixverse", "pixverse-v6", {
       rpm_limit: 60,
       tpm_limit: 0,
       daily_limit: 1000,
@@ -92,8 +92,8 @@ function ensureInternalProviders(): void {
   }
 }
 
-function ensurePixVerseChannelConfig(): ProviderChannelConfig {
-  const existing = getProviderChannelConfig("pixverse");
+async function ensurePixVerseChannelConfig(): Promise<ProviderChannelConfig> {
+  const existing = await getProviderChannelConfig("pixverse");
   if (existing) return existing;
   return upsertProviderChannelConfig("pixverse", {
     active_channel: "bailian",
@@ -114,8 +114,8 @@ function ensurePixVerseChannelConfig(): ProviderChannelConfig {
   });
 }
 
-function getProviderChannelSummary(providerId: string) {
-  const config = getProviderChannelConfig(providerId);
+async function getProviderChannelSummary(providerId: string) {
+  const config = await getProviderChannelConfig(providerId);
   if (!config) return null;
   return {
     activeChannel: config.active_channel,
@@ -129,8 +129,8 @@ function getProviderChannelSummary(providerId: string) {
   };
 }
 
-function getProviderRouteModels(providerId: string) {
-  const capacities = getCapacityByProvider(providerId);
+async function getProviderRouteModels(providerId: string) {
+  const capacities = await getCapacityByProvider(providerId);
   return capacities
     .map((capacity) => {
       const catalog = staticModels.find((model) => model.id === capacity.model_id);
@@ -148,8 +148,8 @@ function getProviderRouteModels(providerId: string) {
     .filter(Boolean);
 }
 
-function getProviderCard(provider: Provider) {
-  const capacity = getCapacityByProvider(provider.id);
+async function getProviderCard(provider: Provider) {
+  const capacity = await getCapacityByProvider(provider.id);
   const usage = capacity.reduce((acc, cap) => {
     const current = getProviderUsageStats(provider.id, cap.model_id);
     acc.currentRpm += current.rpm;
@@ -177,7 +177,7 @@ function getProviderCard(provider: Provider) {
     approvedAt: provider.approved_at,
     modelCount: capacity.length,
     enabledRoutes: capacity.filter((item) => item.is_enabled).length,
-    channelConfig: getProviderChannelSummary(provider.id),
+    channelConfig: await getProviderChannelSummary(provider.id),
     ...usage,
   };
 }
@@ -207,9 +207,9 @@ router.get("/status/:email", (_req: Request, res: Response) => {
 router.use("/admin", requireAdmin);
 
 // GET /api/provider/admin/providers — 获取所有供应商
-router.get("/admin/providers", (_req: Request, res: Response) => {
-  ensureInternalProviders();
-  const providers = getAllProviders().map(getProviderCard);
+router.get("/admin/providers", async (_req: Request, res: Response) => {
+  await ensureInternalProviders();
+  const providers = await Promise.all((await getAllProviders()).map(getProviderCard));
   res.json({
     success: true,
     data: providers,
@@ -217,14 +217,14 @@ router.get("/admin/providers", (_req: Request, res: Response) => {
 });
 
 // POST /api/provider/admin/providers — 创建内部渠道
-router.post("/admin/providers", (req: Request, res: Response) => {
+router.post("/admin/providers", async (req: Request, res: Response) => {
   const { name, description, website, api_base_url, api_key, contact_name, contact_email, contact_phone } = req.body || {};
   if (!name || !api_base_url) {
     res.status(400).json({ success: false, message: "请填写渠道名称和 API Base URL" });
     return;
   }
 
-  const provider = createProvider({
+  const provider = await createProvider({
     name,
     description,
     website,
@@ -234,32 +234,37 @@ router.post("/admin/providers", (req: Request, res: Response) => {
     contact_email: contact_email || "ops@nexusflow.ai",
     contact_phone,
   });
-  updateProviderStatus(provider.id, "enabled");
+  await updateProviderStatus(provider.id, "enabled");
+  const created = await getProviderById(provider.id);
 
   res.json({
     success: true,
-    data: getProviderCard(getProviderById(provider.id)!),
+    data: created ? await getProviderCard(created) : null,
     message: "渠道已创建",
   });
 });
 
 // GET /api/provider/admin/providers/:id — 获取渠道详情
-router.get("/admin/providers/:id", (req: Request, res: Response) => {
-  ensureInternalProviders();
-  const provider = getProviderById(req.params.id as string);
+router.get("/admin/providers/:id", async (req: Request, res: Response) => {
+  await ensureInternalProviders();
+  const provider = await getProviderById(req.params.id as string);
   if (!provider) {
     res.status(404).json({ success: false, message: "渠道不存在" });
     return;
   }
 
-  const models = getProviderRouteModels(provider.id);
-  const capacity = getCapacityByProvider(provider.id);
-  const health = getAllHealthRecords().filter((item) => item.providerId === provider.id);
+  const [models, capacity, allHealth, providerCard] = await Promise.all([
+    getProviderRouteModels(provider.id),
+    getCapacityByProvider(provider.id),
+    getAllHealthRecords(),
+    getProviderCard(provider),
+  ]);
+  const health = allHealth.filter((item) => item.providerId === provider.id);
 
   res.json({
     success: true,
     data: {
-      provider: getProviderCard(provider),
+      provider: providerCard,
       models,
       capacity: capacity.map((item) => ({
         modelId: item.model_id,
@@ -285,9 +290,9 @@ router.get("/admin/providers/:id", (req: Request, res: Response) => {
 });
 
 // PUT /api/provider/admin/providers/:id — 更新渠道配置
-router.put("/admin/providers/:id", (req: Request, res: Response) => {
+router.put("/admin/providers/:id", async (req: Request, res: Response) => {
   const providerId = req.params.id as string;
-  const provider = getProviderById(providerId);
+  const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "渠道不存在" });
     return;
@@ -298,7 +303,7 @@ router.put("/admin/providers/:id", (req: Request, res: Response) => {
     api_base_url, api_key, contact_name, contact_email, contact_phone,
   } = req.body || {};
 
-  const success = updateProvider(providerId, {
+  const success = await updateProvider(providerId, {
     name,
     description,
     website,
@@ -315,7 +320,7 @@ router.put("/admin/providers/:id", (req: Request, res: Response) => {
     return;
   }
 
-  const updated = getProviderById(providerId)!;
+  const updated = (await getProviderById(providerId))!;
   res.json({
     success: true,
     data: {
@@ -335,8 +340,8 @@ router.put("/admin/providers/:id", (req: Request, res: Response) => {
 });
 
 // GET /api/provider/admin/providers/draft — 获取待配置渠道
-router.get("/admin/providers/draft", (_req: Request, res: Response) => {
-  const providers = getProvidersByStatus("draft");
+router.get("/admin/providers/draft", async (_req: Request, res: Response) => {
+  const providers = await getProvidersByStatus("draft");
   res.json({
     success: true,
     data: providers.map((p) => ({
@@ -354,8 +359,8 @@ router.get("/admin/providers/draft", (_req: Request, res: Response) => {
 });
 
 // POST /api/provider/admin/providers/:id/enable — 启用渠道
-router.post("/admin/providers/:id/enable", (req: Request, res: Response) => {
-  const success = updateProviderStatus(req.params.id as string, "enabled");
+router.post("/admin/providers/:id/enable", async (req: Request, res: Response) => {
+  const success = await updateProviderStatus(req.params.id as string, "enabled");
   if (!success) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
@@ -364,9 +369,9 @@ router.post("/admin/providers/:id/enable", (req: Request, res: Response) => {
 });
 
 // POST /api/provider/admin/providers/:id/disable — 停用渠道
-router.post("/admin/providers/:id/disable", (req: Request, res: Response) => {
+router.post("/admin/providers/:id/disable", async (req: Request, res: Response) => {
   const { reason } = req.body;
-  const success = updateProviderStatus(req.params.id as string, "disabled", reason);
+  const success = await updateProviderStatus(req.params.id as string, "disabled", reason);
   if (!success) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
@@ -375,11 +380,12 @@ router.post("/admin/providers/:id/disable", (req: Request, res: Response) => {
 });
 
 // GET /api/provider/admin/models — 获取所有模型
-router.get("/admin/models", (_req: Request, res: Response) => {
-  ensureInternalProviders();
-  const providers = getAllProviders();
-  const models = staticModels.map((model) => {
-    const routes = getCapacityByModel(model.id).map((capacity) => {
+router.get("/admin/models", async (_req: Request, res: Response) => {
+  await ensureInternalProviders();
+  const providers = await getAllProviders();
+  const models = await Promise.all(staticModels.map(async (model) => {
+    const capacities = await getCapacityByModel(model.id);
+    const routes = capacities.map((capacity) => {
       const provider = providers.find((item) => item.id === capacity.provider_id);
       const usage = getProviderUsageStats(capacity.provider_id, model.id);
       return {
@@ -409,7 +415,7 @@ router.get("/admin/models", (_req: Request, res: Response) => {
       createdAt: "",
       routes,
     };
-  });
+  }));
   res.json({
     success: true,
     data: models,
@@ -417,8 +423,8 @@ router.get("/admin/models", (_req: Request, res: Response) => {
 });
 
 // GET /api/provider/admin/models/draft — 获取草稿模型
-router.get("/admin/models/draft", (_req: Request, res: Response) => {
-  const models = getModelsByStatus("draft");
+router.get("/admin/models/draft", async (_req: Request, res: Response) => {
+  const models = await getModelsByStatus("draft");
   res.json({
     success: true,
     data: models.map((m) => ({
@@ -437,8 +443,8 @@ router.get("/admin/models/draft", (_req: Request, res: Response) => {
 });
 
 // POST /api/provider/admin/models/:id/enable — 启用模型
-router.post("/admin/models/:id/enable", (req: Request, res: Response) => {
-  const success = updateModelStatus(req.params.id as string, "enabled");
+router.post("/admin/models/:id/enable", async (req: Request, res: Response) => {
+  const success = await updateModelStatus(req.params.id as string, "enabled");
   if (!success) {
     res.status(404).json({ success: false, message: "模型不存在" });
     return;
@@ -447,8 +453,8 @@ router.post("/admin/models/:id/enable", (req: Request, res: Response) => {
 });
 
 // POST /api/provider/admin/models/:id/disable — 停用模型
-router.post("/admin/models/:id/disable", (req: Request, res: Response) => {
-  const success = updateModelStatus(req.params.id as string, "disabled");
+router.post("/admin/models/:id/disable", async (req: Request, res: Response) => {
+  const success = await updateModelStatus(req.params.id as string, "disabled");
   if (!success) {
     res.status(404).json({ success: false, message: "模型不存在" });
     return;
@@ -457,10 +463,11 @@ router.post("/admin/models/:id/disable", (req: Request, res: Response) => {
 });
 
 // GET /api/provider/admin/stats — 统计数据
-router.get("/admin/stats", (_req: Request, res: Response) => {
-  ensureInternalProviders();
-  const providerStats = getProviderStats();
-  const enabledModels = staticModels.filter((model) => getCapacityByModel(model.id).some((route) => route.is_enabled)).length;
+router.get("/admin/stats", async (_req: Request, res: Response) => {
+  await ensureInternalProviders();
+  const providerStats = await getProviderStats();
+  const capacityByModel = await Promise.all(staticModels.map((model) => getCapacityByModel(model.id)));
+  const enabledModels = capacityByModel.filter((routes) => routes.some((route) => route.is_enabled)).length;
   const modelStats = { draft: 0, enabled: enabledModels, disabled: staticModels.length - enabledModels };
   res.json({
     success: true,
@@ -474,8 +481,8 @@ router.get("/admin/stats", (_req: Request, res: Response) => {
 // ========== 容量配置管理 ==========
 
 // GET /api/provider/admin/capacity — 获取所有容量配置
-router.get("/admin/capacity", (_req: Request, res: Response) => {
-  const capacity = getAllCapacity();
+router.get("/admin/capacity", async (_req: Request, res: Response) => {
+  const capacity = await getAllCapacity();
   res.json({
     success: true,
     data: capacity.map((c) => ({
@@ -498,16 +505,16 @@ router.get("/admin/capacity", (_req: Request, res: Response) => {
 });
 
 // GET /api/provider/:providerId/capacity — 获取供应商的容量配置
-router.get("/:providerId/capacity", (req: Request, res: Response) => {
+router.get("/:providerId/capacity", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  ensureInternalProviders();
-  const provider = getProviderById(providerId);
+  await ensureInternalProviders();
+  const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
   }
 
-  const capacity = getCapacityByProvider(providerId);
+  const capacity = await getCapacityByProvider(providerId);
   res.json({
     success: true,
     data: capacity.map((c) => ({
@@ -525,12 +532,12 @@ router.get("/:providerId/capacity", (req: Request, res: Response) => {
 });
 
 // PUT /api/provider/:providerId/capacity/:modelId — 设置/更新容量配置
-router.put("/:providerId/capacity/:modelId", (req: Request, res: Response) => {
+router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const modelId = req.params.modelId as string;
 
-  ensureInternalProviders();
-  const provider = getProviderById(providerId);
+  await ensureInternalProviders();
+  const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
@@ -538,7 +545,7 @@ router.put("/:providerId/capacity/:modelId", (req: Request, res: Response) => {
 
   const { rpm_limit, tpm_limit, daily_limit, concurrent_limit, priority, weight, is_enabled } = req.body;
 
-  const capacity = upsertCapacity(providerId, modelId, {
+  const capacity = await upsertCapacity(providerId, modelId, {
     rpm_limit,
     tpm_limit,
     daily_limit,
@@ -566,15 +573,15 @@ router.put("/:providerId/capacity/:modelId", (req: Request, res: Response) => {
 });
 
 // DELETE /api/provider/:providerId/capacity/:modelId — 删除容量配置
-router.delete("/:providerId/capacity/:modelId", (req: Request, res: Response) => {
+router.delete("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  ensureInternalProviders();
-  const provider = getProviderById(providerId);
+  await ensureInternalProviders();
+  const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
   }
-  const success = deleteCapacity(providerId, req.params.modelId as string);
+  const success = await deleteCapacity(providerId, req.params.modelId as string);
   if (!success) {
     res.status(404).json({ success: false, message: "配置不存在" });
     return;
@@ -585,8 +592,8 @@ router.delete("/:providerId/capacity/:modelId", (req: Request, res: Response) =>
 // ========== 健康监控 ==========
 
 // GET /api/provider/admin/health — 获取所有供应商健康状态
-router.get("/admin/health", (_req: Request, res: Response) => {
-  const health = getAllHealthRecords();
+router.get("/admin/health", async (_req: Request, res: Response) => {
+  const health = await getAllHealthRecords();
   res.json({
     success: true,
     data: health.map((h) => ({
@@ -623,10 +630,10 @@ router.get("/admin/usage/:providerId/:modelId", (req: Request, res: Response) =>
 router.use("/:providerId", requireAdmin);
 
 // POST /api/provider/:providerId/switch-channel — 切换供应商活跃子渠道
-router.post("/:providerId/switch-channel", (req: Request, res: Response) => {
+router.post("/:providerId/switch-channel", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  ensureInternalProviders();
-  const provider = getProviderById(providerId);
+  await ensureInternalProviders();
+  const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
@@ -638,7 +645,7 @@ router.post("/:providerId/switch-channel", (req: Request, res: Response) => {
     return;
   }
 
-  const updated = switchProviderChannel(providerId, channel);
+  const updated = await switchProviderChannel(providerId, channel);
   if (!updated) {
     res.status(400).json({ success: false, message: "渠道不存在或未配置" });
     return;
@@ -657,15 +664,15 @@ router.post("/:providerId/switch-channel", (req: Request, res: Response) => {
 });
 
 // GET /api/provider/:providerId/models — 获取供应商的模型列表
-router.get("/:providerId/models", (req: Request, res: Response) => {
+router.get("/:providerId/models", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  const provider = getProviderById(providerId);
+  const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
   }
 
-  const models = getModelsByProvider(providerId);
+  const models = await getModelsByProvider(providerId);
   res.json({
     success: true,
     data: models.map((m) => ({
@@ -687,9 +694,9 @@ router.get("/:providerId/models", (req: Request, res: Response) => {
 });
 
 // POST /api/provider/:providerId/models — 添加模型
-router.post("/:providerId/models", (req: Request, res: Response) => {
+router.post("/:providerId/models", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  const provider = getProviderById(providerId);
+  const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
@@ -710,7 +717,7 @@ router.post("/:providerId/models", (req: Request, res: Response) => {
     return;
   }
 
-  const model = createModel(providerId, {
+  const model = await createModel(providerId, {
     model_id, name, description, category,
     context_length, max_output, prompt_price, completion_price,
     tags, supported,
@@ -734,20 +741,20 @@ router.post("/:providerId/models", (req: Request, res: Response) => {
 });
 
 // PUT /api/provider/:providerId/models/:modelId — 更新模型
-router.put("/:providerId/models/:modelId", (req: Request, res: Response) => {
+router.put("/:providerId/models/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  const provider = getProviderById(providerId);
+  const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
   }
-  const model = getModelsByProvider(providerId).find((item) => item.id === (req.params.modelId as string));
+  const model = (await getModelsByProvider(providerId)).find((item) => item.id === (req.params.modelId as string));
   if (!model) {
     res.status(404).json({ success: false, message: "模型不存在或不属于该供应商" });
     return;
   }
 
-  const success = updateModel(req.params.modelId as string, req.body);
+  const success = await updateModel(req.params.modelId as string, req.body);
   if (!success) {
     res.status(404).json({ success: false, message: "模型不存在" });
     return;
@@ -757,14 +764,14 @@ router.put("/:providerId/models/:modelId", (req: Request, res: Response) => {
 });
 
 // DELETE /api/provider/:providerId/models/:modelId — 删除模型
-router.delete("/:providerId/models/:modelId", (req: Request, res: Response) => {
+router.delete("/:providerId/models/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  const model = getModelsByProvider(providerId).find((item) => item.id === (req.params.modelId as string));
+  const model = (await getModelsByProvider(providerId)).find((item) => item.id === (req.params.modelId as string));
   if (!model) {
     res.status(404).json({ success: false, message: "模型不存在或不属于该供应商" });
     return;
   }
-  const success = deleteModel(req.params.modelId as string);
+  const success = await deleteModel(req.params.modelId as string);
   if (!success) {
     res.status(404).json({ success: false, message: "模型不存在" });
     return;

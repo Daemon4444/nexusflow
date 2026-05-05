@@ -6,113 +6,113 @@ import { isAdminSession } from "../middleware/admin";
 const router = Router();
 
 /** Extract session user ID from Authorization header */
-function getSessionUserId(req: Request): string | null {
+async function getSessionUserId(req: Request): Promise<string | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
   const token = auth.slice(7).trim();
-  const session = validateSession(token);
+  const session = await validateSession(token);
   return session?.id || null;
 }
 
-function getSession(req: Request) {
+async function getSession(req: Request) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
-  return validateSession(auth.slice(7).trim());
+  return await validateSession(auth.slice(7).trim());
 }
 
-function shouldUseGlobalScope(req: Request) {
-  const session = getSession(req);
+async function shouldUseGlobalScope(req: Request) {
+  const session = await getSession(req);
   if (!session) return false;
   return req.query.scope === "all" && isAdminSession(session);
 }
 
-router.get("/", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
   const limit = Number(req.query.limit) || 100;
-  const globalScope = shouldUseGlobalScope(req);
+  const globalScope = await shouldUseGlobalScope(req);
   res.json({
     success: true,
-    data: getUsageLogs(limit, globalScope ? undefined : userId),
+    data: await getUsageLogs(limit, globalScope ? undefined : userId),
   });
 });
 
-router.get("/overview", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/overview", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: getOverview(shouldUseGlobalScope(req) ? undefined : userId) });
+  res.json({ success: true, data: await getOverview((await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
-router.get("/daily", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/daily", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: getDaily(shouldUseGlobalScope(req) ? undefined : userId) });
+  res.json({ success: true, data: await getDaily((await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
-router.get("/by-model", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/by-model", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: getByModel(shouldUseGlobalScope(req) ? undefined : userId) });
+  res.json({ success: true, data: await getByModel((await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
-router.get("/recent", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/recent", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: getRecent(shouldUseGlobalScope(req) ? undefined : userId) });
+  res.json({ success: true, data: await getRecent((await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
 // ========== 性能监控端点 ==========
 
-router.get("/monitor/overview", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/monitor/overview", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: getPerformanceOverview(shouldUseGlobalScope(req) ? undefined : userId) });
+  res.json({ success: true, data: await getPerformanceOverview((await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
-router.get("/monitor/hourly", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/monitor/hourly", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: getPerformanceHourly(shouldUseGlobalScope(req) ? undefined : userId) });
+  res.json({ success: true, data: await getPerformanceHourly((await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
-router.get("/monitor/by-model", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/monitor/by-model", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: getPerformanceByModel(shouldUseGlobalScope(req) ? undefined : userId) });
+  res.json({ success: true, data: await getPerformanceByModel((await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
-router.get("/monitor/recent", (req: Request, res: Response) => {
-  const userId = getSessionUserId(req);
+router.get("/monitor/recent", async (req: Request, res: Response) => {
+  const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
   const limit = Number(req.query.limit) || 50;
-  res.json({ success: true, data: getRecentPerformance(limit, shouldUseGlobalScope(req) ? undefined : userId) });
+  res.json({ success: true, data: await getRecentPerformance(limit, (await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
 export default router;

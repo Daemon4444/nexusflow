@@ -90,10 +90,11 @@ app.use("/api/rate-limits", rateLimitsRouter);
 app.use("/api/tickets", ticketsRouter);
 
 // Admin API (requires authentication)
-import { validateSession } from "./data/users";
+import { cleanExpiredSessions } from "./data/users";
+import { seedApiKeysIfNeeded } from "./data/apikeys";
 import { getAdminUserLimitSummaries } from "./data/ratelimits";
-app.get("/api/admin/users", (req, res) => {
-  const session = getSessionUser(req, res);
+app.get("/api/admin/users", async (req, res) => {
+  const session = await getSessionUser(req, res);
   if (!session) {
     return;
   }
@@ -103,7 +104,7 @@ app.get("/api/admin/users", (req, res) => {
   }
   res.json({
     success: true,
-    data: getAdminUserLimitSummaries(),
+    data: await getAdminUserLimitSummaries(),
   });
 });
 
@@ -118,6 +119,16 @@ app.use(notFoundHandler);
 // 统一错误处理
 app.use(errorHandler);
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`[Quadrant API] 服务已启动: http://0.0.0.0:${PORT}`);
+async function start() {
+  await cleanExpiredSessions();
+  await seedApiKeysIfNeeded();
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[Quadrant API] 服务已启动: http://0.0.0.0:${PORT}`);
+  });
+}
+
+start().catch((error) => {
+  console.error("[Quadrant API] 启动失败:", error);
+  process.exit(1);
 });

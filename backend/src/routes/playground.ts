@@ -51,7 +51,7 @@ function parseSseUsage(payload: string): { prompt_tokens: number; completion_tok
 
 router.post("/chat/completions", async (req: Request, res: Response) => {
   const token = extractToken(req);
-  const session = token ? validateSession(token) : null;
+  const session = token ? await validateSession(token) : null;
   if (!session) {
     openAiError(res, 401, "请先登录后再使用 Playground。", "invalid_session");
     return;
@@ -102,7 +102,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const userLimits = getEffectiveRateLimit(session.id, modelId);
+  const userLimits = await getEffectiveRateLimit(session.id, modelId);
   const rpmCheck = await checkRPM(`user:${session.id}:${modelId}`, userLimits.qpm);
   if (!rpmCheck.allowed) {
     openAiError(
@@ -116,7 +116,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   }
 
   const estimatedChatCost = estimateChatMaxCost(model, messages, max_tokens);
-  if (!hasSufficientBalance(session.id, estimatedChatCost)) {
+  if (!await hasSufficientBalance(session.id, estimatedChatCost)) {
     openAiError(res, 402, "账户余额不足，请充值后再调用。", "insufficient_balance", "insufficient_balance");
     return;
   }
@@ -213,7 +213,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = usage.completion_tokens > 1 ? streamDuration / (usage.completion_tokens - 1) : 0;
 
-      logUsage({
+      await logUsage({
         apiKeyId: null,
         userId: session.id,
         model: modelId,
@@ -227,7 +227,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
-      if (totalCost > 0) consume(session.id, totalCost, `Playground 调用: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
+      if (totalCost > 0) await consume(session.id, totalCost, `Playground 调用: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
       return;
     }
 
@@ -248,7 +248,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     const completionCost = ((usage.completion_tokens || 0) / 1_000_000) * model.completionPrice;
     const totalCost = promptCost + completionCost;
 
-    logUsage({
+    await logUsage({
       apiKeyId: null,
       userId: session.id,
       model: modelId,
@@ -260,12 +260,12 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
-    if (totalCost > 0) consume(session.id, totalCost, `Playground 调用: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
+    if (totalCost > 0) await consume(session.id, totalCost, `Playground 调用: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
 
     res.setHeader("X-RateLimit-Remaining", rpmCheck.remaining.toString());
     res.json(data);
   } catch (err: any) {
-    logUsage({
+    await logUsage({
       apiKeyId: null,
       userId: session.id,
       model: modelId,

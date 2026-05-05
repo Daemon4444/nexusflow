@@ -54,7 +54,7 @@ const upload = multer({
   },
 });
 
-function requireUploadAuth(req: Request, res: Response, next: NextFunction): void {
+async function requireUploadAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
     res.status(401).json({ success: false, message: "上传需要登录或 API Key" });
@@ -62,7 +62,7 @@ function requireUploadAuth(req: Request, res: Response, next: NextFunction): voi
   }
 
   const token = auth.slice(7).trim();
-  if (validateSession(token) || validateApiKey(token)) {
+  if ((await validateSession(token)) || (await validateApiKey(token))) {
     next();
     return;
   }

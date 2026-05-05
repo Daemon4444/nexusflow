@@ -1,5 +1,5 @@
-import db from "../db";
 import { v4 as uuid } from "uuid";
+import { db } from "../db/client";
 
 export interface Ticket {
   id: string;
@@ -17,8 +17,7 @@ export interface Ticket {
   updated_at: string;
 }
 
-/** Create a new ticket */
-export function createTicket(data: {
+export async function createTicket(data: {
   userId: string;
   type: string;
   subject: string;
@@ -26,41 +25,37 @@ export function createTicket(data: {
   model?: string;
   requestedQpm?: number;
   requestedTpm?: number;
-}): Ticket {
-  const id = uuid();
-  db.prepare(`
-    INSERT INTO tickets (id, user_id, type, subject, description, model, requested_qpm, requested_tpm)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, data.userId, data.type, data.subject, data.description, data.model ?? null, data.requestedQpm ?? null, data.requestedTpm ?? null);
-
-  return db.prepare("SELECT * FROM tickets WHERE id = ?").get(id) as Ticket;
+}): Promise<Ticket> {
+  const row = await db.queryOne<Ticket>(
+    `INSERT INTO tickets (id, user_id, type, subject, description, model, requested_qpm, requested_tpm)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     RETURNING *`,
+    [uuid(), data.userId, data.type, data.subject, data.description, data.model ?? null, data.requestedQpm ?? null, data.requestedTpm ?? null]
+  );
+  return row!;
 }
 
-/** Get all tickets for a user */
-export function getUserTickets(userId: string): Ticket[] {
-  return db.prepare("SELECT * FROM tickets WHERE user_id = ? ORDER BY created_at DESC").all(userId) as Ticket[];
+export async function getUserTickets(userId: string): Promise<Ticket[]> {
+  return db.queryMany<Ticket>("SELECT * FROM tickets WHERE user_id = ? ORDER BY created_at DESC", [userId]);
 }
 
-/** Get a single ticket (with user ownership check) */
-export function getTicket(ticketId: string, userId: string): Ticket | undefined {
-  return db.prepare("SELECT * FROM tickets WHERE id = ? AND user_id = ?").get(ticketId, userId) as Ticket | undefined;
+export async function getTicket(ticketId: string, userId: string): Promise<Ticket | null> {
+  return db.queryOne<Ticket>("SELECT * FROM tickets WHERE id = ? AND user_id = ?", [ticketId, userId]);
 }
 
-/** Admin: get all tickets with optional status filter */
-export function getAllTickets(status?: string): Ticket[] {
+export async function getAllTickets(status?: string): Promise<Ticket[]> {
   if (status) {
-    return db.prepare("SELECT * FROM tickets WHERE status = ? ORDER BY created_at DESC").all(status) as Ticket[];
+    return db.queryMany<Ticket>("SELECT * FROM tickets WHERE status = ? ORDER BY created_at DESC", [status]);
   }
-  return db.prepare("SELECT * FROM tickets ORDER BY created_at DESC").all() as Ticket[];
+  return db.queryMany<Ticket>("SELECT * FROM tickets ORDER BY created_at DESC");
 }
 
-/** Admin: reply and update ticket status */
-export function replyTicket(ticketId: string, reply: string, status: string): Ticket | undefined {
+export async function replyTicket(ticketId: string, reply: string, status: string): Promise<Ticket | null> {
   const resolvedAt = status === "resolved" || status === "rejected" ? new Date().toISOString() : null;
-  db.prepare(`
-    UPDATE tickets SET admin_reply = ?, status = ?, resolved_at = ?, updated_at = datetime('now')
-    WHERE id = ?
-  `).run(reply, status, resolvedAt, ticketId);
-
-  return db.prepare("SELECT * FROM tickets WHERE id = ?").get(ticketId) as Ticket | undefined;
+  return db.queryOne<Ticket>(
+    `UPDATE tickets SET admin_reply = ?, status = ?, resolved_at = ?, updated_at = ?
+     WHERE id = ?
+     RETURNING *`,
+    [reply, status, resolvedAt, new Date().toISOString(), ticketId]
+  );
 }

@@ -237,7 +237,7 @@ function rejectInsufficientBalance(res: Response): void {
 // POST /v1/messages — Anthropic Messages compatible
 router.post("/", async (req: Request, res: Response) => {
   const token = extractAnthropicToken(req);
-  const apiKeyRecord = token ? validateApiKey(token) : null;
+  const apiKeyRecord = token ? await validateApiKey(token) : null;
   if (!apiKeyRecord) {
     res.status(401).json({
       type: "error",
@@ -312,7 +312,7 @@ router.post("/", async (req: Request, res: Response) => {
 
   // Per-model rate limit
   if (apiKeyRecord.user_id) {
-    const userLimits = getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
+    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
     const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
     if (!rpmCheck.allowed) {
       res.status(429).json({
@@ -339,7 +339,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   const estimatedCost = estimateMessageMaxCost(model, req.body);
-  if (!hasSufficientBalance(apiKeyRecord.user_id, estimatedCost)) {
+  if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedCost)) {
     rejectInsufficientBalance(res);
     return;
   }
@@ -520,7 +520,7 @@ router.post("/", async (req: Request, res: Response) => {
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
 
-      logUsage({
+      await logUsage({
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -536,7 +536,7 @@ router.post("/", async (req: Request, res: Response) => {
       recordProviderTokens(provider.id, modelId, inputTokens + outputTokens);
 
       if (apiKeyRecord.user_id && totalCost > 0) {
-        consume(
+        await consume(
           apiKeyRecord.user_id,
           totalCost,
           `API (Anthropic): ${modelId} (${inputTokens + outputTokens} tokens, stream)`,
@@ -580,7 +580,7 @@ router.post("/", async (req: Request, res: Response) => {
     const completionCost = ((usage.completion_tokens || 0) / 1_000_000) * model.completionPrice;
     const totalCost = promptCost + completionCost;
 
-    logUsage({
+    await logUsage({
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -594,7 +594,7 @@ router.post("/", async (req: Request, res: Response) => {
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
 
     if (apiKeyRecord.user_id && totalCost > 0) {
-      consume(
+      await consume(
         apiKeyRecord.user_id,
         totalCost,
         `API (Anthropic): ${modelId} (${usage.total_tokens || 0} tokens)`,
@@ -605,7 +605,7 @@ router.post("/", async (req: Request, res: Response) => {
     res.json(anthropicResponse);
 
   } catch (err: any) {
-    logUsage({
+    await logUsage({
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,

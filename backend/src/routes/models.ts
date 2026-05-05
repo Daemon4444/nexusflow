@@ -6,8 +6,8 @@ import { getSupportedProtocols } from "../utils/model-protocols";
 const router = Router();
 
 // 合并静态模型和供应商模型
-function getAllModels(): AIModel[] {
-  const providerModels = getApprovedModelsWithProvider();
+async function getAllModels(): Promise<AIModel[]> {
+  const providerModels = await getApprovedModelsWithProvider();
   const dynamicModels: AIModel[] = providerModels.map((m) => ({
     id: m.model_id,
     name: m.name,
@@ -42,10 +42,10 @@ function getAllModels(): AIModel[] {
 }
 
 // 获取所有模型列表
-router.get("/", (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   const { category, provider, search, sort } = req.query;
 
-  let filtered = getAllModels();
+  let filtered = await getAllModels();
 
   if (category && category !== "全部") {
     filtered = filtered.filter((m) => m.category === category);
@@ -75,7 +75,7 @@ router.get("/", (req: Request, res: Response) => {
     filtered.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  const allModels = getAllModels();
+  const allModels = await getAllModels();
   res.json({
     success: true,
     data: filtered.map((model) => ({
@@ -92,8 +92,8 @@ router.get("/", (req: Request, res: Response) => {
 });
 
 // 获取单个模型详情
-router.get("/:id", (req: Request, res: Response) => {
-  const allModels = getAllModels();
+router.get("/:id", async (req: Request, res: Response) => {
+  const allModels = await getAllModels();
   const model = allModels.find((m) => m.id === req.params.id);
   if (!model) {
     res.status(404).json({ success: false, message: "模型不存在" });

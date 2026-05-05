@@ -1,5 +1,5 @@
-import db from "../db";
 import { v4 as uuid } from "uuid";
+import { db } from "../db/client";
 import { getAllUsers } from "./users";
 import { getUsageSummary } from "./usage";
 import {
@@ -12,7 +12,7 @@ import {
 const DEFAULT_QPM = 60;
 const DEFAULT_TPM = 100000;
 
-interface UserRateLimit {
+export interface UserRateLimit {
   id: string;
   user_id: string;
   model: string;
@@ -23,38 +23,24 @@ interface UserRateLimit {
   updated_at: string;
 }
 
-/** Get all rate limits for a user (including default) */
-export function getUserRateLimits(userId: string): UserRateLimit[] {
-  return db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? ORDER BY model").all(userId) as UserRateLimit[];
+export async function getUserRateLimits(userId: string): Promise<UserRateLimit[]> {
+  return db.queryMany<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? ORDER BY model", [userId]);
 }
 
-/** Get rate limit for a specific user + model (fall back to wildcard, then global default) */
-export function getEffectiveRateLimit(userId: string, model: string): { qpm: number; tpm: number; source: string } {
-  // 1. Check model-specific limit
-  const specific = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = ?").get(userId, model) as UserRateLimit | undefined;
+export async function getEffectiveRateLimit(userId: string, model: string): Promise<{ qpm: number; tpm: number; source: string }> {
+  const specific = await db.queryOne<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = ?", [userId, model]);
   if (specific) return { qpm: specific.qpm, tpm: specific.tpm, source: "custom" };
 
-  // 2. Check wildcard limit
-  const wildcard = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'").get(userId) as UserRateLimit | undefined;
+  const wildcard = await db.queryOne<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'", [userId]);
   if (wildcard) return { qpm: wildcard.qpm, tpm: wildcard.tpm, source: "user_default" };
 
-  // 3. Global default
   return { qpm: DEFAULT_QPM, tpm: DEFAULT_TPM, source: "default" };
 }
 
-/** Get effective limits for a user across all models (for dashboard display) */
-export function getUserLimitsOverview(userId: string): {
-  defaultQpm: number;
-  defaultTpm: number;
-  customLimits: UserRateLimit[];
-  requests: any[];
-  pendingRequests: any[];
-  pendingRequestCount: number;
-} {
-  const wildcard = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'").get(userId) as UserRateLimit | undefined;
-  const customs = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model != '*' ORDER BY model").all(userId) as UserRateLimit[];
-  const requests = getRateLimitRequests(userId);
-
+export async function getUserLimitsOverview(userId: string) {
+  const wildcard = await db.queryOne<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'", [userId]);
+  const customs = await db.queryMany<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? AND model != '*' ORDER BY model", [userId]);
+  const requests = await getRateLimitRequests(userId);
   return {
     defaultQpm: wildcard?.qpm ?? DEFAULT_QPM,
     defaultTpm: wildcard?.tpm ?? DEFAULT_TPM,
@@ -65,12 +51,13 @@ export function getUserLimitsOverview(userId: string): {
   };
 }
 
-export function getAdminUserLimitSummaries() {
-  return getAllUsers().map((user) => {
-    const wildcard = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'").get(user.id) as UserRateLimit | undefined;
-    const customs = db.prepare("SELECT * FROM user_rate_limits WHERE user_id = ? AND model != '*' ORDER BY model").all(user.id) as UserRateLimit[];
-    const requests = getRateLimitRequests(user.id);
-    const usage = getUsageSummary(user.id);
+export async function getAdminUserLimitSummaries() {
+  const users = await getAllUsers();
+  return Promise.all(users.map(async (user) => {
+    const wildcard = await db.queryOne<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'", [user.id]);
+    const customs = await db.queryMany<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? AND model != '*' ORDER BY model", [user.id]);
+    const requests = await getRateLimitRequests(user.id);
+    const usage = await getUsageSummary(user.id);
     return {
       id: user.id,
       phone: user.phone,
@@ -87,14 +74,14 @@ export function getAdminUserLimitSummaries() {
       latestRequest: requests[0] || null,
       usage,
     };
-  });
+  }));
 }
 
-export function getAdminRateLimitRequests(status?: string) {
+export async function getAdminRateLimitRequests(status?: string) {
   return getRateLimitRequests(undefined, status);
 }
 
-export function submitRateLimitRequest(data: {
+export async function submitRateLimitRequest(data: {
   userId: string;
   model?: string;
   requestedQpm: number;
@@ -104,47 +91,53 @@ export function submitRateLimitRequest(data: {
   return createRateLimitRequest(data);
 }
 
-export function approveRateLimitRequest(
+export async function approveRateLimitRequest(
   requestId: string,
   reviewer: string,
   overrides?: { model?: string; qpm?: number; tpm?: number; reply?: string }
 ) {
-  const request = getRateLimitRequestById(requestId);
+  const request = await getRateLimitRequestById(requestId);
   if (!request || request.status !== "pending") return null;
   const model = overrides?.model?.trim() || request.model || "*";
   const qpm = overrides?.qpm ?? request.requested_qpm;
   const tpm = overrides?.tpm ?? request.requested_tpm;
-  reviewRateLimitRequest(requestId, "approved", {
+  await reviewRateLimitRequest(requestId, "approved", {
     adminReply: overrides?.reply || "已批准",
     reviewedBy: reviewer,
   });
-  setUserRateLimit(request.user_id, model, qpm, tpm, "admin");
+  await setUserRateLimit(request.user_id, model, qpm, tpm, "admin");
   return getRateLimitRequestById(requestId);
 }
 
-export function rejectRateLimitRequest(
-  requestId: string,
-  reviewer: string,
-  reply?: string
-) {
-  const request = getRateLimitRequestById(requestId);
+export async function rejectRateLimitRequest(requestId: string, reviewer: string, reply?: string) {
+  const request = await getRateLimitRequestById(requestId);
   if (!request || request.status !== "pending") return null;
-  reviewRateLimitRequest(requestId, "rejected", {
+  await reviewRateLimitRequest(requestId, "rejected", {
     adminReply: reply || "已拒绝",
     reviewedBy: reviewer,
   });
   return getRateLimitRequestById(requestId);
 }
 
-/** Admin: set rate limit for a user + model */
-export function setUserRateLimit(userId: string, model: string, qpm: number, tpm: number, source: string = "admin"): void {
-  const existing = db.prepare("SELECT id FROM user_rate_limits WHERE user_id = ? AND model = ?").get(userId, model) as any;
+export async function setUserRateLimit(userId: string, model: string, qpm: number, tpm: number, source: string = "admin"): Promise<void> {
+  const existing = await db.queryOne<{ id: string }>("SELECT id FROM user_rate_limits WHERE user_id = ? AND model = ?", [userId, model]);
   if (existing) {
-    db.prepare("UPDATE user_rate_limits SET qpm = ?, tpm = ?, source = ?, updated_at = datetime('now') WHERE id = ?")
-      .run(qpm, tpm, source, existing.id);
+    await db.execute("UPDATE user_rate_limits SET qpm = ?, tpm = ?, source = ?, updated_at = ? WHERE id = ?", [
+      qpm,
+      tpm,
+      source,
+      new Date().toISOString(),
+      existing.id,
+    ]);
   } else {
-    db.prepare("INSERT INTO user_rate_limits (id, user_id, model, qpm, tpm, source) VALUES (?, ?, ?, ?, ?, ?)")
-      .run(uuid(), userId, model, qpm, tpm, source);
+    await db.execute("INSERT INTO user_rate_limits (id, user_id, model, qpm, tpm, source) VALUES (?, ?, ?, ?, ?, ?)", [
+      uuid(),
+      userId,
+      model,
+      qpm,
+      tpm,
+      source,
+    ]);
   }
 }
 
