@@ -6,16 +6,14 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const curlExamples = {
-  basic: `curl ${API_BASE}/v1/models/gemini-pro:generateContent \\
-  -H "Authorization: Bearer $API_KEY" \\
+  basic: `curl "${API_BASE}/v1beta/models/qwen-turbo:generateContent?key=$API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "contents": [
       {"role": "user", "parts": [{"text": "解释什么是机器学习"}]}
     ]
   }'`,
-  stream: `curl ${API_BASE}/v1/models/gemini-pro:streamGenerateContent \\
-  -H "Authorization: Bearer $API_KEY" \\
+  stream: `curl "${API_BASE}/v1beta/models/qwen-turbo:streamGenerateContent?key=$API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "contents": [
@@ -32,12 +30,12 @@ const pythonExamples = {
   basic: `import requests
 
 API_KEY = "sk-air-your-key"
-BASE = "${API_BASE}/v1"
+BASE = "${API_BASE}/v1beta"
 
 response = requests.post(
-    f"{BASE}/models/gemini-pro:generateContent",
+    f"{BASE}/models/qwen-turbo:generateContent",
+    params={"key": API_KEY},
     headers={
-        "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
     },
     json={
@@ -52,12 +50,12 @@ print(text)`,
   stream: `import requests
 
 API_KEY = "sk-air-your-key"
-BASE = "${API_BASE}/v1"
+BASE = "${API_BASE}/v1beta"
 
 response = requests.post(
-    f"{BASE}/models/gemini-pro:streamGenerateContent",
+    f"{BASE}/models/qwen-turbo:streamGenerateContent",
+    params={"key": API_KEY},
     headers={
-        "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
     },
     json={
@@ -96,7 +94,8 @@ export default function GeminiApiPage() {
           Gemini 协议兼容 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          提供 Google Gemini 原生协议格式的兼容接口，适合已有 Gemini SDK 集成的项目无缝迁移。底层路由到平台模型（如 qwen3-max），但请求/响应格式保持 Gemini 原生风格。
+          提供 Google Gemini GenerateContent 请求/响应格式的兼容入口，适合已有 Gemini SDK 或 HTTP 调用迁移到 NexusFlow。
+          这里不是 Google 原生 Gemini 模型托管，路径里的 <code>model</code> 必须填写 NexusFlow 模型 ID，例如 <code>qwen-turbo</code>。
         </p>
       </div>
 
@@ -105,8 +104,8 @@ export default function GeminiApiPage() {
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>接口地址</h2>
         <div style={{ display: "grid", gap: 10 }}>
           {[
-            { method: "POST", path: "/v1/models/{model}:generateContent", desc: "同步生成" },
-            { method: "POST", path: "/v1/models/{model}:streamGenerateContent", desc: "流式生成" },
+            { method: "POST", path: "/v1beta/models/{model}:generateContent", desc: "同步生成" },
+            { method: "POST", path: "/v1beta/models/{model}:streamGenerateContent", desc: "流式生成" },
           ].map((ep) => (
             <div key={ep.path} style={{
               padding: "12px 18px", background: "var(--bg-elevated)", borderRadius: 8,
@@ -134,6 +133,8 @@ export default function GeminiApiPage() {
             </thead>
             <tbody>
               {[
+                ["model", true, "路径参数，必须使用 NexusFlow 模型 ID，例如 qwen-turbo；不要填写 Google 原生模型名"],
+                ["key", true, "API Key，推荐放在 query string：?key=sk-air-...；也兼容 Authorization: Bearer"],
                 ["contents", true, "对话内容数组，每项包含 role（user/model）和 parts（text 数组）"],
                 ["generationConfig.temperature", false, "采样温度 [0, 2]，默认 1.0"],
                 ["generationConfig.maxOutputTokens", false, "最大输出 token 数"],
@@ -220,7 +221,8 @@ export default function GeminiApiPage() {
           borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#1e40af",
         }}>
           <strong>说明：</strong>Gemini 兼容层会将请求自动转换为平台内部格式，路由到对应模型后再将响应转回 Gemini 格式。
-          如无特殊需要，建议直接使用 <code>/v1/chat/completions</code>（OpenAI 格式）以获得更完整的功能支持。
+          这不是 Google 官方 Gemini 后端，也不保证 Google 原生模型名可用；模型能力以 NexusFlow 模型列表为准。
+          如无 Gemini SDK 依赖，建议直接使用 <code>/v1/chat/completions</code>（OpenAI 格式）以获得更完整的功能支持。
         </div>
       </section>
 
