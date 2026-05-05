@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import type { CSSProperties } from "react";
 
 const modelRows = [
   { model: "Qwen3.6 Max Preview", provider: "Alibaba Cloud", context: "262K", use: "Reasoning, coding" },
@@ -35,6 +36,17 @@ const workflow = [
   "Point your SDK to https://nexusflow.hk/v1",
   "Choose a model per request or test in Playground",
   "Track cost, latency, errors and rate limits in the console",
+];
+
+const orbitModels = [
+  { name: "Qwen", meta: "1M context", angle: 0 },
+  { name: "DeepSeek", meta: "reasoning", angle: 45 },
+  { name: "GLM", meta: "general", angle: 90 },
+  { name: "Kimi", meta: "long text", angle: 135 },
+  { name: "Claude", meta: "messages", angle: 180 },
+  { name: "PixVerse", meta: "video", angle: 225 },
+  { name: "MiniMax", meta: "voice", angle: 270 },
+  { name: "HappyHorse", meta: "async", angle: 315 },
 ];
 
 export default function LandingPage() {
@@ -88,40 +100,32 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="nf-console" aria-label="Gateway console preview">
-          <div className="nf-console-top">
+        <div className="nf-orbit-shell" aria-label="Unified model gateway">
+          <div className="nf-orbit-stage">
+            <div className="nf-orbit-ring nf-orbit-ring-outer" />
+            <div className="nf-orbit-ring nf-orbit-ring-mid" />
+            <div className="nf-orbit-ring nf-orbit-ring-inner" />
+            <div className="nf-orbit-axis" />
+            <div className="nf-orbit-core">
+              <span>nexusflow</span>
+              <strong>one gateway</strong>
+              <small>chat · image · video · messages</small>
+            </div>
+            {orbitModels.map((item) => (
+              <div
+                className="nf-orbit-node"
+                key={item.name}
+                style={{ "--angle": `${item.angle}deg` } as CSSProperties}
+              >
+                <strong>{item.name}</strong>
+                <span>{item.meta}</span>
+              </div>
+            ))}
+          </div>
+          <div className="nf-orbit-caption">
             <span className="nf-dot green" />
-            <span>Gateway status</span>
-            <strong>healthy</strong>
-          </div>
-          <div className="nf-console-grid">
-            <div className="nf-console-card">
-              <span>Balance</span>
-              <strong>¥3.99</strong>
-              <small>pre-call checks enabled</small>
-            </div>
-            <div className="nf-console-card">
-              <span>Success rate</span>
-              <strong>100%</strong>
-              <small>last account calls</small>
-            </div>
-            <div className="nf-console-card">
-              <span>Latency</span>
-              <strong>0.8s</strong>
-              <small>recent text calls</small>
-            </div>
-            <div className="nf-console-card">
-              <span>Cost</span>
-              <strong>¥0.000005</strong>
-              <small>qwen-turbo test</small>
-            </div>
-          </div>
-          <div className="nf-code-window">
-            <div className="nf-code-line"><span>POST</span> /v1/chat/completions</div>
-            <pre>{`{
-  "model": "qwen-turbo",
-  "messages": [{"role": "user", "content": "Ship it"}]
-}`}</pre>
+            <span>routing healthy</span>
+            <strong>45+ models</strong>
           </div>
         </div>
       </section>
