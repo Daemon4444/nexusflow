@@ -8,7 +8,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { models } from "../data/models";
+import { calculateTokenCost, models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
@@ -221,7 +221,7 @@ function roughTokenCount(value: unknown): number {
 function estimateMessageMaxCost(model: any, body: any): number {
   const promptTokens = Math.max(1, roughTokenCount(body.system) + roughTokenCount(body.messages));
   const completionTokens = Math.max(1, Math.min(Number(body.max_tokens) || model.maxOutput || 4096, model.maxOutput || 4096));
-  return (promptTokens / 1_000_000) * model.promptPrice + (completionTokens / 1_000_000) * model.completionPrice;
+  return calculateTokenCost(model, promptTokens, completionTokens);
 }
 
 function rejectInsufficientBalance(res: Response): void {
@@ -513,9 +513,7 @@ router.post("/", async (req: Request, res: Response) => {
 
       // Billing
       const latencyMs = Date.now() - startTime;
-      const promptCost = (inputTokens / 1_000_000) * model.promptPrice;
-      const completionCost = (outputTokens / 1_000_000) * model.completionPrice;
-      const totalCost = promptCost + completionCost;
+      const totalCost = calculateTokenCost(model, inputTokens, outputTokens);
 
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
@@ -576,9 +574,7 @@ router.post("/", async (req: Request, res: Response) => {
     // Billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const promptCost = ((usage.prompt_tokens || 0) / 1_000_000) * model.promptPrice;
-    const completionCost = ((usage.completion_tokens || 0) / 1_000_000) * model.completionPrice;
-    const totalCost = promptCost + completionCost;
+    const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
 
     await logUsage({
       apiKeyId: apiKeyRecord.id,

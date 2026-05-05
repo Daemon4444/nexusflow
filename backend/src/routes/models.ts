@@ -31,8 +31,13 @@ async function getAllModels(): Promise<AIModel[]> {
       // Merge pricingType/pricingTiers from static data into dynamic model
       modelMap.set(model.id, {
         ...model,
+        contextLength: existing.contextLength,
+        promptPrice: existing.promptPrice,
+        completionPrice: existing.completionPrice,
+        maxOutput: existing.maxOutput,
         pricingType: model.pricingType || existing.pricingType,
         pricingTiers: model.pricingTiers || existing.pricingTiers,
+        tokenPricingTiers: model.tokenPricingTiers || existing.tokenPricingTiers,
       });
     } else {
       modelMap.set(model.id, model);
@@ -82,6 +87,7 @@ router.get("/", async (req: Request, res: Response) => {
       ...model,
       pricingType: model.pricingType,
       pricingTiers: model.pricingTiers,
+      tokenPricingTiers: model.tokenPricingTiers,
       supportedProtocols: getSupportedProtocols(model),
       supported_protocols: getSupportedProtocols(model),
     })),
@@ -105,6 +111,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       ...model,
       pricingType: model.pricingType,
       pricingTiers: model.pricingTiers,
+      tokenPricingTiers: model.tokenPricingTiers,
       supportedProtocols: getSupportedProtocols(model),
       supported_protocols: getSupportedProtocols(model),
     },

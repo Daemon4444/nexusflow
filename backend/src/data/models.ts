@@ -3,6 +3,13 @@ export interface PricingTier {
   price: number;   // CNY
 }
 
+export interface TokenPricingTier {
+  label: string;      // e.g. "0<Token≤32K"
+  maxTokens: number;  // request input token upper bound for this tier
+  promptPrice: number;
+  completionPrice: number;
+}
+
 export interface AIModel {
   id: string;
   name: string;
@@ -13,12 +20,28 @@ export interface AIModel {
   completionPrice: number; // per 1M tokens (CNY) for text; 0 for media
   pricingType?: "token" | "per-image" | "per-second"; // default: "token"
   pricingTiers?: PricingTier[];  // resolution-based pricing for video/image
+  tokenPricingTiers?: TokenPricingTier[]; // input-token-based tier pricing for text models
   category: string;
   tags: string[];
   isNew?: boolean;
   isFeatured?: boolean;
   maxOutput: number;
   supported: string[];
+}
+
+export function getTokenPricingTier(model: AIModel, promptTokens: number): TokenPricingTier | null {
+  if (!model.tokenPricingTiers || model.tokenPricingTiers.length === 0) return null;
+  const boundedPromptTokens = Math.max(1, promptTokens || 0);
+  return model.tokenPricingTiers.find((tier) => boundedPromptTokens <= tier.maxTokens)
+    || model.tokenPricingTiers[model.tokenPricingTiers.length - 1];
+}
+
+export function calculateTokenCost(model: AIModel, promptTokens: number, completionTokens: number): number {
+  const tier = getTokenPricingTier(model, promptTokens);
+  const promptPrice = tier?.promptPrice ?? model.promptPrice;
+  const completionPrice = tier?.completionPrice ?? model.completionPrice;
+  return (Math.max(0, promptTokens || 0) / 1_000_000) * promptPrice
+    + (Math.max(0, completionTokens || 0) / 1_000_000) * completionPrice;
 }
 
 export const models: AIModel[] = [
@@ -31,11 +54,16 @@ export const models: AIModel[] = [
     contextLength: 262144,
     promptPrice: 2.5,
     completionPrice: 10,
+    tokenPricingTiers: [
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 2.5, completionPrice: 10 },
+      { label: "32K<Token≤128K", maxTokens: 131072, promptPrice: 4, completionPrice: 16 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 7, completionPrice: 28 },
+    ],
     category: "大语言模型",
     tags: ["旗舰", "推理", "编程", "思考模式"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 65536,
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
@@ -46,6 +74,10 @@ export const models: AIModel[] = [
     contextLength: 262144,
     promptPrice: 9,
     completionPrice: 54,
+    tokenPricingTiers: [
+      { label: "0<Token≤128K", maxTokens: 131072, promptPrice: 9, completionPrice: 54 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 15, completionPrice: 90 },
+    ],
     category: "大语言模型",
     tags: ["旗舰", "推理", "预览版"],
     isFeatured: true,
@@ -61,6 +93,10 @@ export const models: AIModel[] = [
     contextLength: 1000000,
     promptPrice: 2,
     completionPrice: 12,
+    tokenPricingTiers: [
+      { label: "0<Token≤256K", maxTokens: 262144, promptPrice: 2, completionPrice: 12 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 8, completionPrice: 48 },
+    ],
     category: "大语言模型",
     tags: ["高性价比", "均衡", "百万上下文"],
     isFeatured: true,
@@ -76,11 +112,16 @@ export const models: AIModel[] = [
     contextLength: 1000000,
     promptPrice: 0.8,
     completionPrice: 4.8,
+    tokenPricingTiers: [
+      { label: "0<Token≤128K", maxTokens: 131072, promptPrice: 0.8, completionPrice: 4.8 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 2, completionPrice: 12 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 4, completionPrice: 24 },
+    ],
     category: "大语言模型",
     tags: ["高性价比", "均衡", "百万上下文"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 65536,
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
@@ -91,6 +132,10 @@ export const models: AIModel[] = [
     contextLength: 1000000,
     promptPrice: 1.2,
     completionPrice: 7.2,
+    tokenPricingTiers: [
+      { label: "0<Token≤256K", maxTokens: 262144, promptPrice: 1.2, completionPrice: 7.2 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 4.8, completionPrice: 28.8 },
+    ],
     category: "大语言模型",
     tags: ["极速", "低成本", "百万上下文"],
     isNew: true,
@@ -105,10 +150,15 @@ export const models: AIModel[] = [
     contextLength: 1000000,
     promptPrice: 0.2,
     completionPrice: 2,
+    tokenPricingTiers: [
+      { label: "0<Token≤128K", maxTokens: 131072, promptPrice: 0.2, completionPrice: 2 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 0.8, completionPrice: 8 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 1.2, completionPrice: 12 },
+    ],
     category: "大语言模型",
     tags: ["极速", "低成本", "百万上下文"],
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 65536,
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
@@ -116,13 +166,18 @@ export const models: AIModel[] = [
     name: "Qwen Plus",
     provider: "通义千问",
     description: "通义千问增强版，效果和速度的经典平衡点，适合大规模应用场景。",
-    contextLength: 131072,
+    contextLength: 1000000,
     promptPrice: 0.8,
     completionPrice: 2,
+    tokenPricingTiers: [
+      { label: "0<Token≤128K（非思考）", maxTokens: 131072, promptPrice: 0.8, completionPrice: 2 },
+      { label: "128K<Token≤256K（非思考）", maxTokens: 262144, promptPrice: 2.4, completionPrice: 20 },
+      { label: "256K<Token≤1M（非思考）", maxTokens: 1000000, promptPrice: 4.8, completionPrice: 48 },
+    ],
     category: "大语言模型",
     tags: ["高性价比", "均衡", "通用"],
     isFeatured: true,
-    maxOutput: 16384,
+    maxOutput: 32768,
     supported: ["文本", "函数调用"]
   },
   {
@@ -130,7 +185,7 @@ export const models: AIModel[] = [
     name: "Qwen Turbo",
     provider: "通义千问",
     description: "通义千问高速版，响应极快，成本最低，适合对延迟敏感的应用场景。",
-    contextLength: 131072,
+    contextLength: 1000000,
     promptPrice: 0.3,
     completionPrice: 0.6,
     category: "大语言模型",
@@ -148,7 +203,7 @@ export const models: AIModel[] = [
     completionPrice: 2,
     category: "大语言模型",
     tags: ["超长上下文", "文档分析"],
-    maxOutput: 8192,
+    maxOutput: 32768,
     supported: ["文本"]
   },
 
@@ -203,7 +258,7 @@ export const models: AIModel[] = [
     name: "Qwen VL Max",
     provider: "通义千问",
     description: "通义千问视觉旗舰模型，支持图像理解、图文对话、文档OCR等多模态任务。",
-    contextLength: 32768,
+    contextLength: 131072,
     promptPrice: 1.6,
     completionPrice: 4,
     category: "多模态模型",
@@ -217,7 +272,7 @@ export const models: AIModel[] = [
     name: "Qwen VL Plus",
     provider: "通义千问",
     description: "通义千问视觉增强版，平衡性能与成本的多模态模型。",
-    contextLength: 32768,
+    contextLength: 131072,
     promptPrice: 0.8,
     completionPrice: 2,
     category: "多模态模型",
@@ -233,10 +288,15 @@ export const models: AIModel[] = [
     contextLength: 262144,
     promptPrice: 1,
     completionPrice: 10,
+    tokenPricingTiers: [
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 1, completionPrice: 10 },
+      { label: "32K<Token≤128K", maxTokens: 131072, promptPrice: 1.5, completionPrice: 15 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 3, completionPrice: 30 },
+    ],
     category: "多模态模型",
     tags: ["视觉", "多模态", "高分辨率"],
     isNew: true,
-    maxOutput: 8192,
+    maxOutput: 32768,
     supported: ["文本", "图像输入"]
   },
   {
@@ -244,12 +304,17 @@ export const models: AIModel[] = [
     name: "Qwen3 VL Flash",
     provider: "通义千问",
     description: "Qwen3代视觉闪电版，快速图像理解，适合实时场景。",
-    contextLength: 131072,
+    contextLength: 262144,
     promptPrice: 0.15,
     completionPrice: 1.5,
+    tokenPricingTiers: [
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 0.15, completionPrice: 1.5 },
+      { label: "32K<Token≤128K", maxTokens: 131072, promptPrice: 0.3, completionPrice: 3 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 0.6, completionPrice: 6 },
+    ],
     category: "多模态模型",
     tags: ["视觉", "极速", "高性价比"],
-    maxOutput: 8192,
+    maxOutput: 32768,
     supported: ["文本", "图像输入"]
   },
   // ========== 全能模型 ==========
@@ -277,11 +342,17 @@ export const models: AIModel[] = [
     contextLength: 1000000,
     promptPrice: 4,
     completionPrice: 16,
+    tokenPricingTiers: [
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 4, completionPrice: 16 },
+      { label: "32K<Token≤128K", maxTokens: 131072, promptPrice: 6, completionPrice: 24 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 10, completionPrice: 40 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 20, completionPrice: 200 },
+    ],
     category: "编程模型",
     tags: ["编程", "代码生成", "工具调用", "百万上下文"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 65536,
     supported: ["文本", "代码生成", "函数调用"]
   },
   {
@@ -289,13 +360,19 @@ export const models: AIModel[] = [
     name: "Qwen3 Coder Flash",
     provider: "通义千问",
     description: "通义千问3代编程闪电版，快速代码补全和生成，适合IDE集成场景。",
-    contextLength: 131072,
+    contextLength: 1000000,
     promptPrice: 1,
     completionPrice: 4,
+    tokenPricingTiers: [
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 1, completionPrice: 4 },
+      { label: "32K<Token≤128K", maxTokens: 131072, promptPrice: 1.5, completionPrice: 6 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 2.5, completionPrice: 10 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 5, completionPrice: 25 },
+    ],
     category: "编程模型",
     tags: ["编程", "极速", "高性价比"],
     isNew: true,
-    maxOutput: 8192,
+    maxOutput: 65536,
     supported: ["文本", "代码生成"]
   },
 
@@ -674,6 +751,10 @@ export const models: AIModel[] = [
     contextLength: 131072,
     promptPrice: 3,
     completionPrice: 14,
+    tokenPricingTiers: [
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 3, completionPrice: 14 },
+      { label: "32K<Token≤128K", maxTokens: 131072, promptPrice: 4, completionPrice: 16 },
+    ],
     category: "大语言模型",
     tags: ["中文优化", "推理", "通用"],
     isNew: true,
@@ -688,6 +769,10 @@ export const models: AIModel[] = [
     contextLength: 131072,
     promptPrice: 4,
     completionPrice: 18,
+    tokenPricingTiers: [
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 4, completionPrice: 18 },
+      { label: "32K<Token≤198K", maxTokens: 202752, promptPrice: 6, completionPrice: 22 },
+    ],
     category: "大语言模型",
     tags: ["旗舰", "推理", "编程", "中文优化"],
     isFeatured: true,
@@ -703,6 +788,10 @@ export const models: AIModel[] = [
     contextLength: 131072,
     promptPrice: 6,
     completionPrice: 24,
+    tokenPricingTiers: [
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 6, completionPrice: 24 },
+      { label: "32K<Token≤198K", maxTokens: 202752, promptPrice: 8, completionPrice: 28 },
+    ],
     category: "大语言模型",
     tags: ["旗舰", "推理", "编程", "增强"],
     isFeatured: true,

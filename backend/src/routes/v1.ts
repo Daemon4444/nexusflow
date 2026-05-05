@@ -8,7 +8,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { models } from "../data/models";
+import { calculateTokenCost, models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
@@ -108,12 +108,12 @@ function roughTokenCount(value: unknown): number {
 function estimateChatMaxCost(model: any, messages: unknown[], maxTokens?: number): number {
   const promptTokens = Math.max(1, roughTokenCount(messages));
   const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
-  return (promptTokens / 1_000_000) * model.promptPrice + (completionTokens / 1_000_000) * model.completionPrice;
+  return calculateTokenCost(model, promptTokens, completionTokens);
 }
 
 function estimateEmbeddingCost(model: any, input: unknown): number {
   const promptTokens = Math.max(1, roughTokenCount(input));
-  return (promptTokens / 1_000_000) * model.promptPrice;
+  return calculateTokenCost(model, promptTokens, 0);
 }
 
 function rejectInsufficientBalance(res: Response): void {
@@ -663,9 +663,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       // Log usage and bill
       const latencyMs = Date.now() - startTime;
-      const promptCost = (streamTokens.prompt_tokens / 1_000_000) * model.promptPrice;
-      const completionCost = (streamTokens.completion_tokens / 1_000_000) * model.completionPrice;
-      const totalCost = promptCost + completionCost;
+      const totalCost = calculateTokenCost(model, streamTokens.prompt_tokens, streamTokens.completion_tokens);
 
       // Calculate TPOT: time per output token (ms)
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
@@ -743,9 +741,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const data = buildChatCompletionFromSse(events);
       const latencyMs = Date.now() - startTime;
       const usage = data.usage || {};
-      const promptCost = ((usage.prompt_tokens || 0) / 1_000_000) * model.promptPrice;
-      const completionCost = ((usage.completion_tokens || 0) / 1_000_000) * model.completionPrice;
-      const totalCost = promptCost + completionCost;
+      const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
 
       await logUsage({
         apiKeyId: apiKeyRecord.id,
@@ -801,8 +797,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     // Log usage and billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const promptCost = ((usage.prompt_tokens || 0) / 1_000_000) * model.promptPrice;
-    const completionCost = ((usage.completion_tokens || 0) / 1_000_000) * model.completionPrice;
+    const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
     
     await logUsage({
       apiKeyId: apiKeyRecord.id,
@@ -811,14 +806,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       promptTokens: usage.prompt_tokens || 0,
       completionTokens: usage.completion_tokens || 0,
       totalTokens: usage.total_tokens || 0,
-      cost: promptCost + completionCost,
+      cost: totalCost,
       status: "success",
       latencyMs,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
 
     // Auto-billing
-    const totalCost = promptCost + completionCost;
     if (apiKeyRecord.user_id && totalCost > 0) {
       await consume(
         apiKeyRecord.user_id,
@@ -987,7 +981,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     // Log usage
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const cost = ((usage.prompt_tokens || 0) / 1_000_000) * model.promptPrice;
+    const cost = calculateTokenCost(model, usage.prompt_tokens || 0, 0);
 
     await logUsage({
       apiKeyId: apiKeyRecord.id,

@@ -9,7 +9,21 @@ import PlaygroundHistory, { saveToHistory, HistoryEntry } from "@/components/Pla
 import PromptTemplates from "@/components/PromptTemplates";
 import ErrorSuggestion, { ApiError } from "@/components/ErrorSuggestion";
 
-interface AIModel { id: string; name: string; provider: string; category: string; promptPrice: number; completionPrice: number; tags?: string[]; }
+interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  category: string;
+  promptPrice: number;
+  completionPrice: number;
+  tags?: string[];
+  tokenPricingTiers?: Array<{
+    label: string;
+    maxTokens: number;
+    promptPrice: number;
+    completionPrice: number;
+  }>;
+}
 interface Message { role: "user" | "assistant" | "system"; content: string; reasoningContent?: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
 interface UsageInfo { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost: string; }
 type ModelMode = "chat" | "image" | "video";
@@ -286,7 +300,11 @@ function PlaygroundInner() {
   function formatUsageCost(promptTokens = 0, completionTokens = 0) {
     const model = models.find((item) => item.id === selectedModel);
     if (!model) return "以账单为准";
-    const cost = (promptTokens / 1_000_000) * model.promptPrice + (completionTokens / 1_000_000) * model.completionPrice;
+    const tier = model.tokenPricingTiers?.find((item) => promptTokens <= item.maxTokens)
+      || model.tokenPricingTiers?.[model.tokenPricingTiers.length - 1];
+    const promptPrice = tier?.promptPrice ?? model.promptPrice;
+    const completionPrice = tier?.completionPrice ?? model.completionPrice;
+    const cost = (promptTokens / 1_000_000) * promptPrice + (completionTokens / 1_000_000) * completionPrice;
     if (cost <= 0) return "¥0";
     if (cost < 0.0001) return "<¥0.0001";
     if (cost < 0.01) return `¥${cost.toFixed(4)}`;

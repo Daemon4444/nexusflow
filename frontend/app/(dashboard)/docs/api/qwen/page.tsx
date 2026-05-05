@@ -30,8 +30,8 @@ const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string;
     { id: "qwen3.6-flash", ctx: "1M", input: "¥1.2/M", output: "¥7.2/M" },
     { id: "qwen3.5-plus", ctx: "1M", input: "¥0.8/M", output: "¥4.8/M" },
     { id: "qwen3.5-flash", ctx: "1M", input: "¥0.2/M", output: "¥2/M" },
-    { id: "qwen-plus", ctx: "131K", input: "¥0.8/M", output: "¥2/M" },
-    { id: "qwen-turbo", ctx: "131K", input: "¥0.3/M", output: "¥0.6/M" },
+    { id: "qwen-plus", ctx: "1M", input: "¥0.8/M", output: "¥2/M" },
+    { id: "qwen-turbo", ctx: "1M", input: "¥0.3/M", output: "¥0.6/M" },
   ],
   reasoning: [
     { id: "qwq-plus", ctx: "131K", input: "¥1.6/M", output: "¥4/M" },
@@ -247,8 +247,8 @@ export default function QwenDocsPage() {
               <tr style={{ background: "var(--bg-elevated)" }}>
                 <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型 ID</th>
                 <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>上下文</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输入 (¥/1M tokens)</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输出 (¥/1M tokens)</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>首阶输入 (¥/1M tokens)</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>首阶输出 (¥/1M tokens)</th>
               </tr>
             </thead>
             <tbody>

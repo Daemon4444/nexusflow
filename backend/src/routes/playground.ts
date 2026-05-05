@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { models } from "../data/models";
+import { calculateTokenCost, models } from "../data/models";
 import { validateSession } from "../data/users";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
@@ -32,7 +32,7 @@ function roughTokenCount(value: unknown): number {
 function estimateChatMaxCost(model: any, messages: unknown[], maxTokens?: number): number {
   const promptTokens = Math.max(1, roughTokenCount(messages));
   const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
-  return (promptTokens / 1_000_000) * model.promptPrice + (completionTokens / 1_000_000) * model.completionPrice;
+  return calculateTokenCost(model, promptTokens, completionTokens);
 }
 
 function parseSseUsage(payload: string): { prompt_tokens: number; completion_tokens: number; total_tokens: number } {
@@ -207,9 +207,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.end();
 
       const usage = parseSseUsage(fullResponse);
-      const promptCost = ((usage.prompt_tokens || 0) / 1_000_000) * model.promptPrice;
-      const completionCost = ((usage.completion_tokens || 0) / 1_000_000) * model.completionPrice;
-      const totalCost = promptCost + completionCost;
+      const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = usage.completion_tokens > 1 ? streamDuration / (usage.completion_tokens - 1) : 0;
 
@@ -244,9 +242,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     }
 
     const usage = data.usage || {};
-    const promptCost = ((usage.prompt_tokens || 0) / 1_000_000) * model.promptPrice;
-    const completionCost = ((usage.completion_tokens || 0) / 1_000_000) * model.completionPrice;
-    const totalCost = promptCost + completionCost;
+    const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
 
     await logUsage({
       apiKeyId: null,

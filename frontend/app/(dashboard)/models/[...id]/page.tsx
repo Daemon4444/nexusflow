@@ -10,6 +10,13 @@ interface PricingTier {
   price: number;
 }
 
+interface TokenPricingTier {
+  label: string;
+  maxTokens: number;
+  promptPrice: number;
+  completionPrice: number;
+}
+
 interface AIModel {
   id: string;
   name: string;
@@ -20,6 +27,7 @@ interface AIModel {
   completionPrice: number;
   pricingType?: "token" | "per-image" | "per-second";
   pricingTiers?: PricingTier[];
+  tokenPricingTiers?: TokenPricingTier[];
   category: string;
   tags: string[];
   isNew?: boolean;
@@ -288,6 +296,7 @@ export default function ModelDetailPage() {
       {(() => {
         const isMedia = model.pricingType === "per-second" || model.pricingType === "per-image";
         const hasTiers = model.pricingTiers && model.pricingTiers.length > 0;
+        const hasTokenTiers = model.tokenPricingTiers && model.tokenPricingTiers.length > 0;
 
         if (isMedia) {
           return (
@@ -369,51 +378,90 @@ export default function ModelDetailPage() {
         }
 
         return (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 16,
-              marginBottom: 20,
-            }}
-          >
-            <div className="stat-card">
-              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                上下文窗口
+          <>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4, 1fr)",
+                gap: 16,
+                marginBottom: 20,
+              }}
+            >
+              <div className="stat-card">
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                  上下文窗口
+                </div>
+                <div className="stat-value" style={{ color: "#2563eb" }}>
+                  {formatTokens(model.contextLength)}
+                </div>
+                <div className="stat-label">tokens</div>
               </div>
-              <div className="stat-value" style={{ color: "#2563eb" }}>
-                {formatTokens(model.contextLength)}
+              <div className="stat-card">
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                  最大输出
+                </div>
+                <div className="stat-value" style={{ color: "#2563eb" }}>
+                  {formatTokens(model.maxOutput)}
+                </div>
+                <div className="stat-label">tokens</div>
               </div>
-              <div className="stat-label">tokens</div>
+              <div className="stat-card">
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                  首阶输入
+                </div>
+                <div className="stat-value" style={{ color: "#10b981" }}>
+                  ¥{model.promptPrice}
+                </div>
+                <div className="stat-label">/ 百万 tokens</div>
+              </div>
+              <div className="stat-card">
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
+                  首阶输出
+                </div>
+                <div className="stat-value" style={{ color: "#0f766e" }}>
+                  ¥{model.completionPrice}
+                </div>
+                <div className="stat-label">/ 百万 tokens</div>
+              </div>
             </div>
-            <div className="stat-card">
-              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                最大输出
+            {hasTokenTiers && (
+              <div className="card" style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
+                  阶梯定价
+                </h3>
+                <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.4fr 1fr 1fr",
+                    padding: "10px 16px",
+                    background: "var(--bg-elevated)",
+                    borderBottom: "1px solid var(--border)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--text-tertiary)",
+                    textTransform: "uppercase",
+                  }}>
+                    <span>单次请求输入 Token</span>
+                    <span style={{ textAlign: "right" }}>输入/百万</span>
+                    <span style={{ textAlign: "right" }}>输出/百万</span>
+                  </div>
+                  {model.tokenPricingTiers!.map((tier, i) => (
+                    <div key={tier.label} style={{
+                      display: "grid",
+                      gridTemplateColumns: "1.4fr 1fr 1fr",
+                      padding: "10px 16px",
+                      borderBottom: i < model.tokenPricingTiers!.length - 1 ? "1px solid var(--border)" : "none",
+                      fontSize: 14,
+                    }}>
+                      <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{tier.label}</span>
+                      <span style={{ textAlign: "right", fontWeight: 600, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>¥{tier.promptPrice}</span>
+                      <span style={{ textAlign: "right", fontWeight: 600, color: "#0f766e", fontVariantNumeric: "tabular-nums" }}>¥{tier.completionPrice}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="stat-value" style={{ color: "#2563eb" }}>
-                {formatTokens(model.maxOutput)}
-              </div>
-              <div className="stat-label">tokens</div>
-            </div>
-            <div className="stat-card">
-              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                输入价格
-              </div>
-              <div className="stat-value" style={{ color: "#10b981" }}>
-                ¥{model.promptPrice}
-              </div>
-              <div className="stat-label">/ 百万 tokens</div>
-            </div>
-            <div className="stat-card">
-              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                输出价格
-              </div>
-              <div className="stat-value" style={{ color: "#0f766e" }}>
-                ¥{model.completionPrice}
-              </div>
-              <div className="stat-label">/ 百万 tokens</div>
-            </div>
-          </div>
+            )}
+          </>
         );
       })()}
 

@@ -6,6 +6,12 @@ interface ModelInfo {
   id: string;
   promptPrice: number;
   completionPrice: number;
+  tokenPricingTiers?: Array<{
+    label: string;
+    maxTokens: number;
+    promptPrice: number;
+    completionPrice: number;
+  }>;
 }
 
 interface CostEstimateProps {
@@ -38,9 +44,13 @@ export default function CostEstimate({
 
     const inputTokens = estimateTokens(inputText);
     const totalTokens = inputTokens + estimatedOutputTokens;
+    const tier = model.tokenPricingTiers?.find((item) => inputTokens <= item.maxTokens)
+      || model.tokenPricingTiers?.[model.tokenPricingTiers.length - 1];
+    const promptPrice = tier?.promptPrice ?? model.promptPrice;
+    const completionPrice = tier?.completionPrice ?? model.completionPrice;
 
-    const inputCost = (inputTokens / 1_000_000) * model.promptPrice;
-    const outputCost = (estimatedOutputTokens / 1_000_000) * model.completionPrice;
+    const inputCost = (inputTokens / 1_000_000) * promptPrice;
+    const outputCost = (estimatedOutputTokens / 1_000_000) * completionPrice;
     const totalCost = inputCost + outputCost;
 
     return {
@@ -50,6 +60,7 @@ export default function CostEstimate({
       inputCost,
       outputCost,
       totalCost,
+      tierLabel: tier?.label,
     };
   }, [model, inputText, estimatedOutputTokens]);
 
@@ -112,6 +123,25 @@ export default function CostEstimate({
             ~{estimate.inputTokens}
           </div>
         </div>
+        {estimate.tierLabel && (
+          <div>
+            <div style={{
+              fontSize: 11,
+              color: "var(--text-tertiary)",
+              marginBottom: 2,
+            }}>
+              计价阶梯
+            </div>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--text-secondary)",
+              fontVariantNumeric: "tabular-nums",
+            }}>
+              {estimate.tierLabel}
+            </div>
+          </div>
+        )}
 
         <div>
           <div style={{

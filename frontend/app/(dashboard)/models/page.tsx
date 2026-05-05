@@ -10,11 +10,19 @@ interface PricingTier {
   price: number;
 }
 
+interface TokenPricingTier {
+  label: string;
+  maxTokens: number;
+  promptPrice: number;
+  completionPrice: number;
+}
+
 interface AIModel {
   id: string; name: string; provider: string; description: string;
   contextLength: number; promptPrice: number; completionPrice: number;
   pricingType?: "token" | "per-image" | "per-second";
   pricingTiers?: PricingTier[];
+  tokenPricingTiers?: TokenPricingTier[];
   category: string; tags: string[]; isNew?: boolean; isFeatured?: boolean;
   maxOutput: number; supported: string[];
   supportedProtocols?: string[];
@@ -226,6 +234,13 @@ export default function ModelsPage() {
                         { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
                         { label: "价格", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}${unit}`, color: "var(--success)" },
                         { label: "计费", value: model.pricingType === "per-second" ? "按秒" : "按张", color: "var(--warning)" },
+                      ];
+                    }
+                    if (model.tokenPricingTiers && model.tokenPricingTiers.length > 0) {
+                      return [
+                        { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
+                        { label: "首阶输入", value: `¥${model.promptPrice}/M`, color: "var(--success)" },
+                        { label: "首阶输出", value: `¥${model.completionPrice}/M`, color: "var(--warning)" },
                       ];
                     }
                     return [

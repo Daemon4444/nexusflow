@@ -5,6 +5,13 @@ import { fetchAPI } from "@/lib/api";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
+interface TokenPricingTier {
+  label: string;
+  maxTokens: number;
+  promptPrice: number;
+  completionPrice: number;
+}
+
 interface AIModel {
   id: string;
   name: string;
@@ -13,6 +20,7 @@ interface AIModel {
   contextLength: number;
   promptPrice: number;
   completionPrice: number;
+  tokenPricingTiers?: TokenPricingTier[];
   category: string;
   tags: string[];
   isNew?: boolean;
@@ -333,18 +341,41 @@ export default function ModelDetailPage() {
             <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{formatTokens(model.maxOutput)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>输入价格</div>
+            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶输入</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: model.promptPrice === 0 ? "var(--success)" : "var(--text-primary)" }}>
               {model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}/M`}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>输出价格</div>
+            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶输出</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: model.completionPrice === 0 ? "var(--success)" : "var(--text-primary)" }}>
               {model.completionPrice === 0 ? "免费" : `¥${model.completionPrice}/M`}
             </div>
           </div>
         </div>
+        {model.tokenPricingTiers && model.tokenPricingTiers.length > 0 && (
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
+              阶梯定价
+            </div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+              {model.tokenPricingTiers.map((tier, idx) => (
+                <div key={tier.label} style={{
+                  display: "grid",
+                  gridTemplateColumns: "1.4fr 1fr 1fr",
+                  gap: 12,
+                  padding: "10px 12px",
+                  borderBottom: idx < model.tokenPricingTiers!.length - 1 ? "1px solid var(--border)" : "none",
+                  fontSize: 13,
+                }}>
+                  <span style={{ fontWeight: 500 }}>{tier.label}</span>
+                  <span style={{ textAlign: "right" }}>输入 ¥{tier.promptPrice}/M</span>
+                  <span style={{ textAlign: "right" }}>输出 ¥{tier.completionPrice}/M</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card-static" style={{ marginBottom: 24 }}>

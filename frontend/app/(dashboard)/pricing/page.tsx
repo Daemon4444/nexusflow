@@ -9,6 +9,13 @@ interface PricingTier {
   price: number;
 }
 
+interface TokenPricingTier {
+  label: string;
+  maxTokens: number;
+  promptPrice: number;
+  completionPrice: number;
+}
+
 interface AIModel {
   id: string;
   name: string;
@@ -18,6 +25,7 @@ interface AIModel {
   completionPrice: number;
   pricingType?: "token" | "per-image" | "per-second";
   pricingTiers?: PricingTier[];
+  tokenPricingTiers?: TokenPricingTier[];
 }
 
 export default function PricingPage() {
@@ -191,6 +199,7 @@ export default function PricingPage() {
                 {providerModels.map((model) => {
                   const isMedia = model.pricingType === "per-second" || model.pricingType === "per-image";
                   const hasTiers = model.pricingTiers && model.pricingTiers.length > 0;
+                  const hasTokenTiers = model.tokenPricingTiers && model.tokenPricingTiers.length > 0;
                   return (
                   <Link
                     key={model.id}
@@ -240,6 +249,24 @@ export default function PricingPage() {
                         fontVariantNumeric: "tabular-nums",
                       }}>
                         ¥{model.promptPrice}{model.pricingType === "per-second" ? "/秒" : "/张"}
+                      </span>
+                    ) : hasTokenTiers ? (
+                      <span style={{
+                        textAlign: "right",
+                        fontSize: 13,
+                        fontWeight: 550,
+                        color: "var(--text-primary)",
+                        fontVariantNumeric: "tabular-nums",
+                        display: "flex",
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                        gap: "4px 12px",
+                      }}>
+                        {model.tokenPricingTiers!.map((tier) => (
+                          <span key={tier.label} style={{ whiteSpace: "nowrap" }}>
+                            {tier.label}：入¥{tier.promptPrice}/出¥{tier.completionPrice}
+                          </span>
+                        ))}
                       </span>
                     ) : (
                       <span style={{
