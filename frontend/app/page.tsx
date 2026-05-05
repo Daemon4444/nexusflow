@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
+import { NexusflowLogo } from "@/components/QuadrantLogo";
 import type { CSSProperties } from "react";
 
 const modelRows = [
@@ -51,27 +53,27 @@ const orbitModels = [
 
 export default function LandingPage() {
   const { user } = useAuth();
+  const { t } = useI18n();
 
   return (
     <main className="nf-site">
       <nav className="nf-nav">
         <Link href="/" className="nf-brand" aria-label="NexusFlow home">
-          <span className="nf-brand-mark">N</span>
-          <span>nexusflow</span>
+          <NexusflowLogo size={15} color="var(--text-primary)" />
         </Link>
         <div className="nf-nav-links">
-          <Link href="/models">Models</Link>
-          <Link href="/playground">Playground</Link>
-          <Link href="/docs">Docs</Link>
-          <Link href="/pricing">Pricing</Link>
+          <Link href="/models">{t("navModels")}</Link>
+          <Link href="/playground">{t("navPlayground")}</Link>
+          <Link href="/docs">{t("navDocs")}</Link>
+          <Link href="/pricing">{t("navPricing")}</Link>
         </div>
         <div className="nf-nav-actions">
           {user ? (
-            <Link href="/playground" className="nf-btn nf-btn-primary">Open Console</Link>
+            <Link href="/playground" className="nf-btn nf-btn-primary">打开控制台</Link>
           ) : (
             <>
-              <Link href="/login" className="nf-btn nf-btn-secondary">Log in</Link>
-              <Link href="/login" className="nf-btn nf-btn-primary">Start building</Link>
+              <Link href="/login" className="nf-btn nf-btn-secondary">登录</Link>
+              <Link href="/login" className="nf-btn nf-btn-primary">开始使用</Link>
             </>
           )}
         </div>
