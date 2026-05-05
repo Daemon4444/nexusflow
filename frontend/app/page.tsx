@@ -104,7 +104,7 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
           const depth = (zFactor + 1) / 2;
           const visibility = Math.max(0, Math.min(1, (depth - 0.86) / 0.08));
           const scale = 0.32 + 0.58 * depth;
-          const rearPresence = 0.08 + Math.min(depth, 0.72) * 0.12;
+          const rearPresence = 0.18 + Math.min(depth, 0.72) * 0.18;
           const opacity = Math.max(rearPresence, visibility * (0.36 + 0.64 * depth));
           const blur = visibility > 0 ? 0 : Math.min(4, 1.2 + (0.8 - depth) * 4);
 
