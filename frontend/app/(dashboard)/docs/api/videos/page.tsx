@@ -13,11 +13,11 @@ const tabs: { key: TabKey; label: string }[] = [
 ];
 
 const supportedModels = [
-  { id: "wan2.6-t2v", provider: "Wan / Alibaba", mode: "文生视频", price720: "¥0.3 / 秒", price1080: "¥0.6 / 秒" },
-  { id: "wan2.6-i2v", provider: "Wan / Alibaba", mode: "图生视频", price720: "¥0.3 / 秒", price1080: "¥0.6 / 秒" },
+  { id: "wan2.6-t2v", provider: "Wan / Alibaba", mode: "文生视频", price720: "¥0.6 / 秒", price1080: "¥1 / 秒" },
+  { id: "wan2.6-i2v", provider: "Wan / Alibaba", mode: "图生视频", price720: "¥0.6 / 秒", price1080: "¥1 / 秒" },
   { id: "happyhorse-1.0-t2v", provider: "HappyHorse / Alibaba", mode: "文生视频", price720: "¥0.9 / 秒", price1080: "¥1.6 / 秒" },
   { id: "happyhorse-1.0-i2v", provider: "HappyHorse / Alibaba", mode: "图生视频", price720: "¥0.9 / 秒", price1080: "¥1.6 / 秒" },
-  { id: "pixverse-v6", provider: "PixVerse", mode: "文生视频", price720: "¥0.5 / 秒", price1080: "¥0.8 / 秒" },
+  { id: "pixverse-v6", provider: "PixVerse", mode: "文生视频", price720: "¥0.36 有声 / ¥0.27 无声", price1080: "¥0.68 有声 / ¥0.53 无声" },
 ];
 
 const requestParams: { name: string; type: string; required: boolean; desc: string }[] = [

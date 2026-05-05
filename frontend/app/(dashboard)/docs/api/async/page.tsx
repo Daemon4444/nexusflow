@@ -15,13 +15,13 @@ const poll = `curl https://nexusflow.hk/v1/tasks/task_xxx \\
   -H "Authorization: Bearer $API_KEY"`;
 
 const params = [
-  { name: "model", required: "必填", desc: "图像或视频模型 ID，如 wan2.6-t2i、wan2.6-i2v、pixverse-v6、happyhorse-1.0。" },
+  { name: "model", required: "必填", desc: "图像或视频模型 ID，如 wan2.6-t2i、wan2.6-i2v、pixverse-v6、happyhorse-1.0-t2v。" },
   { name: "prompt", required: "必填", desc: "生成提示词。视频建议描述主体、动作、镜头、场景和光线。" },
   { name: "size", required: "可选", desc: "图像或视频尺寸，如 1024x1024、1280x720。" },
   { name: "duration", required: "视频可选", desc: "视频时长，按模型能力选择 5、8、10、15 等值。" },
   { name: "img_url", required: "图生视频可选", desc: "参考图 URL，用于 i2v/r2v 类型任务。" },
   { name: "negative_prompt", required: "可选", desc: "不希望出现的元素、风格或动作。" },
-  { name: "webhook_url", required: "可选", desc: "任务完成后的回调地址，适合生产系统减少轮询。" },
+  { name: "webhook_url", required: "暂不支持", desc: "当前公开任务接口不会触发 webhook；生产系统请使用 GET /v1/tasks/{id} 轮询。" },
 ];
 
 export default function AsyncApiPage() {
@@ -33,15 +33,15 @@ export default function AsyncApiPage() {
           异步任务 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          图像、视频等高时延模型统一使用任务接口。提交任务后立即返回任务 ID，业务侧轮询状态或等待 webhook 回调。
+          图像、视频等高时延模型统一使用任务接口。提交任务后返回任务状态；视频任务需要轮询，部分图像任务会直接返回 succeeded。
         </p>
       </div>
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 14, marginBottom: 38 }}>
         {[
-          ["提交", "POST /v1/tasks", "创建异步任务并返回 task_id。"],
+          ["提交", "POST /v1/tasks", "创建任务；视频返回 running，部分图像直接返回 succeeded。"],
           ["查询", "GET /v1/tasks/{id}", "读取任务状态、进度、输出和错误。"],
-          ["回调", "webhook_url", "任务完成后由平台回调业务地址。"],
+          ["列表", "GET /v1/tasks", "列出当前 API Key 用户的最近任务。"],
         ].map(([title, endpoint, desc]) => (
           <div key={title} style={{ padding: 18, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg)" }}>
             <div style={{ fontSize: 15, color: "var(--text-primary)", fontWeight: 700, marginBottom: 8 }}>{title}</div>

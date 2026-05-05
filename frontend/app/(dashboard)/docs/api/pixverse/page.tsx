@@ -109,16 +109,16 @@ const curlExamples: Record<TabKey, string> = {
 };
 
 const pythonExamples: Record<TabKey, string> = {
-  t2v: `from openai import OpenAI
-import time, requests
+  t2v: `import time, requests
 
-client = OpenAI(api_key="sk-air-your-key", base_url="${API_BASE}/v1")
+API_KEY = "sk-air-your-key"
+BASE = "${API_BASE}"
 
 # 步骤1: 创建任务
 response = requests.post(
-    "${API_BASE}/v1/services/aigc/video-generation/video-synthesis",
+    f"{BASE}/v1/services/aigc/video-generation/video-synthesis",
     headers={
-        "Authorization": "Bearer sk-air-your-key",
+        "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
         "X-DashScope-Async": "enable"
     },
@@ -134,8 +134,8 @@ print(f"任务已创建: {task_id}")
 # 步骤2: 轮询查询结果
 while True:
     result = requests.get(
-        f"${API_BASE}/v1/video/tasks/{task_id}",
-        headers={"Authorization": "Bearer sk-air-your-key"}
+        f"{BASE}/v1/video/tasks/{task_id}",
+        headers={"Authorization": f"Bearer {API_KEY}"}
     ).json()
     status = result["output"]["task_status"]
     print(f"状态: {status}")

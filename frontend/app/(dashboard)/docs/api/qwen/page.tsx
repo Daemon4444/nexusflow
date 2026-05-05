@@ -22,6 +22,39 @@ const codeTabs: { key: CodeTabKey; label: string }[] = [
   { key: "coding", label: "编程" },
 ];
 
+const qwenProtocols = [
+  {
+    protocol: "OpenAI Chat Completions",
+    endpoint: "/v1/chat/completions",
+    status: "已开放",
+    usage: "默认示例入口，支持 OpenAI SDK、流式输出、工具调用、视觉输入和推理字段。",
+  },
+  {
+    protocol: "Anthropic Messages",
+    endpoint: "/v1/messages",
+    status: "已开放",
+    usage: "适合复用 Anthropic SDK 或 Messages 格式；model 仍填写 NexusFlow 的 Qwen 模型 ID。",
+  },
+  {
+    protocol: "Gemini-compatible GenerateContent",
+    endpoint: "/v1beta/models/{model}:generateContent",
+    status: "已开放",
+    usage: "适合已有 Google GenAI / Gemini HTTP 调用迁移；路径里的 model 是 NexusFlow 模型 ID。",
+  },
+  {
+    protocol: "OpenAI Responses API",
+    endpoint: "/v1/responses",
+    status: "暂未开放",
+    usage: "阿里云百炼官方 Qwen API 参考中包含该协议；当前 NexusFlow 公共网关未暴露此路由。",
+  },
+  {
+    protocol: "DashScope 原生 Qwen API",
+    endpoint: "/api/v1/services/aigc/text-generation/generation",
+    status: "暂未开放",
+    usage: "这是百炼官方原生接口形态；当前请使用上面三种 NexusFlow 公共兼容协议。",
+  },
+];
+
 const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string; output: string }[]> = {
   llm: [
     { id: "qwen3-max", ctx: "262K", input: "¥2.5/M", output: "¥10/M" },
@@ -202,23 +235,52 @@ export default function QwenDocsPage() {
           Qwen 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          通过 OpenAI 兼容的 Chat Completions 接口调用 Qwen 全系列模型，涵盖大语言、推理、视觉理解、编程等能力。支持流式输出、函数调用，可直接使用 OpenAI SDK 接入。
+          Qwen 文本、推理、视觉理解和编程模型可通过 NexusFlow 的三类公共兼容协议调用：OpenAI Chat Completions、Anthropic Messages、Gemini-compatible GenerateContent。下方请求示例默认使用 OpenAI Chat，因为它覆盖能力最完整、迁移成本最低。
         </p>
       </div>
 
-      {/* Endpoint */}
+      {/* Protocols */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>请求端点</h2>
-        <div style={{
-          padding: "14px 18px", background: "var(--bg-elevated)", borderRadius: 10,
-          border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10,
-        }}>
-          <span style={{
-            padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700,
-            background: "#dbeafe", color: "#1d4ed8",
-          }}>POST</span>
-          <code style={{ fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>{API_BASE}/v1/chat/completions</code>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>协议与端点</h2>
+        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--bg-elevated)" }}>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>协议</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>端点</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>状态</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              {qwenProtocols.map((row, i) => (
+                <tr key={row.protocol} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>{row.protocol}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
+                    <code style={{ fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>{row.endpoint}</code>
+                  </td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                    <span style={{
+                      display: "inline-block", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                      background: row.status === "已开放" ? "#dcfce7" : "#f3f4f6",
+                      color: row.status === "已开放" ? "#166534" : "#6b7280",
+                    }}>
+                      {row.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", lineHeight: 1.6 }}>{row.usage}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+        <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
+          百炼官方 API 参考见{" "}
+          <a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
+            阿里云 Qwen API Reference
+          </a>
+          。NexusFlow 文档只展示当前公共网关可直接调用的协议示例，避免复制未开放路由导致 404。
+        </p>
       </section>
 
       {/* Models Table */}
@@ -266,7 +328,7 @@ export default function QwenDocsPage() {
           </table>
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
-          价格为每 100 万 tokens 的人民币价格。所有模型均通过同一端点调用，仅需更换 model 参数。
+          价格为每 100 万 tokens 的人民币价格。同一模型 ID 可按上方已开放协议调用；不同协议共享同一套余额、计费和监控。
         </p>
       </section>
 
@@ -377,7 +439,7 @@ export default function QwenDocsPage() {
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-tertiary)", fontSize: 12 }}>boolean</td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center", color: "var(--text-secondary)" }}>false</td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                  开启后，模型会在回答前先进行深度思考，并在响应中返回思考过程（thinking_content）。适合复杂数学、逻辑推理、多步分析等场景。开启后 token 用量会显著增加。
+                  开启后，模型会在回答前先进行深度思考，并在响应中返回思考过程（reasoning_content）。适合复杂数学、逻辑推理、多步分析等场景。开启后 token 用量会显著增加。
                 </td>
               </tr>
             </tbody>
@@ -398,7 +460,7 @@ export default function QwenDocsPage() {
       "message": {
         "role": "assistant",
         "content": "水池注满需要约 14.29 小时。",
-        "thinking_content": "让我分析这道题：\\n进水速率 = 3 + 2 = 5 吨/小时\\n出水速率 = 1.5 吨/小时\\n净进水速率 = 5 - 1.5 = 3.5 吨/小时\\n注满时间 = 50 / 3.5 ≈ 14.29 小时"
+        "reasoning_content": "让我分析这道题：\\n进水速率 = 3 + 2 = 5 吨/小时\\n出水速率 = 1.5 吨/小时\\n净进水速率 = 5 - 1.5 = 3.5 吨/小时\\n注满时间 = 50 / 3.5 ≈ 14.29 小时"
       },
       "finish_reason": "stop"
     }
@@ -418,8 +480,8 @@ export default function QwenDocsPage() {
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         {[
           { href: "/docs/quickstart", label: "快速开始", desc: "5 分钟完成首次 API 调用" },
-          { href: "/docs/api/chat", label: "Chat Completions", desc: "查看通用对话补全接口文档" },
-          { href: "/pricing", label: "完整定价", desc: "查看所有模型定价详情" },
+          { href: "/docs/multi-protocol", label: "多协议接入", desc: "查看 OpenAI / Anthropic / Gemini 兼容说明" },
+          { href: "/docs/api/chat", label: "Chat Completions", desc: "查看默认对话接口文档" },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

@@ -29,7 +29,7 @@ const modelCategories = [
     desc: "VBench 排名第一的视频生成模型，支持文生视频、图生视频，已通过 nexusflow 统一接入",
     href: "/docs/models/happyhorse",
     introHref: "/docs/models/happyhorse",
-    models: ["happyhorse-1.0", "文生视频", "图生视频"],
+    models: ["happyhorse-1.0-t2v", "happyhorse-1.0-i2v", "happyhorse-1.0-r2v"],
     color: "#2563eb",
     tag: "最新",
   },
@@ -73,9 +73,27 @@ export default function ModelsOverviewPage() {
           模型总览
         </h1>
         <p style={{ fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-          nexusflow 整合了业界领先的大语言模型，提供统一的 API 接口。选择最适合您需求的模型。
+          nexusflow 整合了业界领先的大语言模型，按模型能力提供 OpenAI、Anthropic Messages、Gemini-compatible、Embeddings、Image Generations 和 Tasks 等公共接口。选择最适合您需求的模型。
         </p>
       </div>
+
+      <section style={{ marginBottom: 48 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>
+          协议总览
+        </h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {[
+            { href: "/docs/multi-protocol", title: "文本类模型", desc: "OpenAI Chat、Anthropic Messages、Gemini-compatible" },
+            { href: "/docs/api/embeddings", title: "向量模型", desc: "OpenAI Embeddings" },
+            { href: "/docs/api/async", title: "图像 / 视频", desc: "Image Generations 或 NexusFlow Tasks" },
+          ].map((item) => (
+            <Link key={item.title} href={item.href} style={{ padding: 16, background: "var(--bg-elevated)", borderRadius: 10, border: "1px solid var(--border)", textDecoration: "none" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
+              <div style={{ fontSize: 12, lineHeight: 1.6, color: "var(--text-tertiary)" }}>{item.desc}</div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* Model categories */}
       <section style={{ marginBottom: 56 }}>

@@ -7,7 +7,7 @@ const openAiParams = [
   ["messages", "array", "必填", "对话消息数组，按顺序传入 system、user、assistant、tool。"],
   ["messages[].role", "string", "必填", "system / user / assistant / tool。tool 消息用于回传工具执行结果。"],
   ["messages[].content", "string | array", "必填", "文本可直接传字符串；多模态输入传内容块数组。"],
-  ["messages[].content[].type", "string", "多模态", "text / image_url。当前不公开音频 API。"],
+  ["messages[].content[].type", "string", "多模态", "稳定示例为 text / image_url；video、input_audio 等百炼扩展内容块需按具体模型实测。"],
   ["messages[].content[].text", "string", "多模态", "type=text 时的文本。"],
   ["messages[].content[].image_url.url", "string", "多模态", "图片 URL 或 data URL，需模型支持视觉理解。"],
   ["stream", "boolean", "可选", "开启 SSE 流式输出。长文本、推理模型和交互场景建议开启。"],
@@ -23,9 +23,17 @@ const openAiParams = [
   ["tools[].function.name", "string", "工具", "函数名。建议使用字母、数字和下划线。"],
   ["tools[].function.description", "string", "工具", "函数用途说明，影响模型选择工具的准确性。"],
   ["tools[].function.parameters", "object", "工具", "JSON Schema，描述函数入参。"],
-  ["tool_choice", "string | object", "可选", "auto / none / required，或指定 {type:'function', function:{name}}。"],
+  ["tool_choice", "string | object", "可选", "稳定支持 auto / none，或指定 {type:'function', function:{name}}。思考模式模型不建议强制工具。"],
   ["response_format", "object", "可选", "输出格式控制。常见值为 {\"type\":\"text\"} 或 {\"type\":\"json_object\"}。"],
   ["enable_thinking", "boolean", "可选", "思考模式。DeepSeek V4 Pro、QwQ、部分 Qwen 推理模型可用；低延迟场景可关闭。"],
+];
+
+const notForwardedOpenAiParams = [
+  ["seed", "integer", "暂未透传", "当前 /v1/chat/completions 后端不会转发该字段，不应依赖它做可复现生成。"],
+  ["parallel_tool_calls", "boolean", "暂未透传", "百炼官方 Chat API 支持并行工具调用，但当前公开网关未承诺透传。"],
+  ["enable_search", "boolean", "暂未透传", "联网搜索属于百炼扩展能力，当前公开网关未承诺透传。"],
+  ["search_options", "object", "暂未透传", "与联网搜索配套的参数，当前公开网关未承诺透传。"],
+  ["max_completion_tokens", "integer", "暂未透传", "请使用当前稳定支持的 max_tokens。"],
 ];
 
 const anthropicParams = [
@@ -59,7 +67,7 @@ const geminiParams = [
   ["generationConfig.maxOutputTokens", "max_tokens", "最大输出 token。"],
   ["generationConfig.stopSequences", "stop", "停止序列数组。"],
   ["tools[].functionDeclarations", "tools", "函数声明，转换为 OpenAI function tools。"],
-  ["toolConfig.functionCallingConfig.mode", "tool_choice", "AUTO / ANY / NONE 分别映射 auto / required / none。"],
+  ["toolConfig.functionCallingConfig.mode", "tool_choice", "AUTO / ANY / NONE 分别映射 auto / required / none；部分上游模型可能不接受 required。"],
   ["streamGenerateContent", "stream=true", "流式接口。使用 ?alt=sse 时按 SSE 返回。"],
 ];
 
@@ -113,6 +121,14 @@ export default function ApiParametersPage() {
       <section style={{ marginBottom: 40 }}>
         <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>OpenAI Chat Completions</h2>
         <Matrix rows={openAiParams} columns={["220px", "150px", "90px", "1fr"]} />
+      </section>
+
+      <section style={{ marginBottom: 40 }}>
+        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>百炼官方字段差异</h2>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginTop: -4, marginBottom: 14 }}>
+          阿里云百炼官方 Chat API 还有若干扩展字段。下表列的是当前 NexusFlow 公共 Chat 入口尚未稳定透传的字段；不要在生产中依赖这些参数。
+        </p>
+        <Matrix rows={notForwardedOpenAiParams} columns={["220px", "150px", "90px", "1fr"]} />
       </section>
 
       <section style={{ marginBottom: 40 }}>

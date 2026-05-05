@@ -105,6 +105,18 @@ export default function ImagesApiPage() {
             同步调用 — 请求完成后直接返回图片 URL，无需额外查询。响应中 <code>status</code> 直接为 <code>"succeeded"</code>。
           </div>
         </div>
+        <div style={{ marginTop: 12, padding: 16, border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <span style={{
+              padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700,
+              background: "#dbeafe", color: "#1d4ed8",
+            }}>POST</span>
+            <code style={{ fontSize: 13 }}>{API_BASE}/v1/images/generations</code>
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>
+            也支持 OpenAI 风格图像生成入口，适合复用 OpenAI SDK 的 <code>images.generate</code> 调用；新接入建议优先使用统一任务接口 <code>/v1/tasks</code>。
+          </div>
+        </div>
       </section>
 
       {/* Supported models */}

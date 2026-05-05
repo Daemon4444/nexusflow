@@ -4,11 +4,11 @@
 
 ## 项目简介
 
-Quadrant 是一个类似 OpenRouter 的 AI 模型聚合路由平台，提供统一的 OpenAI 兼容 API 接口，支持多供应商、多模型的智能路由和负载均衡。
+Quadrant 是一个类似 OpenRouter 的 AI 模型聚合路由平台，提供 OpenAI、Anthropic Messages、Gemini-compatible 等公共兼容协议，支持多供应商、多模型的智能路由和负载均衡。
 
 ### 核心特性
 
-- **OpenAI 兼容 API** — 无缝对接现有 OpenAI SDK，只需修改 `base_url`
+- **多协议兼容 API** — 支持 OpenAI Chat/Images/Embeddings、Anthropic Messages、Gemini-compatible GenerateContent
 - **多供应商聚合** — 通义千问、DeepSeek、Kimi、GLM、MiniMax、PixVerse、HappyHorse 等 40+ 模型
 - **智能 Fallback** — 上游故障自动切换备用供应商，保障服务可用性
 - **流式响应** — SSE 实时输出，支持 Playground 在线测试
@@ -63,6 +63,7 @@ ai-router-platform/
 │   ├── src/
 │   │   ├── routes/              # API 路由
 │   │   │   ├── v1.ts            # OpenAI 兼容接口
+│   │   │   ├── protocols.ts     # Anthropic / Gemini 兼容接口
 │   │   │   ├── models.ts        # 模型管理
 │   │   │   ├── keys.ts          # API Key 管理
 │   │   │   └── tasks.ts         # 异步任务
@@ -158,14 +159,14 @@ curl http://localhost:3001/api/models
 ### 获取模型列表
 
 ```bash
-curl http://api.nexusflow.ai/v1/models \
+curl https://nexusflow.hk/v1/models \
   -H "Authorization: Bearer $API_KEY"
 ```
 
 ### 聊天补全 (非流式)
 
 ```bash
-curl http://api.nexusflow.ai/v1/chat/completions \
+curl https://nexusflow.hk/v1/chat/completions \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -177,7 +178,7 @@ curl http://api.nexusflow.ai/v1/chat/completions \
 ### 聊天补全 (流式)
 
 ```bash
-curl http://api.nexusflow.ai/v1/chat/completions \
+curl https://nexusflow.hk/v1/chat/completions \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -191,12 +192,12 @@ curl http://api.nexusflow.ai/v1/chat/completions \
 
 ```bash
 # 创建任务
-curl -X POST http://api.nexusflow.ai/v1/tasks \
+curl -X POST https://nexusflow.hk/v1/tasks \
   -H "Authorization: Bearer $API_KEY" \
   -d '{"model": "wan2.6-t2i", "prompt": "生成风景图"}'
 
 # 查询任务状态
-curl http://api.nexusflow.ai/v1/tasks/$TASK_ID \
+curl https://nexusflow.hk/v1/tasks/$TASK_ID \
   -H "Authorization: Bearer $API_KEY"
 ```
 
@@ -324,7 +325,7 @@ pm2 restart all
 ```nginx
 server {
     listen 80;
-    server_name api.nexusflow.ai;
+    server_name nexusflow.hk;
 
     location / {
         proxy_pass http://127.0.0.1:3000;

@@ -88,9 +88,27 @@ export default function DeepSeekModelsPage() {
         </div>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 700 }}>
           DeepSeek 是国内领先的开源大模型，以极高的性价比著称。
-          在代码生成、数学推理方面表现突出，是预算敏感场景的理想选择。
+          在代码生成、数学推理方面表现突出，是预算敏感场景的理想选择。文本类模型可通过 OpenAI Chat、Anthropic Messages 和 Gemini-compatible 三类公共协议接入。
         </p>
       </div>
+
+      <section style={{ marginBottom: 40 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
+          接入协议
+        </h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {[
+            { href: "/docs/api/chat", label: "OpenAI Chat", endpoint: "/v1/chat/completions" },
+            { href: "/docs/api/anthropic", label: "Anthropic Messages", endpoint: "/v1/messages" },
+            { href: "/docs/api/gemini", label: "Gemini-compatible", endpoint: "/v1beta/models/{model}:generateContent" },
+          ].map((item) => (
+            <Link key={item.label} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{item.label}</div>
+              <code style={{ fontSize: 11, color: "var(--accent)", fontFamily: "'JetBrains Mono', monospace" }}>{item.endpoint}</code>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* Key features */}
       <section style={{ marginBottom: 48 }}>

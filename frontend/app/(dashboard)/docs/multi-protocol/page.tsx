@@ -108,6 +108,17 @@ response = client.models.generate_content(
 )
 print(response.text)`;
 
+const protocolBoundaryRows = [
+  { name: "OpenAI Chat Completions", endpoint: "/v1/chat/completions", status: "已开放", note: "文本、推理、多模态、编程模型的默认推荐入口。" },
+  { name: "Anthropic Messages", endpoint: "/v1/messages", status: "已开放", note: "兼容 Anthropic SDK 和 Messages 请求/流式事件格式。" },
+  { name: "Gemini-compatible GenerateContent", endpoint: "/v1beta/models/{model}:generateContent", status: "已开放", note: "兼容 Google GenAI / Gemini GenerateContent 请求格式。" },
+  { name: "OpenAI Image Generations", endpoint: "/v1/images/generations", status: "已开放", note: "图像生成的同步兼容入口；复杂图像/视频任务也可用 /v1/tasks。" },
+  { name: "OpenAI Embeddings", endpoint: "/v1/embeddings", status: "已开放", note: "文本向量模型入口。" },
+  { name: "NexusFlow Tasks", endpoint: "/v1/tasks", status: "已开放", note: "图像和视频异步任务统一入口。" },
+  { name: "OpenAI Responses API", endpoint: "/v1/responses", status: "暂未开放", note: "阿里云百炼官方 Qwen API 参考中包含该协议，当前公共网关未暴露。" },
+  { name: "DashScope 原生 API", endpoint: "/api/v1/services/...", status: "暂未开放", note: "百炼官方原生接口形态，当前不作为 NexusFlow public API 文档示例。" },
+];
+
 export default function MultiProtocolPage() {
   const [openaiLang, setOpenaiLang] = useState("python");
   const [anthropicLang, setAnthropicLang] = useState("python");
@@ -164,6 +175,49 @@ export default function MultiProtocolPage() {
         </div>
         <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 12 }}>
           不是所有模型都支持所有协议。模型详情页会直接展示该模型当前可用的 <code style={{ fontFamily: "var(--font-mono)" }}>supported_protocols</code>。
+        </p>
+      </section>
+
+      <section style={{ marginBottom: 48 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>协议边界</h2>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
+          阿里云百炼官方 Qwen API 参考同时覆盖 OpenAI-compatible Chat、Responses API 和 DashScope 原生接口等多种调用形态。
+          NexusFlow 当前 public API 只开放下表标记为“已开放”的兼容入口；未开放项不会在示例中给出可复制调用，避免用户按官方路径请求 NexusFlow 时得到 404。
+        </p>
+        <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--bg-elevated)" }}>
+                <th style={{ padding: "11px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>协议 / 接口</th>
+                <th style={{ padding: "11px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>端点</th>
+                <th style={{ padding: "11px 14px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>当前状态</th>
+                <th style={{ padding: "11px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              {protocolBoundaryRows.map((row, idx) => (
+                <tr key={row.name} style={{ background: idx % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+                  <td style={{ padding: "11px 14px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>{row.name}</td>
+                  <td style={{ padding: "11px 14px", borderBottom: "1px solid var(--border)" }}>
+                    <code style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{row.endpoint}</code>
+                  </td>
+                  <td style={{ padding: "11px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                    <span style={{
+                      display: "inline-block", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                      background: row.status === "已开放" ? "#dcfce7" : "#f3f4f6",
+                      color: row.status === "已开放" ? "#166534" : "#6b7280",
+                    }}>
+                      {row.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: "11px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", lineHeight: 1.65 }}>{row.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 12 }}>
+          参考：<a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>阿里云百炼 Qwen API Reference</a>。
         </p>
       </section>
 

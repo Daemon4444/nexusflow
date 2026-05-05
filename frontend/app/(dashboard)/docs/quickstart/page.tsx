@@ -60,10 +60,10 @@ const asyncTaskExample = `curl -X POST ${API_BASE}/v1/tasks \\
   -H "Authorization: Bearer sk-air-your-key" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "happyhorse-1.0",
+    "model": "happyhorse-1.0-t2v",
     "prompt": "黄昏城市海岸线，镜头缓慢推进，电影感自然光",
     "duration": 10,
-    "size": "1280x720"
+    "resolution": "720P"
   }'
 
 # 轮询任务状态

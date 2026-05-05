@@ -32,17 +32,16 @@ const requestHeaders = [
 /* ── Request parameters ── */
 const requestParams: { name: string; type: string; required: boolean; default?: string; desc: string; link?: string }[] = [
   { name: "model", type: "string", required: true, desc: "模型 ID。例如 qwen3.5-plus、deepseek-v4-flash 等。", link: "/docs/models" },
-  { name: "messages", type: "array", required: true, desc: "对话消息数组。每条消息包含 role（system / user / assistant / tool）和 content 字段。content 可以是字符串或内容数组（用于多模态输入）。" },
+  { name: "messages", type: "array", required: true, desc: "对话消息数组。每条消息包含 role（system / user / assistant / tool）和 content 字段。content 可以是字符串或内容数组；多模态内容是否可用取决于模型能力。" },
   { name: "stream", type: "boolean", required: false, default: "false", desc: "是否启用流式输出。启用后以 SSE（Server-Sent Events）格式逐 token 返回。" },
   { name: "temperature", type: "number", required: false, default: "1.0", desc: "采样温度，范围 [0, 2)。值越高输出越随机，值越低越确定。建议与 top_p 二选一调节。" },
   { name: "top_p", type: "number", required: false, default: "1.0", desc: "核采样概率阈值，范围 (0, 1]。模型仅从累计概率达到 top_p 的 token 集合中采样。" },
   { name: "max_tokens", type: "integer", required: false, desc: "生成的最大 token 数。不同模型有不同上限，未设置时使用模型默认值。" },
   { name: "tools", type: "array", required: false, desc: "可用工具/函数定义列表，用于 Function Calling。每个工具包含 type 和 function 字段。" },
-  { name: "tool_choice", type: "string | object", required: false, default: '"auto"', desc: '工具调用策略。"none"：不调用；"auto"：模型自行决定；"required"：强制调用；或指定函数名。' },
+  { name: "tool_choice", type: "string | object", required: false, default: '"auto"', desc: '工具调用策略。稳定支持 "auto"、"none"，或 {"type":"function","function":{"name":"..."}} 指定函数。思考模式模型不建议强制指定工具。' },
   { name: "stop", type: "string | string[]", required: false, desc: "停止词或停止词数组（最多 4 个）。模型生成到停止词时立即结束输出。" },
   { name: "frequency_penalty", type: "number", required: false, default: "0", desc: "频率惩罚，范围 [-2.0, 2.0]。正值根据 token 在已生成文本中出现的频率进行惩罚，降低重复。" },
   { name: "presence_penalty", type: "number", required: false, default: "0", desc: "存在惩罚，范围 [-2.0, 2.0]。正值根据 token 是否已出现过进行惩罚，提升话题多样性。" },
-  { name: "seed", type: "integer", required: false, desc: "随机种子。固定 seed 并使用相同参数时可获得近似确定性的输出，便于调试和复现。" },
   { name: "enable_thinking", type: "boolean", required: false, desc: "是否开启思考模式。DeepSeek V4 Pro、QwQ、部分 Qwen 推理模型可用；非推理模型可忽略此参数。" },
   { name: "stream_options", type: "object", required: false, desc: '流式请求附加选项。设置 {"include_usage": true} 可在最后一个 SSE chunk 中返回 token 用量。' },
   { name: "response_format", type: "object", required: false, desc: '响应格式控制。支持 {"type":"text"}（默认）和 {"type":"json_object"}（JSON 模式）。' },
@@ -709,6 +708,19 @@ data: [DONE]`}
 
       {/* ───────── Notes ───────── */}
       <section style={{ marginBottom: 36 }}>
+        <h2 style={sectionHeading}>与百炼官方 Chat API 的关系</h2>
+        <div style={{
+          padding: 16, background: "#f8fafc", border: "1px solid var(--border)",
+          borderRadius: 8, fontSize: 13, lineHeight: 1.8, color: "var(--text-secondary)",
+        }}>
+          NexusFlow 的 <code>/v1/chat/completions</code> 参考阿里云百炼 OpenAI-compatible Chat API 设计，稳定透传本文请求参数。
+          百炼官方还提供 Responses API 和 DashScope 原生接口；当前公开网关未承诺透传 <code>parallel_tool_calls</code>、<code>enable_search</code>、<code>search_options</code>、<code>seed</code> 等扩展字段。
+          需要这些扩展能力时，请先按实际模型做联调验证。官方参考：
+          {" "}<a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "#1d4ed8" }}>千问 API 参考</a>。
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 36 }}>
         <h2 style={sectionHeading}>注意事项</h2>
         <div style={{
           padding: 16, background: "#fffbeb", border: "1px solid #fcd34d",
@@ -721,6 +733,7 @@ data: [DONE]`}
             <li>图像理解功能建议使用 Qwen-VL 系列等多模态模型。<code>content</code> 需传入数组格式包含 <code>image_url</code> 类型。</li>
             <li>Function Calling 推荐使用 Qwen、DeepSeek、GLM 等支持工具调用的模型系列。</li>
             <li>思考模式（<code>enable_thinking</code>）仅部分推理模型支持，普通模型无需传入该参数。</li>
+            <li>文档未列出的百炼扩展字段不会保证透传；不要把未验证字段作为生产依赖。</li>
             <li>完整参数说明与模型兼容矩阵见 <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>参数矩阵</Link>。</li>
           </ul>
         </div>

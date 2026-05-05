@@ -77,6 +77,8 @@ const endpoints: ApiEndpoint[] = [
     path: "/v1/models",
     desc: "获取可用模型列表及其信息",
     href: "/docs/models",
+    example: `curl https://nexusflow.hk/v1/models \\
+  -H "Authorization: Bearer $API_KEY"`,
     responseExample: `{
   "object": "list",
   "data": [
@@ -96,6 +98,7 @@ const endpoints: ApiEndpoint[] = [
     ],
     example: `curl https://nexusflow.hk/v1/embeddings \\
   -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
   -d '{"model": "text-embedding-v4", "input": "测试文本"}'`,
   },
   {
@@ -111,6 +114,7 @@ const endpoints: ApiEndpoint[] = [
     ],
     example: `curl https://nexusflow.hk/v1/tasks \\
   -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
   -d '{"model": "wan2.6-t2i", "prompt": "生成一张美丽的风景图"}'`,
   },
   {
@@ -138,6 +142,12 @@ const protocolCards = [
   { title: "OpenAI", href: "/docs/api/chat", endpoint: "/v1/chat/completions", desc: "默认推荐，兼容 OpenAI SDK。" },
   { title: "Anthropic Messages", href: "/docs/api/anthropic", endpoint: "/v1/messages", desc: "复用 Anthropic SDK 和 Messages 格式。" },
   { title: "Gemini-compatible", href: "/docs/api/gemini", endpoint: "/v1beta/models/{model}:generateContent", desc: "复用 Gemini GenerateContent 格式。" },
+];
+
+const protocolBoundary = [
+  ["已开放", "OpenAI Chat / Anthropic Messages / Gemini-compatible", "文本、推理、视觉理解、编程和专业模型按 supported_protocols 调用。"],
+  ["已开放", "OpenAI Embeddings / Image Generations / NexusFlow Tasks", "向量、图像和视频模型按能力使用对应接口。"],
+  ["暂未开放", "OpenAI Responses API / DashScope 原生 API", "这些是百炼官方文档中的协议形态，当前 NexusFlow public API 不暴露对应路由。"],
 ];
 
 export default function ApiOverviewPage() {
@@ -182,6 +192,25 @@ export default function ApiOverviewPage() {
             </Link>
           ))}
         </div>
+        <div style={{ marginTop: 16, padding: 16, background: "#fafafa", border: "1px solid #eee", borderRadius: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 10 }}>公开网关协议边界</div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {protocolBoundary.map(([status, name, desc]) => (
+              <div key={name} style={{ display: "grid", gridTemplateColumns: "80px 1fr 1.8fr", gap: 12, alignItems: "center", fontSize: 13 }}>
+                <span style={{
+                  padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700, textAlign: "center",
+                  background: status === "已开放" ? "#dcfce7" : "#f3f4f6",
+                  color: status === "已开放" ? "#166534" : "#6b7280",
+                }}>{status}</span>
+                <span style={{ color: "#111", fontWeight: 600 }}>{name}</span>
+                <span style={{ color: "#666", lineHeight: 1.6 }}>{desc}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: "#888", lineHeight: 1.7, margin: "12px 0 0" }}>
+            阿里云百炼官方文档还包含 Responses API 和 DashScope 原生接口；本页只列出当前可直接请求 <code style={{ fontFamily: "var(--font-mono)" }}>https://nexusflow.hk</code> 的 public API。
+          </p>
+        </div>
       </section>
 
       <section style={{ marginBottom: 48 }}>
@@ -207,7 +236,7 @@ export default function ApiOverviewPage() {
           {[
             { title: "Chat", desc: "默认使用 `/v1/chat/completions`，兼容 OpenAI SDK。" },
             { title: "Protocol", desc: "已有 Anthropic 或 Gemini 客户端时，直接使用对应兼容入口。" },
-            { title: "Tasks", desc: "图像、视频模型统一使用 `/v1/tasks` 与 `/v1/tasks/:id`。" },
+            { title: "Tasks", desc: "图像、视频模型优先使用 `/v1/tasks` 与 `/v1/tasks/:id`；图像也支持 OpenAI 风格 `/v1/images/generations`。" },
           ].map((item) => (
             <div key={item.title} style={{ padding: 18, background: "#fafafa", borderRadius: 10, border: "1px solid #eee" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 6 }}>{item.title}</div>

@@ -240,8 +240,8 @@ export default function EmbeddingsApiPage() {
                   <code style={{ fontSize: 12 }}>text-embedding-v4</code>
                 </td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>阿里云</td>
-                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>1024</td>
-                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", color: "var(--accent)", fontWeight: 600 }}>¥0.7/百万tokens</td>
+                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>2048/1536/1024/768/512/256/128/64</td>
+                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", color: "var(--accent)", fontWeight: 600 }}>¥0.5/百万 tokens</td>
               </tr>
             </tbody>
           </table>

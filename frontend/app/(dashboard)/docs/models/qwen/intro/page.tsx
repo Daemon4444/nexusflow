@@ -113,8 +113,8 @@ const techHighlights = [
     desc: "从 Flash 系列低至 ¥0.2/百万 Token 的入门价格，到旗舰 Max 系列的顶级性能，Qwen 提供从经济到高端的完整价格梯度，满足不同预算需求。",
   },
   {
-    title: "OpenAI 兼容接口",
-    desc: "通过 nexusflow 统一接入，Qwen 全系列模型均使用 OpenAI 兼容的 API 格式。已有 OpenAI SDK 代码只需更换 base_url 和 model 参数即可无缝迁移。",
+    title: "多协议兼容接入",
+    desc: "通过 nexusflow 统一接入，Qwen 文本类模型支持 OpenAI Chat、Anthropic Messages 和 Gemini-compatible 三种公共协议。已有 OpenAI、Anthropic 或 Google GenAI 客户端都可以按对应协议迁移。",
   },
 ];
 
@@ -157,7 +157,7 @@ export default function QwenIntroPage() {
             阿里巴巴自研的大语言模型家族。从百万上下文旗舰到极速 Flash，从通用对话到代码专精，从纯文本到多模态——覆盖 AI 应用的全场景需求。
           </p>
           <p style={{ fontSize: 14, lineHeight: 1.7, margin: "0 0 28px", color: "rgba(148,163,184,0.7)", maxWidth: 600 }}>
-            中文能力业界领先，OpenAI 兼容接口无缝迁移，从 ¥0.2/百万 Token 起步。
+            中文能力业界领先，OpenAI / Anthropic / Gemini-compatible 三协议接入，从 ¥0.2/百万 Token 起步。
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link href="/playground" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 12, background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", boxShadow: "0 4px 16px rgba(59,130,246,0.3)", transition: "all 0.2s" }}>

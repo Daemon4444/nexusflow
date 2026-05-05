@@ -102,7 +102,7 @@ export default function DeepSeekApiPage() {
           DeepSeek 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          百炼接入的 DeepSeek 系列模型，兼容 OpenAI SDK，支持推理模式（展示完整思考链路）。所有模型统一走 Chat Completions 接口。
+          百炼接入的 DeepSeek 系列模型，支持推理模式和流式输出。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Gemini-compatible 协议调用。
         </p>
       </div>
 
@@ -115,6 +115,11 @@ export default function DeepSeekApiPage() {
           <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>POST</span>
           <code style={{ fontSize: 14 }}>{API_BASE}/v1/chat/completions</code>
         </div>
+        <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
+          这是默认示例端点。多协议调用方式见 <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>多协议支持</Link>、
+          <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> 和
+          <Link href="/docs/api/gemini" style={{ color: "var(--accent)" }}> Gemini-compatible</Link>。
+        </p>
       </section>
 
       {/* Models table */}

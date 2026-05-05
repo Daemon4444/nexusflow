@@ -6,8 +6,8 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
-  { id: "kimi-k2.6", context: "262K", input: 2, output: 8, desc: "K2.6 旗舰，长文本创意写作" },
-  { id: "kimi-k2.5", context: "131K", input: 1, output: 4, desc: "K2.5 均衡模型" },
+  { id: "kimi-k2.6", context: "262K", input: 6.5, output: 27, desc: "K2.6 旗舰，长文本创意写作" },
+  { id: "kimi-k2.5", context: "131K", input: 4, output: 21, desc: "K2.5 均衡模型" },
 ];
 
 const curlExample = `curl ${API_BASE}/v1/chat/completions \\
@@ -56,7 +56,7 @@ export default function KimiApiPage() {
           Kimi 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          月之暗面 Kimi 系列模型，擅长长文本理解、多轮对话和创意写作。兼容 OpenAI SDK，支持超长上下文窗口。
+          月之暗面 Kimi 系列模型，擅长长文本理解、多轮对话和创意写作。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Gemini-compatible 协议调用。
         </p>
       </div>
 
@@ -68,6 +68,11 @@ export default function KimiApiPage() {
           <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700, background: "#dbeafe", color: "#1d4ed8" }}>POST</span>
           <code style={{ fontSize: 14 }}>{API_BASE}/v1/chat/completions</code>
         </div>
+        <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
+          这是默认示例端点。多协议调用方式见 <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>多协议支持</Link>、
+          <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> 和
+          <Link href="/docs/api/gemini" style={{ color: "var(--accent)" }}> Gemini-compatible</Link>。
+        </p>
       </section>
 
       <section style={{ marginBottom: 36 }}>

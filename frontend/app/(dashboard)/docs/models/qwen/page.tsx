@@ -87,9 +87,30 @@ export default function QwenModelsPage() {
         </div>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 700 }}>
           通义千问是阿里云自研的大语言模型。当前这里优先展示 Qwen3.6 与 Qwen3.5 系列，
-          它们覆盖长文本、函数调用、代码生成和复杂推理等常见生产场景。
+          它们覆盖长文本、函数调用、代码生成和复杂推理等常见生产场景。文本类模型可通过 OpenAI Chat、Anthropic Messages 和 Gemini-compatible 三类公共协议接入。
         </p>
       </div>
+
+      <section style={{ marginBottom: 40 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
+          接入协议
+        </h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {[
+            { href: "/docs/api/chat", label: "OpenAI Chat", endpoint: "/v1/chat/completions" },
+            { href: "/docs/api/anthropic", label: "Anthropic Messages", endpoint: "/v1/messages" },
+            { href: "/docs/api/gemini", label: "Gemini-compatible", endpoint: "/v1beta/models/{model}:generateContent" },
+          ].map((item) => (
+            <Link key={item.label} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{item.label}</div>
+              <code style={{ fontSize: 11, color: "var(--accent)", fontFamily: "'JetBrains Mono', monospace" }}>{item.endpoint}</code>
+            </Link>
+          ))}
+        </div>
+        <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.7, marginTop: 10 }}>
+          百炼官方还提供 Responses API 和 DashScope 原生 Qwen API；当前 NexusFlow public API 未开放这些路由，详见多协议文档。
+        </p>
+      </section>
 
       {/* Key features */}
       <section style={{ marginBottom: 48 }}>

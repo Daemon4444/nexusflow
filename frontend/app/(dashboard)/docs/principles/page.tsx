@@ -36,7 +36,7 @@ export default function PrinciplesPage() {
             {
               title: "智能路由",
               code: "route(model) → provider",
-              desc: "根据模型名称自动路由至对应供应商。所有模型统一通过阿里云百炼 DashScope 接入，一个入口，无需关心底层调度。",
+              desc: "根据模型名称和请求协议自动路由至对应供应商端点。公共 API 与上游 DashScope / 百炼原生协议解耦，业务侧只需要关心 NexusFlow 支持的 public protocol。",
             },
             {
               title: "统一计费",
@@ -56,7 +56,7 @@ export default function PrinciplesPage() {
             {
               title: "开箱即用",
               code: "baseURL: \"nexusflow.hk/v1\"",
-              desc: "注册即用，分钟级接入。兼容现有 OpenAI / Anthropic SDK，零迁移成本。",
+              desc: "注册即用，分钟级接入。兼容现有 OpenAI / Anthropic / Google GenAI SDK，迁移成本低。",
             },
           ].map((item) => (
             <div key={item.title} style={{ padding: 20, borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg)" }}>
