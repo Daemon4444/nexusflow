@@ -147,7 +147,6 @@ const protocolCards = [
 const protocolBoundary = [
   ["已开放", "OpenAI Chat / Anthropic Messages / Gemini-compatible", "文本、推理、视觉理解、编程和专业模型按 supported_protocols 调用。"],
   ["已开放", "OpenAI Embeddings / Image Generations / NexusFlow Tasks", "向量、图像和视频模型按能力使用对应接口。"],
-  ["暂未开放", "OpenAI Responses API / DashScope 原生 API", "这些是百炼官方文档中的协议形态，当前 NexusFlow public API 不暴露对应路由。"],
 ];
 
 export default function ApiOverviewPage() {
@@ -208,7 +207,7 @@ export default function ApiOverviewPage() {
             ))}
           </div>
           <p style={{ fontSize: 12, color: "#888", lineHeight: 1.7, margin: "12px 0 0" }}>
-            阿里云百炼官方文档还包含 Responses API 和 DashScope 原生接口；本页只列出当前可直接请求 <code style={{ fontFamily: "var(--font-mono)" }}>https://nexusflow.hk</code> 的 public API。
+            本页只列出当前可直接请求 <code style={{ fontFamily: "var(--font-mono)" }}>https://nexusflow.hk</code> 的 public API。
           </p>
         </div>
       </section>

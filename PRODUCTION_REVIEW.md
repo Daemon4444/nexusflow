@@ -1,8 +1,51 @@
 # Nexusflow.hk Production Review
 
-Date: 2026-05-05
+Date: 2026-05-06
 
 This document records the production review and live test findings for `nexusflow.hk`.
+
+## 2026-05-06 Update
+
+### Confirmed Production State
+
+- Runtime database is PostgreSQL, connected through `backend/src/db/client.ts` with `pg.Pool`.
+- Production database checked on this server:
+  - users: 14
+  - api_keys: 7
+  - usage_logs: 654
+  - transactions: 461
+  - async_tasks: 66
+- Public health check: `https://nexusflow.hk/api/health` returned 200.
+- `/api/models` returns `supported_protocols` for each model; chat-class Qwen, DeepSeek and GLM models expose:
+  - `openai/chat-completions`
+  - `anthropic/messages`
+  - `google/generate-content`
+
+### Live Protocol Test
+
+All tests used minimal prompts against production `https://nexusflow.hk` and returned HTTP 200:
+
+| Family | Model | OpenAI Chat | Anthropic Messages | Gemini-compatible |
+| --- | --- | --- | --- | --- |
+| Qwen | `qwen3.5-flash` | PASS | PASS | PASS |
+| DeepSeek | `deepseek-v4-flash` | PASS | PASS | PASS |
+| GLM | `glm-5.1` | PASS | PASS | PASS |
+
+Observed caveat: even with `max_tokens` / `maxOutputTokens` set low, several models still returned substantial reasoning-token usage. This affects cost predictability and should be surfaced in product copy or controlled with a clearer default `enable_thinking` policy.
+
+### Documentation Corrections
+
+- Removed public documentation rows that advertised routes not exposed by the NexusFlow public gateway.
+- Qwen API docs now list only the three currently open public text protocols and include cURL examples for OpenAI Chat, Anthropic Messages and Gemini-compatible GenerateContent.
+- DeepSeek and GLM API docs now explicitly include the same three protocol examples.
+- README, WIKI, wiki and MODELS docs now describe only callable public protocols and point users to `supported_protocols` as the source of truth.
+
+### Database Review Notes
+
+- Balance mutation uses transactions and `SELECT ... FOR UPDATE`, so the main consumption path is protected against concurrent double-spend races.
+- Monetary fields are still stored as `REAL` in `users.balance`, `transactions.amount`, `transactions.balance_after`, `usage_logs.cost`, and `usage_logs.tpot_ms`. This is acceptable for small current balances but should be migrated to integer micro-CNY or `NUMERIC(18, 6)` before larger production volume.
+- API keys now validate through `key_hash`, and the stored `key` value is masked for newly created keys. The compatibility query still checks both `key_hash` and `key`; after confirming no legacy plaintext keys remain, remove the plaintext fallback and make `key_hash` required.
+- `backend/src/routes/messages.ts` and `backend/src/routes/protocols.ts` both contain Anthropic Messages handling, but `messages.ts` is mounted first and is the active production route for `/v1/messages`. This duplication is maintainability risk and should be consolidated.
 
 ## Scope
 
@@ -82,7 +125,7 @@ This document records the production review and live test findings for `nexusflo
 - Revoke and rotate all leaked upstream keys.
 - Move billing to reservation/finalization with idempotent ledger entries.
 - Replace static pricing with an admin-managed pricing table and provider price audit workflow.
-- Move production persistence from SQLite to PostgreSQL with backups and migration discipline.
+- Keep PostgreSQL as the production source of truth and add backup/restore drills plus migration rollback discipline.
 - Add monitoring for provider errors, payment failures, unusual upload volume, and high spend.
 - Add Playwright user journey tests for login, key creation, first API call, billing, and upload.
 
@@ -102,5 +145,5 @@ This document records the production review and live test findings for `nexusflo
 - Playground image/video generation now accepts session auth as well as API keys.
 - Async image/video task status endpoints now require auth and validate task ownership before returning task results.
 - User usage overview now counts only successful paid requests as `totalRequests`.
-- PostgreSQL migration tooling was added: schema migration, SQLite-to-PostgreSQL copy, and PostgreSQL verification scripts. Runtime still defaults to SQLite until a dedicated cutover is performed.
+- PostgreSQL migration tooling was added and production runtime now uses the PostgreSQL `pg.Pool` path.
 - The public landing page and console-wide visual system were redesigned toward a denser production SaaS interface.

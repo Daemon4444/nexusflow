@@ -83,6 +83,56 @@ for chunk in response:
         print(delta.content, end="")`,
 };
 
+const protocolCurlExamples = [
+  {
+    title: "OpenAI Chat Completions",
+    endpoint: "/v1/chat/completions",
+    code: `curl -X POST '${API_BASE}/v1/chat/completions' \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "deepseek-v4-flash",
+    "messages": [
+      {"role": "user", "content": "只回复 OK"}
+    ],
+    "max_tokens": 8
+  }'`,
+  },
+  {
+    title: "Anthropic Messages",
+    endpoint: "/v1/messages",
+    code: `curl -X POST '${API_BASE}/v1/messages' \\
+  -H "x-api-key: $API_KEY" \\
+  -H "anthropic-version: 2023-06-01" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "deepseek-v4-flash",
+    "max_tokens": 8,
+    "messages": [
+      {"role": "user", "content": "只回复 OK"}
+    ]
+  }'`,
+  },
+  {
+    title: "Gemini-compatible GenerateContent",
+    endpoint: "/v1beta/models/deepseek-v4-flash:generateContent",
+    code: `curl -X POST '${API_BASE}/v1beta/models/deepseek-v4-flash:generateContent' \\
+  -H "x-goog-api-key: $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "contents": [
+      {
+        "role": "user",
+        "parts": [{"text": "只回复 OK"}]
+      }
+    ],
+    "generationConfig": {
+      "maxOutputTokens": 8
+    }
+  }'`,
+  },
+];
+
 export default function DeepSeekApiPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("chat");
   const [codeLang, setCodeLang] = useState<"curl" | "python">("curl");
@@ -102,7 +152,7 @@ export default function DeepSeekApiPage() {
           DeepSeek 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          百炼接入的 DeepSeek 系列模型，支持推理模式和流式输出。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Gemini-compatible 协议调用。
+          百炼接入的 DeepSeek 系列模型，支持推理模式和流式输出。文本类 DeepSeek 模型可通过 OpenAI Chat Completions、Anthropic Messages 和 Gemini-compatible GenerateContent 三类公共协议调用。
         </p>
       </div>
 
@@ -183,6 +233,28 @@ export default function DeepSeekApiPage() {
           <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
             {codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]}
           </pre>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>三协议 cURL 示例</h2>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: -4, marginBottom: 16 }}>
+          DeepSeek 文本类模型共享同一套 NexusFlow 模型 ID、API Key、余额、用量和扣费记录。
+        </p>
+        <div style={{ display: "grid", gap: 14 }}>
+          {protocolCurlExamples.map((example) => (
+            <div key={example.title} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+              <div style={{ padding: "10px 14px", background: "var(--bg-elevated)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <strong style={{ fontSize: 13, color: "var(--text-primary)" }}>{example.title}</strong>
+                <code style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{example.endpoint}</code>
+              </div>
+              <div style={{ background: "#111827", padding: 18, overflow: "auto" }}>
+                <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
+                  {example.code}
+                </pre>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

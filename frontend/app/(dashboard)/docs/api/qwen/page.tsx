@@ -41,18 +41,6 @@ const qwenProtocols = [
     status: "已开放",
     usage: "适合已有 Google GenAI / Gemini HTTP 调用迁移；路径里的 model 是 NexusFlow 模型 ID。",
   },
-  {
-    protocol: "OpenAI Responses API",
-    endpoint: "/v1/responses",
-    status: "暂未开放",
-    usage: "阿里云百炼官方 Qwen API 参考中包含该协议；当前 NexusFlow 公共网关未暴露此路由。",
-  },
-  {
-    protocol: "DashScope 原生 Qwen API",
-    endpoint: "/api/v1/services/aigc/text-generation/generation",
-    status: "暂未开放",
-    usage: "这是百炼官方原生接口形态；当前请使用上面三种 NexusFlow 公共兼容协议。",
-  },
 ];
 
 const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string; output: string }[]> = {
@@ -215,6 +203,56 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)`,
 };
 
+const protocolCurlExamples = [
+  {
+    title: "OpenAI Chat Completions",
+    endpoint: "/v1/chat/completions",
+    code: `curl -X POST '${API_BASE}/v1/chat/completions' \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "qwen3.5-flash",
+    "messages": [
+      {"role": "user", "content": "只回复 OK"}
+    ],
+    "max_tokens": 8
+  }'`,
+  },
+  {
+    title: "Anthropic Messages",
+    endpoint: "/v1/messages",
+    code: `curl -X POST '${API_BASE}/v1/messages' \\
+  -H "x-api-key: $API_KEY" \\
+  -H "anthropic-version: 2023-06-01" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "qwen3.5-flash",
+    "max_tokens": 8,
+    "messages": [
+      {"role": "user", "content": "只回复 OK"}
+    ]
+  }'`,
+  },
+  {
+    title: "Gemini-compatible GenerateContent",
+    endpoint: "/v1beta/models/qwen3.5-flash:generateContent",
+    code: `curl -X POST '${API_BASE}/v1beta/models/qwen3.5-flash:generateContent' \\
+  -H "x-goog-api-key: $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "contents": [
+      {
+        "role": "user",
+        "parts": [{"text": "只回复 OK"}]
+      }
+    ],
+    "generationConfig": {
+      "maxOutputTokens": 8
+    }
+  }'`,
+  },
+];
+
 export default function QwenDocsPage() {
   const [modelTab, setModelTab] = useState<ModelTabKey>("llm");
   const [codeTab, setCodeTab] = useState<CodeTabKey>("basic");
@@ -279,7 +317,7 @@ export default function QwenDocsPage() {
           <a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
             阿里云 Qwen API Reference
           </a>
-          。NexusFlow 文档只展示当前公共网关可直接调用的协议示例，避免复制未开放路由导致 404。
+          。本页只展示当前 NexusFlow 公共网关已开放、可直接调用的协议。
         </p>
       </section>
 
@@ -378,6 +416,28 @@ export default function QwenDocsPage() {
           <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
             {codeLang === "curl" ? curlExamples[codeTab] : pythonExamples[codeTab]}
           </pre>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>三协议 cURL 示例</h2>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: -6, marginBottom: 16 }}>
+          Qwen 文本类模型在 NexusFlow 中共享同一套模型 ID、API Key、余额、用量和扣费记录。下面三个示例均可直接请求公开网关。
+        </p>
+        <div style={{ display: "grid", gap: 14 }}>
+          {protocolCurlExamples.map((example) => (
+            <div key={example.title} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+              <div style={{ padding: "10px 14px", background: "var(--bg-elevated)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <strong style={{ fontSize: 13, color: "var(--text-primary)" }}>{example.title}</strong>
+                <code style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{example.endpoint}</code>
+              </div>
+              <div style={{ background: "#111827", padding: 18, overflow: "auto" }}>
+                <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
+                  {example.code}
+                </pre>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

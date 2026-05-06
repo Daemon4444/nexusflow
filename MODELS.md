@@ -268,7 +268,7 @@ PIXVERSE_API_KEY=sk-your-pixverse-api-key
 
 ## 协议支持
 
-NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Messages、Gemini-compatible GenerateContent 和 NexusFlow Tasks。阿里云百炼官方文档中的 Responses API、DashScope 原生 Qwen API 等协议形态用于上游参考，当前不作为 `https://nexusflow.hk` 的公开路由暴露。
+NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Messages、Gemini-compatible GenerateContent 和 NexusFlow Tasks。模型详情中的 `supported_protocols` 是用户可直接调用的协议来源。
 
 ### 各类模型支持的协议
 

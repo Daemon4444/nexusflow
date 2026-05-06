@@ -107,9 +107,6 @@ export default function QwenModelsPage() {
             </Link>
           ))}
         </div>
-        <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.7, marginTop: 10 }}>
-          百炼官方还提供 Responses API 和 DashScope 原生 Qwen API；当前 NexusFlow public API 未开放这些路由，详见多协议文档。
-        </p>
       </section>
 
       {/* Key features */}

@@ -714,7 +714,7 @@ data: [DONE]`}
           borderRadius: 8, fontSize: 13, lineHeight: 1.8, color: "var(--text-secondary)",
         }}>
           NexusFlow 的 <code>/v1/chat/completions</code> 参考阿里云百炼 OpenAI-compatible Chat API 设计，稳定透传本文请求参数。
-          百炼官方还提供 Responses API 和 DashScope 原生接口；当前公开网关未承诺透传 <code>parallel_tool_calls</code>、<code>enable_search</code>、<code>search_options</code>、<code>seed</code> 等扩展字段。
+          当前公开网关未承诺透传 <code>parallel_tool_calls</code>、<code>enable_search</code>、<code>search_options</code>、<code>seed</code> 等扩展字段。
           需要这些扩展能力时，请先按实际模型做联调验证。官方参考：
           {" "}<a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "#1d4ed8" }}>千问 API 参考</a>。
         </div>

@@ -115,8 +115,6 @@ const protocolBoundaryRows = [
   { name: "OpenAI Image Generations", endpoint: "/v1/images/generations", status: "已开放", note: "图像生成的同步兼容入口；复杂图像/视频任务也可用 /v1/tasks。" },
   { name: "OpenAI Embeddings", endpoint: "/v1/embeddings", status: "已开放", note: "文本向量模型入口。" },
   { name: "NexusFlow Tasks", endpoint: "/v1/tasks", status: "已开放", note: "图像和视频异步任务统一入口。" },
-  { name: "OpenAI Responses API", endpoint: "/v1/responses", status: "暂未开放", note: "阿里云百炼官方 Qwen API 参考中包含该协议，当前公共网关未暴露。" },
-  { name: "DashScope 原生 API", endpoint: "/api/v1/services/...", status: "暂未开放", note: "百炼官方原生接口形态，当前不作为 NexusFlow public API 文档示例。" },
 ];
 
 export default function MultiProtocolPage() {
@@ -181,8 +179,7 @@ export default function MultiProtocolPage() {
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>协议边界</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          阿里云百炼官方 Qwen API 参考同时覆盖 OpenAI-compatible Chat、Responses API 和 DashScope 原生接口等多种调用形态。
-          NexusFlow 当前 public API 只开放下表标记为“已开放”的兼容入口；未开放项不会在示例中给出可复制调用，避免用户按官方路径请求 NexusFlow 时得到 404。
+          NexusFlow 当前 public API 只列出可直接调用的兼容入口。模型详情页会展示每个模型实际开放的 supported_protocols。
         </p>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

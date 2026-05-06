@@ -120,8 +120,6 @@ nexusflow/
 | Images | `POST /v1/images/generations` | 可用 | OpenAI Images 风格，当前接万相图像 |
 | Tasks | `POST /v1/tasks`, `GET /v1/tasks/:id` | 可用 | 图像/视频异步任务 |
 | Videos alias | `POST /v1/videos/generations` | 可用 | 兼容用户直觉路径 |
-| Responses API | `/v1/responses` | 未开放 | 阿里云百炼文档可作参考，当前 public API 不暴露 |
-| DashScope native | 原生 DashScope/Qwen API | 未开放 | 当前只开放上表兼容协议 |
 
 ### 认证
 - `POST /api/auth/send-code`、`POST /api/auth/login`、`GET /api/auth/me`
