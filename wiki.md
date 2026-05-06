@@ -275,6 +275,7 @@ Qoder CLI 的对话记录存储在以下位置：
 1. 当前主库是 PostgreSQL，数据访问主链路走 `backend/src/db/client.ts` 的 `pg.Pool`
 2. `backend/data/ai-router.db` 只作为历史迁移来源或旧环境遗留文件，不是当前线上主库
 3. 修改模型配置后需要同步更新数据库和代码
+4. 金额字段已通过 `002_money_numeric.sql` 从 `REAL` 迁移到 `NUMERIC(18,6)`：`users.balance`、`transactions.amount`、`transactions.balance_after`、`usage_logs.cost`
 
 ### 部署运维
 1. PM2 进程名是 `quadrant-backend`，不是 `nexusflow-backend`

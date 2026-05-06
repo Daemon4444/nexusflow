@@ -58,7 +58,7 @@ Observed caveat: even with `max_tokens` / `maxOutputTokens` set low, several mod
 ### Database Review Notes
 
 - Balance mutation uses transactions and `SELECT ... FOR UPDATE`, so the main consumption path is protected against concurrent double-spend races.
-- Monetary fields are still stored as `REAL` in `users.balance`, `transactions.amount`, `transactions.balance_after`, `usage_logs.cost`, and `usage_logs.tpot_ms`. This is acceptable for small current balances but should be migrated to integer micro-CNY or `NUMERIC(18, 6)` before larger production volume.
+- Money fields were migrated from `REAL` to `NUMERIC(18, 6)` in `002_money_numeric.sql`: `users.balance`, `transactions.amount`, `transactions.balance_after`, and `usage_logs.cost`. `tpot_ms` remains non-money telemetry.
 - API keys now validate through `key_hash`, and the stored `key` value is masked for newly created keys. The compatibility query still checks both `key_hash` and `key`; after confirming no legacy plaintext keys remain, remove the plaintext fallback and make `key_hash` required.
 - `backend/src/routes/messages.ts` and `backend/src/routes/protocols.ts` both contain Anthropic Messages handling, but `messages.ts` is mounted first and is the active production route for `/v1/messages`. This duplication is maintainability risk and should be consolidated.
 

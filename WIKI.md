@@ -139,6 +139,7 @@ nexusflow/
 
 - [client.ts](/root/.codex/nexusflow/backend/src/db/client.ts)
 - [001_initial_schema.sql](/root/.codex/nexusflow/backend/src/db/migrations/001_initial_schema.sql)
+- [002_money_numeric.sql](/root/.codex/nexusflow/backend/src/db/migrations/002_money_numeric.sql)：余额、交易金额和 usage cost 使用 `NUMERIC(18,6)`
 
 ---
 
