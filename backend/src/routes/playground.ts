@@ -73,6 +73,16 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     response_format,
     stream_options,
     enable_thinking,
+    thinking_budget,
+    preserve_thinking,
+    top_k,
+    seed,
+    logprobs,
+    top_logprobs,
+    repetition_penalty,
+    enable_search,
+    search_options,
+    parallel_tool_calls,
   } = req.body;
 
   if (!modelId || !messages || !Array.isArray(messages) || messages.length === 0) {
@@ -124,7 +134,32 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   const requestBody = buildUpstreamChatRequest(
     model,
-    { model: modelId, messages, stream, temperature, max_tokens, top_p, stop, frequency_penalty, presence_penalty, tools, tool_choice, response_format, stream_options, enable_thinking }
+    {
+      model: modelId,
+      messages,
+      stream,
+      temperature,
+      max_tokens,
+      top_p,
+      stop,
+      frequency_penalty,
+      presence_penalty,
+      tools,
+      tool_choice,
+      response_format,
+      stream_options,
+      enable_thinking,
+      thinking_budget,
+      preserve_thinking,
+      top_k,
+      seed,
+      logprobs,
+      top_logprobs,
+      repetition_penalty,
+      enable_search,
+      search_options,
+      parallel_tool_calls,
+    }
   );
 
   const startTime = Date.now();

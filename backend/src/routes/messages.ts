@@ -16,6 +16,7 @@ import { checkConsumerLimits, checkRPM, recordRequest, recordRequestAsync, recor
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
+import { buildUpstreamChatRequest } from "../utils/chat-request";
 
 const router = Router();
 
@@ -115,11 +116,6 @@ function convertToOpenAI(body: any): any {
         parameters: tool.input_schema || {},
       },
     }));
-  }
-
-  // Models that require enable_thinking = false for non-streaming
-  if ((body.model === "qwen3-32b" || body.model === "qwen3-8b") && !result.stream) {
-    result.enable_thinking = false;
   }
 
   // Request usage stats in streaming mode for billing
@@ -345,7 +341,11 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // Convert Anthropic request to OpenAI format
-  const openaiRequest = convertToOpenAI(req.body);
+  const convertedRequest = convertToOpenAI(req.body);
+  const openaiRequest = buildUpstreamChatRequest(model, {
+    ...req.body,
+    ...convertedRequest,
+  });
   const startTime = Date.now();
   recordRequest(provider.id, modelId, apiKeyRecord.id, 0);
   if (apiKeyRecord.user_id) {

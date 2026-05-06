@@ -14,6 +14,7 @@ interface AIModel {
   name: string;
   provider: string;
   category: string;
+  maxOutput?: number;
   promptPrice: number;
   completionPrice: number;
   tags?: string[];
@@ -33,6 +34,13 @@ interface AIModel {
     supports_audio_input: boolean;
     supports_audio_output: boolean;
     supports_search: boolean;
+    supports_thinking_budget?: boolean;
+    supports_preserve_thinking?: boolean;
+    supports_parallel_tool_calls?: boolean;
+    supports_top_k?: boolean;
+    supports_seed?: boolean;
+    supports_logprobs?: boolean;
+    supports_repetition_penalty?: boolean;
   };
   allowed_parameters?: string[];
 }
@@ -284,6 +292,13 @@ function PlaygroundInner() {
   const [mode, setMode] = useState<ModelMode>("chat");
   const [streamEnabled, setStreamEnabled] = useState(true); // 流式开关
   const [enableThinking, setEnableThinking] = useState(false);
+  const [temperature, setTemperature] = useState(0.7);
+  const [topP, setTopP] = useState(0.9);
+  const [maxTokens, setMaxTokens] = useState(1024);
+  const [thinkingBudget, setThinkingBudget] = useState(2048);
+  const [enableSearch, setEnableSearch] = useState(false);
+  const [topK, setTopK] = useState(50);
+  const [seed, setSeed] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -325,12 +340,27 @@ function PlaygroundInner() {
     return `¥${cost.toFixed(2)}`;
   }
 
-  function getThinkingRequestPart(): Record<string, boolean> {
+  function getChatRequestOptions(): Record<string, any> {
     const model = models.find((item) => item.id === selectedModel);
-    if (!model?.capabilities) return {};
-    if (model.capabilities.supports_enable_thinking) return { enable_thinking: enableThinking };
-    if (model.capabilities.thinking_mode === "always") return { enable_thinking: true };
-    return {};
+    const allowed = new Set(model?.allowed_parameters || []);
+    const options: Record<string, any> = {};
+
+    if (allowed.has("temperature")) options.temperature = temperature;
+    if (allowed.has("top_p")) options.top_p = topP;
+    if (allowed.has("max_tokens")) options.max_tokens = maxTokens;
+    if (allowed.has("top_k")) options.top_k = topK;
+    if (allowed.has("seed") && seed.trim()) options.seed = Number(seed);
+    if (allowed.has("enable_search")) options.enable_search = enableSearch;
+    if (allowed.has("thinking_budget") && (model?.capabilities?.supports_thinking_budget || allowed.has("thinking_budget"))) {
+      options.thinking_budget = thinkingBudget;
+    }
+    if (model?.capabilities?.supports_enable_thinking && allowed.has("enable_thinking")) {
+      options.enable_thinking = enableThinking;
+    } else if (model?.capabilities?.thinking_mode === "always" && allowed.has("enable_thinking")) {
+      options.enable_thinking = true;
+    }
+
+    return options;
   }
 
   useEffect(() => {
@@ -423,7 +453,7 @@ function PlaygroundInner() {
           model: selectedModel,
           messages: allMsgs.map(m => ({ role: m.role, content: m.content })),
           stream: true,
-          ...getThinkingRequestPart(),
+          ...getChatRequestOptions(),
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -579,7 +609,7 @@ function PlaygroundInner() {
           model: selectedModel,
           messages: allMsgs.map(m => ({ role: m.role, content: m.content })),
           stream: false,
-          ...getThinkingRequestPart(),
+          ...getChatRequestOptions(),
         }),
       });
 
@@ -1054,6 +1084,11 @@ function PlaygroundInner() {
   const currentModel = models.find((m) => m.id === selectedModel);
   const thinkingMode = currentModel?.capabilities?.thinking_mode || "none";
   const canToggleThinking = Boolean(currentModel?.capabilities?.supports_enable_thinking);
+  const allowedParameters = new Set(currentModel?.allowed_parameters || []);
+  const supportsThinkingBudget = allowedParameters.has("thinking_budget");
+  const supportsTopK = allowedParameters.has("top_k");
+  const supportsSeed = allowedParameters.has("seed");
+  const supportsSearch = allowedParameters.has("enable_search");
   const thinkingLabel =
     thinkingMode === "mixed"
       ? enableThinking ? "思考 ✓" : "直答"
@@ -1307,11 +1342,55 @@ function PlaygroundInner() {
         </div>
 
         {showSettings && mode === "chat" && (
-          <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-            <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", marginBottom: 5, fontWeight: 600, letterSpacing: "0.03em" }}>
+          <div style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)", display: "grid", gap: 10 }}>
+            <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", fontWeight: 600, letterSpacing: "0.03em" }}>
               SYSTEM PROMPT
             </label>
             <textarea className="input" style={{ minHeight: 52, resize: "vertical", fontSize: 13 }} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="设置AI的角色和行为..." />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+              {allowedParameters.has("temperature") && (
+                <label style={{ display: "grid", gap: 5, fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+                  Temperature
+                  <input className="input" type="number" min={0} max={2} step={0.1} value={temperature} onChange={(e) => setTemperature(Number(e.target.value))} style={{ fontSize: 13 }} />
+                </label>
+              )}
+              {allowedParameters.has("top_p") && (
+                <label style={{ display: "grid", gap: 5, fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+                  Top P
+                  <input className="input" type="number" min={0} max={1} step={0.05} value={topP} onChange={(e) => setTopP(Number(e.target.value))} style={{ fontSize: 13 }} />
+                </label>
+              )}
+              {allowedParameters.has("max_tokens") && (
+                <label style={{ display: "grid", gap: 5, fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+                  Max Tokens
+                  <input className="input" type="number" min={1} max={currentModel?.maxOutput || 65536} step={128} value={maxTokens} onChange={(e) => setMaxTokens(Number(e.target.value))} style={{ fontSize: 13 }} />
+                </label>
+              )}
+              {supportsThinkingBudget && (
+                <label style={{ display: "grid", gap: 5, fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+                  Thinking Budget
+                  <input className="input" type="number" min={1} max={currentModel?.maxOutput || 65536} step={256} value={thinkingBudget} onChange={(e) => setThinkingBudget(Number(e.target.value))} style={{ fontSize: 13 }} />
+                </label>
+              )}
+              {supportsTopK && (
+                <label style={{ display: "grid", gap: 5, fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+                  Top K
+                  <input className="input" type="number" min={1} max={100} step={1} value={topK} onChange={(e) => setTopK(Number(e.target.value))} style={{ fontSize: 13 }} />
+                </label>
+              )}
+              {supportsSeed && (
+                <label style={{ display: "grid", gap: 5, fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+                  Seed
+                  <input className="input" type="number" value={seed} onChange={(e) => setSeed(e.target.value)} placeholder="随机" style={{ fontSize: 13 }} />
+                </label>
+              )}
+              {supportsSearch && (
+                <label style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 21, fontSize: 12.5, color: "var(--text-secondary)", fontWeight: 600 }}>
+                  <input type="checkbox" checked={enableSearch} onChange={(e) => setEnableSearch(e.target.checked)} />
+                  联网搜索
+                </label>
+              )}
+            </div>
           </div>
         )}
 

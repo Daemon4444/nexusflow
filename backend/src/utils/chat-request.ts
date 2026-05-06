@@ -20,6 +20,16 @@ export function buildUpstreamChatRequest(model: AIModel, body: any, options: { f
     "tool_choice",
     "response_format",
     "stream_options",
+    "thinking_budget",
+    "preserve_thinking",
+    "top_k",
+    "seed",
+    "logprobs",
+    "top_logprobs",
+    "repetition_penalty",
+    "enable_search",
+    "search_options",
+    "parallel_tool_calls",
   ]) {
     if (allowed.has(key) && body[key] !== undefined) {
       requestBody[key] = body[key];
@@ -33,6 +43,8 @@ export function buildUpstreamChatRequest(model: AIModel, body: any, options: { f
     } else if (capabilities.thinking_mode === "always") {
       requestBody.enable_thinking = true;
     }
+  } else if (capabilities.supports_enable_thinking && capabilities.thinking_default === false && !requestBody.stream) {
+    requestBody.enable_thinking = false;
   }
 
   if (requestBody.stream && requestBody.stream_options === undefined) {

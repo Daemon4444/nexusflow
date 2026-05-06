@@ -17,6 +17,10 @@ export interface ModelCapabilities {
   supports_preserve_thinking: boolean;
   supports_search: boolean;
   supports_parallel_tool_calls: boolean;
+  supports_top_k: boolean;
+  supports_seed: boolean;
+  supports_logprobs: boolean;
+  supports_repetition_penalty: boolean;
 }
 
 const ALWAYS_THINKING_MODELS = new Set([
@@ -42,6 +46,8 @@ const MIXED_THINKING_DEFAULT_OFF = new Set([
   "qwen3-plus",
   "qwen3-flash",
   "qwen3-turbo",
+  "qwen3-32b",
+  "qwen3-8b",
   "deepseek-v3.2",
   "kimi-k2.6",
   "kimi-k2.5",
@@ -62,6 +68,10 @@ const PRESERVE_THINKING_MODELS = new Set([
 
 function hasAny(value: string[], needles: string[]): boolean {
   return value.some((item) => needles.some((needle) => item.toLowerCase().includes(needle.toLowerCase())));
+}
+
+function isQwenChatModel(model: AIModel): boolean {
+  return detectModelType(model.category) === "chat" && (model.id.startsWith("qwen") || model.provider === "通义千问");
 }
 
 function getThinkingMode(model: AIModel): { mode: ThinkingMode; defaultValue: boolean | null } {
@@ -105,6 +115,12 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
   const supportsThinkingBudget =
     thinking.mode !== "none" &&
     THINKING_BUDGET_PREFIXES.some((prefix) => model.id.startsWith(prefix));
+  const isQwenChat = isQwenChatModel(model);
+  const supportsSearch =
+    isQwenChat &&
+    !supportsVision &&
+    !model.id.includes("math") &&
+    !model.id.includes("mt");
 
   return {
     model_type: modelType || "unknown",
@@ -118,8 +134,12 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     supports_enable_thinking: thinking.mode === "mixed",
     supports_thinking_budget: supportsThinkingBudget,
     supports_preserve_thinking: PRESERVE_THINKING_MODELS.has(model.id),
-    supports_search: false,
-    supports_parallel_tool_calls: false,
+    supports_search: supportsSearch,
+    supports_parallel_tool_calls: supportsTools && (isQwenChat || model.provider === "DeepSeek" || model.provider === "智谱AI"),
+    supports_top_k: isQwenChat,
+    supports_seed: isQwenChat,
+    supports_logprobs: isQwenChat,
+    supports_repetition_penalty: isQwenChat,
   };
 }
 
@@ -146,6 +166,30 @@ export function getAllowedChatParameters(model: AIModel): string[] {
   }
   if (capabilities.supports_enable_thinking || capabilities.thinking_mode === "always") {
     params.push("enable_thinking");
+  }
+  if (capabilities.supports_thinking_budget) {
+    params.push("thinking_budget");
+  }
+  if (capabilities.supports_preserve_thinking) {
+    params.push("preserve_thinking");
+  }
+  if (capabilities.supports_top_k) {
+    params.push("top_k");
+  }
+  if (capabilities.supports_seed) {
+    params.push("seed");
+  }
+  if (capabilities.supports_logprobs) {
+    params.push("logprobs", "top_logprobs");
+  }
+  if (capabilities.supports_repetition_penalty) {
+    params.push("repetition_penalty");
+  }
+  if (capabilities.supports_search) {
+    params.push("enable_search", "search_options");
+  }
+  if (capabilities.supports_parallel_tool_calls) {
+    params.push("parallel_tool_calls");
   }
 
   return params;
