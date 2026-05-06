@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import { useParams } from "next/navigation";
@@ -623,20 +624,7 @@ export default function ModelDetailPage() {
                   </div>
                 ) : null}
               </div>
-              <pre
-                style={{
-                  background: "#1c1917",
-                  margin: 0,
-                  padding: 16,
-                  fontSize: 13,
-                  lineHeight: 1.7,
-                  color: "#e7e5e4",
-                  fontFamily: "var(--font-mono)",
-                  overflow: "auto",
-                }}
-              >
-                <code>{example.code}</code>
-              </pre>
+              <DocsCodeBlock code={example.code} />
             </div>
           ))}
         </div>

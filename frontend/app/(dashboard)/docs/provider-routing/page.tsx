@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 
 const API_BASE = "https://nexusflow.hk";
@@ -29,14 +30,14 @@ export default function ProviderRoutingPage() {
           当你发起 API 请求时，系统会根据模型 ID 和请求协议筛选出所有匹配的供应商端点，并综合端点的稳定性、延迟等因素选择最优端点。当某个端点出现异常时，系统会自动降低其优先级；恢复后自动回到正常位置，无需人工干预。
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 20 }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>{`┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
+          <DocsCodeBlock code={`┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
 │  Client      │────▶│  nexusflow      │────▶│  供应商 A (主)    │
 │  POST /v1/   │     │  智能路由        │     │  DashScope       │
 │  chat/compl  │     │                 │     └──────────────────┘
 └──────────────┘     │  健康检测        │     ┌──────────────────┐
                      │  延迟监控        │────▶│  供应商 B (备)    │
                      │  自动切换        │     │  (可扩展)        │
-                     └─────────────────┘     └──────────────────┘`}</pre>
+                     └─────────────────┘     └──────────────────┘`} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
           {[

@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -413,9 +414,7 @@ export default function QwenDocsPage() {
         </div>
 
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-            {codeLang === "curl" ? curlExamples[codeTab] : pythonExamples[codeTab]}
-          </pre>
+          <DocsCodeBlock code={codeLang === "curl" ? curlExamples[codeTab] : pythonExamples[codeTab]} />
         </div>
       </section>
 
@@ -432,9 +431,7 @@ export default function QwenDocsPage() {
                 <code style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{example.endpoint}</code>
               </div>
               <div style={{ background: "#111827", padding: 18, overflow: "auto" }}>
-                <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-                  {example.code}
-                </pre>
+                <DocsCodeBlock code={example.code} />
               </div>
             </div>
           ))}
@@ -445,8 +442,7 @@ export default function QwenDocsPage() {
       <section style={{ marginBottom: 36 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>响应示例</h2>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`{
+          <DocsCodeBlock code={`{
   "id": "chatcmpl-abc123",
   "object": "chat.completion",
   "model": "qwen3-max",
@@ -465,8 +461,7 @@ export default function QwenDocsPage() {
     "completion_tokens": 618,
     "total_tokens": 660
   }
-}`}
-          </pre>
+}`} />
         </div>
       </section>
 
@@ -535,8 +530,7 @@ export default function QwenDocsPage() {
         <div style={{ marginTop: 16 }}>
           <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>启用思考模式的响应示例</h3>
           <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-            <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`{
+            <DocsCodeBlock code={`{
   "id": "chatcmpl-thinking-xyz",
   "object": "chat.completion",
   "model": "qwq-plus",
@@ -556,8 +550,7 @@ export default function QwenDocsPage() {
     "completion_tokens": 1024,
     "total_tokens": 1092
   }
-}`}
-            </pre>
+}`} />
           </div>
         </div>
       </section>

@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 
 const submit = `curl https://nexusflow.hk/v1/tasks \\
@@ -66,16 +67,12 @@ export default function AsyncApiPage() {
 
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 18, color: "var(--text-primary)", marginBottom: 10 }}>提交任务</h2>
-        <pre style={{ margin: 0, padding: 18, background: "#111827", color: "#e5e7eb", borderRadius: 8, overflowX: "auto", fontSize: 12.5, lineHeight: 1.7 }}>
-          <code>{submit}</code>
-        </pre>
+        <DocsCodeBlock code={submit} />
       </section>
 
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 18, color: "var(--text-primary)", marginBottom: 10 }}>查询任务</h2>
-        <pre style={{ margin: 0, padding: 18, background: "#111827", color: "#e5e7eb", borderRadius: 8, overflowX: "auto", fontSize: 12.5, lineHeight: 1.7 }}>
-          <code>{poll}</code>
-        </pre>
+        <DocsCodeBlock code={poll} />
       </section>
 
       <Link href="/docs/api/tasks" className="btn-primary">

@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -526,9 +527,7 @@ function PixVerseDocsInner() {
           ))}
         </div>
         <div style={{ background: "#1a1a1a", borderRadius: 8, padding: 16, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
-            {codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]}
-          </pre>
+          <DocsCodeBlock code={codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]} />
         </div>
       </section>
 
@@ -537,21 +536,18 @@ function PixVerseDocsInner() {
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>响应示例</h2>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>步骤1：创建任务响应</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 8, padding: 16, overflow: "auto", marginBottom: 16 }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
-{`{
+          <DocsCodeBlock code={`{
   "output": {
     "task_status": "PENDING",
     "task_id": "0385dc79-5ff8-4d82-bcb6-xxxxxx"
   },
   "request_id": "4909100c-7b5a-9f92-bfe5-xxxxxx"
-}`}
-          </pre>
+}`} />
         </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>步骤2：查询结果响应（成功）</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 8, padding: 16, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.6 }}>
-{`{
+          <DocsCodeBlock code={`{
   "request_id": "19171ea5-9efb-4d35-93a1-xxxxxx",
   "output": {
     "task_id": "7ed706b7-a9a9-4319-820c-xxxxxx",
@@ -570,8 +566,7 @@ function PixVerseDocsInner() {
     "audio": false,
     "SR": "720"
   }
-}`}
-          </pre>
+}`} />
         </div>
       </section>
 

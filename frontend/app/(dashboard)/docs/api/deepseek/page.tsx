@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -230,9 +231,7 @@ export default function DeepSeekApiPage() {
           ))}
         </div>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-            {codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]}
-          </pre>
+          <DocsCodeBlock code={codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]} />
         </div>
       </section>
 
@@ -249,9 +248,7 @@ export default function DeepSeekApiPage() {
                 <code style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{example.endpoint}</code>
               </div>
               <div style={{ background: "#111827", padding: 18, overflow: "auto" }}>
-                <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-                  {example.code}
-                </pre>
+                <DocsCodeBlock code={example.code} />
               </div>
             </div>
           ))}
@@ -269,8 +266,7 @@ export default function DeepSeekApiPage() {
           DeepSeek V3.2 和 V4 Pro 属于线上已验证的混合思考模型，可用 <code>enable_thinking</code> 开关控制。
         </div>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`// 推理模式响应中，delta 包含 reasoning_content 字段
+          <DocsCodeBlock code={`// 推理模式响应中，delta 包含 reasoning_content 字段
 {
   "choices": [{
     "delta": {
@@ -288,8 +284,7 @@ export default function DeepSeekApiPage() {
       "content": "根据分析，答案是..."
     }
   }]
-}`}
-          </pre>
+}`} />
         </div>
       </section>
 

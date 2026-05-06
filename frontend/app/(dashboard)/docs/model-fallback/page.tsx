@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -87,7 +88,7 @@ export default function ModelFallbackPage() {
           ))}
         </div>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>{codeExamples[lang]}</pre>
+          <DocsCodeBlock code={codeExamples[lang]} />
         </div>
       </section>
 

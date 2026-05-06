@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -185,9 +186,7 @@ export default function GeminiApiPage() {
           ))}
         </div>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-            {codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]}
-          </pre>
+          <DocsCodeBlock code={codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]} />
         </div>
       </section>
 
@@ -195,8 +194,7 @@ export default function GeminiApiPage() {
       <section style={{ marginBottom: 36 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>响应格式</h2>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`{
+          <DocsCodeBlock code={`{
   "candidates": [{
     "content": {
       "parts": [{"text": "机器学习是人工智能的一个分支..."}],
@@ -209,8 +207,7 @@ export default function GeminiApiPage() {
     "candidatesTokenCount": 256,
     "totalTokenCount": 268
   }
-}`}
-          </pre>
+}`} />
         </div>
       </section>
 

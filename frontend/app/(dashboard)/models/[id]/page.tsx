@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import { useParams } from "next/navigation";
@@ -251,7 +252,6 @@ export default function ModelDetailPage() {
   const modelId = params.id as string;
   const [model, setModel] = useState<AIModel | null>(null);
   const [loading, setLoading] = useState(true);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     loadModel();
@@ -275,12 +275,6 @@ export default function ModelDetailPage() {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
     return n.toString();
-  }
-
-  function copyCode(id: string, code: string) {
-    navigator.clipboard.writeText(code);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 2000);
   }
 
   if (loading) {
@@ -497,13 +491,6 @@ export default function ModelDetailPage() {
                       {example.endpoint}
                     </code>
                   </div>
-                  <button
-                    onClick={() => copyCode(example.id, example.code)}
-                    className="btn-secondary"
-                    style={{ padding: "5px 12px", fontSize: 12, flexShrink: 0 }}
-                  >
-                    {copiedId === example.id ? "已复制" : "复制"}
-                  </button>
                 </div>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -540,9 +527,7 @@ export default function ModelDetailPage() {
                     {example.filename}
                   </span>
                 </div>
-                <pre className="code-block-body" style={{ fontSize: 12, lineHeight: 1.6 }}>
-                  {example.code}
-                </pre>
+                <DocsCodeBlock code={example.code} />
               </div>
             </div>
           ))}

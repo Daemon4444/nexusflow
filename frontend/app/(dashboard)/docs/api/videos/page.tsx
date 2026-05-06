@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -338,9 +339,7 @@ export default function VideosApiPage() {
           ))}
         </div>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-            {codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]}
-          </pre>
+          <DocsCodeBlock code={codeLang === "curl" ? curlExamples[activeTab] : pythonExamples[activeTab]} />
         </div>
       </section>
 
@@ -351,16 +350,14 @@ export default function VideosApiPage() {
           创建成功后返回任务信息，<code>id</code> 即为 task_id，用于后续查询。
         </p>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`{
+          <DocsCodeBlock code={`{
   "id": "task_0385dc79-5ff8-4d82-xxxx",
   "object": "task",
   "status": "running",
   "model": "wan2.6-t2v",
   "type": "video",
   "created_at": "2026-06-01T10:00:00.000Z"
-}`}
-          </pre>
+}`} />
         </div>
 
         {/* Response fields */}
@@ -408,16 +405,13 @@ export default function VideosApiPage() {
 
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>查询请求</h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`curl ${API_BASE}/v1/tasks/task_0385dc79-5ff8-4d82-xxxx \\
-  -H "Authorization: Bearer $API_KEY"`}
-          </pre>
+          <DocsCodeBlock code={`curl ${API_BASE}/v1/tasks/task_0385dc79-5ff8-4d82-xxxx \\
+  -H "Authorization: Bearer $API_KEY"`} />
         </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>任务执行成功</h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`{
+          <DocsCodeBlock code={`{
   "id": "task_0385dc79-5ff8-4d82-xxxx",
   "object": "task",
   "status": "succeeded",
@@ -429,14 +423,12 @@ export default function VideosApiPage() {
   },
   "created_at": "2026-06-01T10:00:00.000Z",
   "completed_at": "2026-06-01T10:02:36.000Z"
-}`}
-          </pre>
+}`} />
         </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>任务执行失败</h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`{
+          <DocsCodeBlock code={`{
   "id": "task_0385dc79-5ff8-4d82-xxxx",
   "object": "task",
   "status": "failed",
@@ -445,8 +437,7 @@ export default function VideosApiPage() {
   "error": "InvalidParameter: The parameter is invalid.",
   "created_at": "2026-06-01T10:00:00.000Z",
   "completed_at": "2026-06-01T10:00:05.000Z"
-}`}
-          </pre>
+}`} />
         </div>
 
         {/* Response fields table */}

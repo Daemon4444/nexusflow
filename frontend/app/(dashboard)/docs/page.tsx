@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 
 const quickLinks = [
@@ -370,14 +371,7 @@ export default function DocsPage() {
           padding: 24,
           overflow: "auto",
         }}>
-          <pre style={{
-            margin: 0,
-            fontSize: 13,
-            color: "#e5e5e5",
-            fontFamily: "'JetBrains Mono', monospace",
-            lineHeight: 1.6,
-          }}>
-{`from openai import OpenAI
+          <DocsCodeBlock code={`from openai import OpenAI
 
 client = OpenAI(
     api_key="sk-air-your-key",
@@ -391,8 +385,7 @@ response = client.chat.completions.create(
     ],
 )
 
-print(response.choices[0].message.content)`}
-          </pre>
+print(response.choices[0].message.content)`} />
         </div>
         <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 12 }}>
           使用标准 OpenAI SDK，只需修改 base_url 即可接入 nexusflow。

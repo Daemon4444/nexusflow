@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -293,18 +294,14 @@ export default function ApiOverviewPage() {
                     {ep.example && (
                       <div style={{ marginBottom: 18 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 10 }}>示例</div>
-                        <pre style={{ margin: 0, padding: 16, background: "#111827", color: "#e5e7eb", borderRadius: 8, overflowX: "auto", fontSize: 12.5, lineHeight: 1.7 }}>
-                          <code>{ep.example}</code>
-                        </pre>
+                        <DocsCodeBlock code={ep.example} />
                       </div>
                     )}
 
                     {ep.responseExample && (
                       <div style={{ marginBottom: 16 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "#888", marginBottom: 10 }}>响应</div>
-                        <pre style={{ margin: 0, padding: 16, background: "#111827", color: "#e5e7eb", borderRadius: 8, overflowX: "auto", fontSize: 12.5, lineHeight: 1.7 }}>
-                          <code>{ep.responseExample}</code>
-                        </pre>
+                        <DocsCodeBlock code={ep.responseExample} />
                       </div>
                     )}
 

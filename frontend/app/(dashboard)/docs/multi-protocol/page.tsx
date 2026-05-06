@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -240,14 +241,12 @@ export default function MultiProtocolPage() {
           ))}
         </div>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 24 }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>
-            {openaiLang === "python" ? openaiPython : openaiNode}
-          </pre>
+          <DocsCodeBlock code={openaiLang === "python" ? openaiPython : openaiNode} />
         </div>
 
         <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>流式输出</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 24 }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>{openaiStream}</pre>
+          <DocsCodeBlock code={openaiStream} />
         </div>
 
         <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>图像生成</h3>
@@ -255,7 +254,7 @@ export default function MultiProtocolPage() {
           支持 <code style={{ fontFamily: "var(--font-mono)" }}>openai:image-generations</code> 协议的模型可以通过 OpenAI SDK 生成图像。
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 24 }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>{openaiImage}</pre>
+          <DocsCodeBlock code={openaiImage} />
         </div>
 
         <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>文本向量化</h3>
@@ -263,7 +262,7 @@ export default function MultiProtocolPage() {
           支持 <code style={{ fontFamily: "var(--font-mono)" }}>openai:embeddings</code> 协议的模型可以将文本转为向量表示，用于语义搜索、聚类、RAG 等场景。
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>{openaiEmbedding}</pre>
+          <DocsCodeBlock code={openaiEmbedding} />
         </div>
       </section>
 
@@ -289,14 +288,12 @@ export default function MultiProtocolPage() {
           ))}
         </div>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 24 }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>
-            {anthropicLang === "python" ? anthropicPython : anthropicNode}
-          </pre>
+          <DocsCodeBlock code={anthropicLang === "python" ? anthropicPython : anthropicNode} />
         </div>
 
         <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>流式输出</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>{anthropicStream}</pre>
+          <DocsCodeBlock code={anthropicStream} />
         </div>
       </section>
 
@@ -311,7 +308,7 @@ export default function MultiProtocolPage() {
           当前以 <code style={{ fontFamily: "var(--font-mono)" }}>generateContent</code> 与 <code style={{ fontFamily: "var(--font-mono)" }}>streamGenerateContent</code> 为主。
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>{geminiPython}</pre>
+          <DocsCodeBlock code={geminiPython} />
         </div>
       </section>
 

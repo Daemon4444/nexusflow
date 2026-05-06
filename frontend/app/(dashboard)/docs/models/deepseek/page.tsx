@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 
 const deepseekModels = [
@@ -219,8 +220,7 @@ export default function DeepSeekModelsPage() {
           使用示例
         </h2>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 13, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.5 }}>
-{`from openai import OpenAI
+          <DocsCodeBlock code={`from openai import OpenAI
 
 client = OpenAI(
     api_key="sk-air-your-key",
@@ -237,8 +237,7 @@ response = client.chat.completions.create(
 )
 
 # R1 模型会展示思维链过程
-print(response.choices[0].message.content)`}
-          </pre>
+print(response.choices[0].message.content)`} />
         </div>
       </section>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -118,9 +119,7 @@ export default function MiniMaxApiPage() {
           ))}
         </div>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-            {codeLang === "curl" ? curlExample : pythonExample}
-          </pre>
+          <DocsCodeBlock code={codeLang === "curl" ? curlExample : pythonExample} />
         </div>
       </section>
 

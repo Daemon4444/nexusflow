@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -157,11 +158,11 @@ export default function QuickstartPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
             <div style={{ padding: "8px 12px", background: "var(--bg-elevated)", borderBottom: "1px solid var(--border)", fontSize: 12, color: "var(--text-tertiary)" }}>Python</div>
-            <pre style={{ margin: 0, padding: "12px 16px", background: "#1a1a1a", fontSize: 13, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace" }}>pip install openai</pre>
+            <DocsCodeBlock code="pip install openai" />
           </div>
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
             <div style={{ padding: "8px 12px", background: "var(--bg-elevated)", borderBottom: "1px solid var(--border)", fontSize: 12, color: "var(--text-tertiary)" }}>Node.js</div>
-            <pre style={{ margin: 0, padding: "12px 16px", background: "#1a1a1a", fontSize: 13, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace" }}>npm install openai</pre>
+            <DocsCodeBlock code="npm install openai" />
           </div>
         </div>
       </section>
@@ -226,7 +227,7 @@ export default function QuickstartPage() {
           ))}
         </div>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace" }}>{codeExamples[lang]}</pre>
+          <DocsCodeBlock code={codeExamples[lang]} />
         </div>
       </section>
 
@@ -239,7 +240,7 @@ export default function QuickstartPage() {
           当你开始接入图像或视频生成时，推荐统一使用 <code>/v1/tasks</code>。这套链路更适合高时延模型、后台批量任务和高并发排队。
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace" }}>{asyncTaskExample}</pre>
+          <DocsCodeBlock code={asyncTaskExample} />
         </div>
       </section>
 

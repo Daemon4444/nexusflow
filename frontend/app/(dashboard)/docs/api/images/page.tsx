@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -218,9 +219,7 @@ export default function ImagesApiPage() {
           ))}
         </div>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-            {codeLang === "curl" ? curlExample : pythonExample}
-          </pre>
+          <DocsCodeBlock code={codeLang === "curl" ? curlExample : pythonExample} />
         </div>
       </section>
 
@@ -230,8 +229,7 @@ export default function ImagesApiPage() {
 
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>成功响应</h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`{
+          <DocsCodeBlock code={`{
   "id": "4b0a0920-ce86-4fbe-81cc-55e3b89a6ed1",
   "object": "task",
   "status": "succeeded",
@@ -246,21 +244,18 @@ export default function ImagesApiPage() {
   },
   "created_at": "2026-06-01T10:00:00.000Z",
   "completed_at": "2026-06-01T10:00:10.000Z"
-}`}
-          </pre>
+}`} />
         </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>失败响应</h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`{
+          <DocsCodeBlock code={`{
   "error": {
     "message": "InvalidParameter: prompt is empty",
     "type": "upstream_error",
     "code": "upstream_error"
   }
-}`}
-          </pre>
+}`} />
         </div>
 
         {/* Response fields */}

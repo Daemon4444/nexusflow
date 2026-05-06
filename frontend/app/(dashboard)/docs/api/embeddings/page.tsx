@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -322,9 +323,7 @@ export default function EmbeddingsApiPage() {
         </div>
 
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-            {codeExamples[activeTab][codeLang]}
-          </pre>
+          <DocsCodeBlock code={codeExamples[activeTab][codeLang]} />
         </div>
       </section>
 
@@ -333,8 +332,7 @@ export default function EmbeddingsApiPage() {
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>响应格式</h2>
 
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
-          <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>
-{`{
+          <DocsCodeBlock code={`{
   "object": "list",
   "data": [
     {
@@ -348,8 +346,7 @@ export default function EmbeddingsApiPage() {
     "prompt_tokens": 12,
     "total_tokens": 12
   }
-}`}
-          </pre>
+}`} />
         </div>
 
         {/* Response fields table */}

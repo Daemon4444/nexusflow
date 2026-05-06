@@ -1,3 +1,4 @@
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import Link from "next/link";
 
 const API_BASE = "https://nexusflow.hk";
@@ -105,10 +106,10 @@ export default function ClaudeDocsPage() {
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>调用示例</h2>
         <div style={{ display: "grid", gap: 14 }}>
           <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-            <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "var(--font-mono)", lineHeight: 1.65 }}>{curlExample}</pre>
+            <DocsCodeBlock code={curlExample} />
           </div>
           <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
-            <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "var(--font-mono)", lineHeight: 1.65 }}>{streamExample}</pre>
+            <DocsCodeBlock code={streamExample} />
           </div>
         </div>
       </section>

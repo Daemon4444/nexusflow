@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -586,9 +587,7 @@ export default function ChatCompletionsApiPage() {
 
         {/* Code block */}
         <div style={{ ...codeBlock, maxHeight: 520 }}>
-          <pre style={codePre}>
-            {codeExamples[scenario][lang]}
-          </pre>
+          <DocsCodeBlock code={codeExamples[scenario][lang]} />
         </div>
       </section>
 
@@ -602,8 +601,7 @@ export default function ChatCompletionsApiPage() {
         {/* JSON example */}
         <h3 style={subHeading}>响应示例</h3>
         <div style={{ ...codeBlock, marginBottom: 20 }}>
-          <pre style={codePre}>
-{`{
+          <DocsCodeBlock code={`{
   "id": "chatcmpl-abc123xyz789",
   "object": "chat.completion",
   "created": 1709123456,
@@ -623,8 +621,7 @@ export default function ChatCompletionsApiPage() {
     "completion_tokens": 256,
     "total_tokens": 284
   }
-}`}
-          </pre>
+}`} />
         </div>
 
         {/* Fields table */}
@@ -661,8 +658,7 @@ export default function ChatCompletionsApiPage() {
         {/* SSE format example */}
         <h3 style={subHeading}>SSE 数据格式</h3>
         <div style={{ ...codeBlock, marginBottom: 20 }}>
-          <pre style={codePre}>
-{`data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
+          <DocsCodeBlock code={`data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
 
 data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{"content":"机器"},"finish_reason":null}]}
 
@@ -670,8 +666,7 @@ data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123
 
 data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":28,"completion_tokens":256,"total_tokens":284}}
 
-data: [DONE]`}
-          </pre>
+data: [DONE]`} />
         </div>
 
         {/* Stream chunk fields table */}

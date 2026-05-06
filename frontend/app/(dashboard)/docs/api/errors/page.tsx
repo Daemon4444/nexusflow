@@ -1,5 +1,6 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState } from "react";
 
 const errorCodes = [
@@ -280,15 +281,13 @@ export default function ErrorsPage() {
           marginBottom: 24,
           overflow: "auto",
         }}>
-          <pre style={{ margin: 0, fontSize: 13, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace" }}>
-{`{
+          <DocsCodeBlock code={`{
   "error": {
     "code": "insufficient_quota",
     "message": "You have exceeded your quota. Please check your plan and billing details.",
     "type": "invalid_request_error"
   }
-}`}
-          </pre>
+}`} />
         </div>
 
         <div style={{
@@ -368,9 +367,7 @@ export default function ErrorsPage() {
           padding: 16,
           overflow: "auto",
         }}>
-          <pre style={{ margin: 0, fontSize: 13, color: "#e5e5e5", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.5 }}>
-            {codeExamples[codeLang]}
-          </pre>
+          <DocsCodeBlock code={codeExamples[codeLang]} />
         </div>
       </section>
 
