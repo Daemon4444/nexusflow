@@ -17,6 +17,7 @@ import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType, adaptImageRequest, pollDashScopeTask } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { getSupportedProtocols } from "../utils/model-protocols";
+import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
 
 const router = Router();
 
@@ -149,6 +150,8 @@ router.get("/models", async (req: Request, res: Response) => {
     root: m.id,
     parent: null,
     supported_protocols: getSupportedProtocols(m),
+    capabilities: getModelCapabilities(m),
+    allowed_parameters: getAllowedChatParameters(m),
   }));
 
   res.json({ object: "list", data });

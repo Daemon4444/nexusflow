@@ -36,6 +36,22 @@ interface AIModel {
   supported: string[];
   supportedProtocols?: string[];
   supported_protocols?: string[];
+  capabilities?: {
+    model_type: string;
+    supports_tools: boolean;
+    supports_vision: boolean;
+    supports_video_input: boolean;
+    supports_audio_input: boolean;
+    supports_audio_output: boolean;
+    thinking_mode: "mixed" | "always" | "none" | "unknown";
+    thinking_default: boolean | null;
+    supports_enable_thinking: boolean;
+    supports_thinking_budget: boolean;
+    supports_preserve_thinking: boolean;
+    supports_search: boolean;
+    supports_parallel_tool_calls: boolean;
+  };
+  allowed_parameters?: string[];
 }
 
 interface ProtocolExample {
@@ -55,6 +71,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   const isEmbeddingModel = model.category === "向量模型";
   const isAsyncModel = isImageModel || isVideoModel;
   const supportsTools = model.supported.some((item) => item.includes("工具"));
+  const allowedParameters = model.allowed_parameters || [];
 
   for (const protocol of protocols) {
     if (protocol === "openai/chat-completions") {
@@ -62,7 +79,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         id: protocol,
         label: "OpenAI Chat Completions",
         endpoint: "/v1/chat/completions",
-        params: [
+        params: allowedParameters.length > 0 ? allowedParameters : [
           "model",
           "messages",
           "stream",
@@ -526,6 +543,45 @@ export default function ModelDetailPage() {
               </span>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {(model.capabilities || (model.allowed_parameters?.length || 0) > 0) ? (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
+            能力与参数边界
+          </h3>
+          {model.capabilities ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+              {[
+                ["类型", model.capabilities.model_type],
+                ["思考模式", model.capabilities.thinking_mode === "mixed" ? `可开关${model.capabilities.thinking_default === null ? "" : `，默认${model.capabilities.thinking_default ? "开启" : "关闭"}`}` : model.capabilities.thinking_mode === "always" ? "仅思考，不能关闭" : "无"],
+                ["工具调用", model.capabilities.supports_tools ? "支持" : "未声明"],
+                ["视觉输入", model.capabilities.supports_vision ? "支持" : "未声明"],
+                ["视频输入", model.capabilities.supports_video_input ? "支持" : "未声明"],
+                ["搜索参数", model.capabilities.supports_search ? "支持" : "当前未开放"],
+              ].map(([label, value]) => (
+                <div key={label} style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 600 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {(model.allowed_parameters?.length || 0) > 0 ? (
+            <>
+              <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8 }}>
+                当前 NexusFlow public chat 入口会透传的参数：
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {model.allowed_parameters!.map((param) => (
+                  <span key={param} style={{ padding: "4px 10px", borderRadius: 999, fontSize: 12, background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
+                    {param}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
       ) : null}
 

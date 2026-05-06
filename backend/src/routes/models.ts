@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { models, AIModel } from "../data/models";
 import { getApprovedModelsWithProvider } from "../data/providers";
 import { getSupportedProtocols } from "../utils/model-protocols";
+import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
 
 const router = Router();
 
@@ -90,6 +91,8 @@ router.get("/", async (req: Request, res: Response) => {
       tokenPricingTiers: model.tokenPricingTiers,
       supportedProtocols: getSupportedProtocols(model),
       supported_protocols: getSupportedProtocols(model),
+      capabilities: getModelCapabilities(model),
+      allowed_parameters: getAllowedChatParameters(model),
     })),
     total: filtered.length,
     categories: [...new Set(allModels.map((m) => m.category))],
@@ -114,6 +117,8 @@ router.get("/:id", async (req: Request, res: Response) => {
       tokenPricingTiers: model.tokenPricingTiers,
       supportedProtocols: getSupportedProtocols(model),
       supported_protocols: getSupportedProtocols(model),
+      capabilities: getModelCapabilities(model),
+      allowed_parameters: getAllowedChatParameters(model),
     },
   });
 });
