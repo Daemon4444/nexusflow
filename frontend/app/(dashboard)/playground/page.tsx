@@ -23,6 +23,18 @@ interface AIModel {
     promptPrice: number;
     completionPrice: number;
   }>;
+  capabilities?: {
+    thinking_mode: "mixed" | "always" | "none" | "unknown";
+    thinking_default: boolean | null;
+    supports_enable_thinking: boolean;
+    supports_tools: boolean;
+    supports_vision: boolean;
+    supports_video_input: boolean;
+    supports_audio_input: boolean;
+    supports_audio_output: boolean;
+    supports_search: boolean;
+  };
+  allowed_parameters?: string[];
 }
 interface Message { role: "user" | "assistant" | "system"; content: string; reasoningContent?: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
 interface UsageInfo { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost: string; }
@@ -271,6 +283,7 @@ function PlaygroundInner() {
   const [showSettings, setShowSettings] = useState(false);
   const [mode, setMode] = useState<ModelMode>("chat");
   const [streamEnabled, setStreamEnabled] = useState(true); // 流式开关
+  const [enableThinking, setEnableThinking] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -312,6 +325,14 @@ function PlaygroundInner() {
     return `¥${cost.toFixed(2)}`;
   }
 
+  function getThinkingRequestPart(): Record<string, boolean> {
+    const model = models.find((item) => item.id === selectedModel);
+    if (!model?.capabilities) return {};
+    if (model.capabilities.supports_enable_thinking) return { enable_thinking: enableThinking };
+    if (model.capabilities.thinking_mode === "always") return { enable_thinking: true };
+    return {};
+  }
+
   useEffect(() => {
     async function loadModels() {
       const res = await fetchAPI("/api/models");
@@ -349,6 +370,13 @@ function PlaygroundInner() {
       if (m.category === "图像生成") setMode("image");
       else if (m.category === "视频生成") setMode("video");
       else setMode("chat");
+      if (m.capabilities?.supports_enable_thinking) {
+        setEnableThinking(Boolean(m.capabilities.thinking_default));
+      } else if (m.capabilities?.thinking_mode === "always") {
+        setEnableThinking(true);
+      } else {
+        setEnableThinking(false);
+      }
       // Clear uploaded files when model changes
       setUploadedFiles(prev => { prev.forEach(f => URL.revokeObjectURL(f.preview)); return []; });
     }
@@ -395,6 +423,7 @@ function PlaygroundInner() {
           model: selectedModel,
           messages: allMsgs.map(m => ({ role: m.role, content: m.content })),
           stream: true,
+          ...getThinkingRequestPart(),
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -550,6 +579,7 @@ function PlaygroundInner() {
           model: selectedModel,
           messages: allMsgs.map(m => ({ role: m.role, content: m.content })),
           stream: false,
+          ...getThinkingRequestPart(),
         }),
       });
 
@@ -1022,6 +1052,14 @@ function PlaygroundInner() {
   // ============================================================
 
   const currentModel = models.find((m) => m.id === selectedModel);
+  const thinkingMode = currentModel?.capabilities?.thinking_mode || "none";
+  const canToggleThinking = Boolean(currentModel?.capabilities?.supports_enable_thinking);
+  const thinkingLabel =
+    thinkingMode === "mixed"
+      ? enableThinking ? "思考 ✓" : "直答"
+      : thinkingMode === "always"
+        ? "仅思考"
+        : "无思考";
   const visibleModels = useMemo(() => {
     const preferredOrder = [
       requestedModel,
@@ -1214,6 +1252,17 @@ function PlaygroundInner() {
               </span>
               {mode === "chat" && (
                 <>
+                  {thinkingMode !== "none" && (
+                    <button
+                      className={enableThinking ? "btn-primary" : "btn-secondary"}
+                      style={{ padding: "5px 12px", fontSize: 12.5 }}
+                      disabled={!canToggleThinking}
+                      title={canToggleThinking ? "切换 enable_thinking" : "该模型为仅思考模型，不能关闭"}
+                      onClick={() => canToggleThinking && setEnableThinking((value) => !value)}
+                    >
+                      {thinkingLabel}
+                    </button>
+                  )}
                   <button
                     className={streamEnabled ? "btn-primary" : "btn-secondary"}
                     style={{ padding: "5px 12px", fontSize: 12.5 }}

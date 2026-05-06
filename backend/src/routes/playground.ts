@@ -7,6 +7,7 @@ import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
+import { buildUpstreamChatRequest } from "../utils/chat-request";
 
 const router = Router();
 const UPSTREAM_TIMEOUT = 120000;
@@ -121,24 +122,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const requestBody: any = { model: modelId, messages, stream: !!stream };
-  if (temperature !== undefined) requestBody.temperature = temperature;
-  if (max_tokens !== undefined) requestBody.max_tokens = max_tokens;
-  if (top_p !== undefined) requestBody.top_p = top_p;
-  if (stop !== undefined) requestBody.stop = stop;
-  if (frequency_penalty !== undefined) requestBody.frequency_penalty = frequency_penalty;
-  if (presence_penalty !== undefined) requestBody.presence_penalty = presence_penalty;
-  if (tools) requestBody.tools = tools;
-  if (tool_choice) requestBody.tool_choice = tool_choice;
-  if (response_format) requestBody.response_format = response_format;
-  if (stream_options !== undefined) requestBody.stream_options = stream_options;
-  if (requestBody.stream && requestBody.stream_options === undefined) {
-    requestBody.stream_options = { include_usage: true };
-  }
-  if (enable_thinking !== undefined) requestBody.enable_thinking = enable_thinking;
-  if ((modelId === "qwen3-32b" || modelId === "qwen3-8b") && !requestBody.stream) {
-    requestBody.enable_thinking = false;
-  }
+  const requestBody = buildUpstreamChatRequest(
+    model,
+    { model: modelId, messages, stream, temperature, max_tokens, top_p, stop, frequency_penalty, presence_penalty, tools, tool_choice, response_format, stream_options, enable_thinking }
+  );
 
   const startTime = Date.now();
   const refId = `playground:${session.id}`;
