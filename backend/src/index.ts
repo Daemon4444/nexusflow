@@ -59,7 +59,7 @@ app.use("/v1/messages", messagesRouter);
 // OpenAI 兼容 API（/v1/chat/completions, /v1/models）
 app.use("/v1", v1Router);
 
-// 多协议 Public API（Anthropic / Gemini）
+// Gemini-compatible Public API. Anthropic Messages is mounted above as the single /v1/messages implementation.
 app.use("/", protocolRouter);
 
 // PixVerse 视频生成 API（/v1/video/text, /v1/video/image, /v1/video/status/:id）
