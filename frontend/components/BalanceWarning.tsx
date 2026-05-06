@@ -7,10 +7,11 @@ interface BalanceWarningProps {
 }
 
 export function BalanceWarning({ balance, threshold = 10, onRecharge }: BalanceWarningProps) {
-  if (balance >= threshold) return null;
+  const numericBalance = Number(balance || 0);
+  if (numericBalance >= threshold) return null;
 
-  const isCritical = balance <= 0;
-  const isLow = balance < threshold && balance > 0;
+  const isCritical = numericBalance <= 0;
+  const isLow = numericBalance < threshold && numericBalance > 0;
 
   return (
     <div
@@ -63,7 +64,7 @@ export function BalanceWarning({ balance, threshold = 10, onRecharge }: BalanceW
         }}>
           {isCritical
             ? "API 调用将被拒绝，请立即充值以继续使用服务"
-            : `当前余额 ¥${balance.toFixed(2)}，建议充值以保证服务正常使用`}
+            : `当前余额 ¥${numericBalance.toFixed(2)}，建议充值以保证服务正常使用`}
         </div>
       </div>
 

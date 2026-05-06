@@ -21,6 +21,14 @@ export interface Session {
   expires_at: string;
 }
 
+function normalizeUser<T extends User | null>(user: T): T {
+  if (!user) return user;
+  return {
+    ...user,
+    balance: Number(user.balance || 0),
+  };
+}
+
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
   const hash = crypto.scryptSync(password, salt, 64).toString("hex");
@@ -35,15 +43,15 @@ export function verifyPassword(password: string, stored: string): boolean {
 }
 
 export async function getUserByPhone(phone: string): Promise<User | null> {
-  return db.queryOne<User>("SELECT * FROM users WHERE phone = ?", [phone]);
+  return normalizeUser(await db.queryOne<User>("SELECT * FROM users WHERE phone = ?", [phone]));
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  return db.queryOne<User>("SELECT * FROM users WHERE email = ?", [email.toLowerCase()]);
+  return normalizeUser(await db.queryOne<User>("SELECT * FROM users WHERE email = ?", [email.toLowerCase()]));
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  return db.queryOne<User>("SELECT * FROM users WHERE id = ?", [id]);
+  return normalizeUser(await db.queryOne<User>("SELECT * FROM users WHERE id = ?", [id]));
 }
 
 export async function createUser(phone: string): Promise<User> {
@@ -54,7 +62,7 @@ export async function createUser(phone: string): Promise<User> {
     "INSERT INTO users (id, phone, email, nickname, balance, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
     [id, phone, null, nickname, 0, now, now]
   );
-  return user!;
+  return normalizeUser(user)!;
 }
 
 export async function createUserByEmail(email: string): Promise<User> {
@@ -66,7 +74,7 @@ export async function createUserByEmail(email: string): Promise<User> {
     "INSERT INTO users (id, phone, email, nickname, balance, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
     [id, null, normalizedEmail, nickname, 0, now, now]
   );
-  return user!;
+  return normalizeUser(user)!;
 }
 
 async function createSession(user: User): Promise<{ user: User; token: string }> {
