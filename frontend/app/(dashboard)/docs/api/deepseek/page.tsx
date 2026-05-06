@@ -265,8 +265,8 @@ export default function DeepSeekApiPage() {
           padding: 16, background: "#eff6ff", border: "1px solid #bfdbfe",
           borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#1e40af", marginBottom: 16,
         }}>
-          DeepSeek R1 和 V4 Pro 支持推理模式，会在回答前展示完整的思考过程（reasoning_content）。
-          设置 <code>enable_thinking: true</code> 开启。
+          DeepSeek R1 是仅思考模型，传 <code>enable_thinking=false</code> 也仍会返回 reasoning_content。
+          DeepSeek V3.2 和 V4 Pro 属于线上已验证的混合思考模型，可用 <code>enable_thinking</code> 开关控制。
         </div>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
           <pre style={{ margin: 0, fontSize: 12.5, color: "#e5e7eb", fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.65 }}>

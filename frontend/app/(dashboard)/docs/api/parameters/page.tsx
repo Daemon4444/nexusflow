@@ -25,15 +25,28 @@ const openAiParams = [
   ["tools[].function.parameters", "object", "工具", "JSON Schema，描述函数入参。"],
   ["tool_choice", "string | object", "可选", "稳定支持 auto / none，或指定 {type:'function', function:{name}}。思考模式模型不建议强制工具。"],
   ["response_format", "object", "可选", "输出格式控制。常见值为 {\"type\":\"text\"} 或 {\"type\":\"json_object\"}。"],
-  ["enable_thinking", "boolean", "可选", "思考模式。DeepSeek V4 Pro、QwQ、部分 Qwen 推理模型可用；低延迟场景可关闭。"],
+  ["enable_thinking", "boolean", "可选", "思考模式开关。仅对已验证支持的混合思考模型可关闭；仅思考模型会忽略 false 并继续返回 reasoning_content。"],
 ];
 
 const notForwardedOpenAiParams = [
+  ["thinking_budget", "integer", "暂未透传", "百炼官方支持限制思考 Token，但当前 NexusFlow Chat 入口尚未转发该字段。"],
+  ["preserve_thinking", "boolean", "暂未透传", "百炼官方部分模型支持保留上下文思考内容，当前 NexusFlow Chat 入口尚未转发。"],
   ["seed", "integer", "暂未透传", "当前 /v1/chat/completions 后端不会转发该字段，不应依赖它做可复现生成。"],
   ["parallel_tool_calls", "boolean", "暂未透传", "百炼官方 Chat API 支持并行工具调用，但当前公开网关未承诺透传。"],
   ["enable_search", "boolean", "暂未透传", "联网搜索属于百炼扩展能力，当前公开网关未承诺透传。"],
   ["search_options", "object", "暂未透传", "与联网搜索配套的参数，当前公开网关未承诺透传。"],
   ["max_completion_tokens", "integer", "暂未透传", "请使用当前稳定支持的 max_tokens。"],
+];
+
+const thinkingSupport = [
+  ["qwen3.5-flash", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
+  ["qwen3-max", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
+  ["qwq-plus", "仅思考", "false 不能关闭", "线上验证：true/false 都返回 reasoning_content。"],
+  ["qwen-math-plus", "未按思考开关处理", "不要传", "线上验证：true/false 都未返回 reasoning_content。"],
+  ["deepseek-r1", "仅思考", "false 不能关闭", "线上验证：true/false 都返回 reasoning_content。"],
+  ["deepseek-v3.2", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
+  ["deepseek-v4-pro", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
+  ["glm-5.1", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
 ];
 
 const anthropicParams = [
@@ -132,6 +145,14 @@ export default function ApiParametersPage() {
       </section>
 
       <section style={{ marginBottom: 40 }}>
+        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>思考模式支持情况</h2>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginTop: -4, marginBottom: 14 }}>
+          这里列的是 NexusFlow 线上 OpenAI Chat 入口的实测行为。支持情况会随上游模型版本变化，生产代码应按模型 ID 做显式配置。
+        </p>
+        <Matrix rows={thinkingSupport} columns={["220px", "140px", "140px", "1fr"]} />
+      </section>
+
+      <section style={{ marginBottom: 40 }}>
         <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>Anthropic Messages 映射</h2>
         <Matrix rows={anthropicParams} columns={["260px", "220px", "1fr"]} />
       </section>
@@ -148,7 +169,7 @@ export default function ApiParametersPage() {
 
       <section style={{ padding: 18, border: "1px solid #bfdbfe", borderRadius: 8, background: "#eff6ff" }}>
         <div style={{ fontSize: 14, color: "#334155", lineHeight: 1.8 }}>
-          生产建议：推理模型使用 <code>stream=true</code> 和 <code>stream_options.include_usage=true</code>；只在需要思考内容时开启 <code>enable_thinking</code>。
+          生产建议：推理模型使用 <code>stream=true</code> 和 <code>stream_options.include_usage=true</code>；混合思考模型在低成本、低延迟场景显式传 <code>enable_thinking=false</code>。
           更多例子见 <Link href="/docs/api/chat" style={{ color: "#1d4ed8" }}>对话补全 API</Link> 和 <Link href="/docs/api/gemini" style={{ color: "#1d4ed8" }}>Gemini 协议</Link>。
         </div>
       </section>

@@ -42,7 +42,7 @@ const requestParams: { name: string; type: string; required: boolean; default?: 
   { name: "stop", type: "string | string[]", required: false, desc: "停止词或停止词数组（最多 4 个）。模型生成到停止词时立即结束输出。" },
   { name: "frequency_penalty", type: "number", required: false, default: "0", desc: "频率惩罚，范围 [-2.0, 2.0]。正值根据 token 在已生成文本中出现的频率进行惩罚，降低重复。" },
   { name: "presence_penalty", type: "number", required: false, default: "0", desc: "存在惩罚，范围 [-2.0, 2.0]。正值根据 token 是否已出现过进行惩罚，提升话题多样性。" },
-  { name: "enable_thinking", type: "boolean", required: false, desc: "是否开启思考模式。DeepSeek V4 Pro、QwQ、部分 Qwen 推理模型可用；非推理模型可忽略此参数。" },
+  { name: "enable_thinking", type: "boolean", required: false, desc: "是否开启思考模式。仅混合思考模型支持 true/false 开关；仅思考模型即使传 false 也会继续思考。" },
   { name: "stream_options", type: "object", required: false, desc: '流式请求附加选项。设置 {"include_usage": true} 可在最后一个 SSE chunk 中返回 token 用量。' },
   { name: "response_format", type: "object", required: false, desc: '响应格式控制。支持 {"type":"text"}（默认）和 {"type":"json_object"}（JSON 模式）。' },
 ];
@@ -732,7 +732,7 @@ data: [DONE]`}
             <li>流式输出时，只有最后一个 chunk 的 <code>finish_reason</code> 为非 null 值，代表生成结束。</li>
             <li>图像理解功能建议使用 Qwen-VL 系列等多模态模型。<code>content</code> 需传入数组格式包含 <code>image_url</code> 类型。</li>
             <li>Function Calling 推荐使用 Qwen、DeepSeek、GLM 等支持工具调用的模型系列。</li>
-            <li>思考模式（<code>enable_thinking</code>）仅部分推理模型支持，普通模型无需传入该参数。</li>
+            <li>思考模式（<code>enable_thinking</code>）必须按模型 ID 使用；支持矩阵见 <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>参数矩阵</Link>。</li>
             <li>文档未列出的百炼扩展字段不会保证透传；不要把未验证字段作为生产依赖。</li>
             <li>完整参数说明与模型兼容矩阵见 <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>参数矩阵</Link>。</li>
           </ul>

@@ -478,7 +478,7 @@ export default function QwenDocsPage() {
           padding: 16, background: "#eff6ff", border: "1px solid #93c5fd",
           borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#1e40af", marginBottom: 20,
         }}>
-          <strong>推理模型专属参数</strong> — 以下参数仅适用于推理系列模型（qwq-plus、qwen-math-plus 等）。
+          <strong>思考模式参数</strong> — <code>enable_thinking</code> 只对支持思考开关的模型有意义；仅思考模型无法关闭，数学专用模型不要默认传该参数。
         </div>
 
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
@@ -487,7 +487,7 @@ export default function QwenDocsPage() {
               <tr style={{ background: "var(--bg-elevated)" }}>
                 <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>参数</th>
                 <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 60 }}>默认值</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 80 }}>适用模型</th>
                 <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
               </tr>
             </thead>
@@ -497,11 +497,37 @@ export default function QwenDocsPage() {
                   <code style={{ fontSize: 12 }}>enable_thinking</code>
                 </td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-tertiary)", fontSize: 12 }}>boolean</td>
-                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center", color: "var(--text-secondary)" }}>false</td>
+                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center", color: "var(--text-secondary)" }}>见下表</td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                  开启后，模型会在回答前先进行深度思考，并在响应中返回思考过程（reasoning_content）。适合复杂数学、逻辑推理、多步分析等场景。开启后 token 用量会显著增加。
+                  混合思考模型传 true 会返回 reasoning_content，传 false 可降低延迟和输出 token；仅思考模型会继续返回 reasoning_content。
                 </td>
               </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ marginTop: 16, border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--bg-elevated)" }}>
+                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>模型</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>线上实测行为</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>建议</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["qwen3.5-flash", "true 返回 reasoning_content；false 不返回", "低成本场景显式传 false"],
+                ["qwen3-max", "true 返回 reasoning_content；false 不返回", "复杂任务传 true，普通对话传 false"],
+                ["qwq-plus", "true/false 都返回 reasoning_content", "按仅思考模型使用，不要指望 false 关闭"],
+                ["qwen-math-plus", "true/false 均未返回 reasoning_content", "不要默认传 enable_thinking"],
+              ].map((row) => (
+                <tr key={row[0]} style={{ background: "var(--bg)" }}>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code>{row[0]}</code></td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{row[1]}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{row[2]}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

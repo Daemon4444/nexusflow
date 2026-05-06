@@ -33,6 +33,21 @@ All tests used minimal prompts against production `https://nexusflow.hk` and ret
 
 Observed caveat: even with `max_tokens` / `maxOutputTokens` set low, several models still returned substantial reasoning-token usage. This affects cost predictability and should be surfaced in product copy or controlled with a clearer default `enable_thinking` policy.
 
+### Thinking Parameter Test
+
+`enable_thinking` is currently passed through by `/v1/chat/completions`; NexusFlow does not yet forward `thinking_budget` or `preserve_thinking`.
+
+| Model | `enable_thinking=true` | `enable_thinking=false` | Conclusion |
+| --- | --- | --- | --- |
+| `qwen3.5-flash` | returned `reasoning_content` | no `reasoning_content` | switchable thinking |
+| `qwen3-max` | returned `reasoning_content` | no `reasoning_content` | switchable thinking |
+| `qwq-plus` | returned `reasoning_content` | still returned `reasoning_content` | thinking-only; false does not disable |
+| `qwen-math-plus` | no `reasoning_content` | no `reasoning_content` | do not document as thinking switch |
+| `deepseek-r1` | returned `reasoning_content` | still returned `reasoning_content` | thinking-only; false does not disable |
+| `deepseek-v3.2` | returned `reasoning_content` | no `reasoning_content` | switchable thinking |
+| `deepseek-v4-pro` | returned `reasoning_content` | no `reasoning_content` | switchable thinking |
+| `glm-5.1` | returned `reasoning_content` | no `reasoning_content` | switchable thinking |
+
 ### Documentation Corrections
 
 - Removed public documentation rows that advertised routes not exposed by the NexusFlow public gateway.
