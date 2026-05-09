@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import Link from "next/link";
-import { useI18n } from "@/lib/i18n";
 
 interface PricingTier {
   label: string;
@@ -56,6 +55,7 @@ export default function ModelsPage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [allCategories, setAllCategories] = useState<string[]>([]);
 
@@ -63,6 +63,7 @@ export default function ModelsPage() {
 
   async function loadModels() {
     setLoading(true);
+    setError("");
     try {
       const params = new URLSearchParams();
       if (selectedCategory) params.set("category", selectedCategory);
@@ -77,8 +78,14 @@ export default function ModelsPage() {
         if (!selectedProvider && selectedCategory === "全部" && !search) {
           setAllCategories(res.categories || []);
         }
+      } else {
+        setModels([]);
+        setError(res.message || "模型服务暂时不可用，请稍后重试");
       }
-    } catch { console.error("加载模型列表失败"); }
+    } catch {
+      setModels([]);
+      setError("无法连接模型服务，请确认后端服务已启动");
+    }
     finally { setLoading(false); }
   }
 
@@ -86,6 +93,10 @@ export default function ModelsPage() {
   const visibleCategories = selectedProvider
     ? [...new Set(models.map((m) => m.category))]
     : allCategories;
+  const categoryCounts = models.reduce<Record<string, number>>((acc, model) => {
+    acc[model.category] = (acc[model.category] || 0) + 1;
+    return acc;
+  }, {});
 
   function formatTokens(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
@@ -106,7 +117,7 @@ export default function ModelsPage() {
             </span>
           )}
         </div>
-        <p style={{ fontSize: 13.5, color: "var(--text-secondary)", maxWidth: 600, margin: 0 }}>
+        <p style={{ fontSize: 13.5, color: "var(--text-secondary)", maxWidth: 720, margin: 0 }}>
           浏览全系列 AI 模型，涵盖文本、推理、视觉、编程、图像、视频、向量等类别
         </p>
       </div>
@@ -134,20 +145,22 @@ export default function ModelsPage() {
       </div>
 
       {/* Category Pills */}
-      <div style={{ display: "flex", gap: 7, marginBottom: 24, flexWrap: "wrap" }}>
+      <div className="model-output-tabs" style={{ display: "flex", gap: 7, marginBottom: 24, flexWrap: "wrap" }}>
         {["全部", ...visibleCategories].map((cat) => {
           const active = selectedCategory === cat;
           const color = cat !== "全部" ? categoryColors[cat] || "var(--accent)" : "var(--accent)";
+          const count = cat === "全部" ? models.length : categoryCounts[cat] || 0;
           return (
-            <button key={cat} onClick={() => setSelectedCategory(cat)} style={{
-              padding: "6px 14px", borderRadius: 7, fontSize: 12.5, fontWeight: active ? 600 : 500,
-              cursor: "pointer", border: "1px solid", transition: "all 0.12s", fontFamily: "inherit",
+            <button key={cat} className="model-filter-pill" onClick={() => setSelectedCategory(cat)} style={{
+              padding: "6px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: active ? 650 : 560,
+              cursor: "pointer", border: "1px solid", transition: "all 0.16s", fontFamily: "inherit",
               borderColor: active ? `${color}40` : "var(--border)",
               background: active ? `${color}0e` : "var(--bg)",
               color: active ? color : "var(--text-secondary)",
               boxShadow: active ? `0 0 0 1px ${color}25` : "none",
             }}>
-              {cat}
+              <span>{cat}</span>
+              <span className="model-filter-count">{count}</span>
             </button>
           );
         })}
@@ -155,8 +168,31 @@ export default function ModelsPage() {
 
       {/* Grid */}
       {loading ? (
-        <div className="models-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))", gap: 12 }}>
+        <div className="models-grid model-list" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))", gap: 12 }}>
           {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 185, borderRadius: 10 }} />)}
+        </div>
+      ) : error ? (
+        <div className="empty-state" style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.22)" }}>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" style={{ opacity: 0.8, marginBottom: 12 }}>
+            <circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/>
+          </svg>
+          <div style={{ fontSize: 14, fontWeight: 650, color: "var(--text-primary)", marginBottom: 6 }}>模型列表加载失败</div>
+          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>{error}</div>
+          <button
+            onClick={loadModels}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 7,
+              border: "1px solid var(--border)",
+              background: "var(--bg)",
+              color: "var(--text-primary)",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            重试
+          </button>
         </div>
       ) : models.length === 0 ? (
         <div className="empty-state" style={{ background: "var(--bg-elevated)", borderRadius: 10, border: "1px solid var(--border)" }}>
@@ -172,17 +208,17 @@ export default function ModelsPage() {
             const protocolBadges = getProtocolBadges(model);
             return (
               <Link href={`/models/${encodeURIComponent(model.id)}`} key={model.id}
-                className="card animate-fadeIn"
+                className="card model-card animate-fadeIn"
                 style={{ animationDelay: `${idx * 20}ms`, opacity: 0, textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", borderTop: `3px solid ${accent}` }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 9, gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 15, fontWeight: 550, color: "var(--text-primary)", letterSpacing: "-0.2px" }}>{model.name}</span>
+                    <div className="model-card-title-row" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+                      <span className="model-card-title" style={{ fontSize: 15, fontWeight: 550, color: "var(--text-primary)", letterSpacing: "0" }}>{model.name}</span>
                       {model.isNew && <span className="tag tag-new" style={{ fontSize: 10 }}>NEW</span>}
                       {model.isFeatured && <span className="tag tag-featured" style={{ fontSize: 10 }}>HOT</span>}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div className="model-card-meta" style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{model.provider}</span>
                       <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--text-tertiary)", flexShrink: 0 }} />
                       <span style={{ fontSize: 10.5, fontWeight: 600, color: accent, background: `${accent}12`, padding: "1px 6px", borderRadius: 4, border: `1px solid ${accent}28` }}>{model.category}</span>
@@ -213,19 +249,19 @@ export default function ModelsPage() {
                   </div>
                 )}
 
-                <p style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.65, marginBottom: 10, flex: 1, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                <p className="model-card-description" style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.65, marginBottom: 10, flex: 1, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                   {model.description}
                 </p>
 
                 {model.tags.length > 0 && (
-                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
+                  <div className="model-card-tags" style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
                     {model.tags.slice(0, 4).map((tag) => (
                       <span key={tag} style={{ padding: "2px 7px", borderRadius: 4, fontSize: 11, fontWeight: 500, color: "var(--text-tertiary)", background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>{tag}</span>
                     ))}
                   </div>
                 )}
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, padding: "10px 0 0", borderTop: "1px solid var(--border)" }}>
+                <div className="model-card-stats" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, padding: "10px 0 0", borderTop: "1px solid var(--border)" }}>
                   {(() => {
                     const isMedia = model.pricingType === "per-second" || model.pricingType === "per-image";
                     if (isMedia) {

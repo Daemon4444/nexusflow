@@ -8,7 +8,13 @@ const router = Router();
 
 // 合并静态模型和供应商模型
 async function getAllModels(): Promise<AIModel[]> {
-  const providerModels = await getApprovedModelsWithProvider();
+  let providerModels: Awaited<ReturnType<typeof getApprovedModelsWithProvider>> = [];
+  try {
+    providerModels = await getApprovedModelsWithProvider();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[Models] Provider models unavailable, falling back to static catalog: ${message}`);
+  }
   const dynamicModels: AIModel[] = providerModels.map((m) => ({
     id: m.model_id,
     name: m.name,

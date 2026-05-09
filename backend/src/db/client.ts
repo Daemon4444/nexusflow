@@ -1,5 +1,6 @@
 import pg from "pg";
 import dotenv from "dotenv";
+import { getMemoryPgAdapter } from "./memory";
 
 dotenv.config();
 
@@ -11,6 +12,12 @@ let pool: pg.Pool | null = null;
 
 function getPool(): pg.Pool {
   if (!pool) {
+    if (process.env.USE_PG_MEM === "true") {
+      const memoryPg = getMemoryPgAdapter();
+      pool = new memoryPg.Pool() as pg.Pool;
+      return pool;
+    }
+
     pool = new Pool({
       host: process.env.PG_HOST || "127.0.0.1",
       port: Number(process.env.PG_PORT || 5432),

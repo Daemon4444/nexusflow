@@ -1,0 +1,16 @@
+{
+  "name": "NexusFlow",
+  "short_name": "NexusFlow",
+  "description": "Unified AI model gateway with OpenAI-compatible API access.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

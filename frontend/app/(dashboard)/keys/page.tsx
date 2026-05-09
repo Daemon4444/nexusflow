@@ -5,6 +5,9 @@ import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import UserLayout from "@/components/UserLayout";
 import { useI18n } from "@/lib/i18n";
+import { ErrorState, LoadingState } from "@/components/AppState";
+import { getFirstRunState } from "@/lib/firstRun";
+import { getCurlExample, getJavascriptExample } from "@/components/FirstRunPanel";
 
 interface ApiKey {
   id: string;
@@ -32,6 +35,8 @@ export default function KeysPage() {
   const [newKeyLimit, setNewKeyLimit] = useState(60);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [createdKey, setCreatedKey] = useState<ApiKey | null>(null);
+  const [error, setError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null);
 
   useEffect(() => {
     if (user) loadKeys();
@@ -39,11 +44,16 @@ export default function KeysPage() {
 
   async function loadKeys() {
     setDataLoading(true);
+    setError("");
     try {
       const res = await fetchAPI("/api/keys", { headers: authHeaders() });
-      if (res.success) setKeys(res.data);
+      if (res.success) {
+        setKeys(res.data);
+      } else {
+        setError(res.message || "API Key 加载失败");
+      }
     } catch {
-      console.error("Failed to load keys");
+      setError("无法连接 Key 服务，请稍后重试");
     } finally {
       setDataLoading(false);
     }
@@ -62,23 +72,30 @@ export default function KeysPage() {
         setNewKeyName("");
         setNewKeyLimit(60);
         setShowCreate(false);
+        setError("");
         await loadKeys();
+      } else {
+        setError(res.message || "创建 API Key 失败");
       }
     } catch (e) {
-      console.error("Failed to create key", e);
+      setError(e instanceof Error ? e.message : "创建 API Key 失败");
     }
   }
 
   async function deleteKey(id: string) {
-    if (!confirm(t("deleteConfirm"))) return;
     try {
       const res = await fetchAPI(`/api/keys/${id}`, {
         method: "DELETE",
         headers: authHeaders(),
       });
-      if (res.success) await loadKeys();
+      if (res.success) {
+        setDeleteTarget(null);
+        await loadKeys();
+      } else {
+        setError(res.message || "删除 API Key 失败");
+      }
     } catch (e) {
-      console.error("Failed to delete key", e);
+      setError(e instanceof Error ? e.message : "删除 API Key 失败");
     }
   }
 
@@ -111,6 +128,13 @@ export default function KeysPage() {
       hour: "2-digit", minute: "2-digit",
     });
   }
+
+  const firstRun = getFirstRunState({
+    apiKeyCount: keys.length,
+    balance: user?.balance || 0,
+    recentUsageCount: keys.reduce((sum, item) => sum + (item.usageCount || 0), 0),
+  });
+  const exampleModel = "qwen-plus";
 
   return (
     <UserLayout>
@@ -198,13 +222,26 @@ export default function KeysPage() {
                 {copiedId === createdKey.id ? t("copied") : t("copy")}
               </button>
             </div>
+            <div className="key-next-call">
+              <div className="key-next-call-head">
+                <strong>下一步：复制请求并完成第一次调用</strong>
+                <span>默认模型 {exampleModel}</span>
+              </div>
+              <pre>{getCurlExample(createdKey.key, exampleModel)}</pre>
+              <details>
+                <summary>JavaScript 示例</summary>
+                <pre>{getJavascriptExample(createdKey.key, exampleModel)}</pre>
+              </details>
+            </div>
           </div>
         </div>
       )}
 
       {/* Keys list */}
       {dataLoading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--text-tertiary)" }}>{t("loading")}</div>
+        <LoadingState title={t("loading")} compact />
+      ) : error ? (
+        <ErrorState title="API Key 加载失败" message={error} onAction={loadKeys} compact />
       ) : keys.length === 0 ? (
         <div className="usr-section" style={{ textAlign: "center", padding: 60 }}>
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ marginBottom: 12 }}>
@@ -242,7 +279,7 @@ export default function KeysPage() {
                   <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                     {key.rateLimit} req/min
                   </span>
-                  <button className="btn-danger" onClick={() => deleteKey(key.id)} style={{ fontSize: 12 }}>
+                  <button className="btn-danger" onClick={() => setDeleteTarget(key)} style={{ fontSize: 12 }}>
                     {t("delete")}
                   </button>
                 </div>
@@ -269,6 +306,27 @@ export default function KeysPage() {
         </div>
       )}
 
+      {!createdKey && keys.length > 0 && (
+        <div className="usr-section">
+          <div className="usr-section-header">
+            <div>
+              <h3>调用示例</h3>
+              <p>Key 只在创建时完整显示；这里使用占位符展示生产请求结构。</p>
+            </div>
+            <span className="badge badge-info">{firstRun.completedSteps}/3</span>
+          </div>
+          <div className="usr-section-body">
+            <div className="key-next-call" style={{ marginTop: 0 }}>
+              <pre>{getCurlExample("sk-air-...", exampleModel)}</pre>
+              <details>
+                <summary>JavaScript 示例</summary>
+                <pre>{getJavascriptExample("sk-air-...", exampleModel)}</pre>
+              </details>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Security tip */}
       <div style={{
         marginTop: 20, padding: 14,
@@ -279,6 +337,19 @@ export default function KeysPage() {
       }}>
         <strong style={{ color: "#b5673c" }}>{t("securityTip")}:</strong> {t("securityTipText")}
       </div>
+
+      {deleteTarget && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-key-title">
+            <h3 id="delete-key-title">删除 API Key</h3>
+            <p>确定删除「{deleteTarget.name}」吗？删除后使用这个 Key 的请求会立即失败。</p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <button className="btn-secondary" onClick={() => setDeleteTarget(null)}>取消</button>
+              <button className="btn-danger" onClick={() => deleteKey(deleteTarget.id)}>删除</button>
+            </div>
+          </div>
+        </div>
+      )}
     </UserLayout>
   );
 }

@@ -9,6 +9,7 @@ import UserLayout from "@/components/UserLayout";
 import { BalanceWarning } from "@/components/BalanceWarning";
 import OnboardingGuide, { useOnboarding } from "@/components/OnboardingGuide";
 import SmartRecharge from "@/components/SmartRechargeRecommendation";
+import { ErrorState, LoadingState } from "@/components/AppState";
 
 interface BillingSummary { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; }
 interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; }
@@ -33,6 +34,7 @@ export default function BillingPage() {
   const [txTotal, setTxTotal] = useState(0);
   const [txOffset, setTxOffset] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState("");
   const [showRecharge, setShowRecharge] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState("");
   const [payMethod, setPayMethod] = useState<PayMethod>("alipay");
@@ -66,6 +68,7 @@ export default function BillingPage() {
 
   async function loadData() {
     setDataLoading(true);
+    setDataError("");
     try {
       const headers = authHeaders();
       const [sRes, tRes, cRes, kRes] = await Promise.all([
@@ -80,7 +83,12 @@ export default function BillingPage() {
       if (kRes.success && kRes.data && kRes.data.length > 0) {
         setFirstApiKey(kRes.data[0]);
       }
-    } catch {} finally { setDataLoading(false); }
+      if (!sRes.success && !tRes.success) {
+        setDataError(sRes.message || tRes.message || "账单数据加载失败");
+      }
+    } catch {
+      setDataError("无法连接账单服务，请稍后重试");
+    } finally { setDataLoading(false); }
   }
 
   async function loadTransactions(offset: number) {
@@ -255,7 +263,9 @@ export default function BillingPage() {
       )}
 
       {dataLoading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--text-tertiary)" }}>{t("loading")}</div>
+        <LoadingState title={t("loading")} />
+      ) : dataError ? (
+        <ErrorState title="账单加载失败" message={dataError} onAction={loadData} />
       ) : (
         <div className="usr-section">
           <div className="usr-section-header">

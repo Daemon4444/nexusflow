@@ -121,8 +121,13 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 async function start() {
-  await cleanExpiredSessions();
-  await seedApiKeysIfNeeded();
+  try {
+    await cleanExpiredSessions();
+    await seedApiKeysIfNeeded();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[Quadrant API] 数据库维护任务跳过: ${message}`);
+  }
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`[Quadrant API] 服务已启动: http://0.0.0.0:${PORT}`);

@@ -38,6 +38,7 @@ export default function Header() {
   ];
 
   const userNav = [
+    { href: "/dashboard", label: "Console" },
     { href: "/keys", label: t("navKeys") },
     { href: "/billing", label: t("navBilling") },
     { href: "/monitor", label: t("navMonitor") },

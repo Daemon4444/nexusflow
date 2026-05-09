@@ -71,6 +71,7 @@ interface PlaygroundHistoryProps {
 export default function PlaygroundHistory({ onSelect, currentModel }: PlaygroundHistoryProps) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -82,10 +83,9 @@ export default function PlaygroundHistory({ onSelect, currentModel }: Playground
   }
 
   function handleClear() {
-    if (confirm("确定清除所有历史记录？")) {
-      clearHistory();
-      setHistory([]);
-    }
+    clearHistory();
+    setHistory([]);
+    setConfirmClear(false);
   }
 
   function handleDelete(id: string) {
@@ -173,7 +173,7 @@ export default function PlaygroundHistory({ onSelect, currentModel }: Playground
               最近对话
             </span>
             <button
-              onClick={handleClear}
+              onClick={() => setConfirmClear(true)}
               style={{
                 padding: "4px 10px",
                 borderRadius: 5,
@@ -188,6 +188,16 @@ export default function PlaygroundHistory({ onSelect, currentModel }: Playground
               清除全部
             </button>
           </div>
+
+          {confirmClear && (
+            <div style={{ padding: 10, border: "1px solid var(--danger-border)", background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, marginBottom: 10, fontSize: 12 }}>
+              <div style={{ marginBottom: 8 }}>确定清除所有历史记录？</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-danger" onClick={handleClear} style={{ padding: "4px 10px", fontSize: 11 }}>清除</button>
+                <button className="btn-secondary" onClick={() => setConfirmClear(false)} style={{ padding: "4px 10px", fontSize: 11 }}>取消</button>
+              </div>
+            </div>
+          )}
 
           {/* History list */}
           <div style={{

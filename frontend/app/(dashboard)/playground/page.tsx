@@ -8,6 +8,7 @@ import CostEstimate from "@/components/CostEstimate";
 import PlaygroundHistory, { saveToHistory, HistoryEntry } from "@/components/PlaygroundHistory";
 import PromptTemplates from "@/components/PromptTemplates";
 import ErrorSuggestion, { ApiError } from "@/components/ErrorSuggestion";
+import { pickDefaultPlaygroundModel } from "@/lib/models";
 
 interface AIModel {
   id: string;
@@ -325,6 +326,16 @@ function PlaygroundInner() {
     return authHeaders();
   }
 
+  function showInlineError(message: string) {
+    setLastError(message);
+    setMessages((p) => [...p, {
+      role: "assistant",
+      content: message,
+      type: "text",
+      status: "error",
+    }]);
+  }
+
   function formatUsageCost(promptTokens = 0, completionTokens = 0) {
     const model = models.find((item) => item.id === selectedModel);
     if (!model) return "以账单为准";
@@ -368,19 +379,7 @@ function PlaygroundInner() {
       const res = await fetchAPI("/api/models");
       if (res.success) {
         setModels(res.data);
-        const preferredIds = [
-          requestedModel,
-          "deepseek-v4-pro",
-          "qwen3.6-max-preview",
-          "qwen3.6-plus",
-          "deepseek-v4-flash",
-          "qwen3.5-plus",
-          "qwen3-max",
-          "qwen-plus",
-        ].filter(Boolean);
-        const preferred = preferredIds.find((id) => res.data.some((m: AIModel) => m.id === id));
-        const fallback = res.data.find((m: AIModel) => m.category === "大语言模型") || res.data[0];
-        setSelectedModel(preferred || fallback?.id || "");
+        setSelectedModel(pickDefaultPlaygroundModel(res.data, requestedModel));
       }
     }
     loadModels();
@@ -673,7 +672,7 @@ function PlaygroundInner() {
 
     // Check for uploading files
     if (uploadedFiles.some(f => f.uploading)) {
-      alert("文件上传中，请稍候");
+      showInlineError("文件还在上传中，请稍候再发起生成。");
       return;
     }
 
@@ -771,17 +770,17 @@ function PlaygroundInner() {
     const config = getUploadConfig(selectedModel);
 
     if (config.requiredImages && images.length === 0) {
-      alert("请上传所需图片");
+      showInlineError("当前模型需要先上传图片。请在输入框上方添加图片后再生成。");
       return;
     }
     if (config.requiredVideos && videos.length === 0) {
-      alert("请上传所需视频");
+      showInlineError("当前模型需要先上传视频。请在输入框上方添加视频后再生成。");
       return;
     }
 
     // Check for uploading files
     if (uploadedFiles.some(f => f.uploading)) {
-      alert("文件上传中，请稍候");
+      showInlineError("文件还在上传中，请稍候再发起生成。");
       return;
     }
 
@@ -1009,7 +1008,7 @@ function PlaygroundInner() {
     }
 
     if (toUpload.length === 0) {
-      if (errors.length > 0) alert(errors.join("\n"));
+      if (errors.length > 0) showInlineError(errors.join("\n"));
       return;
     }
 

@@ -5,13 +5,15 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { NexusflowLogo } from "@/components/QuadrantLogo";
 import { useEffect, useRef, useState } from "react";
+import { fetchAPI } from "@/lib/api";
+import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
 
-const modelRows = [
+const fallbackModelRows = [
   { model: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", context: "262K", price: "input ¥9 / output ¥54 per 1M" },
-  { model: "DeepSeek V4 Pro", provider: "DeepSeek", context: "1M", price: "input ¥12 / output ¥24 per 1M" },
+  { model: "DeepSeek V3.2", provider: "DeepSeek", context: "131K", price: "input ¥2 / output ¥3 per 1M" },
   { model: "GLM 5", provider: "Zhipu AI", context: "131K", price: "input ¥4 / output ¥18 per 1M" },
-  { model: "Kimi K2.6", provider: "Moonshot AI", context: "262K", price: "input ¥6.5 / output ¥27 per 1M" },
-  { model: "PixVerse V6", provider: "PixVerse", context: "Async video", price: "from ¥0.15 / second" },
+  { model: "Kimi K2.5", provider: "Moonshot AI", context: "131K", price: "input ¥4 / output ¥21 per 1M" },
+  { model: "PixVerse V4.5", provider: "PixVerse", context: "Async video", price: "from ¥0.15 / second" },
 ];
 
 const capabilities = [
@@ -40,7 +42,7 @@ const workflow = [
   "Track cost, latency, errors and rate limits in the console",
 ];
 
-const carouselModels = [
+const fallbackCarouselModels = [
   { name: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥9 · Out ¥54", badge: "Flagship", tone: "blue" },
   { name: "Qwen3 Max", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥2.5 · Out ¥10", badge: "Stable", tone: "blue" },
   { name: "Qwen Long", provider: "Tongyi Qianwen", ctx: "10M context", price: "In ¥0.5 · Out ¥2", badge: "Long", tone: "teal" },
@@ -49,24 +51,38 @@ const carouselModels = [
   { name: "Qwen3.5 Flash", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.2 · Out ¥2", badge: "Fast", tone: "teal" },
   { name: "Qwen VL Flash", provider: "Tongyi Qianwen", ctx: "262K vision", price: "In ¥0.15 · Out ¥1.5", badge: "Vision", tone: "violet" },
   { name: "Qwen Coder Flash", provider: "Tongyi Qianwen", ctx: "1M code", price: "In ¥1 · Out ¥4", badge: "Code", tone: "slate" },
-  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "1M context", price: "In ¥12 · Out ¥24", badge: "Reasoning", tone: "red" },
-  { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "1M context", price: "In ¥1 · Out ¥2", badge: "Fast", tone: "red" },
-  { name: "DeepSeek R1", provider: "DeepSeek", ctx: "64K context", price: "In ¥4 · Out ¥16", badge: "Reasoning", tone: "red" },
   { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },
-  { name: "GLM 5.1", provider: "Zhipu AI", ctx: "131K context", price: "In ¥6 · Out ¥24", badge: "Flagship", tone: "violet" },
+  { name: "DeepSeek R1", provider: "DeepSeek", ctx: "64K context", price: "In ¥4 · Out ¥16", badge: "Reasoning", tone: "red" },
   { name: "GLM 5", provider: "Zhipu AI", ctx: "131K context", price: "In ¥4 · Out ¥18", badge: "General", tone: "violet" },
-  { name: "Kimi K2.6", provider: "Moonshot AI", ctx: "262K context", price: "In ¥6.5 · Out ¥27", badge: "Long", tone: "teal" },
   { name: "Kimi K2.5", provider: "Moonshot AI", ctx: "131K context", price: "In ¥4 · Out ¥21", badge: "Writing", tone: "teal" },
-  { name: "MiniMax M2.5", provider: "MiniMax", ctx: "131K context", price: "In ¥2.1 · Out ¥8.4", badge: "Text", tone: "slate" },
   { name: "Text Embedding V4", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
-  { name: "Wan 2.6 Image", provider: "Tongyi Qianwen", ctx: "Image", price: "¥0.20/image", badge: "Image", tone: "orange" },
-  { name: "Wan 2.6 T2V", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.6/s", badge: "Video", tone: "orange" },
-  { name: "Wan 2.6 I2V Flash", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
-  { name: "PixVerse V6", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
+  { name: "Qwen Image Max", provider: "Tongyi Qianwen", ctx: "Image", price: "per image", badge: "Image", tone: "orange" },
+  { name: "PixVerse V4.5", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
   { name: "HappyHorse 1.0", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.9/s", badge: "Video", tone: "orange" },
 ];
 
-function CylinderCarousel({ items }: { items: typeof carouselModels }) {
+type CarouselModel = typeof fallbackCarouselModels[number];
+
+function toneForCategory(category: string): CarouselModel["tone"] {
+  if (category.includes("推理") || category.includes("DeepSeek")) return "red";
+  if (category.includes("多模态")) return "violet";
+  if (category.includes("图像") || category.includes("视频")) return "orange";
+  if (category.includes("编程") || category.includes("向量")) return "slate";
+  return "blue";
+}
+
+function modelToCarousel(model: ModelSummary): CarouselModel {
+  return {
+    name: model.name,
+    provider: model.provider,
+    ctx: model.pricingType === "per-second" ? "Async video" : `${formatContextLength(model.contextLength)} context`,
+    price: formatModelPrice(model),
+    badge: model.category.replace("模型", "") || "Model",
+    tone: toneForCategory(model.category),
+  };
+}
+
+function CylinderCarousel({ items }: { items: CarouselModel[] }) {
   const [offset, setOffset] = useState(0);
   const animRef = useRef<number>(0);
   const itemAngle = 360 / items.length;
@@ -144,6 +160,35 @@ function CylinderCarousel({ items }: { items: typeof carouselModels }) {
 export default function LandingPage() {
   const { user } = useAuth();
   const { t } = useI18n();
+  const [models, setModels] = useState<ModelSummary[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadModels() {
+      try {
+        const res = await fetchAPI("/api/models");
+        if (!cancelled && res.success) setModels(res.data || []);
+      } catch {
+        if (!cancelled) setModels([]);
+      }
+    }
+    loadModels();
+    return () => { cancelled = true; };
+  }, []);
+
+  const recommended = getRecommendedModels(models, 8);
+  const modelRows = recommended.length > 0
+    ? recommended.slice(0, 5).map((model) => ({
+        model: model.name,
+        provider: model.provider,
+        context: model.pricingType === "per-second" ? "Async video" : formatContextLength(model.contextLength),
+        price: formatModelPrice(model),
+      }))
+    : fallbackModelRows;
+  const carouselModels = recommended.length > 0
+    ? recommended.concat(models.filter((model) => !recommended.some((item) => item.id === model.id)).slice(0, 12)).map(modelToCarousel)
+    : fallbackCarouselModels;
+  const modelCount = models.length || 45;
 
   return (
     <main className="nf-site">
@@ -159,7 +204,7 @@ export default function LandingPage() {
         </div>
         <div className="nf-nav-actions">
           {user ? (
-            <Link href="/playground" className="nf-btn nf-btn-primary">Open Console</Link>
+            <Link href="/dashboard" className="nf-btn nf-btn-primary">Open Console</Link>
           ) : (
             <>
               <Link href="/login" className="nf-btn nf-btn-secondary">Log in</Link>
@@ -171,21 +216,21 @@ export default function LandingPage() {
 
       <section className="nf-hero">
         <div className="nf-hero-copy">
-          <div className="nf-eyebrow">Production AI infrastructure for builders</div>
+          <div className="nf-eyebrow">To choose the model, or to become the route</div>
           <h1>NexusFlow</h1>
           <p className="nf-hero-lead">
-            One API for leading text, vision, image and video models.
+            Between question and answer, there is always a path. NexusFlow turns that uncertainty into one deliberate API for text, vision, image and video intelligence.
           </p>
           <div className="nf-hero-actions">
-            <Link href={user ? "/playground" : "/login"} className="nf-btn nf-btn-primary nf-btn-lg">
-              {user ? "Open Playground" : "Get API access"}
+            <Link href={user ? "/dashboard" : "/login"} className="nf-btn nf-btn-primary nf-btn-lg">
+              {user ? "Open Console" : "Get API access"}
             </Link>
             <Link href="/docs/quickstart" className="nf-btn nf-btn-secondary nf-btn-lg">
               Read quickstart
             </Link>
           </div>
           <div className="nf-hero-metrics">
-            <div><strong>45+</strong><span>model options</span></div>
+            <div><strong>{modelCount}+</strong><span>model options</span></div>
             <div><strong>¥0.15/s</strong><span>video from</span></div>
             <div><strong>VBench #1</strong><span>HappyHorse video</span></div>
           </div>
@@ -199,8 +244,8 @@ export default function LandingPage() {
       <section className="nf-section nf-section-tight">
         <div className="nf-section-head">
           <span>Model access</span>
-          <h2>One account for the model stack</h2>
-          <p>Route requests across chat, reasoning, long-context, image and video models without multiplying accounts, keys and invoices.</p>
+          <h2>Every request begins as a choice</h2>
+          <p>Route requests across chat, reasoning, long-context, image and video models without multiplying accounts, keys and invoices. The catalog below is loaded from the live model API.</p>
         </div>
         <div className="nf-model-table">
           {modelRows.map((row) => (
@@ -232,7 +277,7 @@ export default function LandingPage() {
       <section className="nf-workflow">
         <div>
           <span className="nf-eyebrow">Developer workflow</span>
-          <h2>From first key to production traffic</h2>
+          <h2>Give the question a path to follow</h2>
         </div>
         <ol>
           {workflow.map((item) => <li key={item}>{item}</li>)}
@@ -241,8 +286,11 @@ export default function LandingPage() {
 
       <section className="nf-final">
         <div>
-          <h2>Validate in Playground. Ship through the API.</h2>
-          <p>Use the same model names, keys and billing from testing to production.</p>
+          <h2 className="nf-final-slogan">
+            <span>Not all answers are equal.</span>
+            <span>Choose the route before the reply.</span>
+          </h2>
+          <p>Validate in Playground, then ship through the same model names, keys and billing path in production.</p>
         </div>
         <Link href={user ? "/keys" : "/login"} className="nf-btn nf-btn-primary nf-btn-lg">
           {user ? "Create API key" : "Create account"}

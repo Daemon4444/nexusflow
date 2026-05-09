@@ -6,6 +6,11 @@ import { I18nProvider } from "@/lib/i18n";
 export const metadata: Metadata = {
   title: "nexusflow - Unified AI Model Gateway",
   description: "Unified AI model aggregation platform with OpenAI-compatible API",
+  metadataBase: new URL("https://nexusflow.hk"),
+  alternates: {
+    canonical: "/",
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

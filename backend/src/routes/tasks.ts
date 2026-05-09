@@ -416,29 +416,40 @@ router.get("/", async (req: Request, res: Response) => {
   const token = extractToken(req);
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
 
-  if (token) {
-    const apiKeyRecord = await validateApiKey(token);
-    if (apiKeyRecord?.user_id) {
-      const tasks = await getTasksByUser(apiKeyRecord.user_id, limit);
-      res.json({
-        object: "list",
-        data: tasks.map((t) => ({
-          id: t.id,
-          object: "task",
-          status: t.status,
-          model: t.model,
-          type: t.type,
-          progress: t.progress,
-          created_at: t.created_at,
-          completed_at: t.completed_at,
-        })),
-      });
-      return;
-    }
+  if (!token) {
+    res.status(401).json({
+      error: { message: "Missing API key", type: "invalid_request_error", code: "missing_api_key" },
+    });
+    return;
   }
 
-  // No auth or no user - return empty list
-  res.json({ object: "list", data: [] });
+  const apiKeyRecord = await validateApiKey(token);
+  if (!apiKeyRecord) {
+    res.status(401).json({
+      error: { message: "Invalid API key", type: "invalid_request_error", code: "invalid_api_key" },
+    });
+    return;
+  }
+
+  if (!apiKeyRecord.user_id) {
+    res.json({ object: "list", data: [] });
+    return;
+  }
+
+  const tasks = await getTasksByUser(apiKeyRecord.user_id, limit);
+  res.json({
+    object: "list",
+    data: tasks.map((t) => ({
+      id: t.id,
+      object: "task",
+      status: t.status,
+      model: t.model,
+      type: t.type,
+      progress: t.progress,
+      created_at: t.created_at,
+      completed_at: t.completed_at,
+    })),
+  });
 });
 
 export default router;

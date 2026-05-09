@@ -6,6 +6,7 @@ import { authHeaders } from "@/lib/auth";
 import UserLayout from "@/components/UserLayout";
 import { useI18n } from "@/lib/i18n";
 import { formatCny, formatCnyPrecise } from "@/lib/money";
+import { EmptyState, ErrorState, LoadingState } from "@/components/AppState";
 
 interface UsageData {
   overview: {
@@ -38,33 +39,37 @@ export default function ActivityPage() {
   const { t } = useI18n();
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const headers = authHeaders();
-        const [ovRes, dayRes, modelRes, recentRes] = await Promise.all([
-          fetchAPI("/api/usage/overview", { headers }),
-          fetchAPI("/api/usage/daily", { headers }),
-          fetchAPI("/api/usage/by-model", { headers }),
-          fetchAPI("/api/usage/recent", { headers }),
-        ]);
-        if (ovRes.success && dayRes.success && modelRes.success && recentRes.success) {
-          setData({
-            overview: ovRes.data,
-            daily: dayRes.data,
-            byModel: modelRes.data,
-            recent: recentRes.data,
-          });
-        }
-      } catch {
-        console.error("Failed to load activity data");
-      } finally {
-        setLoading(false);
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const headers = authHeaders();
+      const [ovRes, dayRes, modelRes, recentRes] = await Promise.all([
+        fetchAPI("/api/usage/overview", { headers }),
+        fetchAPI("/api/usage/daily", { headers }),
+        fetchAPI("/api/usage/by-model", { headers }),
+        fetchAPI("/api/usage/recent", { headers }),
+      ]);
+      if (ovRes.success && dayRes.success && modelRes.success && recentRes.success) {
+        setData({
+          overview: ovRes.data,
+          daily: dayRes.data,
+          byModel: modelRes.data,
+          recent: recentRes.data,
+        });
+      } else {
+        setError(ovRes.message || dayRes.message || modelRes.message || recentRes.message || "用量数据加载失败");
       }
+    } catch {
+      setError("无法连接用量服务，请稍后重试");
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, []);
+  }
 
   const barColors = ["#111", "#333", "#555", "#777", "#999", "#bbb", "#ddd"];
 
@@ -82,9 +87,11 @@ export default function ActivityPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--text-tertiary)" }}>{t("loading")}</div>
+        <LoadingState title={t("loading")} />
+      ) : error ? (
+        <ErrorState title={t("failedLoad")} message={error} onAction={load} />
       ) : !data ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--text-tertiary)" }}>{t("failedLoad")}</div>
+        <EmptyState title="暂无用量数据" />
       ) : (
         <>
           {/* Overview Metrics */}
