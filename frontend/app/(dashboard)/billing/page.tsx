@@ -235,32 +235,8 @@ export default function BillingPage() {
               </div>
             )}
             {payMethod === "alipay" && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 8 }}>支付宝支付方式</label>
-                <div style={{ display: "flex", gap: 10 }}>
-                  {[
-                    { key: "page" as AlipayMode, label: "网页支付", desc: "跳转支付宝收银台" },
-                    { key: "qr" as AlipayMode, label: "扫码支付", desc: "生成二维码，手机支付宝扫码" },
-                  ].map((m) => (
-                    <button
-                      key={m.key}
-                      onClick={() => setAlipayMode(m.key)}
-                      style={{
-                        flex: 1,
-                        padding: "10px 12px",
-                        borderRadius: 8,
-                        border: alipayMode === m.key ? "2px solid #111" : "1px solid var(--border)",
-                        background: alipayMode === m.key ? "rgba(0,0,0,0.02)" : "var(--bg-card)",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{m.label}</div>
-                      <div style={{ marginTop: 2, fontSize: 11, color: "var(--text-tertiary)" }}>{m.desc}</div>
-                    </button>
-                  ))}
-                </div>
+              <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                💳 点击充值后将跳转到支付宝页面完成支付
               </div>
             )}
             <button className="btn-primary" onClick={handleRecharge} disabled={recharging || !rechargeAmount || pollOrderId !== null} style={{ padding: "9px 24px", fontSize: 13 }}>
@@ -273,17 +249,6 @@ export default function BillingPage() {
             )}
             {payMethod === "mock" && (
               <div style={{ marginTop: 12, fontSize: 11.5, color: "var(--text-tertiary)", padding: "8px 12px", background: "var(--bg-elevated)", borderRadius: 6 }}>{t("testModeNote")}</div>
-            )}
-            {payMethod === "alipay" && alipayMode === "qr" && qrCode && (
-              <div style={{ marginTop: 14, padding: 14, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>请使用支付宝扫码完成支付</div>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrCode)}`}
-                  alt="Alipay QR Code"
-                  style={{ width: 220, height: 220, borderRadius: 8, border: "1px solid var(--border)", background: "#fff" }}
-                />
-                <div style={{ marginTop: 8, fontSize: 11, color: "var(--text-tertiary)", wordBreak: "break-all" }}>{qrCode}</div>
-              </div>
             )}
           </div>
         </div>
