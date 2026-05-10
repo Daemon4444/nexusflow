@@ -44,6 +44,7 @@ export default function BillingPage() {
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfigStatus | null>(null);
   const [alipayMode, setAlipayMode] = useState<AlipayMode>("page");
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [paymentFormHtml, setPaymentFormHtml] = useState<string | null>(null);
   const [firstApiKey, setFirstApiKey] = useState<ApiKeyInfo | null>(null);
   const missingConfigKeys = Array.isArray(paymentConfig?.missing) ? paymentConfig!.missing : [];
   const { shouldShow: showOnboarding, markCompleted } = useOnboarding();
@@ -102,7 +103,7 @@ export default function BillingPage() {
     const amount = parseFloat(rechargeAmount);
     if (!amount || amount <= 0) { setRechargeMsg({ type: "error", text: t("invalidAmount") }); return; }
     if (amount > 10000) { setRechargeMsg({ type: "error", text: t("maxAmount") }); return; }
-    setRecharging(true); setRechargeMsg(null); setQrCode(null);
+    setRecharging(true); setRechargeMsg(null); setQrCode(null); setPaymentFormHtml(null);
     try {
       const body: any = { amount };
       if (payMethod === "alipay") body.method = alipayMode;
@@ -116,14 +117,9 @@ export default function BillingPage() {
         } else if (res.data?.paymentForm || res.data?.payUrl) {
           const orderNo = res.data.orderNo || res.data.orderId;
           const paymentForm = res.data.paymentForm || res.data.payUrl;
-          const payWindow = window.open("", "_blank");
-          if (payWindow && paymentForm) {
-            payWindow.document.write(paymentForm);
-            payWindow.document.close();
-          } else if (paymentForm) {
-            window.open(paymentForm, "_blank");
-          }
           if (orderNo) setPollOrderId(orderNo);
+          // 直接渲染表单并自动提交，解决手机端弹出窗口被阻止的问题
+          setPaymentFormHtml(paymentForm);
           setRechargeMsg({ type: "success", text: t("payPageOpened") });
         } else {
           setRechargeMsg({ type: "success", text: res.message || t("topUpSuccess") });
@@ -134,6 +130,16 @@ export default function BillingPage() {
     } catch { setRechargeMsg({ type: "error", text: t("networkError") }); }
     finally { setRecharging(false); }
   }
+
+  // 支付表单渲染后自动提交
+  useEffect(() => {
+    if (paymentFormHtml) {
+      const form = document.querySelector("#alipay-submit-form form") as HTMLFormElement | null;
+      if (form) {
+        form.submit();
+      }
+    }
+  }, [paymentFormHtml]);
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", {
@@ -304,6 +310,13 @@ export default function BillingPage() {
               )}
             </>
           )}
+        </div>
+      )}
+      {/* 支付宝表单自动提交容器 */}
+      {paymentFormHtml && (
+        <div id="alipay-submit-form" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 9999, background: "#fff" }}>
+          <div style={{ textAlign: "center", padding: 40, color: "#666" }}>正在跳转到支付宝...</div>
+          <div dangerouslySetInnerHTML={{ __html: paymentFormHtml }} />
         </div>
       )}
     </UserLayout>
