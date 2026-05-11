@@ -30,7 +30,8 @@ import {
   pollDashScopeTask,
   pollPixVerseTask,
 } from "../services/adapters";
-import { checkConsumerLimits, recordRequest } from "../services/rate-limiter";
+import { checkConsumerLimits, checkRPM, recordRequest } from "../services/rate-limiter";
+import { getEffectiveRateLimit } from "../data/ratelimits";
 import { getPixVerseRuntimeChannel, getPixVerseTaskChannel } from "../services/pixverse-channel";
 import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
 
@@ -102,6 +103,21 @@ router.post("/", async (req: Request, res: Response) => {
       error: { message: `Model '${modelId}' not found`, type: "invalid_request_error", code: "model_not_found" },
     });
     return;
+  }
+
+  if (apiKeyRecord.user_id) {
+    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
+    const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
+    if (!rpmCheck.allowed) {
+      res.status(429).json({
+        error: {
+          message: `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`,
+          type: "rate_limit_error",
+          code: "rate_limit_exceeded",
+        },
+      });
+      return;
+    }
   }
 
   const modelType = detectModelType(model.category);

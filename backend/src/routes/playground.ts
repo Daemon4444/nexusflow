@@ -7,7 +7,7 @@ import { calculateDiscountedTokenCost } from "../data/user-discounts";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
-import { checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
+import { checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 
 const router = Router();
@@ -35,6 +35,12 @@ async function estimateChatMaxCost(userId: string, model: any, messages: unknown
   const promptTokens = Math.max(1, roughTokenCount(messages));
   const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
   return (await calculateDiscountedTokenCost(userId, model, promptTokens, completionTokens)).finalAmount;
+}
+
+function estimateChatTokens(model: any, messages: unknown[], maxTokens?: number): number {
+  const promptTokens = Math.max(1, roughTokenCount(messages));
+  const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  return promptTokens + completionTokens;
 }
 
 function parseSseUsage(payload: string): { prompt_tokens: number; completion_tokens: number; total_tokens: number } {
@@ -126,6 +132,18 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     );
     return;
   }
+  const estimatedTokens = estimateChatTokens(model, messages, max_tokens);
+  const tpmCheck = await checkTPM(`user:${session.id}:${modelId}`, userLimits.tpm, estimatedTokens);
+  if (!tpmCheck.allowed) {
+    openAiError(
+      res,
+      429,
+      `Model-level TPM limit exceeded: ${userLimits.tpm} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`,
+      "rate_limit_exceeded",
+      "rate_limit_error"
+    );
+    return;
+  }
 
   const estimatedChatCost = await estimateChatMaxCost(session.id, model, messages, max_tokens);
   if (!await hasSufficientBalance(session.id, estimatedChatCost)) {
@@ -166,7 +184,6 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   const startTime = Date.now();
   const refId = `playground:${session.id}`;
   recordRequest(provider.id, modelId, refId, 0);
-  await recordRequestAsync(`user:${session.id}:${modelId}`);
 
   try {
     const response = await fetch(`${provider.baseUrl}/chat/completions`, {
@@ -248,6 +265,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
+      await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
       if (totalCost > 0) await consume(session.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
       return;
     }
@@ -279,6 +297,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
+    await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
     if (totalCost > 0) await consume(session.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
 
     res.setHeader("X-RateLimit-Remaining", rpmCheck.remaining.toString());

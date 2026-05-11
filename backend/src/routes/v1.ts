@@ -13,7 +13,7 @@ import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
-import { checkConsumerLimits, checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
+import { checkConsumerLimits, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType, adaptImageRequest, pollDashScopeTask } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
@@ -108,6 +108,12 @@ function roughTokenCount(value: unknown): number {
   return Math.ceil(String(value).length / 2);
 }
 
+function estimateChatTokens(model: any, messages: unknown[], maxTokens?: number): number {
+  const promptTokens = Math.max(1, roughTokenCount(messages));
+  const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  return promptTokens + completionTokens;
+}
+
 async function estimateChatMaxCost(userId: string | null | undefined, model: any, messages: unknown[], maxTokens?: number): Promise<number> {
   const promptTokens = Math.max(1, roughTokenCount(messages));
   const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
@@ -125,6 +131,16 @@ function rejectInsufficientBalance(res: Response): void {
       message: "Insufficient balance for estimated maximum cost. Please recharge your account or lower max_tokens.",
       type: "billing_error",
       code: "insufficient_balance",
+    },
+  });
+}
+
+function rejectUserRateLimit(res: Response, message: string): void {
+  res.status(429).json({
+    error: {
+      message,
+      type: "rate_limit_error",
+      code: "rate_limit_exceeded",
     },
   });
 }
@@ -274,6 +290,14 @@ router.post("/images/generations", async (req: Request, res: Response) => {
   }
 
   const apiKeyRecord = (await validateApiKey(token))!;
+  if (apiKeyRecord.user_id) {
+    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
+    const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
+    if (!rpmCheck.allowed) {
+      rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`);
+      return;
+    }
+  }
   const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
     res.status(429).json({
@@ -541,18 +565,19 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   const apiKeyRecord = (await validateApiKey(token))!;
 
+  const estimatedChatTokens = apiKeyRecord.user_id ? estimateChatTokens(model, messages, max_tokens) : 0;
+
   // Per-model user-level rate limit check
   if (apiKeyRecord.user_id) {
     const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
     const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
     if (!rpmCheck.allowed) {
-      res.status(429).json({
-        error: {
-          message: `Model-level rate limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s. Submit a ticket to request higher limits.`,
-          type: "rate_limit_error",
-          code: "rate_limit_exceeded",
-        },
-      });
+      rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`);
+      return;
+    }
+    const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, estimatedChatTokens);
+    if (!tpmCheck.allowed) {
+      rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${userLimits.tpm} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`);
       return;
     }
   }
@@ -613,9 +638,6 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   // Record rate limits
   recordRequest(provider.id, modelId, apiKeyRecord.id, 0);
-  if (apiKeyRecord.user_id) {
-    await recordRequestAsync(`user:${apiKeyRecord.user_id}:${modelId}`);
-  }
 
   try {
     // Streaming
@@ -723,6 +745,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs,
       });
       recordProviderTokens(provider.id, modelId, streamTokens.total_tokens || 0);
+      if (apiKeyRecord.user_id) {
+        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
+      }
 
       if (apiKeyRecord.user_id && totalCost > 0) {
         await consume(
@@ -793,6 +818,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
+      if (apiKeyRecord.user_id) {
+        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
+      }
 
       if (apiKeyRecord.user_id && totalCost > 0) {
         await consume(
@@ -849,6 +877,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
+    if (apiKeyRecord.user_id) {
+      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
+    }
 
     // Auto-billing
     if (apiKeyRecord.user_id && totalCost > 0) {
@@ -966,6 +997,22 @@ router.post("/embeddings", async (req: Request, res: Response) => {
 
   const apiKeyRecord = (await validateApiKey(token))!;
 
+  const estimatedEmbeddingTokens = apiKeyRecord.user_id ? Math.max(1, roughTokenCount(input)) : 0;
+
+  if (apiKeyRecord.user_id) {
+    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
+    const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
+    if (!rpmCheck.allowed) {
+      rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`);
+      return;
+    }
+    const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, estimatedEmbeddingTokens);
+    if (!tpmCheck.allowed) {
+      rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${userLimits.tpm} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`);
+      return;
+    }
+  }
+
   // Rate limit check
   const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
@@ -1033,6 +1080,9 @@ router.post("/embeddings", async (req: Request, res: Response) => {
       latencyMs,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
+    if (apiKeyRecord.user_id) {
+      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedEmbeddingTokens, usage.total_tokens || 0);
+    }
 
     if (apiKeyRecord.user_id && cost > 0) {
       await consume(

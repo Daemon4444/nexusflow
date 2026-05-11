@@ -22,6 +22,8 @@ import {
 } from "../data/tasks";
 import { adaptImageRequest, pollDashScopeTask } from "../services/adapters";
 import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
+import { getEffectiveRateLimit } from "../data/ratelimits";
+import { checkRPM } from "../services/rate-limiter";
 
 const router = Router();
 
@@ -111,6 +113,15 @@ router.post("/generate", async (req: Request, res: Response) => {
   if (!model || model.category !== "图像生成") {
     res.status(404).json({ success: false, message: "图像生成模型不存在" });
     return;
+  }
+
+  if (caller.userId) {
+    const userLimits = await getEffectiveRateLimit(caller.userId, modelId);
+    const rpmCheck = await checkRPM(`user:${caller.userId}:${modelId}`, userLimits.qpm);
+    if (!rpmCheck.allowed) {
+      res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${userLimits.qpm}/min，请 ${Math.ceil(rpmCheck.resetMs / 1000)} 秒后重试` });
+      return;
+    }
   }
 
   const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { n });

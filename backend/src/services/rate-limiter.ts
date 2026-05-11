@@ -10,7 +10,7 @@
  * 2. Consumer-level: RPM per API key
  */
 
-import { checkRateLimitRedis, checkTPMLimitRedis, getRedis } from "./redis";
+import { adjustTPMUsageRedis, checkRateLimitRedis, checkTPMLimitRedis, getRedis } from "./redis";
 
 // ============================================================
 // 配置
@@ -79,7 +79,12 @@ class SlidingWindowLimiter {
     const totalTokens = bucket.entries.reduce((sum, e) => sum + e.tokens, 0);
     const remaining = Math.max(0, limit - totalTokens);
 
-    return { allowed: totalTokens + estimatedTokens <= limit, remaining };
+    if (totalTokens + estimatedTokens > limit) {
+      return { allowed: false, remaining };
+    }
+
+    bucket.entries.push({ timestamp: Date.now(), tokens: Math.max(0, Math.ceil(estimatedTokens)) });
+    return { allowed: true, remaining: Math.max(0, limit - totalTokens - estimatedTokens) };
   }
 
   recordRequest(key: string): void {
@@ -90,6 +95,28 @@ class SlidingWindowLimiter {
   recordTokens(key: string, tokens: number): void {
     const bucket = this.getBucket(`tpm:${key}`, 60_000);
     bucket.entries.push({ timestamp: Date.now(), tokens });
+  }
+
+  adjustTokens(key: string, deltaTokens: number): void {
+    const delta = Math.ceil(deltaTokens);
+    if (delta === 0) return;
+
+    const bucket = this.getBucket(`tpm:${key}`, 60_000);
+    this.trimWindow(bucket);
+
+    if (delta > 0) {
+      bucket.entries.push({ timestamp: Date.now(), tokens: delta });
+      return;
+    }
+
+    let remainingToRemove = Math.abs(delta);
+    for (let index = bucket.entries.length - 1; index >= 0 && remainingToRemove > 0; index--) {
+      const entry = bucket.entries[index];
+      const remove = Math.min(entry.tokens, remainingToRemove);
+      entry.tokens -= remove;
+      remainingToRemove -= remove;
+    }
+    bucket.entries = bucket.entries.filter((entry) => entry.tokens > 0);
   }
 
   getStats(key: string): { rpm: number; tpm: number } {
@@ -207,6 +234,31 @@ export async function recordTokensAsync(key: string, tokens: number): Promise<vo
 
   // 内存模式
   memoryConsumerLimiter.recordTokens(key, tokens);
+}
+
+/**
+ * 结算 TPM 预占差额。checkTPM 已经预占 estimatedTokens；实际 usage 返回后，
+ * 只补扣或返还差额，避免生产 Redis 模式下重复计数。
+ */
+export async function reconcileTokensAsync(
+  key: string,
+  reservedTokens: number,
+  actualTokens: number,
+  windowMs: number = 60000
+): Promise<void> {
+  const delta = Math.ceil(Math.max(0, actualTokens) - Math.max(0, reservedTokens));
+  if (delta === 0) return;
+
+  if (USE_REDIS) {
+    try {
+      await adjustTPMUsageRedis(`tpm:${key}`, delta, windowMs);
+      return;
+    } catch {
+      console.warn("[RateLimiter] Redis 失败，降级到内存模式");
+    }
+  }
+
+  memoryConsumerLimiter.adjustTokens(key, delta);
 }
 
 // ============================================================
@@ -381,6 +433,7 @@ export default {
   checkTPM,
   checkProviderLimitsAsync,
   checkConsumerLimitsAsync,
+  reconcileTokensAsync,
   recordRequestFullAsync,
   getProviderUsageStatsAsync,
   // 同步接口（兼容）

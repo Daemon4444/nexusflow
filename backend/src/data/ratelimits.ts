@@ -141,4 +141,8 @@ export async function setUserRateLimit(userId: string, model: string, qpm: numbe
   }
 }
 
+export async function deleteUserRateLimit(userId: string, model: string): Promise<boolean> {
+  return (await db.execute("DELETE FROM user_rate_limits WHERE user_id = ? AND model = ?", [userId, model])) > 0;
+}
+
 export { DEFAULT_QPM, DEFAULT_TPM };

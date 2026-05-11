@@ -13,7 +13,7 @@ import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
-import { checkConsumerLimits, checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
+import { checkConsumerLimits, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
@@ -221,6 +221,12 @@ async function estimateMessageMaxCost(userId: string | null | undefined, model: 
   return (await calculateDiscountedTokenCost(userId, model, promptTokens, completionTokens)).finalAmount;
 }
 
+function estimateMessageTokens(model: any, body: any): number {
+  const promptTokens = Math.max(1, roughTokenCount(body.system) + roughTokenCount(body.messages));
+  const completionTokens = Math.max(1, Math.min(Number(body.max_tokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  return promptTokens + completionTokens;
+}
+
 function rejectInsufficientBalance(res: Response): void {
   res.status(402).json({
     type: "error",
@@ -331,6 +337,8 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
+  const reservedMessageTokens = apiKeyRecord.user_id ? estimateMessageTokens(model, req.body) : 0;
+
   // Per-model rate limit
   if (apiKeyRecord.user_id) {
     const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
@@ -340,7 +348,18 @@ router.post("/", async (req: Request, res: Response) => {
         type: "error",
         error: {
           type: "rate_limit_error",
-          message: `Rate limit exceeded for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`,
+          message: `Model-level QPM limit exceeded for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`,
+        },
+      });
+      return;
+    }
+    const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, reservedMessageTokens);
+    if (!tpmCheck.allowed) {
+      res.status(429).json({
+        type: "error",
+        error: {
+          type: "rate_limit_error",
+          message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`,
         },
       });
       return;
@@ -367,9 +386,6 @@ router.post("/", async (req: Request, res: Response) => {
 
   const startTime = Date.now();
   recordRequest(provider.id, modelId, apiKeyRecord.id, 0);
-  if (apiKeyRecord.user_id) {
-    await recordRequestAsync(`user:${apiKeyRecord.user_id}:${modelId}`);
-  }
 
   if (provider.id === "anthropic") {
     try {
@@ -476,6 +492,9 @@ router.post("/", async (req: Request, res: Response) => {
           tpotMs,
         });
         recordProviderTokens(provider.id, modelId, totalTokens);
+        if (apiKeyRecord.user_id) {
+          await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
+        }
 
         if (apiKeyRecord.user_id && totalCost > 0) {
           await consume(
@@ -509,6 +528,9 @@ router.post("/", async (req: Request, res: Response) => {
         latencyMs: Date.now() - startTime,
       });
       recordProviderTokens(provider.id, modelId, totalTokens);
+      if (apiKeyRecord.user_id) {
+        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
+      }
 
       if (apiKeyRecord.user_id && totalCost > 0) {
         await consume(
@@ -732,6 +754,9 @@ router.post("/", async (req: Request, res: Response) => {
         tpotMs,
       });
       recordProviderTokens(provider.id, modelId, inputTokens + outputTokens);
+      if (apiKeyRecord.user_id) {
+        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, inputTokens + outputTokens);
+      }
 
       if (apiKeyRecord.user_id && totalCost > 0) {
         await consume(
@@ -788,6 +813,9 @@ router.post("/", async (req: Request, res: Response) => {
       latencyMs,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
+    if (apiKeyRecord.user_id) {
+      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, usage.total_tokens || 0);
+    }
 
     if (apiKeyRecord.user_id && totalCost > 0) {
       await consume(

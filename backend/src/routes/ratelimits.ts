@@ -2,10 +2,12 @@ import { Router, Request, Response } from "express";
 import { validateSession } from "../data/users";
 import {
   approveRateLimitRequest,
+  deleteUserRateLimit,
   getAdminRateLimitRequests,
   getEffectiveRateLimit,
   getUserLimitsOverview,
   rejectRateLimitRequest,
+  setUserRateLimit,
   submitRateLimitRequest,
 } from "../data/ratelimits";
 import { requireAdmin, getSessionUser } from "../middleware/admin";
@@ -92,6 +94,34 @@ router.get("/admin/requests", requireAdmin, async (req: Request, res: Response) 
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
   const requests = await getAdminRateLimitRequests(status);
   res.json({ success: true, data: requests });
+});
+
+/** PUT /api/rate-limits/admin/users/:userId/models/:model — Directly set a user's model limits */
+router.put("/admin/users/:userId/models/:model", requireAdmin, async (req: Request, res: Response) => {
+  const userId = String(req.params.userId);
+  const model = String(req.params.model || "*");
+  const qpm = Number(req.body?.qpm);
+  const tpm = Number(req.body?.tpm);
+  if (!Number.isFinite(qpm) || qpm <= 0) {
+    res.status(400).json({ success: false, message: "qpm 必须是大于 0 的数字" });
+    return;
+  }
+  if (!Number.isFinite(tpm) || tpm <= 0) {
+    res.status(400).json({ success: false, message: "tpm 必须是大于 0 的数字" });
+    return;
+  }
+  await setUserRateLimit(userId, model, Math.round(qpm), Math.round(tpm), "admin");
+  res.json({
+    success: true,
+    data: await getEffectiveRateLimit(userId, model),
+    message: "用户模型限流已更新",
+  });
+});
+
+/** DELETE /api/rate-limits/admin/users/:userId/models/:model — Remove a direct user/model limit */
+router.delete("/admin/users/:userId/models/:model", requireAdmin, async (req: Request, res: Response) => {
+  const ok = await deleteUserRateLimit(String(req.params.userId), String(req.params.model || "*"));
+  res.json({ success: ok, message: ok ? "用户模型限流已删除" : "限流规则不存在" });
 });
 
 /** POST /api/rate-limits/admin/requests/:id/approve — Approve request */

@@ -76,42 +76,53 @@ export async function checkRateLimitRedis(
   const client = getRedis();
   const now = Date.now();
   const windowStart = now - windowMs;
+  const member = `${now}-${Math.random().toString(36).slice(2)}`;
+  const windowSeconds = Math.ceil(windowMs / 1000) + 1;
+  const result = await client.eval(
+    `
+      local key = KEYS[1]
+      local limit = tonumber(ARGV[1])
+      local now = tonumber(ARGV[2])
+      local windowStart = tonumber(ARGV[3])
+      local windowMs = tonumber(ARGV[4])
+      local member = ARGV[5]
+      local windowSeconds = tonumber(ARGV[6])
 
-  // 移除过期条目
-  await client.zremrangebyscore(key, 0, windowStart);
+      redis.call("ZREMRANGEBYSCORE", key, 0, windowStart)
+      local count = redis.call("ZCARD", key)
+      if count >= limit then
+        local oldest = redis.call("ZRANGE", key, 0, 0, "WITHSCORES")
+        local resetMs = windowMs
+        if #oldest >= 2 then
+          resetMs = math.max(0, tonumber(oldest[2]) + windowMs - now)
+        end
+        return {0, 0, resetMs}
+      end
 
-  // 获取当前窗口内的请求计数
-  const count = await client.zcard(key);
-
-  if (count >= limit) {
-    // 获取最早的请求时间，计算重置时间
-    const oldest = await client.zrange(key, 0, 0, "WITHSCORES");
-    const resetMs = oldest.length > 0
-      ? parseInt(oldest[1]) + windowMs - now
-      : windowMs;
-
-    return {
-      allowed: false,
-      remaining: 0,
-      resetMs,
-    };
-  }
-
-  // 添加当前请求
-  await client.zadd(key, now, `${now}-${Math.random().toString(36).slice(2)}`);
-
-  // 设置键过期时间
-  await client.expire(key, Math.ceil(windowMs / 1000) + 1);
+      redis.call("ZADD", key, now, member)
+      redis.call("EXPIRE", key, windowSeconds)
+      return {1, math.max(0, limit - count - 1), windowMs}
+    `,
+    1,
+    key,
+    limit,
+    now,
+    windowStart,
+    windowMs,
+    member,
+    windowSeconds
+  ) as [number, number, number];
 
   return {
-    allowed: true,
-    remaining: limit - count - 1,
-    resetMs: windowMs,
+    allowed: result[0] === 1,
+    remaining: result[1],
+    resetMs: result[2],
   };
 }
 
 /**
- * 检查 TPM (Token Per Minute) 限制
+ * 检查并预占 TPM (Token Per Minute) 限制。
+ * 使用 Lua 保证在多实例并发下“读取当前值 + 判断 + 增量预占”是原子操作。
  */
 export async function checkTPMLimitRedis(
   key: string,
@@ -120,33 +131,78 @@ export async function checkTPMLimitRedis(
   windowMs: number = 60000
 ): Promise<{ allowed: boolean; remaining: number }> {
   const client = getRedis();
-  const now = Date.now();
-  const windowStart = now - windowMs;
+  const windowSeconds = Math.ceil(windowMs / 1000) + 1;
+  const tokens = Math.max(0, Math.ceil(estimatedTokens));
+  const result = await client.eval(
+    `
+      local key = KEYS[1]
+      local limit = tonumber(ARGV[1])
+      local tokens = tonumber(ARGV[2])
+      local windowSeconds = tonumber(ARGV[3])
+      local current = tonumber(redis.call("GET", key) or "0")
 
-  // 获取当前 token 总数
-  const totalTokens = await client.get(key) || "0";
-  const currentTokens = parseInt(totalTokens);
+      if current + tokens > limit then
+        return {0, math.max(0, limit - current)}
+      end
 
-  // 检查过期并重置
-  const ttl = await client.ttl(key);
-  if (ttl <= 0) {
-    await client.set(key, "0", "EX", Math.ceil(windowMs / 1000));
-  }
+      local nextValue = redis.call("INCRBY", key, tokens)
+      local ttl = redis.call("TTL", key)
+      if ttl < 0 then
+        redis.call("EXPIRE", key, windowSeconds)
+      end
 
-  if (currentTokens + estimatedTokens > limit) {
-    return {
-      allowed: false,
-      remaining: Math.max(0, limit - currentTokens),
-    };
-  }
-
-  // 增加 token 计数
-  await client.incrby(key, estimatedTokens);
+      return {1, math.max(0, limit - nextValue)}
+    `,
+    1,
+    key,
+    limit,
+    tokens,
+    windowSeconds
+  ) as [number, number];
 
   return {
-    allowed: true,
-    remaining: limit - currentTokens - estimatedTokens,
+    allowed: result[0] === 1,
+    remaining: result[1],
   };
+}
+
+/**
+ * 调整已预占的 TPM token。实际消耗返回后，用 actual - reserved 做差额结算。
+ */
+export async function adjustTPMUsageRedis(
+  key: string,
+  deltaTokens: number,
+  windowMs: number = 60000
+): Promise<void> {
+  const delta = Math.ceil(deltaTokens);
+  if (delta === 0) return;
+
+  const client = getRedis();
+  const windowSeconds = Math.ceil(windowMs / 1000) + 1;
+  await client.eval(
+    `
+      local key = KEYS[1]
+      local delta = tonumber(ARGV[1])
+      local windowSeconds = tonumber(ARGV[2])
+      local current = tonumber(redis.call("GET", key) or "0")
+      local ttl = redis.call("TTL", key)
+      local nextValue = current + delta
+      if nextValue < 0 then
+        nextValue = 0
+      end
+
+      redis.call("SET", key, nextValue)
+      if ttl > 0 then
+        redis.call("EXPIRE", key, ttl)
+      else
+        redis.call("EXPIRE", key, windowSeconds)
+      end
+    `,
+    1,
+    key,
+    delta,
+    windowSeconds
+  );
 }
 
 // ============================================================

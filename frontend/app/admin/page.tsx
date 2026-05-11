@@ -960,6 +960,47 @@ export default function AdminPage() {
     }
   }
 
+  async function handleSaveUserRateLimit(userId: string, current?: NonNullable<User["customLimits"]>[number]) {
+    const model = prompt("模型 ID，填写 * 表示默认限流", current?.model || "*");
+    if (!model) return;
+    const qpmText = prompt("QPM 每分钟请求数", String(current?.qpm ?? 60));
+    if (qpmText === null) return;
+    const tpmText = prompt("TPM 每分钟 tokens", String(current?.tpm ?? 100000));
+    if (tpmText === null) return;
+    const qpm = Number(qpmText);
+    const tpm = Number(tpmText);
+    if (!Number.isFinite(qpm) || qpm <= 0 || !Number.isFinite(tpm) || tpm <= 0) {
+      setNotice("QPM 和 TPM 必须是大于 0 的数字");
+      return;
+    }
+    const res = await fetchAPI(`/api/rate-limits/admin/users/${userId}/models/${encodeURIComponent(model)}`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ qpm, tpm }),
+    });
+    if (res.success) {
+      setNotice("用户模型限流已更新");
+      await loadData();
+      await loadUserDetail(userId);
+    } else {
+      setNotice(res.message || "限流更新失败");
+    }
+  }
+
+  async function handleDeleteUserRateLimit(userId: string, model: string) {
+    const res = await fetchAPI(`/api/rate-limits/admin/users/${userId}/models/${encodeURIComponent(model)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (res.success) {
+      setNotice("用户模型限流已删除");
+      await loadData();
+      await loadUserDetail(userId);
+    } else {
+      setNotice(res.message || "限流删除失败");
+    }
+  }
+
   async function handleExportUserBilling(userId: string) {
     const now = new Date();
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
@@ -1560,7 +1601,15 @@ export default function AdminPage() {
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                             <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型限流明细</h3>
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>默认限额适用于未单独覆盖的模型</div>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                              <div style={{ fontSize: 12, color: "#6b7280" }}>默认限额适用于未单独覆盖的模型</div>
+                              <button
+                                onClick={() => handleSaveUserRateLimit(selectedUser.id)}
+                                style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                              >
+                                新增/设置
+                              </button>
+                            </div>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {selectedUser.customLimits && selectedUser.customLimits.length > 0 ? selectedUser.customLimits.map((limit) => (
@@ -1570,9 +1619,23 @@ export default function AdminPage() {
                                     <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{limit.model}</div>
                                     <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>来源: {limit.source}</div>
                                   </div>
-                                  <div style={{ textAlign: "right", fontSize: 12, color: "#111827" }}>
-                                    <div>QPM {limit.qpm.toLocaleString()}</div>
-                                    <div>TPM {limit.tpm.toLocaleString()}</div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <div style={{ textAlign: "right", fontSize: 12, color: "#111827" }}>
+                                      <div>QPM {limit.qpm.toLocaleString()}</div>
+                                      <div>TPM {limit.tpm.toLocaleString()}</div>
+                                    </div>
+                                    <button
+                                      onClick={() => handleSaveUserRateLimit(selectedUser.id, limit)}
+                                      style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                    >
+                                      修改
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteUserRateLimit(selectedUser.id, limit.model)}
+                                      style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                    >
+                                      删除
+                                    </button>
                                   </div>
                                 </div>
                               </div>
