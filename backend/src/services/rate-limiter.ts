@@ -172,8 +172,14 @@ export async function checkRPM(
     }
   }
 
-  // 内存模式
-  return memoryConsumerLimiter.checkRPM(key, limit);
+  // 内存模式与 Redis 保持同样语义：检查通过即占用一个请求槽。
+  const check = memoryConsumerLimiter.checkRPM(key, limit);
+  if (!check.allowed) return check;
+  memoryConsumerLimiter.recordRequest(key);
+  return {
+    ...check,
+    remaining: Math.max(0, check.remaining - 1),
+  };
 }
 
 /**
