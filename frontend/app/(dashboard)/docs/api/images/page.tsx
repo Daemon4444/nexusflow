@@ -103,7 +103,7 @@ export default function ImagesApiPage() {
             <code style={{ fontSize: 13 }}>{API_BASE}/v1/tasks</code>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            同步调用 — 请求完成后直接返回图片 URL，无需额外查询。响应中 <code>status</code> 直接为 <code>"succeeded"</code>。
+            同步调用 - 请求完成后直接返回图片 URL，无需额外查询。响应中 <code>status</code> 直接为 <code>&quot;succeeded&quot;</code>。
           </div>
         </div>
         <div style={{ marginTop: 12, padding: 16, border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg)" }}>

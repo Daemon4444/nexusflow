@@ -72,6 +72,7 @@ REDIS_PORT=6379
 # Upstream providers
 DASHSCOPE_API_KEY=sk-xxx
 PIXVERSE_API_KEY=sk-xxx
+ANTHROPIC_API_KEY=sk-ant-xxx
 
 # Admin
 ADMIN_EMAILS=admin@example.com

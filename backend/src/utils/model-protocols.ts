@@ -12,6 +12,10 @@ export type SupportedProtocol =
 export function getSupportedProtocols(model: AIModel): SupportedProtocol[] {
   const modelType = detectModelType(model.category);
 
+  if (model.id.startsWith("claude-")) {
+    return ["anthropic/messages"];
+  }
+
   if (modelType === "chat") {
     return [
       "openai/chat-completions",

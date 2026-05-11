@@ -76,11 +76,24 @@ DASHSCOPE_API_KEY=sk-your-dashscope-api-key
 
 # PixVerse 官方 API Key
 PIXVERSE_API_KEY=sk-your-pixverse-api-key
+
+# Anthropic Claude 官方 API Key
+ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
 ```
 
 ---
 
 ## 大语言模型
+
+### Claude 官方 API
+
+| 模型 ID | 名称 | 上下文窗口 | 最大输出 | 官方 USD 输入/输出 | NexusFlow 计费输入/输出 | 接口 |
+|---------|------|------------|----------|---------------------|--------------------------|------|
+| `claude-opus-4-7` | Claude Opus 4.7 | 1M | 128K | $5/M / $25/M | 约 ¥34/M / ¥170/M | `/v1/messages` |
+| `claude-sonnet-4-6` | Claude Sonnet 4.6 | 1M | 64K | $3/M / $15/M | 约 ¥20.4/M / ¥102/M | `/v1/messages` |
+| `claude-haiku-4-5` | Claude Haiku 4.5 | 200K | 64K | $1/M / $5/M | 约 ¥6.8/M / ¥34/M | `/v1/messages` |
+
+Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 NexusFlow `/v1/messages`，后端需要配置 `ANTHROPIC_API_KEY`。
 
 ### 通义千问 Qwen 系列
 

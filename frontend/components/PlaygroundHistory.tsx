@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export interface HistoryEntry {
   id: string;
@@ -69,13 +69,12 @@ interface PlaygroundHistoryProps {
 }
 
 export default function PlaygroundHistory({ onSelect, currentModel }: PlaygroundHistoryProps) {
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>(() => {
+    if (typeof window === "undefined") return [];
+    return loadHistory();
+  });
   const [showHistory, setShowHistory] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-
-  useEffect(() => {
-    setHistory(loadHistory());
-  }, []);
 
   function handleSelect(entry: HistoryEntry) {
     onSelect(entry);

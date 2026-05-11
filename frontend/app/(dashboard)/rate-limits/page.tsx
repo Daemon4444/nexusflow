@@ -62,7 +62,7 @@ export default function RateLimitsPage() {
         ]);
         if (res.success) setData(res.data);
         if (modelsRes.success) {
-          setModels((modelsRes.data || []).map((item: any) => ({
+          setModels(((modelsRes.data || []) as ModelOption[]).map((item) => ({
             id: item.id,
             name: item.name,
             provider: item.provider,

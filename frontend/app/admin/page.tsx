@@ -59,6 +59,11 @@ interface User {
   };
 }
 
+type UserApiRecord = User & {
+  created_at?: string;
+  updated_at?: string;
+};
+
 interface Provider {
   id: string;
   name: string;
@@ -252,7 +257,113 @@ interface ProviderRouteMetrics {
   saturation: number;
 }
 
-type TabKey = "overview" | "users" | "approvals" | "providers" | "models" | "tickets";
+interface OperationsDashboard {
+  generatedAt: string;
+  summary: {
+    providers: number;
+    enabledProviders: number;
+    models: number;
+    routedModels: number;
+    routes: number;
+    enabledRoutes: number;
+    criticalIssues: number;
+    warningIssues: number;
+    costedRoutes: number;
+    routePolicies: number;
+    currentRpm: number;
+    currentTpm: number;
+    rpmLimit: number;
+    tpmLimit: number;
+  };
+  providers: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    status: string;
+    apiBaseUrl: string;
+    apiKeyMasked: string;
+    modelCount: number;
+    enabledRoutes: number;
+    health: "healthy" | "degraded" | "down";
+    currentRpm: number;
+    currentTpm: number;
+    rpmLimit: number;
+    tpmLimit: number;
+    dailyLimit: number;
+    concurrentLimit: number;
+    saturationRatio: number;
+    missingApiKey: boolean;
+  }>;
+  routes: Array<{
+    providerId: string;
+    providerName: string;
+    providerStatus: string;
+    modelId: string;
+    modelName: string;
+    modelProvider: string;
+    category: string;
+    enabled: boolean;
+    recommendedProviderId: string;
+    recommended: boolean;
+    promptPrice: number;
+    completionPrice: number;
+    promptCost: number;
+    completionCost: number;
+    fixedCost: number;
+    grossMarginPrompt: number;
+    grossMarginCompletion: number;
+    pricingType: string;
+    priceUnit: string;
+    rpmLimit: number;
+    tpmLimit: number;
+    dailyLimit: number;
+    concurrentLimit: number;
+    priority: number;
+    weight: number;
+    currentRpm: number;
+    currentTpm: number;
+    saturationRatio: number;
+    health: "healthy" | "degraded" | "down";
+    availability: number;
+    avgLatencyMs: number;
+    consecutiveFailures: number;
+    lastError: string | null;
+  }>;
+  issues: Array<{
+    level: "critical" | "warning" | "info";
+    scope: "provider" | "route" | "model";
+    providerId?: string;
+    modelId?: string;
+    title: string;
+    detail: string;
+    action: string;
+  }>;
+  routePolicies: Array<{
+    id: string;
+    user_id: string | null;
+    model_id: string;
+    strategy: string;
+    pinned_provider_id: string | null;
+    allowed_providers: string[];
+    blocked_providers: string[];
+    min_availability: number | null;
+    max_prompt_cost: number | null;
+    max_completion_cost: number | null;
+    is_enabled: boolean;
+    notes: string;
+  }>;
+  routeAudits: Array<{
+    id: string;
+    provider_id: string;
+    model_id: string;
+    action: string;
+    actor_id: string | null;
+    reason: string;
+    created_at: string;
+  }>;
+}
+
+type TabKey = "overview" | "operations" | "users" | "approvals" | "providers" | "models" | "tickets";
 
 const statusColors: Record<string, string> = {
   draft: "#d97706",
@@ -292,6 +403,10 @@ function isTaskModelCategory(category?: string): boolean {
   return category === "图像生成" || category === "视频生成";
 }
 
+function formatPercent(value: number): string {
+  return `${Math.round((value || 0) * 100)}%`;
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -310,6 +425,7 @@ export default function AdminPage() {
   } | null>(null);
   const [providerDetail, setProviderDetail] = useState<ProviderDetail | null>(null);
   const [monitorOverview, setMonitorOverview] = useState<MonitorOverview | null>(null);
+  const [operations, setOperations] = useState<OperationsDashboard | null>(null);
   const [providerRouteMetrics, setProviderRouteMetrics] = useState<ProviderRouteMetrics[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -357,7 +473,7 @@ export default function AdminPage() {
     setError("");
     try {
       const headers = authHeaders();
-      const [providersRes, modelsRes, statsRes, usersRes, ticketsRes, requestsRes, usageRes] = await Promise.all([
+      const [providersRes, modelsRes, statsRes, usersRes, ticketsRes, requestsRes, usageRes, operationsRes] = await Promise.all([
         fetchAPI("/api/provider/admin/providers", { headers }),
         fetchAPI("/api/provider/admin/models", { headers }),
         fetchAPI("/api/provider/admin/stats", { headers }),
@@ -365,13 +481,14 @@ export default function AdminPage() {
         fetchAPI("/api/tickets/admin/all", { headers }).catch(() => ({ success: false, data: [] })),
         fetchAPI("/api/rate-limits/admin/requests", { headers }).catch(() => ({ success: false, data: [] })),
         fetchAPI("/api/usage/overview?scope=all", { headers }).catch(() => ({ success: false })),
+        fetchAPI("/api/provider/admin/operations", { headers }).catch(() => ({ success: false })),
       ]);
 
       if (providersRes.success) setProviders(providersRes.data || []);
       if (modelsRes.success) setModels(modelsRes.data || []);
       if (statsRes.success) setStats(statsRes.data || null);
       if (usersRes.success) {
-        setUsers((usersRes.data || []).map((user: any) => ({
+        setUsers(((usersRes.data || []) as UserApiRecord[]).map((user) => ({
           ...user,
           createdAt: user.created_at || user.createdAt,
           updatedAt: user.updated_at || user.updatedAt,
@@ -380,6 +497,7 @@ export default function AdminPage() {
       if (ticketsRes.success) setTickets(ticketsRes.data || []);
       if (requestsRes.success) setRateLimitRequests(requestsRes.data || []);
       if (usageRes.success) setUsageOverview(usageRes.data || null);
+      if (operationsRes.success) setOperations(operationsRes.data || null);
       const monitorRes = await fetchAPI("/api/provider-monitor/overview", { headers }).catch(() => ({ success: false }));
       if (monitorRes.success) setMonitorOverview(monitorRes.data || null);
 
@@ -673,6 +791,7 @@ export default function AdminPage() {
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "overview", label: "总览" },
+    { key: "operations", label: "供应商运营" },
     { key: "users", label: "用户管理" },
     { key: "approvals", label: "限额审批" },
     { key: "providers", label: "渠道控制台" },
@@ -869,6 +988,234 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
+              </>
+            ) : activeTab === "operations" ? (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                  <div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>供应商运营</h1>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>把上游供应商、模型路由、价格、限流和健康状态放到一张运营视图里</div>
+                  </div>
+                  <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
+                    刷新
+                  </button>
+                </div>
+
+                {!operations ? (
+                  <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>暂无供应商运营数据</div>
+                ) : (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 14, marginBottom: 18 }}>
+                      {[
+                        { label: "启用供应商", value: `${operations.summary.enabledProviders}/${operations.summary.providers}`, color: "#10b981" },
+                        { label: "已路由模型", value: `${operations.summary.routedModels}/${operations.summary.models}`, color: "#2563eb" },
+                        { label: "启用路由", value: `${operations.summary.enabledRoutes}/${operations.summary.routes}`, color: "#0f766e" },
+                        { label: "成本覆盖", value: `${operations.summary.costedRoutes}/${operations.summary.routes}`, color: "#7c3aed" },
+                        { label: "策略覆盖", value: operations.summary.routePolicies, color: "#b45309" },
+                        { label: "风险", value: `${operations.summary.criticalIssues}/${operations.summary.warningIssues}`, color: "#dc2626" },
+                      ].map((item) => (
+                        <div key={item.label} style={{ ...cardStyle, padding: 16 }}>
+                          <div style={{ fontSize: 22, fontWeight: 700, color: item.color, fontVariantNumeric: "tabular-nums" }}>{item.value}</div>
+                          <div style={{ marginTop: 5, fontSize: 12, color: "#6b7280" }}>{item.label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 16, marginBottom: 18, alignItems: "start" }}>
+                      <div style={{ ...cardStyle, padding: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 14 }}>
+                          <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>上游供应商账本</h2>
+                          <span style={{ fontSize: 12, color: "#6b7280" }}>生成于 {new Date(operations.generatedAt).toLocaleTimeString("zh-CN")}</span>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {operations.providers.map((provider) => (
+                            <button
+                              key={provider.id}
+                              onClick={() => {
+                                setSelectedProviderId(provider.id);
+                                setActiveTab("providers");
+                              }}
+                              style={{ width: "100%", padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff", textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}
+                            >
+                              <div style={{ display: "grid", gridTemplateColumns: "1.3fr 0.9fr 0.8fr 0.8fr", gap: 12, alignItems: "center" }}>
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{provider.name}</span>
+                                    <span style={{ padding: "2px 8px", borderRadius: 9999, fontSize: 11.5, background: `${statusColors[provider.status]}15`, color: statusColors[provider.status] }}>{statusLabels[provider.status]}</span>
+                                    <span style={{ padding: "2px 8px", borderRadius: 9999, fontSize: 11.5, background: `${statusColors[provider.health]}15`, color: statusColors[provider.health] }}>{healthLabels[provider.health]}</span>
+                                  </div>
+                                  <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", overflowWrap: "anywhere" }}>{provider.apiBaseUrl}</div>
+                                  <div style={{ marginTop: 4, fontSize: 12, color: provider.missingApiKey ? "#b91c1c" : "#6b7280" }}>密钥: {provider.apiKeyMasked}</div>
+                                </div>
+                                <div style={{ fontSize: 12, color: "#4b5563" }}>
+                                  模型 {provider.modelCount}
+                                  <br />
+                                  路由 {provider.enabledRoutes}
+                                </div>
+                                <div style={{ fontSize: 12, color: "#4b5563" }}>
+                                  RPM {provider.currentRpm}/{provider.rpmLimit}
+                                  <br />
+                                  TPM {provider.currentTpm}/{provider.tpmLimit}
+                                </div>
+                                <div style={{ textAlign: "right" }}>
+                                  <div style={{ fontSize: 20, fontWeight: 700, color: provider.saturationRatio >= 0.8 ? "#dc2626" : provider.saturationRatio >= 0.5 ? "#d97706" : "#10b981" }}>{formatPercent(provider.saturationRatio)}</div>
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>容量</div>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle, padding: 20 }}>
+                        <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>运营风险清单</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {operations.issues.length === 0 ? (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>当前没有发现配置风险。</div>
+                          ) : operations.issues.slice(0, 12).map((issue, index) => (
+                            <div key={`${issue.title}-${index}`} style={{
+                              borderRadius: 10,
+                              border: `1px solid ${issue.level === "critical" ? "#fecaca" : "#fed7aa"}`,
+                              background: issue.level === "critical" ? "#fef2f2" : "#fff7ed",
+                              padding: 12,
+                            }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: issue.level === "critical" ? "#b91c1c" : "#c2410c" }}>{issue.title}</div>
+                                <span style={{ fontSize: 11, color: "#6b7280" }}>{issue.scope}</span>
+                              </div>
+                              <div style={{ marginTop: 6, fontSize: 12, color: "#4b5563", lineHeight: 1.6 }}>{issue.detail}</div>
+                              <div style={{ marginTop: 6, fontSize: 12, color: "#111827", lineHeight: 1.6 }}>建议: {issue.action}</div>
+                            </div>
+                          ))}
+                          {operations.issues.length > 12 ? (
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>还有 {operations.issues.length - 12} 条风险，可在模型管理和渠道控制台继续排查。</div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18, alignItems: "start" }}>
+                      <div style={{ ...cardStyle, padding: 20 }}>
+                        <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>客户/模型路由策略</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {operations.routePolicies.length === 0 ? (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>当前没有客户级覆盖策略，系统按全局权重和健康状态调度。</div>
+                          ) : operations.routePolicies.slice(0, 8).map((policy) => (
+                            <div key={policy.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{policy.model_id} · {policy.strategy}</div>
+                                <span style={{ fontSize: 12, color: policy.is_enabled ? "#059669" : "#6b7280" }}>{policy.is_enabled ? "启用" : "停用"}</span>
+                              </div>
+                              <div style={{ marginTop: 6, fontSize: 12, color: "#4b5563", lineHeight: 1.6 }}>
+                                客户 {policy.user_id || "全局"} · 固定供应商 {policy.pinned_provider_id || "-"} · SLA {policy.min_availability ?? "-"}%
+                              </div>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                                允许 {policy.allowed_providers.length ? policy.allowed_providers.join(", ") : "不限"} · 屏蔽 {policy.blocked_providers.length ? policy.blocked_providers.join(", ") : "无"}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle, padding: 20 }}>
+                        <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近路由变更审计</h2>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {operations.routeAudits.length === 0 ? (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂未记录路由、成本或策略变更。</div>
+                          ) : operations.routeAudits.map((audit) => (
+                            <div key={audit.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{audit.action}</div>
+                                <span style={{ fontSize: 12, color: "#6b7280" }}>{new Date(audit.created_at).toLocaleString("zh-CN")}</span>
+                              </div>
+                              <div style={{ marginTop: 6, fontSize: 12, color: "#4b5563" }}>
+                                {audit.provider_id} / {audit.model_id}
+                              </div>
+                              {audit.reason ? <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{audit.reason}</div> : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ ...cardStyle, overflow: "hidden" }}>
+                      <div style={{ padding: "16px 18px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", background: "#f8fafc" }}>
+                        <div>
+                          <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型路由矩阵</h2>
+                          <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>每行是一条上游承载路由，价格来自模型目录，容量来自供应商配置</div>
+                        </div>
+                        <button onClick={() => setActiveTab("models")} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
+                          编辑模型路由
+                        </button>
+                      </div>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", minWidth: 1100, borderCollapse: "collapse", fontSize: 12.5 }}>
+                          <thead>
+                            <tr style={{ background: "#fff" }}>
+                              {["模型", "供应商", "状态", "价格/毛利", "限流", "权重", "SLA", "容量"].map((head) => (
+                                <th key={head} style={{ padding: "11px 12px", borderBottom: "1px solid #e5e7eb", color: "#6b7280", textAlign: "left", fontWeight: 700 }}>{head}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {operations.routes.map((route) => {
+                              const isTaskModel = isTaskModelCategory(route.category);
+                              return (
+                                <tr key={`${route.providerId}-${route.modelId}`} style={{ background: route.enabled ? "#fff" : "#fafafa" }}>
+                                  <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" }}>
+                                    <div style={{ fontWeight: 700, color: "#111827" }}>{route.modelName}</div>
+                                    <code style={{ display: "inline-block", marginTop: 5, color: "#1d4ed8", background: "#eff6ff", borderRadius: 6, padding: "2px 7px" }}>{route.modelId}</code>
+                                    <div style={{ marginTop: 5, color: "#6b7280" }}>{route.category}</div>
+                                  </td>
+                                  <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" }}>
+                                    <div style={{ fontWeight: 700, color: "#111827" }}>{route.providerName}</div>
+                                    <div style={{ marginTop: 5, color: route.recommended ? "#059669" : "#b45309" }}>{route.recommended ? "推荐承载" : `建议走 ${route.recommendedProviderId}`}</div>
+                                  </td>
+                                  <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" }}>
+                                    <span style={{ padding: "3px 8px", borderRadius: 9999, background: route.enabled ? "#ecfdf5" : "#f3f4f6", color: route.enabled ? "#166534" : "#6b7280" }}>{route.enabled ? "启用" : "停用"}</span>
+                                    <div style={{ marginTop: 6, color: "#6b7280" }}>供应商 {statusLabels[route.providerStatus] || route.providerStatus}</div>
+                                  </td>
+                                  <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top", color: "#4b5563" }}>
+                                    售价 输入 {route.promptPrice}
+                                    <br />
+                                    售价 输出 {route.completionPrice}
+                                    <br />
+                                    成本 {route.promptCost}/{route.completionCost}
+                                    <br />
+                                    毛利 {route.grossMarginPrompt}%/{route.grossMarginCompletion}%
+                                    <br />
+                                    {route.priceUnit}
+                                  </td>
+                                  <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top", color: "#4b5563" }}>
+                                    {isTaskModel ? "任务提交" : "RPM"} {route.currentRpm}/{route.rpmLimit}
+                                    <br />
+                                    {isTaskModel ? `任务并发 ${route.concurrentLimit}` : `TPM ${route.currentTpm}/${route.tpmLimit}`}
+                                    <br />
+                                    日上限 {route.dailyLimit}
+                                  </td>
+                                  <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top", color: "#4b5563" }}>
+                                    优先级 {route.priority}
+                                    <br />
+                                    权重 {route.weight}
+                                  </td>
+                                  <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" }}>
+                                    <span style={{ padding: "3px 8px", borderRadius: 9999, background: `${statusColors[route.health]}15`, color: statusColors[route.health] }}>{healthLabels[route.health]}</span>
+                                    <div style={{ marginTop: 6, color: "#6b7280" }}>延迟 {route.avgLatencyMs}ms</div>
+                                    <div style={{ marginTop: 4, color: "#6b7280" }}>可用率 {route.availability}%</div>
+                                    {route.lastError ? <div style={{ marginTop: 4, color: "#b91c1c", maxWidth: 220, overflowWrap: "anywhere" }}>{route.lastError}</div> : null}
+                                  </td>
+                                  <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top", textAlign: "right" }}>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: route.saturationRatio >= 0.8 ? "#dc2626" : route.saturationRatio >= 0.5 ? "#d97706" : "#10b981" }}>{formatPercent(route.saturationRatio)}</div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             ) : activeTab === "users" ? (
               <>

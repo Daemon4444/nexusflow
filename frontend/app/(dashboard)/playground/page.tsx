@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useRef, useMemo } from "react";
+import { Suspense, useEffect, useState, useRef, useMemo, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { fetchAPI } from "@/lib/api";
 import { authHeaders, useAuth } from "@/lib/auth";
@@ -59,8 +59,12 @@ interface UploadedFile {
   error?: string;
 }
 
+function getErrorMessage(error: unknown, fallback = "网络错误") {
+  return error instanceof Error ? error.message : fallback;
+}
+
 function renderInlineMarkdown(text: string) {
-  const parts: any[] = [];
+  const parts: ReactNode[] = [];
   const pattern = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -101,7 +105,7 @@ function renderInlineMarkdown(text: string) {
 
 function MarkdownBlock({ text, compact = false }: { text: string; compact?: boolean }) {
   const lines = text.replace(/\r/g, "").split("\n");
-  const blocks: any[] = [];
+  const blocks: ReactNode[] = [];
   let i = 0;
   let paragraph: string[] = [];
 
@@ -117,8 +121,6 @@ function MarkdownBlock({ text, compact = false }: { text: string; compact?: bool
 
   const codeFence = /^```([\w-]+)?\s*$/;
   const heading = /^(#{1,3})\s+(.+)$/;
-  const unordered = /^[-*+]\s+(.+)$/;
-  const ordered = /^\d+\.\s+(.+)$/;
   const isTableDivider = (line: string) => /^\s*\|?[\s:-]+(\|[\s:-]+)+\|?\s*$/.test(line);
 
   while (i < lines.length) {
@@ -351,10 +353,10 @@ function PlaygroundInner() {
     return `¥${cost.toFixed(2)}`;
   }
 
-  function getChatRequestOptions(): Record<string, any> {
+  function getChatRequestOptions(): Record<string, unknown> {
     const model = models.find((item) => item.id === selectedModel);
     const allowed = new Set(model?.allowed_parameters || []);
-    const options: Record<string, any> = {};
+    const options: Record<string, unknown> = {};
 
     if (allowed.has("temperature")) options.temperature = temperature;
     if (allowed.has("top_p")) options.top_p = topP;
@@ -552,8 +554,8 @@ function PlaygroundInner() {
       });
       setSending(false);
 
-    } catch (err: any) {
-      if (err.name === "AbortError") {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") {
         // 用户取消了请求
         updateLastMessage({
           content: "[已取消]",
@@ -562,7 +564,7 @@ function PlaygroundInner() {
         });
       } else {
         updateLastMessage({
-          content: `网络错误: ${err.message}`,
+          content: `网络错误: ${getErrorMessage(err)}`,
           isStreaming: false,
           status: "error",
         });
@@ -684,7 +686,7 @@ function PlaygroundInner() {
     setSending(true);
 
     try {
-      const body: Record<string, any> = {
+      const body: Record<string, unknown> = {
         model: selectedModel,
         prompt: input.trim(),
       };
@@ -792,7 +794,7 @@ function PlaygroundInner() {
     setSending(true);
 
     try {
-      const body: Record<string, any> = {
+      const body: Record<string, unknown> = {
         model: selectedModel,
         prompt: input.trim(),
         duration: videoDuration,
@@ -1054,9 +1056,10 @@ function PlaygroundInner() {
         if (!fileUrl) throw new Error("Upload response missing URL");
         setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, url: fileUrl, uploading: false } : f));
         setUploadingCount(c => c - 1);
-      } catch (err: any) {
-        console.error("[Upload] Error:", err.message);
-        setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, uploading: false, error: err.message } : f));
+      } catch (err: unknown) {
+        const message = getErrorMessage(err, "Upload failed");
+        console.error("[Upload] Error:", message);
+        setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, uploading: false, error: message } : f));
         setUploadingCount(c => c - 1);
       }
     }

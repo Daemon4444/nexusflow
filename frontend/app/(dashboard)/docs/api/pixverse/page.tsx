@@ -334,6 +334,7 @@ function PixVerseDocsInner() {
 
   useEffect(() => {
     if (validTabs.includes(tabParam as TabKey)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(tabParam as TabKey);
     }
   }, [tabParam]);

@@ -111,7 +111,7 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     hasAny(text, ["音频输出", "全能"]);
   const supportsTools =
     modelType === "chat" &&
-    (hasAny(text, ["函数调用", "工具调用"]) || model.provider === "DeepSeek" || model.provider === "GLM");
+    (hasAny(text, ["函数调用", "工具调用"]) || model.provider === "DeepSeek" || model.provider === "GLM" || model.provider === "Anthropic");
   const supportsThinkingBudget =
     thinking.mode !== "none" &&
     THINKING_BUDGET_PREFIXES.some((prefix) => model.id.startsWith(prefix));
@@ -135,7 +135,7 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     supports_thinking_budget: supportsThinkingBudget,
     supports_preserve_thinking: PRESERVE_THINKING_MODELS.has(model.id),
     supports_search: supportsSearch,
-    supports_parallel_tool_calls: supportsTools && (isQwenChat || model.provider === "DeepSeek" || model.provider === "智谱AI"),
+    supports_parallel_tool_calls: supportsTools && (isQwenChat || model.provider === "DeepSeek" || model.provider === "智谱AI" || model.provider === "Anthropic"),
     supports_top_k: isQwenChat,
     supports_seed: isQwenChat,
     supports_logprobs: isQwenChat,

@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 export interface ApiError {
   code: string;
   message: string;
@@ -107,33 +105,25 @@ interface ErrorSuggestionProps {
   onClose?: () => void;
 }
 
-export default function ErrorSuggestion({ error, onClose }: ErrorSuggestionProps) {
-  const [solution, setSolution] = useState<ErrorSolution | null>(null);
+function getErrorSolution(error: ApiError | string): ErrorSolution | null {
+  if (typeof error === "string") {
+    const lowerMsg = error.toLowerCase();
+    if (lowerMsg.includes("api key") || lowerMsg.includes("invalid")) return errorSolutions["invalid_api_key"];
+    if (lowerMsg.includes("balance") || lowerMsg.includes("余额")) return errorSolutions["insufficient_balance"];
+    if (lowerMsg.includes("rate") || lowerMsg.includes("limit") || lowerMsg.includes("429")) return errorSolutions["rate_limit_exceeded"];
+    if (lowerMsg.includes("model") || lowerMsg.includes("not found")) return errorSolutions["model_not_found"];
+    if (lowerMsg.includes("network") || lowerMsg.includes("网络")) return errorSolutions["network_error"];
+    if (lowerMsg.includes("timeout") || lowerMsg.includes("超时")) return errorSolutions["timeout"];
+    return null;
+  }
 
-  useEffect(() => {
-    if (typeof error === "string") {
-      // Try to match by error message
-      const lowerMsg = error.toLowerCase();
-      if (lowerMsg.includes("api key") || lowerMsg.includes("invalid")) {
-        setSolution(errorSolutions["invalid_api_key"]);
-      } else if (lowerMsg.includes("balance") || lowerMsg.includes("余额")) {
-        setSolution(errorSolutions["insufficient_balance"]);
-      } else if (lowerMsg.includes("rate") || lowerMsg.includes("limit") || lowerMsg.includes("429")) {
-        setSolution(errorSolutions["rate_limit_exceeded"]);
-      } else if (lowerMsg.includes("model") || lowerMsg.includes("not found")) {
-        setSolution(errorSolutions["model_not_found"]);
-      } else if (lowerMsg.includes("network") || lowerMsg.includes("网络")) {
-        setSolution(errorSolutions["network_error"]);
-      } else if (lowerMsg.includes("timeout") || lowerMsg.includes("超时")) {
-        setSolution(errorSolutions["timeout"]);
-      }
-    } else {
-      // Match by error code
-      const code = error.code?.toLowerCase() || "";
-      const status = error.status?.toString() || "";
-      setSolution(errorSolutions[code] || errorSolutions[status] || null);
-    }
-  }, [error]);
+  const code = error.code?.toLowerCase() || "";
+  const status = error.status?.toString() || "";
+  return errorSolutions[code] || errorSolutions[status] || null;
+}
+
+export default function ErrorSuggestion({ error, onClose }: ErrorSuggestionProps) {
+  const solution = getErrorSolution(error);
 
   if (!solution) return null;
 

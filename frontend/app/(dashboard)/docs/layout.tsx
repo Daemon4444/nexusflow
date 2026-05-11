@@ -133,6 +133,7 @@ function ProviderSection({
   const [open, setOpen] = useState(isAnyChildActive);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isAnyChildActive) setOpen(true);
   }, [isAnyChildActive]);
 

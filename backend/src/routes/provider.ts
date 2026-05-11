@@ -16,9 +16,21 @@ import {
   upsertProviderChannelConfig,
   type ProviderChannelConfig,
 } from "../data/provider-channels";
+import {
+  createCostVersion,
+  getActiveCostVersion,
+  getActiveCostVersions,
+  getRouteAudits,
+  getRoutePolicies,
+  recordRouteAudit,
+  upsertRoutePolicy,
+  deleteRoutePolicy,
+} from "../data/provider-operations";
 import { requireAdmin } from "../middleware/admin";
 
 const router = Router();
+
+type HealthState = "healthy" | "degraded" | "down";
 
 function maskSecret(secret: string): string {
   if (!secret) return "";
@@ -35,6 +47,18 @@ async function ensureInternalProviders(): Promise<void> {
     website: "https://help.aliyun.com/zh/model-studio/",
     api_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     api_key: process.env.DASHSCOPE_API_KEY || "",
+    contact_name: "平台运营",
+    contact_email: "ops@nexusflow.ai",
+    status: "enabled",
+  });
+  const anthropic = await ensureProvider({
+    id: "anthropic",
+    name: "Anthropic Claude",
+    slug: "anthropic",
+    description: "Anthropic Messages API 官方渠道，承载 Claude 系列模型。",
+    website: "https://docs.anthropic.com/",
+    api_base_url: "https://api.anthropic.com",
+    api_key: process.env.ANTHROPIC_API_KEY || "",
     contact_name: "平台运营",
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
@@ -65,9 +89,10 @@ async function ensureInternalProviders(): Promise<void> {
   });
 
   for (const model of staticModels) {
-    if (await getCapacity(dashscope.id, model.id)) continue;
+    const targetProvider = model.id.startsWith("claude-") ? anthropic : dashscope;
+    if (await getCapacity(targetProvider.id, model.id)) continue;
     const isTaskModel = model.category === "图像生成" || model.category === "视频生成";
-    await upsertCapacity(dashscope.id, model.id, {
+    await upsertCapacity(targetProvider.id, model.id, {
       rpm_limit: 1000,
       tpm_limit: isTaskModel ? 0 : 1000000,
       daily_limit: 100000,
@@ -127,6 +152,40 @@ async function getProviderChannelSummary(providerId: string) {
       apiKeyMasked: channel.api_key ? maskSecret(channel.api_key) : "未配置",
     })),
   };
+}
+
+function getRouteHealth(health: Awaited<ReturnType<typeof getAllHealthRecords>>, providerId: string, modelId: string) {
+  return health.find((item) => item.providerId === providerId && item.modelId === modelId);
+}
+
+function getSaturation(currentRpm: number, rpmLimit: number, currentTpm: number, tpmLimit: number): number {
+  const rpmRatio = rpmLimit > 0 ? currentRpm / rpmLimit : 0;
+  const tpmRatio = tpmLimit > 0 ? currentTpm / tpmLimit : 0;
+  return Number(Math.max(rpmRatio, tpmRatio).toFixed(4));
+}
+
+function getRecommendedProviderId(modelId: string): string {
+  if (modelId.startsWith("claude-")) return "anthropic";
+  if (modelId.startsWith("pixverse-")) return "pixverse";
+  return "dashscope";
+}
+
+function getDefaultCostFromRetail(promptPrice: number, completionPrice: number) {
+  return {
+    promptCost: Number((promptPrice * 0.72).toFixed(6)),
+    completionCost: Number((completionPrice * 0.72).toFixed(6)),
+  };
+}
+
+function getMarginPercent(revenue: number, cost: number): number {
+  if (revenue <= 0) return cost > 0 ? -100 : 0;
+  return Number((((revenue - cost) / revenue) * 100).toFixed(2));
+}
+
+function getSyntheticAvailability(status: HealthState, consecutiveFailures: number): number {
+  if (status === "down") return 0;
+  if (status === "degraded") return Math.max(90, 99 - consecutiveFailures);
+  return 99.95;
 }
 
 async function getProviderRouteModels(providerId: string) {
@@ -216,6 +275,268 @@ router.get("/admin/providers", async (_req: Request, res: Response) => {
   });
 });
 
+// GET /api/provider/admin/operations — 供应商运营工作台
+router.get("/admin/operations", async (_req: Request, res: Response) => {
+  await ensureInternalProviders();
+  let [providers, capacity, health, activeCosts, routePolicies, routeAudits] = await Promise.all([
+    getAllProviders(),
+    getAllCapacity(),
+    getAllHealthRecords(),
+    getActiveCostVersions(),
+    getRoutePolicies(),
+    getRouteAudits(12),
+  ]);
+  for (const item of capacity) {
+    if (activeCosts.some((cost) => cost.provider_id === item.provider_id && cost.model_id === item.model_id)) continue;
+    const catalog = staticModels.find((model) => model.id === item.model_id);
+    const defaults = getDefaultCostFromRetail(catalog?.promptPrice ?? 0, catalog?.completionPrice ?? 0);
+    await createCostVersion({
+      providerId: item.provider_id,
+      modelId: item.model_id,
+      versionLabel: "auto-baseline",
+      pricingType: catalog?.pricingType || "token",
+      promptCost: defaults.promptCost,
+      completionCost: defaults.completionCost,
+      fixedCost: 0,
+      notes: "系统按零售价 72% 自动生成的基准成本，可在后台创建新版本覆盖。",
+    });
+  }
+  activeCosts = await getActiveCostVersions();
+  const costByRoute = new Map(activeCosts.map((cost) => [`${cost.provider_id}:${cost.model_id}`, cost]));
+  const providerById = new Map(providers.map((provider) => [provider.id, provider]));
+  const capacityByModel = new Map<string, typeof capacity>();
+  for (const item of capacity) {
+    const rows = capacityByModel.get(item.model_id) || [];
+    rows.push(item);
+    capacityByModel.set(item.model_id, rows);
+  }
+
+  const providerCards = providers.map((provider) => {
+    const providerCapacity = capacity.filter((item) => item.provider_id === provider.id);
+    const totals = providerCapacity.reduce((acc, item) => {
+      const usage = getProviderUsageStats(provider.id, item.model_id);
+      acc.currentRpm += usage.rpm;
+      acc.currentTpm += usage.tpm;
+      acc.rpmLimit += item.rpm_limit;
+      acc.tpmLimit += item.tpm_limit;
+      acc.dailyLimit += item.daily_limit;
+      acc.concurrentLimit += item.concurrent_limit;
+      if (item.is_enabled) acc.enabledRoutes += 1;
+      return acc;
+    }, {
+      currentRpm: 0,
+      currentTpm: 0,
+      rpmLimit: 0,
+      tpmLimit: 0,
+      dailyLimit: 0,
+      concurrentLimit: 0,
+      enabledRoutes: 0,
+    });
+    const healthRows = health.filter((item) => item.providerId === provider.id);
+    const healthState: HealthState = healthRows.some((item) => item.status === "down")
+      ? "down"
+      : healthRows.some((item) => item.status === "degraded")
+        ? "degraded"
+        : "healthy";
+
+    return {
+      id: provider.id,
+      name: provider.name,
+      slug: provider.slug,
+      status: provider.status,
+      apiBaseUrl: provider.api_base_url,
+      apiKeyMasked: provider.api_key ? maskSecret(provider.api_key) : "未配置",
+      modelCount: providerCapacity.length,
+      enabledRoutes: totals.enabledRoutes,
+      health: healthState,
+      currentRpm: totals.currentRpm,
+      currentTpm: totals.currentTpm,
+      rpmLimit: totals.rpmLimit,
+      tpmLimit: totals.tpmLimit,
+      dailyLimit: totals.dailyLimit,
+      concurrentLimit: totals.concurrentLimit,
+      saturationRatio: getSaturation(totals.currentRpm, totals.rpmLimit, totals.currentTpm, totals.tpmLimit),
+      missingApiKey: !provider.api_key,
+    };
+  });
+
+  const routes = capacity.map((item) => {
+    const provider = providerById.get(item.provider_id);
+    const catalog = staticModels.find((model) => model.id === item.model_id);
+    const usage = getProviderUsageStats(item.provider_id, item.model_id);
+    const routeHealth = getRouteHealth(health, item.provider_id, item.model_id);
+    const currentHealth = (routeHealth?.status || "healthy") as HealthState;
+    const cost = costByRoute.get(`${item.provider_id}:${item.model_id}`);
+    const priceUnit = catalog?.pricingType === "per-image"
+      ? "元/张"
+      : catalog?.pricingType === "per-second"
+        ? "元/秒"
+        : "元/百万tokens";
+    const recommendedProviderId = getRecommendedProviderId(item.model_id);
+
+    return {
+      providerId: item.provider_id,
+      providerName: provider?.name || item.provider_name || item.provider_id,
+      providerStatus: provider?.status || "disabled",
+      modelId: item.model_id,
+      modelName: catalog?.name || item.model_name || item.model_id,
+      modelProvider: catalog?.provider || "",
+      category: catalog?.category || "未分类",
+      enabled: item.is_enabled,
+      recommendedProviderId,
+      recommended: item.provider_id === recommendedProviderId,
+      promptPrice: catalog?.promptPrice ?? 0,
+      completionPrice: catalog?.completionPrice ?? 0,
+      promptCost: cost?.prompt_cost ?? 0,
+      completionCost: cost?.completion_cost ?? 0,
+      fixedCost: cost?.fixed_cost ?? 0,
+      grossMarginPrompt: getMarginPercent(catalog?.promptPrice ?? 0, cost?.prompt_cost ?? 0),
+      grossMarginCompletion: getMarginPercent(catalog?.completionPrice ?? 0, cost?.completion_cost ?? 0),
+      pricingType: catalog?.pricingType || "token",
+      priceUnit,
+      rpmLimit: item.rpm_limit,
+      tpmLimit: item.tpm_limit,
+      dailyLimit: item.daily_limit,
+      concurrentLimit: item.concurrent_limit,
+      priority: item.priority,
+      weight: item.weight,
+      currentRpm: usage.rpm,
+      currentTpm: usage.tpm,
+      saturationRatio: getSaturation(usage.rpm, item.rpm_limit, usage.tpm, item.tpm_limit),
+      health: currentHealth,
+      availability: getSyntheticAvailability(currentHealth, routeHealth?.consecutiveFailures ?? 0),
+      avgLatencyMs: routeHealth?.avgLatencyMs ?? 0,
+      consecutiveFailures: routeHealth?.consecutiveFailures ?? 0,
+      lastError: routeHealth?.lastError ?? null,
+    };
+  });
+
+  const issues: Array<{
+    level: "critical" | "warning" | "info";
+    scope: "provider" | "route" | "model";
+    providerId?: string;
+    modelId?: string;
+    title: string;
+    detail: string;
+    action: string;
+  }> = [];
+
+  for (const provider of providerCards) {
+    if (provider.status !== "enabled") {
+      issues.push({
+        level: "warning",
+        scope: "provider",
+        providerId: provider.id,
+        title: `${provider.name} 未启用`,
+        detail: "供应商处于草稿或停用状态，不会成为稳定承载渠道。",
+        action: "确认合同、密钥和健康检查后再启用。",
+      });
+    }
+    if (provider.missingApiKey) {
+      issues.push({
+        level: "critical",
+        scope: "provider",
+        providerId: provider.id,
+        title: `${provider.name} 缺少 API Key`,
+        detail: "后台已建档，但真实调用会因为上游密钥缺失失败。",
+        action: "在渠道控制台补齐密钥或设置对应环境变量。",
+      });
+    }
+    if (provider.saturationRatio >= 0.8) {
+      issues.push({
+        level: "warning",
+        scope: "provider",
+        providerId: provider.id,
+        title: `${provider.name} 容量接近上限`,
+        detail: `当前容量命中率 ${Math.round(provider.saturationRatio * 100)}%。`,
+        action: "提升上游限额、降低权重或增加同模型备用供应商。",
+      });
+    }
+  }
+
+  for (const model of staticModels) {
+    const rows = capacityByModel.get(model.id) || [];
+    const enabledRows = rows.filter((item) => item.is_enabled && providerById.get(item.provider_id)?.status === "enabled");
+    if (enabledRows.length === 0) {
+      issues.push({
+        level: "critical",
+        scope: "model",
+        modelId: model.id,
+        title: `${model.name} 没有可用路由`,
+        detail: "模型已在目录中展示，但没有启用的上游承载。",
+        action: "为该模型添加至少一个启用的供应商路由。",
+      });
+    }
+    const recommendedProviderId = getRecommendedProviderId(model.id);
+    if (model.id.startsWith("claude-") && rows.some((item) => item.provider_id !== recommendedProviderId && item.is_enabled)) {
+      issues.push({
+        level: "warning",
+        scope: "model",
+        modelId: model.id,
+        title: `${model.name} 存在非 Anthropic 路由`,
+        detail: "Claude 模型需要走 Anthropic Messages API，OpenAI 兼容渠道不能承载该协议。",
+        action: "保留 Anthropic 路由，停用或删除其它供应商上的 Claude 路由。",
+      });
+    }
+  }
+
+  for (const route of routes) {
+    if (route.health === "down" || route.health === "degraded") {
+      issues.push({
+        level: route.health === "down" ? "critical" : "warning",
+        scope: "route",
+        providerId: route.providerId,
+        modelId: route.modelId,
+        title: `${route.providerName} / ${route.modelName} ${route.health === "down" ? "不可用" : "降级"}`,
+        detail: route.lastError || `连续失败 ${route.consecutiveFailures} 次，平均延迟 ${route.avgLatencyMs}ms。`,
+        action: "检查上游状态、密钥余额、限流和模型名称映射。",
+      });
+    }
+    if (route.saturationRatio >= 0.8) {
+      issues.push({
+        level: "warning",
+        scope: "route",
+        providerId: route.providerId,
+        modelId: route.modelId,
+        title: `${route.providerName} / ${route.modelName} 路由容量偏高`,
+        detail: `当前命中率 ${Math.round(route.saturationRatio * 100)}%。`,
+        action: "调低该路由权重或增加同模型备用渠道。",
+      });
+    }
+  }
+
+  const criticalIssues = issues.filter((item) => item.level === "critical").length;
+  const warningIssues = issues.filter((item) => item.level === "warning").length;
+  res.json({
+    success: true,
+    data: {
+      generatedAt: new Date().toISOString(),
+      summary: {
+        providers: providerCards.length,
+        enabledProviders: providerCards.filter((item) => item.status === "enabled").length,
+        models: staticModels.length,
+        routedModels: staticModels.filter((model) => (capacityByModel.get(model.id) || []).some((item) => item.is_enabled)).length,
+        routes: routes.length,
+        enabledRoutes: routes.filter((item) => item.enabled).length,
+        criticalIssues,
+        warningIssues,
+        costedRoutes: routes.filter((item) => item.promptCost > 0 || item.completionCost > 0 || item.fixedCost > 0).length,
+        routePolicies: routePolicies.length,
+        currentRpm: providerCards.reduce((sum, item) => sum + item.currentRpm, 0),
+        currentTpm: providerCards.reduce((sum, item) => sum + item.currentTpm, 0),
+        rpmLimit: providerCards.reduce((sum, item) => sum + item.rpmLimit, 0),
+        tpmLimit: providerCards.reduce((sum, item) => sum + item.tpmLimit, 0),
+      },
+      providers: providerCards,
+      routes,
+      costs: activeCosts,
+      routePolicies,
+      routeAudits,
+      issues,
+    },
+  });
+});
+
 // POST /api/provider/admin/providers — 创建内部渠道
 router.post("/admin/providers", async (req: Request, res: Response) => {
   const { name, description, website, api_base_url, api_key, contact_name, contact_email, contact_phone } = req.body || {};
@@ -242,6 +563,151 @@ router.post("/admin/providers", async (req: Request, res: Response) => {
     data: created ? await getProviderCard(created) : null,
     message: "渠道已创建",
   });
+});
+
+// GET /api/provider/admin/costs — 当前生效的供应商成本价版本
+router.get("/admin/costs", async (_req: Request, res: Response) => {
+  const costs = await getActiveCostVersions();
+  res.json({ success: true, data: costs });
+});
+
+// POST /api/provider/admin/providers/:id/costs/:modelId — 创建新的成本价版本
+router.post("/admin/providers/:id/costs/:modelId", async (req: Request, res: Response) => {
+  const providerId = req.params.id as string;
+  const modelId = req.params.modelId as string;
+  const provider = await getProviderById(providerId);
+  if (!provider) {
+    res.status(404).json({ success: false, message: "供应商不存在" });
+    return;
+  }
+  const catalog = staticModels.find((model) => model.id === modelId);
+  const {
+    version_label, pricing_type, prompt_cost, completion_cost, fixed_cost,
+    currency, effective_from, effective_to, notes,
+  } = req.body || {};
+  const cost = await createCostVersion({
+    providerId,
+    modelId,
+    versionLabel: version_label || "manual",
+    pricingType: pricing_type || catalog?.pricingType || "token",
+    promptCost: Number(prompt_cost || 0),
+    completionCost: Number(completion_cost || 0),
+    fixedCost: Number(fixed_cost || 0),
+    currency: currency || "CNY",
+    effectiveFrom: effective_from,
+    effectiveTo: effective_to || null,
+    notes: notes || "",
+    createdBy: (req as any).admin?.id || null,
+  });
+  await recordRouteAudit({
+    providerId,
+    modelId,
+    action: "cost_version_created",
+    afterConfig: cost,
+    actorId: (req as any).admin?.id || null,
+    reason: notes || "更新供应商成本价版本",
+  });
+  res.json({ success: true, data: cost, message: "成本价版本已创建" });
+});
+
+// GET /api/provider/admin/route-audits — 路由变更审计
+router.get("/admin/route-audits", async (req: Request, res: Response) => {
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit || 30)));
+  res.json({ success: true, data: await getRouteAudits(limit) });
+});
+
+// GET /api/provider/admin/route-policies — 客户/模型路由策略覆盖
+router.get("/admin/route-policies", async (_req: Request, res: Response) => {
+  res.json({ success: true, data: await getRoutePolicies() });
+});
+
+// POST /api/provider/admin/route-policies — 创建路由策略覆盖
+router.post("/admin/route-policies", async (req: Request, res: Response) => {
+  const {
+    user_id, model_id = "*", strategy = "weighted", pinned_provider_id,
+    allowed_providers, blocked_providers, priority_boost,
+    min_availability, max_prompt_cost, max_completion_cost, is_enabled, notes,
+  } = req.body || {};
+  const policy = await upsertRoutePolicy({
+    userId: user_id || null,
+    modelId: model_id,
+    strategy,
+    pinnedProviderId: pinned_provider_id || null,
+    allowedProviders: Array.isArray(allowed_providers) ? allowed_providers : [],
+    blockedProviders: Array.isArray(blocked_providers) ? blocked_providers : [],
+    priorityBoost: priority_boost && typeof priority_boost === "object" ? priority_boost : {},
+    minAvailability: min_availability === undefined ? null : Number(min_availability),
+    maxPromptCost: max_prompt_cost === undefined ? null : Number(max_prompt_cost),
+    maxCompletionCost: max_completion_cost === undefined ? null : Number(max_completion_cost),
+    isEnabled: is_enabled === undefined ? true : !!is_enabled,
+    notes: notes || "",
+    createdBy: (req as any).admin?.id || null,
+  });
+  await recordRouteAudit({
+    providerId: pinned_provider_id || "dashscope",
+    modelId: model_id,
+    action: "route_policy_created",
+    afterConfig: policy,
+    actorId: (req as any).admin?.id || null,
+    reason: notes || "创建客户/模型路由策略",
+  }).catch(() => undefined);
+  res.json({ success: true, data: policy, message: "路由策略已创建" });
+});
+
+// PUT /api/provider/admin/route-policies/:id — 更新路由策略覆盖
+router.put("/admin/route-policies/:id", async (req: Request, res: Response) => {
+  const existing = (await getRoutePolicies()).find((item) => item.id === (req.params.id as string));
+  if (!existing) {
+    res.status(404).json({ success: false, message: "路由策略不存在" });
+    return;
+  }
+  const policy = await upsertRoutePolicy({
+    id: req.params.id as string,
+    userId: req.body.user_id !== undefined ? req.body.user_id || null : existing.user_id,
+    modelId: req.body.model_id || existing.model_id,
+    strategy: req.body.strategy || existing.strategy,
+    pinnedProviderId: req.body.pinned_provider_id !== undefined ? req.body.pinned_provider_id || null : existing.pinned_provider_id,
+    allowedProviders: Array.isArray(req.body.allowed_providers) ? req.body.allowed_providers : existing.allowed_providers,
+    blockedProviders: Array.isArray(req.body.blocked_providers) ? req.body.blocked_providers : existing.blocked_providers,
+    priorityBoost: req.body.priority_boost && typeof req.body.priority_boost === "object" ? req.body.priority_boost : existing.priority_boost,
+    minAvailability: req.body.min_availability !== undefined ? Number(req.body.min_availability) : existing.min_availability,
+    maxPromptCost: req.body.max_prompt_cost !== undefined ? Number(req.body.max_prompt_cost) : existing.max_prompt_cost,
+    maxCompletionCost: req.body.max_completion_cost !== undefined ? Number(req.body.max_completion_cost) : existing.max_completion_cost,
+    isEnabled: req.body.is_enabled !== undefined ? !!req.body.is_enabled : existing.is_enabled,
+    notes: req.body.notes !== undefined ? req.body.notes : existing.notes,
+    createdBy: (req as any).admin?.id || null,
+  });
+  await recordRouteAudit({
+    providerId: policy.pinned_provider_id || "dashscope",
+    modelId: policy.model_id,
+    action: "route_policy_updated",
+    beforeConfig: existing,
+    afterConfig: policy,
+    actorId: (req as any).admin?.id || null,
+    reason: policy.notes || "更新客户/模型路由策略",
+  }).catch(() => undefined);
+  res.json({ success: true, data: policy, message: "路由策略已更新" });
+});
+
+// DELETE /api/provider/admin/route-policies/:id — 删除路由策略覆盖
+router.delete("/admin/route-policies/:id", async (req: Request, res: Response) => {
+  const existing = (await getRoutePolicies()).find((item) => item.id === (req.params.id as string));
+  const success = await deleteRoutePolicy(req.params.id as string);
+  if (!success) {
+    res.status(404).json({ success: false, message: "路由策略不存在" });
+    return;
+  }
+  if (existing) {
+    await recordRouteAudit({
+      providerId: existing.pinned_provider_id || "dashscope",
+      modelId: existing.model_id,
+      action: "route_policy_deleted",
+      beforeConfig: existing,
+      actorId: (req as any).admin?.id || null,
+      reason: "删除客户/模型路由策略",
+    }).catch(() => undefined);
+  }
+  res.json({ success: true, message: "路由策略已删除" });
 });
 
 // GET /api/provider/admin/providers/:id — 获取渠道详情
@@ -545,6 +1011,7 @@ router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response)
 
   const { rpm_limit, tpm_limit, daily_limit, concurrent_limit, priority, weight, is_enabled } = req.body;
 
+  const beforeCapacity = await getCapacity(providerId, modelId);
   const capacity = await upsertCapacity(providerId, modelId, {
     rpm_limit,
     tpm_limit,
@@ -553,6 +1020,15 @@ router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response)
     priority,
     weight,
     is_enabled,
+  });
+  await recordRouteAudit({
+    providerId,
+    modelId,
+    action: beforeCapacity ? "capacity_updated" : "capacity_created",
+    beforeConfig: beforeCapacity || null,
+    afterConfig: capacity,
+    actorId: (req as any).admin?.id || null,
+    reason: req.body.reason || "后台更新容量与路由策略",
   });
 
   res.json({
@@ -581,11 +1057,21 @@ router.delete("/:providerId/capacity/:modelId", async (req: Request, res: Respon
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
   }
-  const success = await deleteCapacity(providerId, req.params.modelId as string);
+  const modelId = req.params.modelId as string;
+  const beforeCapacity = await getCapacity(providerId, modelId);
+  const success = await deleteCapacity(providerId, modelId);
   if (!success) {
     res.status(404).json({ success: false, message: "配置不存在" });
     return;
   }
+  await recordRouteAudit({
+    providerId,
+    modelId,
+    action: "capacity_deleted",
+    beforeConfig: beforeCapacity || null,
+    actorId: (req as any).admin?.id || null,
+    reason: "后台删除容量与路由策略",
+  });
   res.json({ success: true, message: "配置已删除" });
 });
 

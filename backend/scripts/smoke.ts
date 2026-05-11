@@ -3,6 +3,7 @@ import path from "path";
 import { models, AIModel } from "../src/data/models";
 import { detectModelType } from "../src/services/adapters";
 import { createApiKey, getAllKeys } from "../src/data/apikeys";
+import { getSupportedProtocols } from "../src/utils/model-protocols";
 
 type SmokeStatus = "passed" | "failed" | "skipped";
 
@@ -31,10 +32,10 @@ const reportPath = process.env.SMOKE_REPORT_PATH || path.join(process.cwd(), "re
 const referenceImageUrl =
   process.env.SMOKE_REFERENCE_IMAGE_URL ||
   "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Example.jpg/512px-Example.jpg";
-const apiKey = process.env.SMOKE_API_KEY || ensureApiKey();
+let apiKey = process.env.SMOKE_API_KEY || "";
 
-const authHeaders = {
-  Authorization: `Bearer ${apiKey}`,
+let authHeaders = {
+  Authorization: "",
   "Content-Type": "application/json",
 };
 
@@ -44,10 +45,10 @@ function getArgValue(name: string): string | undefined {
   return match ? match.slice(prefix.length) : undefined;
 }
 
-function ensureApiKey(): string {
-  const existing = getAllKeys()[0];
+async function ensureApiKey(): Promise<string> {
+  const existing = (await getAllKeys())[0];
   if (existing?.key) return existing.key;
-  return createApiKey("smoke-script", 600).key;
+  return (await createApiKey("smoke-script", 600)).key;
 }
 
 function nowMs(): number {
@@ -142,7 +143,17 @@ function printResult(result: SmokeResult): void {
 }
 
 function chatModels(): AIModel[] {
-  return models.filter((model) => detectModelType(model.category) === "chat");
+  return models.filter((model) =>
+    detectModelType(model.category) === "chat" &&
+    getSupportedProtocols(model).includes("openai/chat-completions")
+  );
+}
+
+function anthropicMessageModels(): AIModel[] {
+  return models.filter((model) =>
+    detectModelType(model.category) === "chat" &&
+    getSupportedProtocols(model).includes("anthropic/messages")
+  );
 }
 
 function embeddingModels(): AIModel[] {
@@ -704,8 +715,15 @@ async function smokeContract(route: string, body: Record<string, unknown>, expec
 }
 
 async function main(): Promise<void> {
+  apiKey = apiKey || await ensureApiKey();
+  authHeaders = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+
   const results: SmokeResult[] = [];
   const chat = chatModels();
+  const anthropicMessages = anthropicMessageModels();
   const embeddings = embeddingModels();
   const images = imageModels();
   const videos = videoModels();
@@ -737,6 +755,15 @@ async function main(): Promise<void> {
       model: firstChat.id,
       prompt: "hello",
     }, 400, "unsupported_model")));
+
+  const firstClaude = pickModel(["claude-haiku-4-5", "claude-sonnet-4-6"], anthropicMessages.filter((model) => model.id.startsWith("claude-")));
+  if (firstClaude) {
+    results.push(await runTest("contract-claude-reject-openai-chat", () =>
+      smokeContract("/v1/chat/completions", {
+        model: firstClaude.id,
+        messages: [{ role: "user", content: "hello" }],
+      }, 400, "unsupported_protocol")));
+  }
 
   if (firstEmbedding) {
     results.push(await runTest("contract-embeddings-reject-chat", () =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { NexusflowLogo } from "./QuadrantLogo";
 
@@ -238,14 +238,10 @@ export default function OnboardingGuide({ hasApiKey, apiKey, onClose }: Onboardi
 
 // Hook to check if onboarding should show
 export function useOnboarding() {
-  const [shouldShow, setShouldShow] = useState(false);
-
-  useEffect(() => {
-    const completed = localStorage.getItem("onboarding_completed");
-    if (!completed) {
-      setShouldShow(true);
-    }
-  }, []);
+  const [shouldShow, setShouldShow] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem("onboarding_completed");
+  });
 
   function markCompleted() {
     localStorage.setItem("onboarding_completed", "true");

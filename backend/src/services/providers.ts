@@ -1,8 +1,7 @@
 /**
  * Provider Configuration
  *
- * All models are accessed through Alibaba Cloud DashScope.
- * DashScope provides unified OpenAI-compatible API for multiple providers.
+ * Provider routing for first-party and aggregator channels.
  */
 
 export interface ProviderConfig {
@@ -14,6 +13,13 @@ export interface ProviderConfig {
 }
 
 export const providers: ProviderConfig[] = [
+  {
+    id: "anthropic",
+    name: "Anthropic",
+    baseUrl: "https://api.anthropic.com/v1",
+    apiKeyEnv: "ANTHROPIC_API_KEY",
+    models: ["claude-"],
+  },
   // 阿里云百炼 (DashScope) - 统一入口
   // 支持通义千问、DeepSeek、GLM、Kimi、MiniMax、HappyHorse、PixVerse 等当前已接入模型
   {
@@ -42,13 +48,10 @@ export const providers: ProviderConfig[] = [
   },
 ];
 
-/**
- * Find the provider for a given model ID
- * All models go through DashScope
- */
 export function findProvider(modelId: string): ProviderConfig | null {
-  void modelId;
-  return providers[0];
+  return providers.find((provider) =>
+    provider.models.some((modelPattern) => modelId === modelPattern || modelId.startsWith(modelPattern))
+  ) || providers.find((provider) => provider.id === "dashscope") || null;
 }
 
 /**
@@ -61,14 +64,27 @@ export function getProviderApiKey(provider: ProviderConfig): string {
 export async function ensureRoutingDefaults(): Promise<void> {
   const { ensureProvider, getCapacity, upsertCapacity } = require("../data/providers") as typeof import("../data/providers");
   const { models } = require("../data/models") as typeof import("../data/models");
+  const dashscopeConfig = providers.find((provider) => provider.id === "dashscope")!;
   const dashscope = await ensureProvider({
     id: "dashscope",
     name: "阿里云百炼",
     slug: "dashscope",
     description: "百炼 OpenAI 兼容模式渠道。",
     website: "https://help.aliyun.com/zh/model-studio/",
-    api_base_url: providers[0].baseUrl,
+    api_base_url: dashscopeConfig.baseUrl,
     api_key: process.env.DASHSCOPE_API_KEY || "",
+    contact_name: "平台运营",
+    contact_email: "ops@nexusflow.ai",
+    status: "enabled",
+  });
+  const anthropic = await ensureProvider({
+    id: "anthropic",
+    name: "Anthropic",
+    slug: "anthropic",
+    description: "Anthropic Claude Messages API 官方渠道。",
+    website: "https://docs.anthropic.com/",
+    api_base_url: "https://api.anthropic.com/v1",
+    api_key: process.env.ANTHROPIC_API_KEY || "",
     contact_name: "平台运营",
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
@@ -86,9 +102,10 @@ export async function ensureRoutingDefaults(): Promise<void> {
     status: "enabled",
   });
   for (const model of models) {
-    if (await getCapacity(dashscope.id, model.id)) continue;
+    const routedProvider = model.id.startsWith("claude-") ? anthropic : dashscope;
+    if (await getCapacity(routedProvider.id, model.id)) continue;
     const isTaskModel = model.category === "图像生成" || model.category === "视频生成";
-    await upsertCapacity(dashscope.id, model.id, {
+    await upsertCapacity(routedProvider.id, model.id, {
       rpm_limit: 1000,
       tpm_limit: isTaskModel ? 0 : 1000000,
       daily_limit: 100000,

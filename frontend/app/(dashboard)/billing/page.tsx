@@ -15,7 +15,6 @@ interface BillingSummary { balance: number; totalRecharge: number; totalConsumpt
 interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; }
 interface ApiKeyInfo { id: string; key: string; name: string; }
 type PayMethod = "mock" | "alipay";
-type AlipayMode = "page" | "qr";
 interface PaymentConfigStatus {
   configured: boolean;
   missing?: string[];
@@ -42,8 +41,6 @@ export default function BillingPage() {
   const [rechargeMsg, setRechargeMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pollOrderId, setPollOrderId] = useState<string | null>(null);
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfigStatus | null>(null);
-  const [alipayMode, setAlipayMode] = useState<AlipayMode>("page");
-  const [qrCode, setQrCode] = useState<string | null>(null);
   const [paymentFormHtml, setPaymentFormHtml] = useState<string | null>(null);
   const [firstApiKey, setFirstApiKey] = useState<ApiKeyInfo | null>(null);
   const missingConfigKeys = Array.isArray(paymentConfig?.missing) ? paymentConfig!.missing : [];
@@ -103,17 +100,16 @@ export default function BillingPage() {
     const amount = parseFloat(rechargeAmount);
     if (!amount || amount <= 0) { setRechargeMsg({ type: "error", text: t("invalidAmount") }); return; }
     if (amount > 10000) { setRechargeMsg({ type: "error", text: t("maxAmount") }); return; }
-    setRecharging(true); setRechargeMsg(null); setQrCode(null); setPaymentFormHtml(null);
+    setRecharging(true); setRechargeMsg(null); setPaymentFormHtml(null);
     try {
-      const body: any = { amount };
-      if (payMethod === "alipay") body.method = alipayMode;
+      const body: Record<string, unknown> = { amount };
+      if (payMethod === "alipay") body.method = "page";
       const res = await fetchAPI("/api/billing/recharge", { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
       if (res.success) {
         if (res.data?.qrCode) {
           const orderNo = res.data.orderNo || res.data.orderId;
           if (orderNo) setPollOrderId(orderNo);
-          setQrCode(res.data.qrCode);
-          setRechargeMsg({ type: "success", text: "二维码已生成，请使用支付宝扫码支付" });
+          setRechargeMsg({ type: "success", text: "支付订单已创建，请在支付宝页面完成支付" });
         } else if (res.data?.paymentForm || res.data?.payUrl) {
           const orderNo = res.data.orderNo || res.data.orderId;
           const paymentForm = res.data.paymentForm || res.data.payUrl;
@@ -200,7 +196,7 @@ export default function BillingPage() {
       <div className="usr-section animate-fadeIn" style={{ marginBottom: 20 }}>
           <div className="usr-section-header">
             <h3>{t("topUp")}</h3>
-            <button onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); setQrCode(null); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 18, lineHeight: 1 }}>×</button>
+            <button onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 18, lineHeight: 1 }}>×</button>
           </div>
           <div className="usr-section-body">
             {/* Smart recommendations */}

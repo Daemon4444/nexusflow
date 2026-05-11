@@ -230,6 +230,29 @@ function rejectInsufficientBalance(res: Response): void {
   });
 }
 
+function calculateAnthropicUsageCost(model: any, usage: any): number {
+  const inputTokens = usage?.input_tokens || 0;
+  const outputTokens = usage?.output_tokens || 0;
+  const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
+  const cacheReadTokens = usage?.cache_read_input_tokens || 0;
+  const baseInputTokens = Math.max(0, inputTokens - cacheCreationTokens - cacheReadTokens);
+
+  return (baseInputTokens / 1_000_000) * model.promptPrice
+    + (cacheCreationTokens / 1_000_000) * model.promptPrice * 1.25
+    + (cacheReadTokens / 1_000_000) * model.promptPrice * 0.1
+    + (outputTokens / 1_000_000) * model.completionPrice;
+}
+
+function getAnthropicVersion(req: Request): string {
+  const value = req.headers["anthropic-version"];
+  return typeof value === "string" && value.trim() ? value.trim() : "2023-06-01";
+}
+
+function getAnthropicBeta(req: Request): string | undefined {
+  const value = req.headers["anthropic-beta"];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 // POST /v1/messages — Anthropic Messages compatible
 router.post("/", async (req: Request, res: Response) => {
   const token = extractAnthropicToken(req);
@@ -340,18 +363,193 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  // Convert Anthropic request to OpenAI format
-  const convertedRequest = convertToOpenAI(req.body);
-  const openaiRequest = buildUpstreamChatRequest(model, {
-    ...req.body,
-    ...convertedRequest,
-  });
   const startTime = Date.now();
   recordRequest(provider.id, modelId, apiKeyRecord.id, 0);
   if (apiKeyRecord.user_id) {
     await recordRequestAsync(`user:${apiKeyRecord.user_id}:${modelId}`);
   }
 
+  if (provider.id === "anthropic") {
+    try {
+      const headers: Record<string, string> = {
+        "x-api-key": upstreamApiKey,
+        "anthropic-version": getAnthropicVersion(req),
+        "Content-Type": "application/json",
+      };
+      const beta = getAnthropicBeta(req);
+      if (beta) headers["anthropic-beta"] = beta;
+
+      const response = await fetch(`${provider.baseUrl}/messages`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(req.body),
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
+      });
+
+      if (stream) {
+        if (!response.ok) {
+          const errText = await response.text();
+          res.status(response.status).json({
+            type: "error",
+            error: {
+              type: "api_error",
+              message: errText,
+            },
+          });
+          return;
+        }
+
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+
+        let fullResponse = "";
+        let inputTokens = 0;
+        let outputTokens = 0;
+        let cacheCreationInputTokens = 0;
+        let cacheReadInputTokens = 0;
+        let ttftMs = 0;
+        let chunkCount = 0;
+        let firstChunkTime = 0;
+        let lastChunkTime = 0;
+
+        const reader = response.body as any;
+        const writeChunk = (chunk: any) => {
+          const now = Date.now();
+          if (chunkCount === 0) {
+            ttftMs = now - startTime;
+            firstChunkTime = now;
+          }
+          lastChunkTime = now;
+          chunkCount++;
+          const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+          fullResponse += text;
+          res.write(chunk);
+        };
+
+        if (reader && typeof reader[Symbol.asyncIterator] === "function") {
+          for await (const chunk of reader) writeChunk(chunk);
+        } else if (reader && reader.getReader) {
+          const r = reader.getReader();
+          while (true) {
+            const { done, value } = await r.read();
+            if (done) break;
+            writeChunk(value);
+          }
+        }
+        res.end();
+
+        for (const line of fullResponse.split(/\r?\n/)) {
+          const event = parseSseEvent(line);
+          const usage = event?.message?.usage || event?.usage;
+          if (!usage) continue;
+          inputTokens = usage.input_tokens ?? inputTokens;
+          outputTokens = usage.output_tokens ?? outputTokens;
+          cacheCreationInputTokens = usage.cache_creation_input_tokens ?? cacheCreationInputTokens;
+          cacheReadInputTokens = usage.cache_read_input_tokens ?? cacheReadInputTokens;
+        }
+
+        const latencyMs = Date.now() - startTime;
+        const totalCost = calculateAnthropicUsageCost(model, {
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          cache_creation_input_tokens: cacheCreationInputTokens,
+          cache_read_input_tokens: cacheReadInputTokens,
+        });
+        const totalTokens = inputTokens + outputTokens;
+        const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
+        const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
+
+        await logUsage({
+          apiKeyId: apiKeyRecord.id,
+          userId: apiKeyRecord.user_id,
+          model: modelId,
+          promptTokens: inputTokens,
+          completionTokens: outputTokens,
+          totalTokens,
+          cost: totalCost,
+          status: "success",
+          latencyMs,
+          ttftMs,
+          tpotMs,
+        });
+        recordProviderTokens(provider.id, modelId, totalTokens);
+
+        if (apiKeyRecord.user_id && totalCost > 0) {
+          await consume(
+            apiKeyRecord.user_id,
+            totalCost,
+            `API (Claude): ${modelId} (${totalTokens} tokens, stream)`,
+            apiKeyRecord.id
+          );
+        }
+        return;
+      }
+
+      const data: any = await response.json();
+      if (!response.ok) {
+        res.status(response.status).json(data);
+        return;
+      }
+
+      const usage = data.usage || {};
+      const totalCost = calculateAnthropicUsageCost(model, usage);
+      const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+      await logUsage({
+        apiKeyId: apiKeyRecord.id,
+        userId: apiKeyRecord.user_id,
+        model: modelId,
+        promptTokens: usage.input_tokens || 0,
+        completionTokens: usage.output_tokens || 0,
+        totalTokens,
+        cost: totalCost,
+        status: "success",
+        latencyMs: Date.now() - startTime,
+      });
+      recordProviderTokens(provider.id, modelId, totalTokens);
+
+      if (apiKeyRecord.user_id && totalCost > 0) {
+        await consume(
+          apiKeyRecord.user_id,
+          totalCost,
+          `API (Claude): ${modelId} (${totalTokens} tokens)`,
+          apiKeyRecord.id
+        );
+      }
+
+      res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      res.json(data);
+      return;
+    } catch (err: any) {
+      await logUsage({
+        apiKeyId: apiKeyRecord.id,
+        userId: apiKeyRecord.user_id,
+        model: modelId,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        cost: 0,
+        status: "error",
+        latencyMs: Date.now() - startTime,
+      });
+
+      res.status(500).json({
+        type: "error",
+        error: {
+          type: "api_error",
+          message: `Upstream request failed: ${err.message}`,
+        },
+      });
+      return;
+    }
+  }
+
+  // Convert Anthropic request to OpenAI format
+  const convertedRequest = convertToOpenAI(req.body);
+  const openaiRequest = buildUpstreamChatRequest(model, {
+    ...req.body,
+    ...convertedRequest,
+  });
   const messageId = `msg_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
   try {

@@ -742,6 +742,51 @@ export const models: AIModel[] = [
     maxOutput: 8192,
     supported: ["文本", "函数调用"]
   },
+  // ========== Claude 官方 API ==========
+  {
+    id: "claude-opus-4-7",
+    name: "Claude Opus 4.7",
+    provider: "Anthropic",
+    description: "Anthropic 当前最强通用模型，面向复杂推理、Agentic Coding 和长上下文任务。官方价格为 $5 输入 / $25 输出每百万 Token；这里按 1 USD≈¥6.8 折算。",
+    contextLength: 1000000,
+    promptPrice: 34,
+    completionPrice: 170,
+    category: "大语言模型",
+    tags: ["Claude", "旗舰", "Agent", "视觉", "百万上下文"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 128000,
+    supported: ["文本", "图像输入", "函数调用", "自适应思考"]
+  },
+  {
+    id: "claude-sonnet-4-6",
+    name: "Claude Sonnet 4.6",
+    provider: "Anthropic",
+    description: "Anthropic 速度与智能均衡的主力模型，适合生产级对话、代码、工具调用和长上下文工作流。官方价格为 $3 输入 / $15 输出每百万 Token；这里按 1 USD≈¥6.8 折算。",
+    contextLength: 1000000,
+    promptPrice: 20.4,
+    completionPrice: 102,
+    category: "大语言模型",
+    tags: ["Claude", "均衡", "编程", "视觉", "百万上下文"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 64000,
+    supported: ["文本", "图像输入", "函数调用", "扩展思考"]
+  },
+  {
+    id: "claude-haiku-4-5",
+    name: "Claude Haiku 4.5",
+    provider: "Anthropic",
+    description: "Anthropic 高速低成本模型，具备接近前沿的智能，适合低延迟对话、分类、抽取和批量任务。官方价格为 $1 输入 / $5 输出每百万 Token；这里按 1 USD≈¥6.8 折算。",
+    contextLength: 200000,
+    promptPrice: 6.8,
+    completionPrice: 34,
+    category: "大语言模型",
+    tags: ["Claude", "极速", "低成本", "视觉"],
+    isNew: true,
+    maxOutput: 64000,
+    supported: ["文本", "图像输入", "函数调用", "扩展思考"]
+  },
   // ========== 其他第三方模型 ==========
   {
     id: "glm-4.7",

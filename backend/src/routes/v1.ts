@@ -502,6 +502,17 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
+  if (modelId.startsWith("claude-")) {
+    res.status(400).json({
+      error: {
+        message: `Model '${modelId}' is available through the Anthropic Messages API at /v1/messages.`,
+        type: "invalid_request_error",
+        code: "unsupported_protocol",
+      },
+    });
+    return;
+  }
+
   // Find provider for this model
   const provider = findProvider(modelId);
   if (!provider) {
