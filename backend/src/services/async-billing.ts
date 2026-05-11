@@ -2,6 +2,7 @@ import { consume } from "../data/billing";
 import { AIModel } from "../data/models";
 import { AsyncTask } from "../data/tasks";
 import { logUsage } from "../data/usage";
+import { applyUserModelDiscount } from "../data/user-discounts";
 import { getUserById } from "../data/users";
 
 function money(value: number): number {
@@ -85,6 +86,14 @@ export function estimateAsyncCost(model: AIModel, params: AsyncCostParams): numb
   }
 
   return 0;
+}
+
+export async function estimateDiscountedAsyncCost(
+  userId: string | null | undefined,
+  model: AIModel,
+  params: AsyncCostParams
+): Promise<number> {
+  return (await applyUserModelDiscount(userId, model.id, estimateAsyncCost(model, params))).finalAmount;
 }
 
 export async function hasEnoughBalance(userId: string | null | undefined, amount: number): Promise<boolean> {

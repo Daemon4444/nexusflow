@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { validateSession } from "../data/users";
-import { recharge, getTransactions, getBillingSummary, getMonthlyStats } from "../data/billing";
+import { recharge, getTransactions, getBillingSummary, getMonthlyStats, getBillingUsageExport } from "../data/billing";
 import {
   createPagePayment,
   createQrPayment,
@@ -40,6 +40,49 @@ function asAmount(value: unknown): number {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) return NaN;
   return Math.round(parsed * 100) / 100;
+}
+
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const raw = String(value);
+  const formulaSafe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  return `"${formulaSafe.replace(/"/g, '""')}"`;
+}
+
+function toCsv(rows: Record<string, unknown>[]): string {
+  const headers = [
+    "invoice_period_start",
+    "invoice_period_end",
+    "usage_id",
+    "occurred_at",
+    "api_key_id",
+    "api_key_name",
+    "model_id",
+    "model_name",
+    "provider",
+    "pricing_type",
+    "status",
+    "prompt_tokens",
+    "completion_tokens",
+    "total_tokens",
+    "tier_label",
+    "tier_max_tokens",
+    "prompt_unit_price_cny_per_1m_tokens",
+    "completion_unit_price_cny_per_1m_tokens",
+    "prompt_amount_cny",
+    "completion_amount_cny",
+    "list_amount_cny",
+    "discount_rate",
+    "discount_amount_cny",
+    "billed_amount_cny",
+    "recalculated_amount_cny",
+    "rounding_delta_cny",
+    "pricing_note",
+  ];
+  return [
+    headers.map(csvEscape).join(","),
+    ...rows.map((row) => headers.map((header) => csvEscape(row[header])).join(",")),
+  ].join("\n");
 }
 
 // GET /api/billing/summary — 账单概览
@@ -86,6 +129,58 @@ router.get("/monthly", async (req: Request, res: Response) => {
 
   const stats = await getMonthlyStats(userId);
   res.json({ success: true, data: stats });
+});
+
+// GET /api/billing/export.csv — 账单用量明细 CSV
+router.get("/export.csv", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
+  if (!userId) return;
+
+  try {
+    const exportData = await getBillingUsageExport(userId, {
+      startDate: typeof req.query.startDate === "string" ? req.query.startDate : undefined,
+      endDate: typeof req.query.endDate === "string" ? req.query.endDate : undefined,
+    });
+
+    const rows = exportData.rows.map((row) => ({
+      invoice_period_start: exportData.startDate,
+      invoice_period_end: exportData.endDate,
+      usage_id: row.usage_id,
+      occurred_at: row.created_at,
+      api_key_id: row.api_key_id,
+      api_key_name: row.api_key_name,
+      model_id: row.model,
+      model_name: row.model_name,
+      provider: row.provider,
+      pricing_type: row.pricing_type,
+      status: row.status,
+      prompt_tokens: row.prompt_tokens,
+      completion_tokens: row.completion_tokens,
+      total_tokens: row.total_tokens,
+      tier_label: row.tier_label,
+      tier_max_tokens: row.tier_max_tokens,
+      prompt_unit_price_cny_per_1m_tokens: row.prompt_unit_price_cny_per_1m,
+      completion_unit_price_cny_per_1m_tokens: row.completion_unit_price_cny_per_1m,
+      prompt_amount_cny: row.prompt_amount_cny,
+      completion_amount_cny: row.completion_amount_cny,
+      list_amount_cny: row.list_amount_cny,
+      discount_rate: row.discount_rate,
+      discount_amount_cny: row.discount_amount_cny,
+      billed_amount_cny: row.billed_amount_cny,
+      recalculated_amount_cny: row.recalculated_amount_cny,
+      rounding_delta_cny: row.rounding_delta_cny,
+      pricing_note: row.pricing_note,
+    }));
+
+    const csv = "\uFEFF" + toCsv(rows);
+    const filename = `nexusflow-billing-${exportData.startDate.slice(0, 10)}-to-${exportData.endDate.slice(0, 10)}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "账单导出失败";
+    res.status(400).json({ success: false, message });
+  }
 });
 
 // GET /api/billing/payment/config — 支付配置状态（用于前端提示）

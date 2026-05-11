@@ -6,6 +6,8 @@ import type { CSSProperties } from "react";
 import { fetchAPI } from "@/lib/api";
 import { authHeaders } from "@/lib/auth";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
+
 interface User {
   id: string;
   phone: string | null;
@@ -157,6 +159,55 @@ interface RateLimitRequest {
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface UserModelDiscount {
+  id: string;
+  user_id: string;
+  model_id: string;
+  discount_rate: number;
+  is_enabled: boolean;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AdminUserDetail {
+  usage: {
+    totalRequests: number;
+    totalTokens: number;
+    totalCost: number;
+    avgLatency: number;
+    successRate: number;
+  };
+  byModel: Array<{
+    model: string;
+    requests: number;
+    tokens: number;
+    cost: number;
+    percentage: number;
+  }>;
+  recent: Array<{
+    time: string;
+    model: string;
+    tokens: number;
+    cost: number;
+    status: string;
+    latency: number;
+  }>;
+  transactions: {
+    rows: Array<{
+      id: string;
+      type: string;
+      amount: number;
+      balance_after: number;
+      description: string;
+      ref_id: string | null;
+      created_at: string;
+    }>;
+    total: number;
+  };
+  discounts: UserModelDiscount[];
 }
 
 interface CapacityRecord {
@@ -412,6 +463,9 @@ export default function AdminPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [models, setModels] = useState<Model[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [userModelDiscounts, setUserModelDiscounts] = useState<UserModelDiscount[]>([]);
+  const [selectedUserDetail, setSelectedUserDetail] = useState<AdminUserDetail | null>(null);
+  const [userDetailLoading, setUserDetailLoading] = useState(false);
   const [rateLimitRequests, setRateLimitRequests] = useState<RateLimitRequest[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -429,6 +483,7 @@ export default function AdminPage() {
   const [providerRouteMetrics, setProviderRouteMetrics] = useState<ProviderRouteMetrics[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [userSearch, setUserSearch] = useState("");
   const [providerForm, setProviderForm] = useState({
     name: "",
     description: "",
@@ -468,12 +523,18 @@ export default function AdminPage() {
     }
   }, [selectedProviderId]);
 
+  useEffect(() => {
+    if (activeTab === "users" && selectedUserId) {
+      loadUserDetail(selectedUserId);
+    }
+  }, [activeTab, selectedUserId]);
+
   async function loadData() {
     setLoading(true);
     setError("");
     try {
       const headers = authHeaders();
-      const [providersRes, modelsRes, statsRes, usersRes, ticketsRes, requestsRes, usageRes, operationsRes] = await Promise.all([
+      const [providersRes, modelsRes, statsRes, usersRes, ticketsRes, requestsRes, usageRes, operationsRes, discountsRes] = await Promise.all([
         fetchAPI("/api/provider/admin/providers", { headers }),
         fetchAPI("/api/provider/admin/models", { headers }),
         fetchAPI("/api/provider/admin/stats", { headers }),
@@ -482,6 +543,7 @@ export default function AdminPage() {
         fetchAPI("/api/rate-limits/admin/requests", { headers }).catch(() => ({ success: false, data: [] })),
         fetchAPI("/api/usage/overview?scope=all", { headers }).catch(() => ({ success: false })),
         fetchAPI("/api/provider/admin/operations", { headers }).catch(() => ({ success: false })),
+        fetchAPI("/api/billing/admin/user-model-discounts", { headers }).catch(() => ({ success: false, data: [] })),
       ]);
 
       if (providersRes.success) setProviders(providersRes.data || []);
@@ -498,6 +560,7 @@ export default function AdminPage() {
       if (requestsRes.success) setRateLimitRequests(requestsRes.data || []);
       if (usageRes.success) setUsageOverview(usageRes.data || null);
       if (operationsRes.success) setOperations(operationsRes.data || null);
+      if (discountsRes.success) setUserModelDiscounts(discountsRes.data || []);
       const monitorRes = await fetchAPI("/api/provider-monitor/overview", { headers }).catch(() => ({ success: false }));
       if (monitorRes.success) setMonitorOverview(monitorRes.data || null);
 
@@ -543,6 +606,24 @@ export default function AdminPage() {
       console.error("加载渠道详情失败", detailErr);
     } finally {
       setDetailLoading(false);
+    }
+  }
+
+  async function loadUserDetail(userId: string) {
+    setUserDetailLoading(true);
+    try {
+      const res = await fetchAPI(`/api/admin/users/${userId}/detail`, { headers: authHeaders() });
+      if (res.success) {
+        setSelectedUserDetail(res.data || null);
+        if (Array.isArray(res.data?.discounts)) {
+          setUserModelDiscounts((current) => [
+            ...current.filter((item) => item.user_id !== userId),
+            ...res.data.discounts,
+          ]);
+        }
+      }
+    } finally {
+      setUserDetailLoading(false);
     }
   }
 
@@ -785,6 +866,136 @@ export default function AdminPage() {
     }
   }
 
+  async function handleCreateUserDiscount(userId: string) {
+    const defaultModel = models[0]?.modelId || "qwen-plus";
+    const modelId = prompt("模型 ID，例如 qwen-plus", defaultModel);
+    if (!modelId) return;
+    const rateText = prompt("折扣率：1=原价，0.8=八折，0=免费", "0.9");
+    if (rateText === null) return;
+    const discountRate = Number(rateText);
+    if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate > 1) {
+      setNotice("折扣率必须在 0 到 1 之间");
+      return;
+    }
+    const notes = prompt("备注（可选）", "") || "";
+    const res = await fetchAPI("/api/billing/admin/user-model-discounts", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ userId, modelId: modelId.trim(), discountRate, notes, enabled: true }),
+    });
+    if (res.success) {
+      setNotice("用户模型折扣已保存");
+      await loadData();
+      await loadUserDetail(userId);
+    } else {
+      setNotice(res.message || "折扣保存失败");
+    }
+  }
+
+  async function handleEditUserDiscount(discount: UserModelDiscount) {
+    const rateText = prompt("折扣率：1=原价，0.8=八折，0=免费", String(discount.discount_rate));
+    if (rateText === null) return;
+    const discountRate = Number(rateText);
+    if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate > 1) {
+      setNotice("折扣率必须在 0 到 1 之间");
+      return;
+    }
+    const notes = prompt("备注（可选）", discount.notes || "") || "";
+    const enabledText = prompt("是否启用：true / false", String(discount.is_enabled));
+    if (enabledText === null) return;
+    const res = await fetchAPI("/api/billing/admin/user-model-discounts", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        userId: discount.user_id,
+        modelId: discount.model_id,
+        discountRate,
+        notes,
+        enabled: enabledText === "true",
+      }),
+    });
+    if (res.success) {
+      setNotice("用户模型折扣已更新");
+      await loadData();
+      await loadUserDetail(discount.user_id);
+    } else {
+      setNotice(res.message || "折扣更新失败");
+    }
+  }
+
+  async function handleDeleteUserDiscount(id: string) {
+    const res = await fetchAPI(`/api/billing/admin/user-model-discounts/${id}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (res.success) {
+      setNotice("折扣已删除");
+      await loadData();
+      if (selectedUserId) await loadUserDetail(selectedUserId);
+    } else {
+      setNotice(res.message || "折扣删除失败");
+    }
+  }
+
+  async function handleAdjustUserBalance(userId: string) {
+    const amountText = prompt("调账金额，正数增加余额，负数扣减余额", "10");
+    if (amountText === null) return;
+    const amountDelta = Number(amountText);
+    if (!Number.isFinite(amountDelta) || amountDelta === 0) {
+      setNotice("调账金额必须是非 0 数字");
+      return;
+    }
+    const description = prompt("调账说明", amountDelta > 0 ? "管理员增加余额" : "管理员扣减余额") || "";
+    const res = await fetchAPI(`/api/admin/users/${userId}/balance-adjust`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ amountDelta, description }),
+    });
+    if (res.success) {
+      setNotice("用户余额已调整");
+      await loadData();
+      await loadUserDetail(userId);
+    } else {
+      setNotice(res.message || "余额调整失败");
+    }
+  }
+
+  async function handleExportUserBilling(userId: string) {
+    const now = new Date();
+    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const defaultEnd = now.toISOString().slice(0, 10);
+    const startDate = prompt("账单开始日期 YYYY-MM-DD", defaultStart);
+    if (!startDate) return;
+    const endDate = prompt("账单结束日期 YYYY-MM-DD", defaultEnd);
+    if (!endDate) return;
+    if (startDate > endDate) {
+      setNotice("开始日期不能晚于结束日期");
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({ startDate, endDate });
+      const res = await fetch(`${API_BASE}/api/admin/users/${userId}/billing-export.csv?${params.toString()}`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `nexusflow-user-${userId}-billing-${startDate}-to-${endDate}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setNotice("用户账单 CSV 已导出");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "账单导出失败");
+    }
+  }
+
   const filteredProviders = filter === "all" ? providers : providers.filter((provider) => provider.status === filter);
   const filteredModels = filter === "all" ? models : models.filter((model) => model.status === filter);
   const filteredTickets = filter === "all" ? tickets : tickets.filter((ticket) => ticket.status === filter);
@@ -808,6 +1019,22 @@ export default function AdminPage() {
     () => users.find((user) => user.id === selectedUserId) || null,
     [users, selectedUserId]
   );
+
+  const selectedUserDiscounts = useMemo(
+    () => userModelDiscounts.filter((discount) => discount.user_id === selectedUserId),
+    [userModelDiscounts, selectedUserId]
+  );
+
+  const filteredUsers = useMemo(() => {
+    const keyword = userSearch.trim().toLowerCase();
+    if (!keyword) return users;
+    return users.filter((user) => [
+      user.nickname,
+      user.email || "",
+      user.phone || "",
+      user.id,
+    ].some((value) => String(value).toLowerCase().includes(keyword)));
+  }, [users, userSearch]);
 
   const selectedProviderTotals = useMemo(() => {
     if (!providerDetail) return null;
@@ -1237,10 +1464,18 @@ export default function AdminPage() {
                     <div style={{ padding: "14px 16px", borderBottom: "1px solid #e5e7eb", background: "#f8fafc", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
                       用户列表
                     </div>
+                    <div style={{ padding: 12, borderBottom: "1px solid #e5e7eb", background: "#fff" }}>
+                      <input
+                        value={userSearch}
+                        onChange={(event) => setUserSearch(event.target.value)}
+                        placeholder="搜索昵称、邮箱、手机号或用户 ID"
+                        style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: 8, padding: "9px 10px", fontSize: 13, fontFamily: "inherit" }}
+                      />
+                    </div>
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                      {users.length === 0 ? (
+                      {filteredUsers.length === 0 ? (
                         <div style={{ padding: 36, textAlign: "center", color: "#6b7280" }}>暂无用户数据</div>
-                      ) : users.map((user) => (
+                      ) : filteredUsers.map((user) => (
                         <button
                           key={user.id}
                           onClick={() => setSelectedUserId(user.id)}
@@ -1263,7 +1498,7 @@ export default function AdminPage() {
                             <div style={{ textAlign: "right" }}>
                               <div style={{ fontSize: 12, color: "#10b981", fontWeight: 600 }}>¥{Number(user.balance || 0).toFixed(2)}</div>
                               <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280" }}>
-                                {user.customLimitCount || 0} 条模型限额
+                                {user.customLimitCount || 0} 条限额 · {userModelDiscounts.filter((discount) => discount.user_id === user.id).length} 条折扣
                               </div>
                             </div>
                           </div>
@@ -1290,6 +1525,20 @@ export default function AdminPage() {
                             <div style={{ textAlign: "right" }}>
                               <div style={{ fontSize: 26, fontWeight: 700, color: "#10b981" }}>¥{Number(selectedUser.balance || 0).toFixed(2)}</div>
                               <div style={{ fontSize: 12, color: "#6b7280" }}>账户余额</div>
+                              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10, flexWrap: "wrap" }}>
+                                <button
+                                  onClick={() => handleAdjustUserBalance(selectedUser.id)}
+                                  style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                >
+                                  调整余额
+                                </button>
+                                <button
+                                  onClick={() => handleExportUserBilling(selectedUser.id)}
+                                  style={{ border: "1px solid #bfdbfe", background: "#eff6ff", color: "#1d4ed8", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                >
+                                  导出账单
+                                </button>
+                              </div>
                             </div>
                           </div>
 
@@ -1334,23 +1583,135 @@ export default function AdminPage() {
                         </div>
 
                         <div style={{ ...cardStyle, padding: 20 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                            <div>
+                              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型折扣</h3>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>按用户 + 模型覆盖目录价，下单和扣费都会使用折扣后金额</div>
+                            </div>
+                            <button
+                              onClick={() => handleCreateUserDiscount(selectedUser.id)}
+                              style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
+                            >
+                              新增折扣
+                            </button>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                            {selectedUserDiscounts.length > 0 ? selectedUserDiscounts.map((discount) => (
+                              <div key={discount.id} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+                                  <div>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{discount.model_id}</div>
+                                    <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                                      {discount.notes || "无备注"} · {discount.is_enabled ? "启用" : "停用"}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <div style={{ textAlign: "right" }}>
+                                      <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>{Math.round(Number(discount.discount_rate || 1) * 100)}%</div>
+                                      <div style={{ fontSize: 11, color: "#6b7280" }}>实付比例</div>
+                                    </div>
+                                    <button
+                                      onClick={() => handleEditUserDiscount(discount)}
+                                      style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                    >
+                                      修改
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteUserDiscount(discount.id)}
+                                      style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                    >
+                                      删除
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )) : (
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>当前没有模型折扣，所有模型按目录价计费。</div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ ...cardStyle, padding: 20 }}>
                           <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>使用情况</h3>
-                          {selectedUser.usage ? (
+                          {userDetailLoading ? (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>正在加载用户用量...</div>
+                          ) : (selectedUserDetail?.usage || selectedUser.usage) ? (
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
-                              {[
-                                { label: "请求", value: selectedUser.usage.totalRequests.toLocaleString() },
-                                { label: "Tokens", value: selectedUser.usage.totalTokens.toLocaleString() },
-                                { label: "成本", value: `¥${Number(selectedUser.usage.totalCost || 0).toFixed(4)}` },
-                                { label: "成功率", value: `${Number(selectedUser.usage.successRate || 0).toFixed(1)}%` },
+                              {(() => {
+                                const usage = selectedUserDetail?.usage || selectedUser.usage!;
+                                return [
+                                { label: "请求", value: usage.totalRequests.toLocaleString() },
+                                { label: "Tokens", value: usage.totalTokens.toLocaleString() },
+                                { label: "扣费", value: `¥${Number(usage.totalCost || 0).toFixed(4)}` },
+                                { label: "成功率", value: `${Number(usage.successRate || 0).toFixed(1)}%` },
                               ].map((item) => (
                                 <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff" }}>
                                   <div style={{ fontSize: 12, color: "#6b7280" }}>{item.label}</div>
                                   <div style={{ marginTop: 6, fontSize: 18, fontWeight: 700, color: "#111827" }}>{item.value}</div>
                                 </div>
-                              ))}
+                              ));
+                              })()}
                             </div>
                           ) : (
                             <div style={{ color: "#6b7280", fontSize: 13 }}>暂无使用数据</div>
+                          )}
+                        </div>
+
+                        <div style={{ ...cardStyle, padding: 20 }}>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>按模型用量</h3>
+                          {selectedUserDetail?.byModel && selectedUserDetail.byModel.length > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                              {selectedUserDetail.byModel.map((row) => (
+                                <div key={row.model} style={{ display: "grid", gridTemplateColumns: "1fr 90px 110px 90px", gap: 10, padding: 12, border: "1px solid #e5e7eb", borderRadius: 10, alignItems: "center" }}>
+                                  <div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{row.model}</div>
+                                    <div style={{ marginTop: 3, fontSize: 11.5, color: "#6b7280" }}>{row.percentage}% 请求占比</div>
+                                  </div>
+                                  <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>{row.requests.toLocaleString()} 次</div>
+                                  <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>{row.tokens.toLocaleString()} tokens</div>
+                                  <div style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: "#111827" }}>¥{Number(row.cost || 0).toFixed(4)}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无模型用量明细</div>
+                          )}
+                        </div>
+
+                        <div style={{ ...cardStyle, padding: 20 }}>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近 API 调用</h3>
+                          {selectedUserDetail?.recent && selectedUserDetail.recent.length > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                              {selectedUserDetail.recent.slice(0, 10).map((call, index) => (
+                                <div key={`${call.time}-${call.model}-${index}`} style={{ display: "grid", gridTemplateColumns: "80px 1fr 96px 86px 70px", gap: 10, padding: 11, border: "1px solid #e5e7eb", borderRadius: 10, alignItems: "center" }}>
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>{call.time}</div>
+                                  <div style={{ minWidth: 0, fontSize: 12.5, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{call.model}</div>
+                                  <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>{Number(call.tokens || 0).toLocaleString()} tokens</div>
+                                  <div style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: "#111827" }}>¥{Number(call.cost || 0).toFixed(6)}</div>
+                                  <div style={{ textAlign: "right", fontSize: 12, color: call.status === "成功" ? "#059669" : "#dc2626" }}>{call.status}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无 API 调用明细</div>
+                          )}
+                        </div>
+
+                        <div style={{ ...cardStyle, padding: 20 }}>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近账务流水</h3>
+                          {selectedUserDetail?.transactions?.rows?.length ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                              {selectedUserDetail.transactions.rows.slice(0, 8).map((tx) => (
+                                <div key={tx.id} style={{ display: "grid", gridTemplateColumns: "110px 1fr 90px 90px", gap: 10, padding: 11, border: "1px solid #e5e7eb", borderRadius: 10, alignItems: "center" }}>
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>{tx.type}</div>
+                                  <div style={{ minWidth: 0, fontSize: 12.5, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description}</div>
+                                  <div style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: Number(tx.amount) >= 0 ? "#059669" : "#dc2626" }}>¥{Number(tx.amount || 0).toFixed(6)}</div>
+                                  <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>¥{Number(tx.balance_after || 0).toFixed(2)}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无账务流水</div>
                           )}
                         </div>
 

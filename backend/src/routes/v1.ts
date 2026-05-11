@@ -8,10 +8,11 @@
  */
 
 import { Router, Request, Response } from "express";
-import { calculateTokenCost, models } from "../data/models";
+import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
+import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimits, checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType, adaptImageRequest, pollDashScopeTask } from "../services/adapters";
@@ -107,15 +108,15 @@ function roughTokenCount(value: unknown): number {
   return Math.ceil(String(value).length / 2);
 }
 
-function estimateChatMaxCost(model: any, messages: unknown[], maxTokens?: number): number {
+async function estimateChatMaxCost(userId: string | null | undefined, model: any, messages: unknown[], maxTokens?: number): Promise<number> {
   const promptTokens = Math.max(1, roughTokenCount(messages));
   const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
-  return calculateTokenCost(model, promptTokens, completionTokens);
+  return (await calculateDiscountedTokenCost(userId, model, promptTokens, completionTokens)).finalAmount;
 }
 
-function estimateEmbeddingCost(model: any, input: unknown): number {
+async function estimateEmbeddingCost(userId: string | null | undefined, model: any, input: unknown): Promise<number> {
   const promptTokens = Math.max(1, roughTokenCount(input));
-  return calculateTokenCost(model, promptTokens, 0);
+  return (await calculateDiscountedTokenCost(userId, model, promptTokens, 0)).finalAmount;
 }
 
 function rejectInsufficientBalance(res: Response): void {
@@ -285,7 +286,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedImageCost = (n || 1) * model.promptPrice;
+  const estimatedImageCost = (await applyUserModelDiscount(apiKeyRecord.user_id, modelId, (n || 1) * model.promptPrice)).finalAmount;
   if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedImageCost)) {
     rejectInsufficientBalance(res);
     return;
@@ -374,7 +375,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     }
 
     const imageCount = imageUrls.length;
-    const cost = (n || imageCount || 1) * model.promptPrice;
+    const cost = (await applyUserModelDiscount(apiKeyRecord.user_id, modelId, (n || imageCount || 1) * model.promptPrice)).finalAmount;
     await logUsage({
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
@@ -569,7 +570,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedChatCost = estimateChatMaxCost(model, messages, max_tokens);
+  const estimatedChatCost = await estimateChatMaxCost(apiKeyRecord.user_id, model, messages, max_tokens);
   if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedChatCost)) {
     rejectInsufficientBalance(res);
     return;
@@ -700,7 +701,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       // Log usage and bill
       const latencyMs = Date.now() - startTime;
-      const totalCost = calculateTokenCost(model, streamTokens.prompt_tokens, streamTokens.completion_tokens);
+      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, streamTokens.prompt_tokens, streamTokens.completion_tokens)).finalAmount;
 
       // Calculate TPOT: time per output token (ms)
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
@@ -778,7 +779,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const data = buildChatCompletionFromSse(events);
       const latencyMs = Date.now() - startTime;
       const usage = data.usage || {};
-      const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
+      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
 
       await logUsage({
         apiKeyId: apiKeyRecord.id,
@@ -834,7 +835,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     // Log usage and billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
+    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
     
     await logUsage({
       apiKeyId: apiKeyRecord.id,
@@ -978,7 +979,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedEmbeddingCost = estimateEmbeddingCost(model, input);
+  const estimatedEmbeddingCost = await estimateEmbeddingCost(apiKeyRecord.user_id, model, input);
   if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedEmbeddingCost)) {
     rejectInsufficientBalance(res);
     return;
@@ -1018,7 +1019,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     // Log usage
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const cost = calculateTokenCost(model, usage.prompt_tokens || 0, 0);
+    const cost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, 0)).finalAmount;
 
     await logUsage({
       apiKeyId: apiKeyRecord.id,

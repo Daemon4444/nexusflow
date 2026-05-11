@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
-import { calculateTokenCost, models } from "../data/models";
+import { models } from "../data/models";
 import { validateSession } from "../data/users";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
+import { calculateDiscountedTokenCost } from "../data/user-discounts";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
@@ -30,10 +31,10 @@ function roughTokenCount(value: unknown): number {
   return Math.ceil(String(value).length / 2);
 }
 
-function estimateChatMaxCost(model: any, messages: unknown[], maxTokens?: number): number {
+async function estimateChatMaxCost(userId: string, model: any, messages: unknown[], maxTokens?: number): Promise<number> {
   const promptTokens = Math.max(1, roughTokenCount(messages));
   const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
-  return calculateTokenCost(model, promptTokens, completionTokens);
+  return (await calculateDiscountedTokenCost(userId, model, promptTokens, completionTokens)).finalAmount;
 }
 
 function parseSseUsage(payload: string): { prompt_tokens: number; completion_tokens: number; total_tokens: number } {
@@ -126,7 +127,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedChatCost = estimateChatMaxCost(model, messages, max_tokens);
+  const estimatedChatCost = await estimateChatMaxCost(session.id, model, messages, max_tokens);
   if (!await hasSufficientBalance(session.id, estimatedChatCost)) {
     openAiError(res, 402, "账户余额不足，请充值后再调用。", "insufficient_balance", "insufficient_balance");
     return;
@@ -229,7 +230,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.end();
 
       const usage = parseSseUsage(fullResponse);
-      const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
+      const totalCost = (await calculateDiscountedTokenCost(session.id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = usage.completion_tokens > 1 ? streamDuration / (usage.completion_tokens - 1) : 0;
 
@@ -264,7 +265,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     }
 
     const usage = data.usage || {};
-    const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
+    const totalCost = (await calculateDiscountedTokenCost(session.id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
 
     await logUsage({
       apiKeyId: null,

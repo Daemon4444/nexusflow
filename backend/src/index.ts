@@ -17,13 +17,14 @@ import uploadRouter from "./routes/upload";
 import playgroundRouter from "./routes/playground";
 import authRouter from "./routes/auth";
 import billingRouter from "./routes/billing";
+import discountsRouter from "./routes/discounts";
+import adminRouter from "./routes/admin";
 import providerRouter from "./routes/provider";
 import providerMonitorRouter from "./routes/provider-monitor";
 import tasksRouter from "./routes/tasks";
 import rateLimitsRouter from "./routes/ratelimits";
 import ticketsRouter from "./routes/tickets";
 import protocolRouter from "./routes/protocols";
-import { getSessionUser, isAdminSession } from "./middleware/admin";
 import { errorHandler, notFoundHandler } from "./middleware/error";
 
 const app = express();
@@ -77,6 +78,7 @@ app.use("/v1/tasks", tasksRouter);
 // 管理面板 API
 app.use("/api/auth", authRouter);
 app.use("/api/billing", billingRouter);
+app.use("/api/billing", discountsRouter);
 app.use("/api/provider", providerRouter);
 app.use("/api/provider-monitor", providerMonitorRouter);
 app.use("/api/models", modelsRouter);
@@ -89,25 +91,11 @@ app.use("/api/upload", uploadRouter);
 app.use("/api/uploads", uploadRouter);
 app.use("/api/rate-limits", rateLimitsRouter);
 app.use("/api/tickets", ticketsRouter);
+app.use("/api/admin", adminRouter);
 
 // Admin API (requires authentication)
 import { cleanExpiredSessions } from "./data/users";
 import { seedApiKeysIfNeeded } from "./data/apikeys";
-import { getAdminUserLimitSummaries } from "./data/ratelimits";
-app.get("/api/admin/users", async (req, res) => {
-  const session = await getSessionUser(req, res);
-  if (!session) {
-    return;
-  }
-  if (!isAdminSession(session)) {
-    res.status(403).json({ success: false, message: "需要管理员权限" });
-    return;
-  }
-  res.json({
-    success: true,
-    data: await getAdminUserLimitSummaries(),
-  });
-});
 
 // Health check
 app.get("/api/health", (_req, res) => {

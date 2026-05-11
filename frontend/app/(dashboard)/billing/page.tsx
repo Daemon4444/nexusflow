@@ -15,6 +15,8 @@ interface BillingSummary { balance: number; totalRecharge: number; totalConsumpt
 interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; }
 interface ApiKeyInfo { id: string; key: string; name: string; }
 type PayMethod = "mock" | "alipay";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
+
 interface PaymentConfigStatus {
   configured: boolean;
   missing?: string[];
@@ -43,6 +45,13 @@ export default function BillingPage() {
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfigStatus | null>(null);
   const [paymentFormHtml, setPaymentFormHtml] = useState<string | null>(null);
   const [firstApiKey, setFirstApiKey] = useState<ApiKeyInfo | null>(null);
+  const [exportStartDate, setExportStartDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  });
+  const [exportEndDate, setExportEndDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportError, setExportError] = useState("");
   const missingConfigKeys = Array.isArray(paymentConfig?.missing) ? paymentConfig!.missing : [];
   const { shouldShow: showOnboarding, markCompleted } = useOnboarding();
 
@@ -127,6 +136,43 @@ export default function BillingPage() {
     finally { setRecharging(false); }
   }
 
+  async function handleExportCsv() {
+    if (!exportStartDate || !exportEndDate) {
+      setExportError("请选择导出日期范围");
+      return;
+    }
+    if (exportStartDate > exportEndDate) {
+      setExportError("开始日期不能晚于结束日期");
+      return;
+    }
+
+    setExportingCsv(true);
+    setExportError("");
+    try {
+      const params = new URLSearchParams({ startDate: exportStartDate, endDate: exportEndDate });
+      const res = await fetch(`${API_BASE}/api/billing/export.csv?${params.toString()}`, {
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "账单导出失败");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `nexusflow-billing-${exportStartDate}-to-${exportEndDate}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "账单导出失败");
+    } finally {
+      setExportingCsv(false);
+    }
+  }
+
   // 支付表单渲染后自动提交
   useEffect(() => {
     if (paymentFormHtml) {
@@ -167,10 +213,16 @@ export default function BillingPage() {
 
       <div className="usr-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div><h1>{t("creditsTitle")}</h1><p>{t("creditsDesc")}</p></div>
-        <button className="btn-primary" onClick={() => setShowRecharge(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          {t("topUp")}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <button className="btn-secondary" onClick={handleExportCsv} disabled={exportingCsv} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            {exportingCsv ? "导出中..." : "导出 CSV"}
+          </button>
+          <button className="btn-primary" onClick={() => setShowRecharge(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            {t("topUp")}
+          </button>
+        </div>
       </div>
 
       <div className="usr-hero-dark">
@@ -189,6 +241,29 @@ export default function BillingPage() {
             <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("totalSpent")}</div><div className="usr-hero-stat-value">{formatCny(summary?.totalConsumption || 0)}</div></div>
             <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("apiCalls")}</div><div className="usr-hero-stat-value">{summary?.totalCalls || 0}</div></div>
           </div>
+        </div>
+      </div>
+
+      <div className="usr-section" style={{ marginBottom: 20 }}>
+        <div className="usr-section-header">
+          <h3>账单导出</h3>
+          <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>按用量明细展开模型、阶梯和单价</span>
+        </div>
+        <div className="usr-section-body" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <label style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>
+            开始日期
+            <input className="input" type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} style={{ width: 160, fontSize: 13 }} />
+          </label>
+          <label style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>
+            结束日期
+            <input className="input" type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} style={{ width: 160, fontSize: 13 }} />
+          </label>
+          <button className="btn-secondary" onClick={handleExportCsv} disabled={exportingCsv} style={{ padding: "9px 18px", fontSize: 13 }}>
+            {exportingCsv ? "正在生成" : "下载账单 CSV"}
+          </button>
+          {exportError && (
+            <span style={{ fontSize: 12, color: "var(--danger)", lineHeight: "34px" }}>{exportError}</span>
+          )}
         </div>
       </div>
 

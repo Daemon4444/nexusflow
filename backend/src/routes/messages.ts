@@ -8,10 +8,11 @@
  */
 
 import { Router, Request, Response } from "express";
-import { calculateTokenCost, models } from "../data/models";
+import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
+import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimits, checkRPM, recordRequest, recordRequestAsync, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
@@ -214,10 +215,10 @@ function roughTokenCount(value: unknown): number {
   return Math.ceil(String(value).length / 2);
 }
 
-function estimateMessageMaxCost(model: any, body: any): number {
+async function estimateMessageMaxCost(userId: string | null | undefined, model: any, body: any): Promise<number> {
   const promptTokens = Math.max(1, roughTokenCount(body.system) + roughTokenCount(body.messages));
   const completionTokens = Math.max(1, Math.min(Number(body.max_tokens) || model.maxOutput || 4096, model.maxOutput || 4096));
-  return calculateTokenCost(model, promptTokens, completionTokens);
+  return (await calculateDiscountedTokenCost(userId, model, promptTokens, completionTokens)).finalAmount;
 }
 
 function rejectInsufficientBalance(res: Response): void {
@@ -230,17 +231,18 @@ function rejectInsufficientBalance(res: Response): void {
   });
 }
 
-function calculateAnthropicUsageCost(model: any, usage: any): number {
+async function calculateAnthropicUsageCost(userId: string | null | undefined, model: any, usage: any): Promise<number> {
   const inputTokens = usage?.input_tokens || 0;
   const outputTokens = usage?.output_tokens || 0;
   const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
   const cacheReadTokens = usage?.cache_read_input_tokens || 0;
   const baseInputTokens = Math.max(0, inputTokens - cacheCreationTokens - cacheReadTokens);
 
-  return (baseInputTokens / 1_000_000) * model.promptPrice
+  const listAmount = (baseInputTokens / 1_000_000) * model.promptPrice
     + (cacheCreationTokens / 1_000_000) * model.promptPrice * 1.25
     + (cacheReadTokens / 1_000_000) * model.promptPrice * 0.1
     + (outputTokens / 1_000_000) * model.completionPrice;
+  return (await applyUserModelDiscount(userId, model.id, listAmount)).finalAmount;
 }
 
 function getAnthropicVersion(req: Request): string {
@@ -357,7 +359,7 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedCost = estimateMessageMaxCost(model, req.body);
+  const estimatedCost = await estimateMessageMaxCost(apiKeyRecord.user_id, model, req.body);
   if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedCost)) {
     rejectInsufficientBalance(res);
     return;
@@ -450,7 +452,7 @@ router.post("/", async (req: Request, res: Response) => {
         }
 
         const latencyMs = Date.now() - startTime;
-        const totalCost = calculateAnthropicUsageCost(model, {
+        const totalCost = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, {
           input_tokens: inputTokens,
           output_tokens: outputTokens,
           cache_creation_input_tokens: cacheCreationInputTokens,
@@ -493,7 +495,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       const usage = data.usage || {};
-      const totalCost = calculateAnthropicUsageCost(model, usage);
+      const totalCost = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage);
       const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
       await logUsage({
         apiKeyId: apiKeyRecord.id,
@@ -711,7 +713,7 @@ router.post("/", async (req: Request, res: Response) => {
 
       // Billing
       const latencyMs = Date.now() - startTime;
-      const totalCost = calculateTokenCost(model, inputTokens, outputTokens);
+      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, inputTokens, outputTokens)).finalAmount;
 
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
@@ -772,7 +774,7 @@ router.post("/", async (req: Request, res: Response) => {
     // Billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const totalCost = calculateTokenCost(model, usage.prompt_tokens || 0, usage.completion_tokens || 0);
+    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
 
     await logUsage({
       apiKeyId: apiKeyRecord.id,

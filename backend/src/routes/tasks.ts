@@ -32,7 +32,7 @@ import {
 } from "../services/adapters";
 import { checkConsumerLimits, recordRequest } from "../services/rate-limiter";
 import { getPixVerseRuntimeChannel, getPixVerseTaskChannel } from "../services/pixverse-channel";
-import { billAsyncError, billAsyncSuccess, estimateAsyncCost, hasEnoughBalance } from "../services/async-billing";
+import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
 
 const router = Router();
 
@@ -116,7 +116,7 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedCost = estimateAsyncCost(model, params);
+  const estimatedCost = await estimateDiscountedAsyncCost(apiKeyRecord.user_id, model, params);
   if (!(await hasEnoughBalance(apiKeyRecord.user_id, estimatedCost))) {
     res.status(402).json({
       error: { message: "Insufficient balance", type: "billing_error", code: "insufficient_balance" },
@@ -245,7 +245,7 @@ router.post("/", async (req: Request, res: Response) => {
       if (imageUrls.length > 0) {
         const output = { type: "image", image_url: imageUrls[0], images: imageUrls };
         const model = models.find((m) => m.id === modelId);
-        const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
+        const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
         await completeTask(task.id, output, cost);
         if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
         res.status(202).json({
@@ -379,7 +379,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     // Update task based on result
     if (result.status === "succeeded") {
       const model = models.find((m) => m.id === task.model);
-      const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
+      const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
       await completeTask(task.id, result.output, cost);
       if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
     } else if (result.status === "failed") {

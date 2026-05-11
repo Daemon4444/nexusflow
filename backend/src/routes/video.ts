@@ -19,7 +19,7 @@ import {
   updateTaskStatus
 } from "../data/tasks";
 import { getPixVerseRuntimeChannel } from "../services/pixverse-channel";
-import { billAsyncError, billAsyncSuccess, estimateAsyncCost, hasEnoughBalance } from "../services/async-billing";
+import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
 import {
   adaptVideoRequest,
   adaptHappyHorseRequest,
@@ -119,7 +119,7 @@ const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedCost = estimateAsyncCost(model, { duration, quality, resolution, audio, audio_setting });
+  const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { duration, quality, resolution, audio, audio_setting });
   if (!(await hasEnoughBalance(caller.userId, estimatedCost))) {
     res.status(402).json({ success: false, message: "余额不足，请先充值" });
     return;
@@ -345,7 +345,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
       if (result.status === "succeeded") {
         const model = models.find((m) => m.id === task.model);
-        const cost = model ? estimateAsyncCost(model, task.input || {}) : 0;
+        const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
         await completeTask(task.id, result.output, cost);
         if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
         res.json({
