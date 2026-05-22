@@ -26,19 +26,23 @@ const openAiParams = [
   ["tool_choice", "string | object", "可选", "稳定支持 auto / none，或指定 {type:'function', function:{name}}。思考模式模型不建议强制工具。"],
   ["response_format", "object", "可选", "输出格式控制。常见值为 {\"type\":\"text\"} 或 {\"type\":\"json_object\"}。"],
   ["enable_thinking", "boolean", "可选", "思考模式开关。仅对已验证支持的混合思考模型可关闭；仅思考模型会忽略 false 并继续返回 reasoning_content。"],
+  ["thinking_budget", "integer", "可选", "限制思考 Token 上限，按模型 ID 前缀透传（qwen3.7- / qwen3.6- / qwen3.5- / qwen3-）。"],
+  ["preserve_thinking", "boolean", "可选", "将历史消息中的 reasoning_content 透传回模型，支持 qwen3.7-max、qwen3.6-max-preview、qwen3.6-plus、kimi-k2.6。"],
+  ["enable_search", "boolean", "可选", "联网搜索，支持通义千问文本类模型（非 VL / math 系列）。"],
+  ["search_options", "object", "可选", "联网搜索配置，与 enable_search 配套使用。"],
+  ["seed", "integer", "可选", "随机种子，通义千问文本模型支持透传。"],
+  ["top_k", "integer", "可选", "Top-K 采样，通义千问文本模型支持透传。"],
+  ["logprobs", "boolean", "可选", "返回 log 概率，通义千问文本模型支持透传。"],
+  ["repetition_penalty", "number", "可选", "重复惩罚，通义千问文本模型支持透传。"],
+  ["parallel_tool_calls", "boolean", "可选", "并行工具调用，支持通义千问、DeepSeek、GLM、Anthropic 模型。"],
 ];
 
 const notForwardedOpenAiParams = [
-  ["thinking_budget", "integer", "暂未透传", "百炼官方支持限制思考 Token，但当前 NexusFlow Chat 入口尚未转发该字段。"],
-  ["preserve_thinking", "boolean", "暂未透传", "百炼官方部分模型支持保留上下文思考内容，当前 NexusFlow Chat 入口尚未转发。"],
-  ["seed", "integer", "暂未透传", "当前 /v1/chat/completions 后端不会转发该字段，不应依赖它做可复现生成。"],
-  ["parallel_tool_calls", "boolean", "暂未透传", "百炼官方 Chat API 支持并行工具调用，但当前公开网关未承诺透传。"],
-  ["enable_search", "boolean", "暂未透传", "联网搜索属于百炼扩展能力，当前公开网关未承诺透传。"],
-  ["search_options", "object", "暂未透传", "与联网搜索配套的参数，当前公开网关未承诺透传。"],
   ["max_completion_tokens", "integer", "暂未透传", "请使用当前稳定支持的 max_tokens。"],
 ];
 
 const thinkingSupport = [
+  ["qwen3.7-max", "混合思考", "支持 true / false", "默认开启思考；true 返回 reasoning_content；false 不返回。支持 thinking_budget 和 preserve_thinking。"],
   ["qwen3.5-flash", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
   ["qwen3-max", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
   ["qwq-plus", "仅思考", "false 不能关闭", "线上验证：true/false 都返回 reasoning_content。"],
@@ -137,9 +141,9 @@ export default function ApiParametersPage() {
       </section>
 
       <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>百炼官方字段差异</h2>
+        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>暂未支持的字段</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginTop: -4, marginBottom: 14 }}>
-          阿里云百炼官方 Chat API 还有若干扩展字段。下表列的是当前 NexusFlow 公共 Chat 入口尚未稳定透传的字段；不要在生产中依赖这些参数。
+          下表列出目前公共 Chat 入口尚未稳定透传的字段；生产代码请勿依赖。
         </p>
         <Matrix rows={notForwardedOpenAiParams} columns={["220px", "150px", "90px", "1fr"]} />
       </section>

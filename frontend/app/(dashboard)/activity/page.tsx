@@ -41,18 +41,22 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, []);
 
-  async function load() {
+  async function load(signal?: AbortSignal) {
     setLoading(true);
     setError("");
     try {
       const headers = authHeaders();
       const [ovRes, dayRes, modelRes, recentRes] = await Promise.all([
-        fetchAPI("/api/usage/overview", { headers }),
-        fetchAPI("/api/usage/daily", { headers }),
-        fetchAPI("/api/usage/by-model", { headers }),
-        fetchAPI("/api/usage/recent", { headers }),
+        fetchAPI("/api/usage/overview", { headers, signal }),
+        fetchAPI("/api/usage/daily", { headers, signal }),
+        fetchAPI("/api/usage/by-model", { headers, signal }),
+        fetchAPI("/api/usage/recent?limit=50", { headers, signal }),
       ]);
       if (ovRes.success && dayRes.success && modelRes.success && recentRes.success) {
         setData({

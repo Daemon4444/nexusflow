@@ -32,7 +32,7 @@ router.get("/", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  const limit = Number(req.query.limit) || 100;
+  const limit = Math.min(Number(req.query.limit) || 100, 1000);
   const globalScope = await shouldUseGlobalScope(req);
   res.json({
     success: true,
@@ -73,7 +73,8 @@ router.get("/recent", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: await getRecent((await shouldUseGlobalScope(req)) ? undefined : userId) });
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  res.json({ success: true, data: await getRecent((await shouldUseGlobalScope(req)) ? undefined : userId, limit) });
 });
 
 // ========== 性能监控端点 ==========
@@ -111,7 +112,7 @@ router.get("/monitor/recent", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  const limit = Number(req.query.limit) || 50;
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
   res.json({ success: true, data: await getRecentPerformance(limit, (await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 

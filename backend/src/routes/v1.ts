@@ -64,7 +64,7 @@ function parseSseEvents(payload: string): any[] {
   return events;
 }
 
-function buildChatCompletionFromSse(events: any[]): any {
+function buildChatCompletionFromSse(events: any[], includeReasoning = false): any {
   const first = events.find((event) => event?.choices?.[0]);
   const last = [...events].reverse().find((event) => event?.choices?.[0]);
   const usage = [...events].reverse().find((event) => event?.usage)?.usage || {};
@@ -91,7 +91,7 @@ function buildChatCompletionFromSse(events: any[]): any {
         message: {
           role,
           content,
-          ...(reasoningContent ? { reasoning_content: reasoningContent } : {}),
+          ...(includeReasoning && reasoningContent ? { reasoning_content: reasoningContent } : {}),
         },
         finish_reason: last?.choices?.[0]?.finish_reason || "stop",
       },
@@ -123,6 +123,15 @@ async function estimateChatMaxCost(userId: string | null | undefined, model: any
 async function estimateEmbeddingCost(userId: string | null | undefined, model: any, input: unknown): Promise<number> {
   const promptTokens = Math.max(1, roughTokenCount(input));
   return (await calculateDiscountedTokenCost(userId, model, promptTokens, 0)).finalAmount;
+}
+
+/** Sanitize error messages — never expose internal hostnames, paths, or stack traces */
+function sanitizeError(err: any): string {
+  if (err?.name === "AbortError" || err?.code === "ABORT_ERR") return "Upstream request timed out.";
+  if (err?.code === "ECONNREFUSED") return "Upstream service unavailable.";
+  if (err?.code === "ENOTFOUND") return "Upstream service unreachable.";
+  // Generic fallback — do NOT include err.message which may contain internal IPs/paths
+  return "An internal error occurred. Please try again.";
 }
 
 function rejectInsufficientBalance(res: Response): void {
@@ -290,14 +299,26 @@ router.post("/images/generations", async (req: Request, res: Response) => {
   }
 
   const apiKeyRecord = (await validateApiKey(token))!;
-  if (apiKeyRecord.user_id) {
-    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
-    const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
-    if (!rpmCheck.allowed) {
-      rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`);
-      return;
-    }
+
+  // Anonymous keys (no user_id) are not allowed on public endpoints
+  if (!apiKeyRecord.user_id) {
+    res.status(403).json({
+      error: {
+        message: "This API key is not associated with a user account. Please use a key created from your dashboard.",
+        type: "invalid_request_error",
+        code: "anonymous_key_not_allowed",
+      },
+    });
+    return;
   }
+
+  const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
+  const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
+  if (!rpmCheck.allowed) {
+    rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`);
+    return;
+  }
+
   const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
     res.status(429).json({
@@ -412,7 +433,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
     });
 
-    if (apiKeyRecord.user_id && cost > 0) {
+    if (cost > 0) {
       await consume(
         apiKeyRecord.user_id,
         cost,
@@ -441,7 +462,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
 
     res.status(500).json({
       error: {
-        message: `Upstream request failed: ${err.message}`,
+        message: sanitizeError(err),
         type: "server_error",
         code: "upstream_error",
       },
@@ -477,6 +498,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     tools,
     tool_choice,
     response_format,
+    include_reasoning,
     stream_options,
     enable_thinking,
     thinking_budget,
@@ -495,6 +517,17 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     res.status(400).json({
       error: {
         message: "Missing required parameters: model and messages.",
+        type: "invalid_request_error",
+        code: "invalid_request",
+      },
+    });
+    return;
+  }
+
+  if (messages.length > 200) {
+    res.status(400).json({
+      error: {
+        message: "Too many messages: maximum 200 messages per request.",
         type: "invalid_request_error",
         code: "invalid_request",
       },
@@ -565,21 +598,31 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   const apiKeyRecord = (await validateApiKey(token))!;
 
-  const estimatedChatTokens = apiKeyRecord.user_id ? estimateChatTokens(model, messages, max_tokens) : 0;
+  // Anonymous keys (no user_id) are not allowed on public endpoints
+  if (!apiKeyRecord.user_id) {
+    res.status(403).json({
+      error: {
+        message: "This API key is not associated with a user account. Please use a key created from your dashboard.",
+        type: "invalid_request_error",
+        code: "anonymous_key_not_allowed",
+      },
+    });
+    return;
+  }
+
+  const estimatedChatTokens = estimateChatTokens(model, messages, max_tokens);
 
   // Per-model user-level rate limit check
-  if (apiKeyRecord.user_id) {
-    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
-    const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
-    if (!rpmCheck.allowed) {
-      rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`);
-      return;
-    }
-    const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, estimatedChatTokens);
-    if (!tpmCheck.allowed) {
-      rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${userLimits.tpm} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`);
-      return;
-    }
+  const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
+  const rpmCheck2 = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
+  if (!rpmCheck2.allowed) {
+    rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck2.resetMs / 1000)}s.`);
+    return;
+  }
+  const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, estimatedChatTokens);
+  if (!tpmCheck.allowed) {
+    rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${userLimits.tpm} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`);
+    return;
   }
 
   // Rate limit check
@@ -653,9 +696,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       });
 
       if (!response.ok) {
-        const errText = await response.text();
+        let upstreamMsg = "Upstream API error";
+        try {
+          const errJson = await response.json() as any;
+          upstreamMsg = errJson?.error?.message || upstreamMsg;
+        } catch { /* non-JSON response, use default */ }
         res.status(response.status).json({
-          error: { message: errText, type: "upstream_error", code: "upstream_error" },
+          error: { message: upstreamMsg, type: "upstream_error", code: "upstream_error" },
         });
         return;
       }
@@ -671,37 +718,45 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       let chunkCount = 0;
       let firstChunkTime = 0;
       let lastChunkTime = 0;
+      let streamError = false;
       const reader = response.body as any;
-      if (reader && typeof reader[Symbol.asyncIterator] === "function") {
-        for await (const chunk of reader) {
-          const now = Date.now();
-          if (chunkCount === 0) {
-            ttftMs = now - startTime;
-            firstChunkTime = now;
+      try {
+        if (reader && typeof reader[Symbol.asyncIterator] === "function") {
+          for await (const chunk of reader) {
+            const now = Date.now();
+            if (chunkCount === 0) {
+              ttftMs = now - startTime;
+              firstChunkTime = now;
+            }
+            lastChunkTime = now;
+            chunkCount++;
+            const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+            fullResponse += text;
+            res.write(chunk);
           }
-          lastChunkTime = now;
-          chunkCount++;
-          const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-          fullResponse += text;
-          res.write(chunk);
-        }
-      } else if (reader && reader.getReader) {
-        const r = reader.getReader();
-        const decoder = new TextDecoder();
-        while (true) {
-          const { done, value } = await r.read();
-          if (done) break;
-          const now = Date.now();
-          if (chunkCount === 0) {
-            ttftMs = now - startTime;
-            firstChunkTime = now;
+        } else if (reader && reader.getReader) {
+          const r = reader.getReader();
+          const decoder = new TextDecoder();
+          while (true) {
+            const { done, value } = await r.read();
+            if (done) break;
+            const now = Date.now();
+            if (chunkCount === 0) {
+              ttftMs = now - startTime;
+              firstChunkTime = now;
+            }
+            lastChunkTime = now;
+            chunkCount++;
+            const text = decoder.decode(value, { stream: true });
+            fullResponse += text;
+            res.write(value);
           }
-          lastChunkTime = now;
-          chunkCount++;
-          const text = decoder.decode(value, { stream: true });
-          fullResponse += text;
-          res.write(value);
         }
+      } catch (streamErr: any) {
+        streamError = true;
+        // Headers already sent — write an SSE error event so the client knows
+        const errMsg = streamErr?.name === "AbortError" ? "upstream_timeout" : "upstream_stream_error";
+        res.write(`event: error\ndata: ${JSON.stringify({ error: { message: errMsg, type: "server_error" } })}\n\n`);
       }
       res.end();
 
@@ -745,11 +800,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs,
       });
       recordProviderTokens(provider.id, modelId, streamTokens.total_tokens || 0);
-      if (apiKeyRecord.user_id) {
-        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
-      }
+      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
 
-      if (apiKeyRecord.user_id && totalCost > 0) {
+      if (totalCost > 0) {
         await consume(
           apiKeyRecord.user_id,
           totalCost,
@@ -773,13 +826,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       });
 
       if (!response.ok) {
-        const errText = await response.text();
+        let upstreamMsg = "Upstream API error";
+        try {
+          const errJson = await response.json() as any;
+          upstreamMsg = errJson?.error?.message || upstreamMsg;
+        } catch { /* non-JSON response, use default */ }
         res.status(response.status).json({
-          error: {
-            message: errText,
-            type: "upstream_error",
-            code: "upstream_error",
-          },
+          error: { message: upstreamMsg, type: "upstream_error", code: "upstream_error" },
         });
         return;
       }
@@ -801,10 +854,16 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       }
 
       const events = parseSseEvents(fullResponse);
-      const data = buildChatCompletionFromSse(events);
+      const data = buildChatCompletionFromSse(events, !!include_reasoning);
       const latencyMs = Date.now() - startTime;
       const usage = data.usage || {};
       const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
+
+      // Non-stream: ttft = full latency, tpot = latency / completion_tokens
+      const nonStreamTtft = latencyMs;
+      const nonStreamTpot = (usage.completion_tokens || 0) > 1
+        ? latencyMs / ((usage.completion_tokens || 1) - 1)
+        : 0;
 
       await logUsage({
         apiKeyId: apiKeyRecord.id,
@@ -816,13 +875,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         cost: totalCost,
         status: "success",
         latencyMs,
+        ttftMs: nonStreamTtft,
+        tpotMs: nonStreamTpot,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
-      if (apiKeyRecord.user_id) {
-        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
-      }
+      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
 
-      if (apiKeyRecord.user_id && totalCost > 0) {
+      if (totalCost > 0) {
         await consume(
           apiKeyRecord.user_id,
           totalCost,
@@ -877,12 +936,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
-    if (apiKeyRecord.user_id) {
-      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
-    }
+    await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
 
     // Auto-billing
-    if (apiKeyRecord.user_id && totalCost > 0) {
+    if (totalCost > 0) {
       await consume(
         apiKeyRecord.user_id,
         totalCost,
@@ -910,7 +967,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
     res.status(500).json({
       error: {
-        message: `Upstream request failed: ${err.message}`,
+        message: sanitizeError(err),
         type: "server_error",
         code: "upstream_error",
       },
@@ -997,20 +1054,30 @@ router.post("/embeddings", async (req: Request, res: Response) => {
 
   const apiKeyRecord = (await validateApiKey(token))!;
 
-  const estimatedEmbeddingTokens = apiKeyRecord.user_id ? Math.max(1, roughTokenCount(input)) : 0;
+  // Anonymous keys (no user_id) are not allowed on public endpoints
+  if (!apiKeyRecord.user_id) {
+    res.status(403).json({
+      error: {
+        message: "This API key is not associated with a user account. Please use a key created from your dashboard.",
+        type: "invalid_request_error",
+        code: "anonymous_key_not_allowed",
+      },
+    });
+    return;
+  }
 
-  if (apiKeyRecord.user_id) {
-    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
-    const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
-    if (!rpmCheck.allowed) {
-      rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`);
-      return;
-    }
-    const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, estimatedEmbeddingTokens);
-    if (!tpmCheck.allowed) {
-      rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${userLimits.tpm} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`);
-      return;
-    }
+  const estimatedEmbeddingTokens = Math.max(1, roughTokenCount(input));
+
+  const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
+  const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
+  if (!rpmCheck.allowed) {
+    rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`);
+    return;
+  }
+  const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, estimatedEmbeddingTokens);
+  if (!tpmCheck.allowed) {
+    rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${userLimits.tpm} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`);
+    return;
   }
 
   // Rate limit check
@@ -1080,11 +1147,9 @@ router.post("/embeddings", async (req: Request, res: Response) => {
       latencyMs,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
-    if (apiKeyRecord.user_id) {
-      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedEmbeddingTokens, usage.total_tokens || 0);
-    }
+    await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedEmbeddingTokens, usage.total_tokens || 0);
 
-    if (apiKeyRecord.user_id && cost > 0) {
+    if (cost > 0) {
       await consume(
         apiKeyRecord.user_id,
         cost,
@@ -1111,7 +1176,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
 
     res.status(500).json({
       error: {
-        message: `Upstream request failed: ${err.message}`,
+        message: sanitizeError(err),
         type: "server_error",
         code: "upstream_error",
       },

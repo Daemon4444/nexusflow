@@ -46,6 +46,7 @@ const qwenProtocols = [
 
 const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string; output: string }[]> = {
   llm: [
+    { id: "qwen3.7-max", ctx: "1M", input: "¥12/M", output: "¥36/M" },
     { id: "qwen3-max", ctx: "262K", input: "¥2.5/M", output: "¥10/M" },
     { id: "qwen3.6-max-preview", ctx: "262K", input: "¥9/M", output: "¥54/M" },
     { id: "qwen3.6-plus", ctx: "1M", input: "¥2/M", output: "¥12/M" },

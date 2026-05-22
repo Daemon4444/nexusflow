@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { fetchAPI } from "@/lib/api";
-import { authHeaders } from "@/lib/auth";
+import { authHeaders, useAuth } from "@/lib/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
 
@@ -208,6 +209,19 @@ interface AdminUserDetail {
     total: number;
   };
   discounts: UserModelDiscount[];
+  requests: RateLimitRequest[];
+  defaultQpm: number;
+  defaultTpm: number;
+  customLimits: Array<{
+    id: string;
+    user_id: string;
+    model: string;
+    qpm: number;
+    tpm: number;
+    source: string;
+    created_at: string;
+    updated_at: string;
+  }>;
 }
 
 interface CapacityRecord {
@@ -459,6 +473,9 @@ function formatPercent(value: number): string {
 }
 
 export default function AdminPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const [accessDenied, setAccessDenied] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [providers, setProviders] = useState<Provider[]>([]);
   const [models, setModels] = useState<Model[]>([]);
@@ -484,6 +501,11 @@ export default function AdminPage() {
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [rateLimitForm, setRateLimitForm] = useState<{ model: string; qpm: string; tpm: string } | null>(null);
+  const [rateLimitFormTarget, setRateLimitFormTarget] = useState<string | null>(null); // model being edited
+  const [balanceForm, setBalanceForm] = useState<{ amount: string; description: string } | null>(null);
+  const [discountForm, setDiscountForm] = useState<{ modelId: string; rate: string; notes: string; enabled: boolean; editId?: string } | null>(null);
+  const [defaultLimitForm, setDefaultLimitForm] = useState<{ qpm: string; tpm: string } | null>(null);
   const [providerForm, setProviderForm] = useState({
     name: "",
     description: "",
@@ -497,12 +519,22 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [savingProvider, setSavingProvider] = useState(false);
+  const [actionLoading, setActionLoading] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("all");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  // Route protection: redirect unauthenticated users to login
   useEffect(() => {
-    loadData();
+    if (!authLoading && !user) {
+      router.replace("/login");
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -529,21 +561,21 @@ export default function AdminPage() {
     }
   }, [activeTab, selectedUserId]);
 
-  async function loadData() {
+  async function loadData(signal?: AbortSignal) {
     setLoading(true);
     setError("");
     try {
       const headers = authHeaders();
       const [providersRes, modelsRes, statsRes, usersRes, ticketsRes, requestsRes, usageRes, operationsRes, discountsRes] = await Promise.all([
-        fetchAPI("/api/provider/admin/providers", { headers }),
-        fetchAPI("/api/provider/admin/models", { headers }),
-        fetchAPI("/api/provider/admin/stats", { headers }),
-        fetchAPI("/api/admin/users", { headers }).catch(() => ({ success: false, data: [] })),
-        fetchAPI("/api/tickets/admin/all", { headers }).catch(() => ({ success: false, data: [] })),
-        fetchAPI("/api/rate-limits/admin/requests", { headers }).catch(() => ({ success: false, data: [] })),
-        fetchAPI("/api/usage/overview?scope=all", { headers }).catch(() => ({ success: false })),
-        fetchAPI("/api/provider/admin/operations", { headers }).catch(() => ({ success: false })),
-        fetchAPI("/api/billing/admin/user-model-discounts", { headers }).catch(() => ({ success: false, data: [] })),
+        fetchAPI("/api/provider/admin/providers", { headers, signal }),
+        fetchAPI("/api/provider/admin/models", { headers, signal }),
+        fetchAPI("/api/provider/admin/stats", { headers, signal }),
+        fetchAPI("/api/admin/users", { headers, signal }).catch(() => ({ success: false, data: [] })),
+        fetchAPI("/api/tickets/admin/all", { headers, signal }).catch(() => ({ success: false, data: [] })),
+        fetchAPI("/api/rate-limits/admin/requests", { headers, signal }).catch(() => ({ success: false, data: [] })),
+        fetchAPI("/api/usage/overview?scope=all", { headers, signal }).catch(() => ({ success: false })),
+        fetchAPI("/api/provider/admin/operations", { headers, signal }).catch(() => ({ success: false })),
+        fetchAPI("/api/billing/admin/user-model-discounts", { headers, signal }).catch(() => ({ success: false, data: [] })),
       ]);
 
       if (providersRes.success) setProviders(providersRes.data || []);
@@ -561,11 +593,15 @@ export default function AdminPage() {
       if (usageRes.success) setUsageOverview(usageRes.data || null);
       if (operationsRes.success) setOperations(operationsRes.data || null);
       if (discountsRes.success) setUserModelDiscounts(discountsRes.data || []);
-      const monitorRes = await fetchAPI("/api/provider-monitor/overview", { headers }).catch(() => ({ success: false }));
+      const monitorRes = await fetchAPI("/api/provider-monitor/overview", { headers, signal }).catch(() => ({ success: false }));
       if (monitorRes.success) setMonitorOverview(monitorRes.data || null);
 
       if (!providersRes.success || !modelsRes.success || !statsRes.success) {
-        setError("管理员权限不足或后台接口未开放");
+        if (providersRes.status === 403 || providersRes.status === 401) {
+          setAccessDenied(true);
+        } else {
+          setError("管理员权限不足或后台接口未开放");
+        }
       }
     } catch (loadErr) {
       console.error("加载后台数据失败", loadErr);
@@ -627,75 +663,97 @@ export default function AdminPage() {
     }
   }
 
-  async function handleApproveProvider(id: string) {
-    const res = await fetchAPI(`/api/provider/admin/providers/${id}/enable`, { method: "POST", headers: authHeaders() });
-    if (res.success) {
-      setNotice("渠道已启用");
-      loadData();
-      if (selectedProviderId === id) loadProviderDetail(id);
+  function isActing(key: string) { return actionLoading.has(key); }
+  async function withAction(key: string, fn: () => Promise<void>) {
+    if (actionLoading.has(key)) return;
+    setActionLoading((prev) => new Set(prev).add(key));
+    try { await fn(); } finally {
+      setActionLoading((prev) => { const next = new Set(prev); next.delete(key); return next; });
     }
+  }
+
+  async function handleApproveProvider(id: string) {
+    await withAction(`enable-provider-${id}`, async () => {
+      const res = await fetchAPI(`/api/provider/admin/providers/${id}/enable`, { method: "POST", headers: authHeaders() });
+      if (res.success) { setNotice("渠道已启用"); loadData(); if (selectedProviderId === id) loadProviderDetail(id); }
+      else setNotice(res.message || "操作失败");
+    });
   }
 
   async function handleRejectProvider(id: string) {
-    const reason = prompt("请输入停用备注（可选）：");
-    const res = await fetchAPI(`/api/provider/admin/providers/${id}/disable`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({ reason }),
+    await withAction(`disable-provider-${id}`, async () => {
+      const reason = prompt("请输入停用备注（可选）：");
+      const res = await fetchAPI(`/api/provider/admin/providers/${id}/disable`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ reason }),
+      });
+      if (res.success) { setNotice("渠道已停用"); loadData(); if (selectedProviderId === id) loadProviderDetail(id); }
+      else setNotice(res.message || "操作失败");
     });
-    if (res.success) {
-      setNotice("渠道已停用");
-      loadData();
-      if (selectedProviderId === id) loadProviderDetail(id);
-    }
   }
 
   async function handleApproveModel(id: string) {
-    const res = await fetchAPI(`/api/provider/admin/models/${id}/enable`, { method: "POST", headers: authHeaders() });
-    if (res.success) loadData();
+    await withAction(`enable-model-${id}`, async () => {
+      const res = await fetchAPI(`/api/provider/admin/models/${id}/enable`, { method: "POST", headers: authHeaders() });
+      if (res.success) { setNotice("模型已启用"); loadData(); }
+      else setNotice(res.message || "操作失败");
+    });
   }
 
   async function handleRejectModel(id: string) {
-    const res = await fetchAPI(`/api/provider/admin/models/${id}/disable`, { method: "POST", headers: authHeaders() });
-    if (res.success) loadData();
+    await withAction(`disable-model-${id}`, async () => {
+      const res = await fetchAPI(`/api/provider/admin/models/${id}/disable`, { method: "POST", headers: authHeaders() });
+      if (res.success) { setNotice("模型已停用"); loadData(); }
+      else setNotice(res.message || "操作失败");
+    });
   }
 
   async function handleReplyTicket(id: string) {
-    const reply = prompt("请输入管理员回复：");
-    if (!reply) return;
-    const status = prompt("请输入状态：open / in_progress / resolved / rejected", "in_progress");
-    if (!status) return;
-    const res = await fetchAPI(`/api/tickets/${id}/reply`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({ reply, status }),
+    await withAction(`reply-ticket-${id}`, async () => {
+      const reply = prompt("请输入管理员回复：");
+      if (!reply) return;
+      const status = prompt("请输入状态：open / in_progress / resolved / rejected", "in_progress");
+      if (!status) return;
+      const res = await fetchAPI(`/api/tickets/${id}/reply`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ reply, status }),
+      });
+      if (res.success) { setNotice("回复已发送"); loadData(); }
+      else setNotice(res.message || "回复失败");
     });
-    if (res.success) loadData();
   }
 
   async function handleApproveRequest(id: string, request?: RateLimitRequest) {
-    const reply = prompt("审批备注（可留空）", "已批准");
-    const res = await fetchAPI(`/api/rate-limits/admin/requests/${id}/approve`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({
-        reply: reply || "已批准",
-        model: request?.model,
-        qpm: request?.requested_qpm,
-        tpm: request?.requested_tpm,
-      }),
+    await withAction(`approve-request-${id}`, async () => {
+      const reply = prompt("审批备注（可留空）", "已批准");
+      const res = await fetchAPI(`/api/rate-limits/admin/requests/${id}/approve`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          reply: reply || "已批准",
+          model: request?.model,
+          qpm: request?.requested_qpm,
+          tpm: request?.requested_tpm,
+        }),
+      });
+      if (res.success) { setNotice("申请已批准"); loadData(); }
+      else setNotice(res.message || "操作失败");
     });
-    if (res.success) loadData();
   }
 
   async function handleRejectRequest(id: string) {
-    const reply = prompt("拒绝原因（可留空）", "暂不通过");
-    const res = await fetchAPI(`/api/rate-limits/admin/requests/${id}/reject`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({ reply: reply || "暂不通过" }),
+    await withAction(`reject-request-${id}`, async () => {
+      const reply = prompt("拒绝原因（可留空）", "暂不通过");
+      const res = await fetchAPI(`/api/rate-limits/admin/requests/${id}/reject`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ reply: reply || "暂不通过" }),
+      });
+      if (res.success) { setNotice("申请已拒绝"); loadData(); }
+      else setNotice(res.message || "操作失败");
     });
-    if (res.success) loadData();
   }
 
   async function handleSaveProvider() {
@@ -866,25 +924,41 @@ export default function AdminPage() {
     }
   }
 
-  async function handleCreateUserDiscount(userId: string) {
-    const defaultModel = models[0]?.modelId || "qwen-plus";
-    const modelId = prompt("模型 ID，例如 qwen-plus", defaultModel);
-    if (!modelId) return;
-    const rateText = prompt("折扣率：1=原价，0.8=八折，0=免费", "0.9");
-    if (rateText === null) return;
-    const discountRate = Number(rateText);
+  function openDiscountForm(userId: string, existing?: UserModelDiscount) {
+    setDiscountForm({
+      modelId: existing?.model_id ?? "",
+      rate: existing ? String(existing.discount_rate) : "0.9",
+      notes: existing?.notes ?? "",
+      enabled: existing ? existing.is_enabled : true,
+      editId: existing?.id,
+    });
+  }
+
+  async function submitDiscountForm(userId: string) {
+    if (!discountForm) return;
+    const discountRate = Number(discountForm.rate);
     if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate > 1) {
       setNotice("折扣率必须在 0 到 1 之间");
       return;
     }
-    const notes = prompt("备注（可选）", "") || "";
+    if (!discountForm.modelId.trim()) {
+      setNotice("模型 ID 不能为空");
+      return;
+    }
     const res = await fetchAPI("/api/billing/admin/user-model-discounts", {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify({ userId, modelId: modelId.trim(), discountRate, notes, enabled: true }),
+      body: JSON.stringify({
+        userId,
+        modelId: discountForm.modelId.trim(),
+        discountRate,
+        notes: discountForm.notes,
+        enabled: discountForm.enabled,
+      }),
     });
     if (res.success) {
       setNotice("用户模型折扣已保存");
+      setDiscountForm(null);
       await loadData();
       await loadUserDetail(userId);
     } else {
@@ -892,60 +966,34 @@ export default function AdminPage() {
     }
   }
 
-  async function handleEditUserDiscount(discount: UserModelDiscount) {
-    const rateText = prompt("折扣率：1=原价，0.8=八折，0=免费", String(discount.discount_rate));
-    if (rateText === null) return;
-    const discountRate = Number(rateText);
-    if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate > 1) {
-      setNotice("折扣率必须在 0 到 1 之间");
-      return;
-    }
-    const notes = prompt("备注（可选）", discount.notes || "") || "";
-    const enabledText = prompt("是否启用：true / false", String(discount.is_enabled));
-    if (enabledText === null) return;
-    const res = await fetchAPI("/api/billing/admin/user-model-discounts", {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({
-        userId: discount.user_id,
-        modelId: discount.model_id,
-        discountRate,
-        notes,
-        enabled: enabledText === "true",
-      }),
-    });
-    if (res.success) {
-      setNotice("用户模型折扣已更新");
-      await loadData();
-      await loadUserDetail(discount.user_id);
-    } else {
-      setNotice(res.message || "折扣更新失败");
-    }
-  }
-
   async function handleDeleteUserDiscount(id: string) {
-    const res = await fetchAPI(`/api/billing/admin/user-model-discounts/${id}`, {
-      method: "DELETE",
-      headers: authHeaders(),
+    await withAction(`delete-discount-${id}`, async () => {
+      const res = await fetchAPI(`/api/billing/admin/user-model-discounts/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (res.success) {
+        setNotice("折扣已删除");
+        await loadData();
+        if (selectedUserId) await loadUserDetail(selectedUserId);
+      } else {
+        setNotice(res.message || "折扣删除失败");
+      }
     });
-    if (res.success) {
-      setNotice("折扣已删除");
-      await loadData();
-      if (selectedUserId) await loadUserDetail(selectedUserId);
-    } else {
-      setNotice(res.message || "折扣删除失败");
-    }
   }
 
-  async function handleAdjustUserBalance(userId: string) {
-    const amountText = prompt("调账金额，正数增加余额，负数扣减余额", "10");
-    if (amountText === null) return;
-    const amountDelta = Number(amountText);
+  function openBalanceForm(userId: string) {
+    setBalanceForm({ amount: "", description: "" });
+  }
+
+  async function submitBalanceForm(userId: string) {
+    if (!balanceForm) return;
+    const amountDelta = Number(balanceForm.amount);
     if (!Number.isFinite(amountDelta) || amountDelta === 0) {
       setNotice("调账金额必须是非 0 数字");
       return;
     }
-    const description = prompt("调账说明", amountDelta > 0 ? "管理员增加余额" : "管理员扣减余额") || "";
+    const description = balanceForm.description.trim() || (amountDelta > 0 ? "管理员增加余额" : "管理员扣减余额");
     const res = await fetchAPI(`/api/admin/users/${userId}/balance-adjust`, {
       method: "POST",
       headers: authHeaders(),
@@ -953,6 +1001,7 @@ export default function AdminPage() {
     });
     if (res.success) {
       setNotice("用户余额已调整");
+      setBalanceForm(null);
       await loadData();
       await loadUserDetail(userId);
     } else {
@@ -960,15 +1009,20 @@ export default function AdminPage() {
     }
   }
 
-  async function handleSaveUserRateLimit(userId: string, current?: NonNullable<User["customLimits"]>[number]) {
-    const model = prompt("模型 ID，填写 * 表示默认限流", current?.model || "*");
-    if (!model) return;
-    const qpmText = prompt("QPM 每分钟请求数", String(current?.qpm ?? 60));
-    if (qpmText === null) return;
-    const tpmText = prompt("TPM 每分钟 tokens", String(current?.tpm ?? 100000));
-    if (tpmText === null) return;
-    const qpm = Number(qpmText);
-    const tpm = Number(tpmText);
+  function openRateLimitForm(userId: string, current?: NonNullable<User["customLimits"]>[number]) {
+    setRateLimitFormTarget(current?.model ?? null);
+    setRateLimitForm({
+      model: current?.model ?? "",
+      qpm: String(current?.qpm ?? 60),
+      tpm: String(current?.tpm ?? 100000),
+    });
+  }
+
+  async function submitRateLimitForm(userId: string) {
+    if (!rateLimitForm) return;
+    const model = rateLimitForm.model.trim() || "*";
+    const qpm = Number(rateLimitForm.qpm);
+    const tpm = Number(rateLimitForm.tpm);
     if (!Number.isFinite(qpm) || qpm <= 0 || !Number.isFinite(tpm) || tpm <= 0) {
       setNotice("QPM 和 TPM 必须是大于 0 的数字");
       return;
@@ -980,6 +1034,8 @@ export default function AdminPage() {
     });
     if (res.success) {
       setNotice("用户模型限流已更新");
+      setRateLimitForm(null);
+      setRateLimitFormTarget(null);
       await loadData();
       await loadUserDetail(userId);
     } else {
@@ -988,17 +1044,19 @@ export default function AdminPage() {
   }
 
   async function handleDeleteUserRateLimit(userId: string, model: string) {
-    const res = await fetchAPI(`/api/rate-limits/admin/users/${userId}/models/${encodeURIComponent(model)}`, {
-      method: "DELETE",
-      headers: authHeaders(),
+    await withAction(`delete-ratelimit-${userId}-${model}`, async () => {
+      const res = await fetchAPI(`/api/rate-limits/admin/users/${userId}/models/${encodeURIComponent(model)}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (res.success) {
+        setNotice("用户模型限流已删除");
+        await loadData();
+        await loadUserDetail(userId);
+      } else {
+        setNotice(res.message || "限流删除失败");
+      }
     });
-    if (res.success) {
-      setNotice("用户模型限流已删除");
-      await loadData();
-      await loadUserDetail(userId);
-    } else {
-      setNotice(res.message || "限流删除失败");
-    }
   }
 
   async function handleExportUserBilling(userId: string) {
@@ -1034,6 +1092,29 @@ export default function AdminPage() {
       setNotice("用户账单 CSV 已导出");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "账单导出失败");
+    }
+  }
+
+  async function submitDefaultLimitForm(userId: string) {
+    if (!defaultLimitForm) return;
+    const qpm = Number(defaultLimitForm.qpm);
+    const tpm = Number(defaultLimitForm.tpm);
+    if (!Number.isFinite(qpm) || qpm <= 0 || !Number.isFinite(tpm) || tpm <= 0) {
+      setNotice("QPM 和 TPM 必须是大于 0 的数字");
+      return;
+    }
+    const res = await fetchAPI(`/api/rate-limits/admin/users/${userId}/models/${encodeURIComponent("*")}`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ qpm, tpm }),
+    });
+    if (res.success) {
+      setNotice("默认限额已更新");
+      setDefaultLimitForm(null);
+      await loadData();
+      await loadUserDetail(userId);
+    } else {
+      setNotice(res.message || "默认限额更新失败");
     }
   }
 
@@ -1097,6 +1178,27 @@ export default function AdminPage() {
       }, 0),
     };
   }, [providerDetail, providerRouteMetrics]);
+
+  // Show nothing while auth is being resolved (avoids flash before redirect)
+  if (authLoading || (!authLoading && !user)) {
+    return null;
+  }
+
+  // 403 — logged in but not an admin
+  if (accessDenied) {
+    return (
+      <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#f3f4f6", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ textAlign: "center", padding: 40 }}>
+          <div style={{ fontSize: 48, fontWeight: 700, color: "#111827" }}>403</div>
+          <div style={{ fontSize: 18, color: "#374151", marginTop: 8 }}>无管理员权限</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 8 }}>您的账号未被授权访问后台管理控制台。</div>
+          <Link href="/" style={{ display: "inline-block", marginTop: 24, padding: "10px 20px", background: "#111827", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: 14 }}>
+            返回主站
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "var(--font-sans, system-ui, -apple-system, sans-serif)", background: "#f3f4f6" }}>
@@ -1556,19 +1658,21 @@ export default function AdminPage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     {selectedUser ? (
                       <>
+                        {/* ── User header + balance ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
                             <div>
                               <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0 }}>{selectedUser.nickname}</h2>
-                              <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>{selectedUser.email || selectedUser.phone}</div>
-                              <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>注册于 {new Date(selectedUser.createdAt).toLocaleString("zh-CN")}</div>
+                              <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>{selectedUser.email || selectedUser.phone}</div>
+                              <div style={{ marginTop: 2, fontSize: 11, color: "#9ca3af" }}>ID: {selectedUser.id}</div>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>注册于 {new Date(selectedUser.createdAt).toLocaleString("zh-CN")}</div>
                             </div>
                             <div style={{ textAlign: "right" }}>
                               <div style={{ fontSize: 26, fontWeight: 700, color: "#10b981" }}>¥{Number(selectedUser.balance || 0).toFixed(2)}</div>
                               <div style={{ fontSize: 12, color: "#6b7280" }}>账户余额</div>
                               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10, flexWrap: "wrap" }}>
                                 <button
-                                  onClick={() => handleAdjustUserBalance(selectedUser.id)}
+                                  onClick={() => { setBalanceForm(null); openBalanceForm(selectedUser.id); }}
                                   style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                                 >
                                   调整余额
@@ -1583,11 +1687,43 @@ export default function AdminPage() {
                             </div>
                           </div>
 
-                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginTop: 18 }}>
+                          {/* Inline balance form */}
+                          {balanceForm && (
+                            <div style={{ marginTop: 14, padding: 14, background: "#f0fdf4", borderRadius: 10, border: "1px solid #bbf7d0" }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 10 }}>调整余额</div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
+                                  调账金额（正数增加，负数扣减）
+                                  <input
+                                    type="number"
+                                    value={balanceForm.amount}
+                                    onChange={(e) => setBalanceForm({ ...balanceForm, amount: e.target.value })}
+                                    placeholder="例如 100 或 -50"
+                                    style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }}
+                                  />
+                                </label>
+                                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
+                                  说明
+                                  <input
+                                    value={balanceForm.description}
+                                    onChange={(e) => setBalanceForm({ ...balanceForm, description: e.target.value })}
+                                    placeholder="调账说明（可选）"
+                                    style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }}
+                                  />
+                                </label>
+                              </div>
+                              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                <button onClick={() => submitBalanceForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "7px 16px", fontSize: 13, cursor: "pointer" }}>确认调账</button>
+                                <button onClick={() => setBalanceForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "7px 12px", fontSize: 13, cursor: "pointer" }}>取消</button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginTop: 14 }}>
                             {[
-                              { label: "默认 QPM", value: selectedUser.defaultQpm?.toLocaleString?.() || "-" },
-                              { label: "默认 TPM", value: selectedUser.defaultTpm?.toLocaleString?.() || "-" },
-                              { label: "模型限额数", value: selectedUser.customLimitCount || 0 },
+                              { label: "默认 QPM", value: (selectedUserDetail?.defaultQpm ?? selectedUser.defaultQpm)?.toLocaleString?.() || "-" },
+                              { label: "默认 TPM", value: (selectedUserDetail?.defaultTpm ?? selectedUser.defaultTpm)?.toLocaleString?.() || "-" },
+                              { label: "模型限额数", value: (selectedUserDetail?.customLimits ?? selectedUser.customLimits)?.length || 0 },
                               { label: "审批中", value: selectedUser.pendingRequestCount || 0 },
                             ].map((item) => (
                               <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#f8fafc" }}>
@@ -1598,66 +1734,168 @@ export default function AdminPage() {
                           </div>
                         </div>
 
+                        {/* ── Default rate limit (*) ── */}
+                        <div style={{ ...cardStyle, padding: 20 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                            <div>
+                              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>默认限额</h3>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>适用于未单独配置的所有模型</div>
+                            </div>
+                            {!defaultLimitForm && (
+                              <button
+                                onClick={() => setDefaultLimitForm({
+                                  qpm: String(selectedUserDetail?.defaultQpm ?? selectedUser.defaultQpm ?? 60),
+                                  tpm: String(selectedUserDetail?.defaultTpm ?? selectedUser.defaultTpm ?? 100000),
+                                })}
+                                style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                              >
+                                修改
+                              </button>
+                            )}
+                          </div>
+                          {defaultLimitForm ? (
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "end" }}>
+                              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
+                                QPM
+                                <input type="number" value={defaultLimitForm.qpm} onChange={(e) => setDefaultLimitForm({ ...defaultLimitForm, qpm: e.target.value })}
+                                  style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }} />
+                              </label>
+                              <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
+                                TPM
+                                <input type="number" value={defaultLimitForm.tpm} onChange={(e) => setDefaultLimitForm({ ...defaultLimitForm, tpm: e.target.value })}
+                                  style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }} />
+                              </label>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button onClick={() => submitDefaultLimitForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "8px 14px", fontSize: 13, cursor: "pointer" }}>保存</button>
+                                <button onClick={() => setDefaultLimitForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "8px 10px", fontSize: 13, cursor: "pointer" }}>取消</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", gap: 20 }}>
+                              <span style={{ fontSize: 13, color: "#374151" }}>QPM <strong>{(selectedUserDetail?.defaultQpm ?? selectedUser.defaultQpm)?.toLocaleString?.() || "-"}</strong></span>
+                              <span style={{ fontSize: 13, color: "#374151" }}>TPM <strong>{(selectedUserDetail?.defaultTpm ?? selectedUser.defaultTpm)?.toLocaleString?.() || "-"}</strong></span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* ── Per-model rate limits ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                             <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型限流明细</h3>
-                            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                              <div style={{ fontSize: 12, color: "#6b7280" }}>默认限额适用于未单独覆盖的模型</div>
-                              <button
-                                onClick={() => handleSaveUserRateLimit(selectedUser.id)}
-                                style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
-                              >
-                                新增/设置
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => { setRateLimitFormTarget(null); setRateLimitForm({ model: "", qpm: "60", tpm: "100000" }); }}
+                              style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                            >
+                              + 新增
+                            </button>
                           </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                            {selectedUser.customLimits && selectedUser.customLimits.length > 0 ? selectedUser.customLimits.map((limit) => (
-                              <div key={limit.id} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                                  <div>
-                                    <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{limit.model}</div>
-                                    <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>来源: {limit.source}</div>
-                                  </div>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <div style={{ textAlign: "right", fontSize: 12, color: "#111827" }}>
-                                      <div>QPM {limit.qpm.toLocaleString()}</div>
-                                      <div>TPM {limit.tpm.toLocaleString()}</div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 140px", gap: 8, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: "#6b7280", borderBottom: "1px solid #f3f4f6", marginBottom: 4 }}>
+                            <div>模型</div><div>QPM</div><div>TPM</div><div></div>
+                          </div>
+
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            {(() => {
+                              const limits = selectedUserDetail?.customLimits ?? selectedUser.customLimits ?? [];
+                              return limits.length > 0 ? limits.map((limit) => (
+                                <div key={limit.id}>
+                                  {rateLimitForm && rateLimitFormTarget === limit.model ? (
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 140px", gap: 8, padding: "8px 10px", alignItems: "center", background: "#f8fafc", borderRadius: 8, marginBottom: 4, border: "1px solid #e0e7ff" }}>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{limit.model}</div>
+                                      <input type="number" value={rateLimitForm.qpm} onChange={(e) => setRateLimitForm({ ...rateLimitForm, qpm: e.target.value })}
+                                        style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
+                                      <input type="number" value={rateLimitForm.tpm} onChange={(e) => setRateLimitForm({ ...rateLimitForm, tpm: e.target.value })}
+                                        style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
+                                      <div style={{ display: "flex", gap: 6 }}>
+                                        <button onClick={() => submitRateLimitForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", flex: 1 }}>保存</button>
+                                        <button onClick={() => { setRateLimitForm(null); setRateLimitFormTarget(null); }} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>取消</button>
+                                      </div>
                                     </div>
-                                    <button
-                                      onClick={() => handleSaveUserRateLimit(selectedUser.id, limit)}
-                                      style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
-                                    >
-                                      修改
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteUserRateLimit(selectedUser.id, limit.model)}
-                                      style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
-                                    >
-                                      删除
-                                    </button>
-                                  </div>
+                                  ) : (
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 140px", gap: 8, padding: "10px 10px", alignItems: "center", borderRadius: 8, borderBottom: "1px solid #f3f4f6" }}>
+                                      <div>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{limit.model}</div>
+                                        <div style={{ fontSize: 11, color: "#9ca3af" }}>{limit.source}</div>
+                                      </div>
+                                      <div style={{ fontSize: 13, color: "#374151" }}>{limit.qpm.toLocaleString()}</div>
+                                      <div style={{ fontSize: 13, color: "#374151" }}>{limit.tpm.toLocaleString()}</div>
+                                      <div style={{ display: "flex", gap: 6 }}>
+                                        <button onClick={() => openRateLimitForm(selectedUser.id, limit)} style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", flex: 1 }}>修改</button>
+                                        <button onClick={() => handleDeleteUserRateLimit(selectedUser.id, limit.model)} style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>删除</button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )) : (
+                                <div style={{ padding: "12px 10px", color: "#6b7280", fontSize: 13 }}>当前没有模型级覆盖，默认限额生效。</div>
+                              );
+                            })()}
+
+                            {rateLimitForm && rateLimitFormTarget === null && (
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 140px", gap: 8, padding: "8px 10px", alignItems: "center", background: "#f0fdf4", borderRadius: 8, marginTop: 8, border: "1px solid #bbf7d0" }}>
+                                <input placeholder="模型 ID，* 表示全局默认" value={rateLimitForm.model}
+                                  onChange={(e) => setRateLimitForm({ ...rateLimitForm, model: e.target.value })}
+                                  style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
+                                <input type="number" value={rateLimitForm.qpm} onChange={(e) => setRateLimitForm({ ...rateLimitForm, qpm: e.target.value })}
+                                  style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
+                                <input type="number" value={rateLimitForm.tpm} onChange={(e) => setRateLimitForm({ ...rateLimitForm, tpm: e.target.value })}
+                                  style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <button onClick={() => submitRateLimitForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", flex: 1 }}>保存</button>
+                                  <button onClick={() => { setRateLimitForm(null); setRateLimitFormTarget(null); }} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>取消</button>
                                 </div>
                               </div>
-                            )) : (
-                              <div style={{ color: "#6b7280", fontSize: 13 }}>当前没有模型级覆盖，默认限额生效。</div>
                             )}
                           </div>
                         </div>
 
+                        {/* ── Model discounts ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                             <div>
                               <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型折扣</h3>
-                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>按用户 + 模型覆盖目录价，下单和扣费都会使用折扣后金额</div>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>按用户 + 模型覆盖目录价</div>
                             </div>
-                            <button
-                              onClick={() => handleCreateUserDiscount(selectedUser.id)}
-                              style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}
-                            >
-                              新增折扣
-                            </button>
+                            {!discountForm && (
+                              <button onClick={() => openDiscountForm(selectedUser.id)}
+                                style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}>
+                                新增折扣
+                              </button>
+                            )}
                           </div>
+
+                          {discountForm && (
+                            <div style={{ padding: 14, background: "#f8fafc", borderRadius: 10, border: "1px solid #e0e7ff", marginBottom: 12 }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
+                                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
+                                  模型 ID
+                                  <input value={discountForm.modelId} onChange={(e) => setDiscountForm({ ...discountForm, modelId: e.target.value })}
+                                    placeholder="如 qwen-plus" disabled={!!discountForm.editId}
+                                    style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13, background: discountForm.editId ? "#f3f4f6" : "#fff" }} />
+                                </label>
+                                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
+                                  折扣率（0–1，0.8=八折）
+                                  <input type="number" step="0.01" min="0" max="1" value={discountForm.rate}
+                                    onChange={(e) => setDiscountForm({ ...discountForm, rate: e.target.value })}
+                                    style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }} />
+                                </label>
+                                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
+                                  备注
+                                  <input value={discountForm.notes} onChange={(e) => setDiscountForm({ ...discountForm, notes: e.target.value })}
+                                    placeholder="可选" style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }} />
+                                </label>
+                              </div>
+                              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", cursor: "pointer" }}>
+                                  <input type="checkbox" checked={discountForm.enabled} onChange={(e) => setDiscountForm({ ...discountForm, enabled: e.target.checked })} />
+                                  启用
+                                </label>
+                                <button onClick={() => submitDiscountForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "7px 16px", fontSize: 13, cursor: "pointer" }}>保存</button>
+                                <button onClick={() => setDiscountForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "7px 12px", fontSize: 13, cursor: "pointer" }}>取消</button>
+                              </div>
+                            </div>
+                          )}
+
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {selectedUserDiscounts.length > 0 ? selectedUserDiscounts.map((discount) => (
                               <div key={discount.id} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb" }}>
@@ -1673,18 +1911,10 @@ export default function AdminPage() {
                                       <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>{Math.round(Number(discount.discount_rate || 1) * 100)}%</div>
                                       <div style={{ fontSize: 11, color: "#6b7280" }}>实付比例</div>
                                     </div>
-                                    <button
-                                      onClick={() => handleEditUserDiscount(discount)}
-                                      style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
-                                    >
-                                      修改
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteUserDiscount(discount.id)}
-                                      style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
-                                    >
-                                      删除
-                                    </button>
+                                    <button onClick={() => openDiscountForm(selectedUser.id, discount)}
+                                      style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}>修改</button>
+                                    <button onClick={() => handleDeleteUserDiscount(discount.id)}
+                                      style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}>删除</button>
                                   </div>
                                 </div>
                               </div>
@@ -1694,32 +1924,32 @@ export default function AdminPage() {
                           </div>
                         </div>
 
+                        {/* ── Usage stats ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>使用情况</h3>
                           {userDetailLoading ? (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>正在加载用户用量...</div>
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>正在加载用量...</div>
                           ) : (selectedUserDetail?.usage || selectedUser.usage) ? (
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
                               {(() => {
                                 const usage = selectedUserDetail?.usage || selectedUser.usage!;
                                 return [
-                                { label: "请求", value: usage.totalRequests.toLocaleString() },
-                                { label: "Tokens", value: usage.totalTokens.toLocaleString() },
-                                { label: "扣费", value: `¥${Number(usage.totalCost || 0).toFixed(4)}` },
-                                { label: "成功率", value: `${Number(usage.successRate || 0).toFixed(1)}%` },
-                              ].map((item) => (
-                                <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff" }}>
-                                  <div style={{ fontSize: 12, color: "#6b7280" }}>{item.label}</div>
-                                  <div style={{ marginTop: 6, fontSize: 18, fontWeight: 700, color: "#111827" }}>{item.value}</div>
-                                </div>
-                              ));
+                                  { label: "请求", value: usage.totalRequests.toLocaleString() },
+                                  { label: "Tokens", value: usage.totalTokens.toLocaleString() },
+                                  { label: "扣费", value: `¥${Number(usage.totalCost || 0).toFixed(4)}` },
+                                  { label: "成功率", value: `${Number(usage.successRate || 0).toFixed(1)}%` },
+                                ].map((item) => (
+                                  <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff" }}>
+                                    <div style={{ fontSize: 12, color: "#6b7280" }}>{item.label}</div>
+                                    <div style={{ marginTop: 6, fontSize: 18, fontWeight: 700, color: "#111827" }}>{item.value}</div>
+                                  </div>
+                                ));
                               })()}
                             </div>
-                          ) : (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无使用数据</div>
-                          )}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无使用数据</div>}
                         </div>
 
+                        {/* ── By-model usage ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>按模型用量</h3>
                           {selectedUserDetail?.byModel && selectedUserDetail.byModel.length > 0 ? (
@@ -1736,18 +1966,17 @@ export default function AdminPage() {
                                 </div>
                               ))}
                             </div>
-                          ) : (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无模型用量明细</div>
-                          )}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无模型用量明细</div>}
                         </div>
 
+                        {/* ── Recent API calls ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近 API 调用</h3>
                           {selectedUserDetail?.recent && selectedUserDetail.recent.length > 0 ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                              {selectedUserDetail.recent.slice(0, 10).map((call, index) => (
-                                <div key={`${call.time}-${call.model}-${index}`} style={{ display: "grid", gridTemplateColumns: "80px 1fr 96px 86px 70px", gap: 10, padding: 11, border: "1px solid #e5e7eb", borderRadius: 10, alignItems: "center" }}>
-                                  <div style={{ fontSize: 12, color: "#6b7280" }}>{call.time}</div>
+                              {selectedUserDetail.recent.slice(0, 20).map((call, index) => (
+                                <div key={`${call.time}-${call.model}-${index}`} style={{ display: "grid", gridTemplateColumns: "90px 1fr 96px 86px 70px", gap: 10, padding: 11, border: "1px solid #e5e7eb", borderRadius: 10, alignItems: "center" }}>
+                                  <div style={{ fontSize: 11.5, color: "#6b7280", fontVariantNumeric: "tabular-nums" }}>{call.time}</div>
                                   <div style={{ minWidth: 0, fontSize: 12.5, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{call.model}</div>
                                   <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>{Number(call.tokens || 0).toLocaleString()} tokens</div>
                                   <div style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: "#111827" }}>¥{Number(call.cost || 0).toFixed(6)}</div>
@@ -1755,11 +1984,10 @@ export default function AdminPage() {
                                 </div>
                               ))}
                             </div>
-                          ) : (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无 API 调用明细</div>
-                          )}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无 API 调用明细</div>}
                         </div>
 
+                        {/* ── Transactions ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近账务流水</h3>
                           {selectedUserDetail?.transactions?.rows?.length ? (
@@ -1773,31 +2001,40 @@ export default function AdminPage() {
                                 </div>
                               ))}
                             </div>
-                          ) : (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无账务流水</div>
-                          )}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无账务流水</div>}
                         </div>
 
+                        {/* ── All requests history ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
-                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近申请</h3>
-                          {selectedUser.latestRequest ? (
-                            <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14 }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                                <div>
-                                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{selectedUser.latestRequest.model}</div>
-                                  <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-                                    QPM {selectedUser.latestRequest.requested_qpm.toLocaleString()} · TPM {selectedUser.latestRequest.requested_tpm.toLocaleString()}
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>限额申请历史</h3>
+                          {userDetailLoading ? (
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>加载中...</div>
+                          ) : selectedUserDetail?.requests && selectedUserDetail.requests.length > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                              {selectedUserDetail.requests.map((req) => (
+                                <div key={req.id} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb" }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                                    <div>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>{req.model}</div>
+                                      <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                                        QPM {req.requested_qpm.toLocaleString()} · TPM {req.requested_tpm.toLocaleString()}
+                                      </div>
+                                      {req.reason ? <div style={{ marginTop: 4, fontSize: 12, color: "#4b5563" }}>{req.reason}</div> : null}
+                                      {req.admin_reply ? <div style={{ marginTop: 6, fontSize: 12, color: "#334155", background: "#f8fafc", borderRadius: 6, padding: "6px 10px" }}>审批备注：{req.admin_reply}</div> : null}
+                                    </div>
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                                      <span style={{
+                                        padding: "3px 10px", borderRadius: 9999, fontSize: 12,
+                                        background: req.status === "pending" ? "#fff7ed" : req.status === "approved" ? "#ecfdf5" : "#fef2f2",
+                                        color: req.status === "pending" ? "#c2410c" : req.status === "approved" ? "#166534" : "#b91c1c",
+                                      }}>{req.status === "pending" ? "审批中" : req.status === "approved" ? "已通过" : "已拒绝"}</span>
+                                      <span style={{ fontSize: 11, color: "#9ca3af" }}>{new Date(req.created_at).toLocaleString("zh-CN")}</span>
+                                    </div>
                                   </div>
                                 </div>
-                                <span style={{ fontSize: 12, color: "#6b7280" }}>{selectedUser.latestRequest.status}</span>
-                              </div>
-                              <div style={{ marginTop: 10, fontSize: 12.5, color: "#4b5563", lineHeight: 1.6 }}>
-                                创建于 {new Date(selectedUser.latestRequest.created_at).toLocaleString("zh-CN")}
-                              </div>
+                              ))}
                             </div>
-                          ) : (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂无申请记录</div>
-                          )}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无申请记录</div>}
                         </div>
                       </>
                     ) : (
@@ -1815,9 +2052,6 @@ export default function AdminPage() {
                   </div>
                   <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
                     刷新
-                  </button>
-                  <button onClick={handleCreateProvider} style={{ marginLeft: 8, padding: "8px 14px", borderRadius: 8, border: "none", background: "#111827", color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                    新增渠道
                   </button>
                 </div>
 
@@ -1854,11 +2088,19 @@ export default function AdminPage() {
                           </div>
                           {request.status === "pending" ? (
                             <div style={{ display: "flex", gap: 8 }}>
-                              <button onClick={() => handleApproveRequest(request.id, request)} style={{ padding: "8px 14px", border: "none", borderRadius: 8, background: "#10b981", color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                                通过
+                              <button
+                                onClick={() => handleApproveRequest(request.id, request)}
+                                disabled={isActing(`approve-request-${request.id}`) || isActing(`reject-request-${request.id}`)}
+                                style={{ padding: "8px 14px", border: "none", borderRadius: 8, background: "#10b981", color: "#fff", cursor: "pointer", fontFamily: "inherit", opacity: isActing(`approve-request-${request.id}`) ? 0.6 : 1 }}
+                              >
+                                {isActing(`approve-request-${request.id}`) ? "处理中..." : "通过"}
                               </button>
-                              <button onClick={() => handleRejectRequest(request.id)} style={{ padding: "8px 14px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                                拒绝
+                              <button
+                                onClick={() => handleRejectRequest(request.id)}
+                                disabled={isActing(`approve-request-${request.id}`) || isActing(`reject-request-${request.id}`)}
+                                style={{ padding: "8px 14px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", cursor: "pointer", fontFamily: "inherit", opacity: isActing(`reject-request-${request.id}`) ? 0.6 : 1 }}
+                              >
+                                {isActing(`reject-request-${request.id}`) ? "处理中..." : "拒绝"}
                               </button>
                             </div>
                           ) : null}
@@ -1974,13 +2216,21 @@ export default function AdminPage() {
                             </div>
                             <div style={{ display: "flex", gap: 8 }}>
                               {selectedProvider.status !== "enabled" ? (
-                                <button onClick={() => handleApproveProvider(selectedProvider.id)} style={{ padding: "8px 14px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
-                                  启用渠道
+                                <button
+                                  onClick={() => handleApproveProvider(selectedProvider.id)}
+                                  disabled={isActing(`enable-provider-${selectedProvider.id}`) || isActing(`disable-provider-${selectedProvider.id}`)}
+                                  style={{ padding: "8px 14px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`enable-provider-${selectedProvider.id}`) ? 0.6 : 1 }}
+                                >
+                                  {isActing(`enable-provider-${selectedProvider.id}`) ? "处理中..." : "启用渠道"}
                                 </button>
                               ) : null}
                               {selectedProvider.status !== "disabled" ? (
-                                <button onClick={() => handleRejectProvider(selectedProvider.id)} style={{ padding: "8px 14px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>
-                                  停用渠道
+                                <button
+                                  onClick={() => handleRejectProvider(selectedProvider.id)}
+                                  disabled={isActing(`enable-provider-${selectedProvider.id}`) || isActing(`disable-provider-${selectedProvider.id}`)}
+                                  style={{ padding: "8px 14px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`disable-provider-${selectedProvider.id}`) ? 0.6 : 1 }}
+                                >
+                                  {isActing(`disable-provider-${selectedProvider.id}`) ? "处理中..." : "停用渠道"}
                                 </button>
                               ) : null}
                             </div>
@@ -2257,8 +2507,20 @@ export default function AdminPage() {
                         </div>
                         {model.status === "draft" ? (
                           <div style={{ display: "flex", gap: 8 }}>
-                            <button onClick={() => handleApproveModel(model.id)} style={{ padding: "6px 16px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>启用</button>
-                            <button onClick={() => handleRejectModel(model.id)} style={{ padding: "6px 16px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>停用</button>
+                            <button
+                              onClick={() => handleApproveModel(model.id)}
+                              disabled={isActing(`enable-model-${model.id}`) || isActing(`disable-model-${model.id}`)}
+                              style={{ padding: "6px 16px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`enable-model-${model.id}`) ? 0.6 : 1 }}
+                            >
+                              {isActing(`enable-model-${model.id}`) ? "..." : "启用"}
+                            </button>
+                            <button
+                              onClick={() => handleRejectModel(model.id)}
+                              disabled={isActing(`enable-model-${model.id}`) || isActing(`disable-model-${model.id}`)}
+                              style={{ padding: "6px 16px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`disable-model-${model.id}`) ? 0.6 : 1 }}
+                            >
+                              {isActing(`disable-model-${model.id}`) ? "..." : "停用"}
+                            </button>
                           </div>
                         ) : null}
                       </div>
@@ -2343,9 +2605,15 @@ export default function AdminPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
                         <div>
                           <div style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>{ticket.subject}</div>
-                          <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>用户: {ticket.user_id} · 类型: {ticket.type} · 状态: {ticket.status}</div>
+                          <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>用户: {users.find((u) => u.id === ticket.user_id)?.nickname || ticket.user_id} · 类型: {ticket.type} · 状态: {ticket.status}</div>
                         </div>
-                        <button onClick={() => handleReplyTicket(ticket.id)} style={{ padding: "6px 16px", background: "#111827", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit" }}>处理</button>
+                        <button
+                          onClick={() => handleReplyTicket(ticket.id)}
+                          disabled={isActing(`reply-ticket-${ticket.id}`)}
+                          style={{ padding: "6px 16px", background: "#111827", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`reply-ticket-${ticket.id}`) ? 0.6 : 1 }}
+                        >
+                          {isActing(`reply-ticket-${ticket.id}`) ? "处理中..." : "处理"}
+                        </button>
                       </div>
                       <div style={{ fontSize: 13, lineHeight: 1.7, color: "#4b5563", marginBottom: 8 }}>{ticket.description}</div>
                       {(ticket.model || ticket.requested_qpm || ticket.requested_tpm) ? (

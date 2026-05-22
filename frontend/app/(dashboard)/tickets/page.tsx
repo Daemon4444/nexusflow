@@ -37,12 +37,14 @@ export default function TicketsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    loadTickets();
+    const controller = new AbortController();
+    loadTickets(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  async function loadTickets() {
+  async function loadTickets(signal?: AbortSignal) {
     try {
-      const res = await fetchAPI("/api/tickets", { headers: authHeaders() });
+      const res = await fetchAPI("/api/tickets", { headers: authHeaders(), signal });
       if (res.success) setTickets(res.data);
     } catch {
       console.error("Failed to load tickets");

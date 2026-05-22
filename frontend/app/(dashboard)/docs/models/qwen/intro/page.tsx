@@ -35,9 +35,15 @@ const highlights = [
 
 const modelFamilies = [
   {
+    name: "Qwen3.7 系列",
+    badge: "最新旗舰",
+    desc: "2026 年最新发布的顶级旗舰，面向智能体时代全面升级。编程、办公、长周期自主执行能力大幅提升，支持思考模式切换、函数调用和联网搜索，百万级上下文窗口。",
+    models: ["Qwen3.7 Max"],
+  },
+  {
     name: "Qwen3.6 系列",
-    badge: "最新一代",
-    desc: "2026 年最新发布的旗舰系列，在推理深度、代码能力和多模态理解上实现全面跃升。Max Preview 版本是当前 Qwen 最强模型，Plus 版本兼顾性能与成本。",
+    badge: "旗舰推荐",
+    desc: "2026 年发布的旗舰系列，在推理深度、代码能力和多模态理解上实现全面跃升。Max Preview 版本是当前 Qwen 次旗舰，Plus 版本兼顾性能与成本。",
     models: ["Qwen3.6 Max Preview", "Qwen3.6 Plus"],
   },
   {

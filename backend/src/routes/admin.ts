@@ -1,12 +1,22 @@
 import { Router, Request, Response } from "express";
 import { requireAdmin } from "../middleware/admin";
-import { getAdminUserLimitSummaries } from "../data/ratelimits";
+import { getAdminUserLimitSummaries, getUserLimitsOverview } from "../data/ratelimits";
 import { adminAdjustBalance, getBillingUsageExport, getTransactions } from "../data/billing";
 import { getByModel, getRecent, getUsageSummary } from "../data/usage";
 import { listUserModelDiscounts } from "../data/user-discounts";
 import { getUserById } from "../data/users";
 
 const router = Router();
+
+function sanitizeError(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as any;
+    if (e.name === "AbortError" || e.code === "ABORT_ERR") return "Request timed out.";
+    if (e.code === "ECONNREFUSED") return "Service unavailable.";
+    if (e.code === "ENOTFOUND") return "Service unreachable.";
+  }
+  return "An internal error occurred. Please try again.";
+}
 
 router.use(requireAdmin);
 
@@ -68,12 +78,13 @@ router.get("/users/:id/detail", async (req: Request, res: Response) => {
     return;
   }
 
-  const [usage, byModel, recent, transactions, discounts] = await Promise.all([
+  const [usage, byModel, recent, transactions, discounts, limitsOverview] = await Promise.all([
     getUsageSummary(userId),
     getByModel(userId),
     getRecent(userId),
     getTransactions(userId, 20, 0),
     listUserModelDiscounts(userId),
+    getUserLimitsOverview(userId),
   ]);
 
   res.json({
@@ -85,6 +96,10 @@ router.get("/users/:id/detail", async (req: Request, res: Response) => {
       recent,
       transactions,
       discounts,
+      requests: limitsOverview.requests,
+      defaultQpm: limitsOverview.defaultQpm,
+      defaultTpm: limitsOverview.defaultTpm,
+      customLimits: limitsOverview.customLimits,
     },
   });
 });
@@ -139,8 +154,7 @@ router.get("/users/:id/billing-export.csv", async (req: Request, res: Response) 
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(csv);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "账单导出失败";
-    res.status(400).json({ success: false, message });
+    res.status(500).json({ success: false, message: sanitizeError(error) });
   }
 });
 

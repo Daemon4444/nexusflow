@@ -230,13 +230,22 @@ export async function createQrPayment(
  * 验证支付宝异步通知签名
  */
 export function verifyAlipayNotify(params: Record<string, string>): boolean {
-  if (!isAlipayConfigured()) return false;
+  if (!isAlipayConfigured()) {
+    console.error("[ALIPAY] verifyAlipayNotify: 支付宝未配置");
+    return false;
+  }
 
   try {
     const client = getAlipayClient();
-    return client.checkNotifySign(params);
+    // 使用 V2 版本：express.urlencoded 已对 POST body 做了 decode，
+    // checkNotifySignV2 内部用 raw 模式拼接验签字符串，避免二次 decode 导致签名不匹配
+    const result = client.checkNotifySignV2(params);
+    if (!result) {
+      console.error(`[ALIPAY] checkNotifySignV2 返回 false, sign_type=${params.sign_type}, has_sign=${!!params.sign}, alipayPublicKey长度=${process.env.ALIPAY_PUBLIC_KEY?.length}`);
+    }
+    return result;
   } catch (error: any) {
-    console.error("[ALIPAY] 签名验证失败:", error.message);
+    console.error("[ALIPAY] 签名验证异常:", error.message);
     return false;
   }
 }

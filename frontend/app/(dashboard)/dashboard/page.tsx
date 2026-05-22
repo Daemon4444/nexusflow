@@ -44,19 +44,22 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (user) loadDashboard();
+    if (!user) return;
+    const controller = new AbortController();
+    loadDashboard(controller.signal);
+    return () => controller.abort();
   }, [user]);
 
-  async function loadDashboard() {
+  async function loadDashboard(signal?: AbortSignal) {
     setLoading(true);
     setError("");
     try {
       const headers = authHeaders();
       const [keyRes, billingRes, recentRes, modelsRes] = await Promise.all([
-        fetchAPI("/api/keys", { headers }),
-        fetchAPI("/api/billing/summary", { headers }),
-        fetchAPI("/api/usage/recent", { headers }),
-        fetchAPI("/api/models"),
+        fetchAPI("/api/keys", { headers, signal }),
+        fetchAPI("/api/billing/summary", { headers, signal }),
+        fetchAPI("/api/usage/recent", { headers, signal }),
+        fetchAPI("/api/models", { signal }),
       ]);
 
       if (!keyRes.success && !billingRes.success && !modelsRes.success) {

@@ -54,29 +54,33 @@ export default function RateLimitsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [res, modelsRes] = await Promise.all([
-          fetchAPI("/api/rate-limits", { headers: authHeaders() }),
-          fetchAPI("/api/models"),
-        ]);
-        if (res.success) setData(res.data);
-        if (modelsRes.success) {
-          setModels(((modelsRes.data || []) as ModelOption[]).map((item) => ({
-            id: item.id,
-            name: item.name,
-            provider: item.provider,
-            category: item.category,
-          })));
-        }
-      } catch {
-        console.error("Failed to load rate limits");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
   }, []);
+
+  async function load(signal?: AbortSignal) {
+    try {
+      const [res, modelsRes] = await Promise.all([
+        fetchAPI("/api/rate-limits", { headers: authHeaders(), signal }),
+        fetchAPI("/api/models", { signal }),
+      ]);
+      if (res.success) setData(res.data);
+      if (modelsRes.success) {
+        setModels(((modelsRes.data || []) as ModelOption[]).map((item) => ({
+          id: item.id,
+          name: item.name,
+          provider: item.provider,
+          category: item.category,
+        })));
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      console.error("Failed to load rate limits");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function submitRequest() {
     setSubmitting(true);

@@ -118,11 +118,11 @@ export async function getByModel(userId?: string) {
   }));
 }
 
-export async function getRecent(userId?: string) {
+export async function getRecent(userId?: string, limit: number = 20) {
   const { clause, params } = userFilter(userId);
   return db.queryMany(
     `SELECT
-      to_char(created_at, 'HH24:MI:SS') as time,
+      to_char(created_at, 'MM-DD HH24:MI') as time,
       model,
       total_tokens as tokens,
       ROUND(cost::numeric, 6)::float as cost,
@@ -131,8 +131,8 @@ export async function getRecent(userId?: string) {
     FROM usage_logs
     ${clause}
     ORDER BY created_at DESC
-    LIMIT 20`,
-    params
+    LIMIT $${params.length + 1}`,
+    [...params, limit]
   );
 }
 

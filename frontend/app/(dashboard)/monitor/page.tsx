@@ -21,17 +21,30 @@ export default function MonitorPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  useEffect(() => { if (user) loadAll(); }, [user]);
-  useEffect(() => { if (!autoRefresh || !user) return; const timer = setInterval(loadAll, 30000); return () => clearInterval(timer); }, [autoRefresh, user]);
+  useEffect(() => {
+    if (!user) return;
+    const controller = new AbortController();
+    loadAll(controller.signal);
+    return () => controller.abort();
+  }, [user]);
 
-  async function loadAll() {
+  useEffect(() => {
+    if (!autoRefresh || !user) return;
+    const timer = setInterval(() => {
+      const controller = new AbortController();
+      loadAll(controller.signal);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [autoRefresh, user]);
+
+  async function loadAll(signal?: AbortSignal) {
     try {
       const headers = authHeaders();
       const [ovRes, hrRes, mdRes, rcRes] = await Promise.all([
-        fetchAPI("/api/usage/monitor/overview", { headers }),
-        fetchAPI("/api/usage/monitor/hourly", { headers }),
-        fetchAPI("/api/usage/monitor/by-model", { headers }),
-        fetchAPI("/api/usage/monitor/recent?limit=30", { headers }),
+        fetchAPI("/api/usage/monitor/overview", { headers, signal }),
+        fetchAPI("/api/usage/monitor/hourly", { headers, signal }),
+        fetchAPI("/api/usage/monitor/by-model", { headers, signal }),
+        fetchAPI("/api/usage/monitor/recent?limit=30", { headers, signal }),
       ]);
       if (ovRes.success) setOverview(ovRes.data);
       if (hrRes.success) setHourly(hrRes.data);

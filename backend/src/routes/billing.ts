@@ -20,6 +20,16 @@ import {
 
 const router = Router();
 
+function sanitizeError(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as any;
+    if (e.name === "AbortError" || e.code === "ABORT_ERR") return "Request timed out.";
+    if (e.code === "ECONNREFUSED") return "Service unavailable.";
+    if (e.code === "ENOTFOUND") return "Service unreachable.";
+  }
+  return "An internal error occurred. Please try again.";
+}
+
 /** 从请求头提取 session token 并验证用户 */
 async function requireAuth(req: Request, res: Response): Promise<string | null> {
   const auth = req.headers.authorization;
@@ -178,8 +188,7 @@ router.get("/export.csv", async (req: Request, res: Response) => {
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(csv);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "账单导出失败";
-    res.status(400).json({ success: false, message });
+    res.status(500).json({ success: false, message: sanitizeError(error) });
   }
 });
 
@@ -299,6 +308,8 @@ router.post("/alipay/notify", async (req: Request, res: Response) => {
   const tradeStatus = params.trade_status;
   const totalAmount = asAmount(params.total_amount);
 
+  console.log(`[ALIPAY-NOTIFY] 收到回调: order=${outTradeNo}, status=${tradeStatus}, amount=${params.total_amount}, keys=${Object.keys(params).join(",")}`);
+
   if (!outTradeNo) {
     res.status(400).send("fail");
     return;
@@ -306,7 +317,7 @@ router.post("/alipay/notify", async (req: Request, res: Response) => {
 
   // 1. 验签
   if (!verifyAlipayNotify(params)) {
-    console.error("[ALIPAY-NOTIFY] 签名验证失败");
+    console.error(`[ALIPAY-NOTIFY] 签名验证失败: order=${outTradeNo}, sign_type=${params.sign_type}, app_id=${params.app_id}`);
     res.status(400).send("fail");
     return;
   }

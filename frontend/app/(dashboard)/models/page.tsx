@@ -59,9 +59,13 @@ export default function ModelsPage() {
 
   const [allCategories, setAllCategories] = useState<string[]>([]);
 
-  useEffect(() => { loadModels(); }, [selectedCategory, selectedProvider, search, sort]);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadModels(controller.signal);
+    return () => controller.abort();
+  }, [selectedCategory, selectedProvider, search, sort]);
 
-  async function loadModels() {
+  async function loadModels(signal?: AbortSignal) {
     setLoading(true);
     setError("");
     try {
@@ -70,7 +74,7 @@ export default function ModelsPage() {
       if (selectedProvider) params.set("provider", selectedProvider);
       if (search) params.set("search", search);
       if (sort) params.set("sort", sort);
-      const res = await fetchAPI(`/api/models?${params.toString()}`);
+      const res = await fetchAPI(`/api/models?${params.toString()}`, { signal });
       if (res.success) {
         setModels(res.data);
         setProviders(res.providers || []);
@@ -82,11 +86,13 @@ export default function ModelsPage() {
         setModels([]);
         setError(res.message || "模型服务暂时不可用，请稍后重试");
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setModels([]);
       setError("无法连接模型服务，请确认后端服务已启动");
+    } finally {
+      setLoading(false);
     }
-    finally { setLoading(false); }
   }
 
   // 当选了供应商时，只显示该供应商拥有的分类
@@ -179,7 +185,7 @@ export default function ModelsPage() {
           <div style={{ fontSize: 14, fontWeight: 650, color: "var(--text-primary)", marginBottom: 6 }}>模型列表加载失败</div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>{error}</div>
           <button
-            onClick={loadModels}
+            onClick={() => loadModels()}
             style={{
               padding: "8px 14px",
               borderRadius: 7,

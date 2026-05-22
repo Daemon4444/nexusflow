@@ -47,6 +47,21 @@ export function calculateTokenCost(model: AIModel, promptTokens: number, complet
 export const models: AIModel[] = [
   // ========== 通义千问 Qwen 旗舰系列 ==========
   {
+    id: "qwen3.7-max",
+    name: "Qwen3.7 Max",
+    provider: "通义千问",
+    description: "通义千问3.7代旗舰模型，面向智能体时代，编程、办公、长周期自主执行能力全面提升。支持思考模式切换、函数调用和联网搜索。百万级上下文。",
+    contextLength: 1000000,
+    promptPrice: 12,
+    completionPrice: 36,
+    category: "大语言模型",
+    tags: ["旗舰", "推理", "编程", "思考模式", "智能体"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 65536,
+    supported: ["文本", "函数调用", "思考模式", "联网搜索"]
+  },
+  {
     id: "qwen3-max",
     name: "Qwen3 Max",
     provider: "通义千问",

@@ -5,6 +5,19 @@ import Link from "next/link";
 
 const qwenModels = [
   {
+    id: "qwen3.7-max",
+    name: "Qwen3.7 Max",
+    desc: "通义千问3.7代旗舰模型，面向智能体时代，编程、办公、长周期自主执行能力全面提升。支持思考模式切换、函数调用和联网搜索。百万级上下文。",
+    ctx: "1,000,000",
+    maxOutput: "65,536",
+    inputPrice: "¥12",
+    outputPrice: "¥36",
+    tags: ["旗舰", "最新", "思考模式", "智能体"],
+    features: ["函数调用", "思考模式", "联网搜索", "百万上下文"],
+    isNew: true,
+    isFeatured: true,
+  },
+  {
     id: "qwen3.6-max-preview",
     name: "Qwen3.6 Max Preview",
     desc: "Qwen3.6 系列最强预览模型，适合复杂推理、多步骤代码生成和工具型任务。",

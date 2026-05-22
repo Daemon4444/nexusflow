@@ -45,6 +45,7 @@ export function formatModelPrice(model: ModelSummary) {
 export function getRecommendedModels(models: ModelSummary[], limit = 6) {
   const preferredIds = [
     "claude-sonnet-4-6",
+    "qwen3.7-max",
     "deepseek-v4-pro",
     "qwen3.6-max-preview",
     "qwen3.6-plus",
@@ -67,6 +68,7 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
 export function pickDefaultPlaygroundModel(models: ModelSummary[], requestedModel?: string) {
   const preferredIds = [
     requestedModel,
+    "qwen3.7-max",
     "deepseek-v4-pro",
     "qwen3.6-max-preview",
     "qwen3.6-plus",

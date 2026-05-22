@@ -39,14 +39,17 @@ export default function KeysPage() {
   const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null);
 
   useEffect(() => {
-    if (user) loadKeys();
+    if (!user) return;
+    const controller = new AbortController();
+    loadKeys(controller.signal);
+    return () => controller.abort();
   }, [user]);
 
-  async function loadKeys() {
+  async function loadKeys(signal?: AbortSignal) {
     setDataLoading(true);
     setError("");
     try {
-      const res = await fetchAPI("/api/keys", { headers: authHeaders() });
+      const res = await fetchAPI("/api/keys", { headers: authHeaders(), signal });
       if (res.success) {
         setKeys(res.data);
       } else {

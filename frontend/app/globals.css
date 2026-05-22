@@ -1,7 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;550;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -2787,6 +2783,10 @@ textarea.input:focus {
 
 .playground-sidebar {
   background: rgba(255,255,255,.95) !important;
+}
+
+.playground-sidebar button:hover {
+  transform: none !important;
 }
 
 .playground-main > div:first-child {

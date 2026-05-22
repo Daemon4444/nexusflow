@@ -55,7 +55,12 @@ export default function BillingPage() {
   const missingConfigKeys = Array.isArray(paymentConfig?.missing) ? paymentConfig!.missing : [];
   const { shouldShow: showOnboarding, markCompleted } = useOnboarding();
 
-  useEffect(() => { if (user) loadData(); }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    const controller = new AbortController();
+    loadData(controller.signal);
+    return () => controller.abort();
+  }, [user]);
 
   useEffect(() => {
     if (!pollOrderId) return;
@@ -73,16 +78,16 @@ export default function BillingPage() {
     return () => clearInterval(timer);
   }, [pollOrderId]);
 
-  async function loadData() {
+  async function loadData(signal?: AbortSignal) {
     setDataLoading(true);
     setDataError("");
     try {
       const headers = authHeaders();
       const [sRes, tRes, cRes, kRes] = await Promise.all([
-        fetchAPI("/api/billing/summary", { headers }),
-        fetchAPI(`/api/billing/transactions?limit=20&offset=${txOffset}`, { headers }),
-        fetchAPI("/api/billing/payment/config", { headers }),
-        fetchAPI("/api/keys", { headers }),
+        fetchAPI("/api/billing/summary", { headers, signal }),
+        fetchAPI(`/api/billing/transactions?limit=20&offset=${txOffset}`, { headers, signal }),
+        fetchAPI("/api/billing/payment/config", { headers, signal }),
+        fetchAPI("/api/keys", { headers, signal }),
       ]);
       if (sRes.success) setSummary(sRes.data);
       if (tRes.success) { setTransactions(tRes.data.rows); setTxTotal(tRes.data.total); }

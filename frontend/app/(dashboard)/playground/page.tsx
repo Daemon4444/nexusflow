@@ -1188,31 +1188,28 @@ function PlaygroundInner() {
                 onClick={() => setSelectedModel(model.id)}
                 style={{
                   textAlign: "left",
-                  padding: "11px 12px",
+                  padding: "8px 12px",
                   borderRadius: 8,
                   border: active ? "1px solid var(--accent)" : "1px solid var(--border)",
                   background: active ? "var(--accent-bg)" : "var(--bg)",
                   cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  minWidth: 0,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {model.name}
-                  </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}>
+                  {model.name}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                   {model.id === requestedModel && (
                     <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "var(--success-bg)", color: "var(--success)" }}>
                       来源
                     </span>
                   )}
-                </div>
-                <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {model.provider} · {model.category}
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 4, background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
-                    {model.id}
-                  </span>
-                  <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 4, background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>
                     {model.promptPrice}/M
                   </span>
                 </div>
