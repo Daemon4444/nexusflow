@@ -278,6 +278,8 @@ const requestParams: Record<TabKey, { name: string; type: string; required: bool
     { name: "parameters.watermark", type: "boolean", required: false, desc: "是否添加水印，默认 false" },
     { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]，固定可提高复现性" },
     { name: "parameters.shot_type", type: "string", required: false, desc: "镜头类型：single（默认）或 multi（多镜头）" },
+    { name: "parameters.style", type: "string", required: false, desc: "视觉风格：anime / cyberpunk / comic / clay / 3d_animation" },
+    { name: "parameters.camera_movement", type: "string", required: false, desc: "镜头运动：zoom_in / zoom_out / horizontal_left / horizontal_right / crane_up / crane_down 等" },
   ],
   i2v: [
     { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
