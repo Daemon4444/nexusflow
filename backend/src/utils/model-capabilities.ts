@@ -60,6 +60,9 @@ const THINKING_BUDGET_PREFIXES = [
   "qwen3.5-",
   "qwen3-vl-",
   "qwen3-",
+  "deepseek-v3",
+  "deepseek-r1",
+  "deepseek-v4",
 ];
 
 const PRESERVE_THINKING_MODELS = new Set([
@@ -119,11 +122,13 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     thinking.mode !== "none" &&
     THINKING_BUDGET_PREFIXES.some((prefix) => model.id.startsWith(prefix));
   const isQwenChat = isQwenChatModel(model);
+  const isGLM = model.provider === "GLM" || model.provider === "智谱AI";
+  const isDeepSeek = model.provider === "DeepSeek";
+  const isMiniMax = model.provider === "MiniMax";
   const supportsSearch =
-    isQwenChat &&
-    !supportsVision &&
-    !model.id.includes("math") &&
-    !model.id.includes("mt");
+    (isQwenChat && !supportsVision && !model.id.includes("math") && !model.id.includes("mt")) ||
+    isDeepSeek ||
+    isMiniMax;
 
   return {
     model_type: modelType || "unknown",
@@ -138,11 +143,11 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     supports_thinking_budget: supportsThinkingBudget,
     supports_preserve_thinking: PRESERVE_THINKING_MODELS.has(model.id),
     supports_search: supportsSearch,
-    supports_parallel_tool_calls: supportsTools && (isQwenChat || model.provider === "DeepSeek" || model.provider === "智谱AI" || model.provider === "Anthropic"),
-    supports_top_k: isQwenChat,
-    supports_seed: isQwenChat,
+    supports_parallel_tool_calls: supportsTools && (isQwenChat || isDeepSeek || isGLM || model.provider === "Anthropic"),
+    supports_top_k: isQwenChat || isGLM,
+    supports_seed: isQwenChat || isGLM,
     supports_logprobs: isQwenChat,
-    supports_repetition_penalty: isQwenChat,
+    supports_repetition_penalty: isQwenChat || isGLM || (isDeepSeek && (model.id.includes("v3.1") || model.id.includes("v3.2"))),
   };
 }
 
