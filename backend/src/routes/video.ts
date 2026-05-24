@@ -95,7 +95,8 @@ const handleGenerate = async (req: Request, res: Response) => {
   const startTime = Date.now();
   const { 
     model: modelId, prompt, duration, aspect_ratio, quality, negative_prompt, size,
-    img_url, img_urls, video_url, resolution, ratio, audio, audio_setting, seed, watermark
+    img_url, img_urls, video_url, resolution, ratio, audio, audio_setting, seed, watermark,
+    style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend
   } = req.body;
 
   if (!modelId) {
@@ -171,7 +172,7 @@ const handleGenerate = async (req: Request, res: Response) => {
     type: "video",
     model: modelId,
     provider: selected.providerId,
-    input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_urls, video_url, resolution, ratio, audio, audio_setting, seed, watermark },
+    input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_urls, video_url, resolution, ratio, audio, audio_setting, seed, watermark, style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend },
   });
 
   // Build request based on provider
@@ -186,8 +187,12 @@ const handleGenerate = async (req: Request, res: Response) => {
         quality: resolution || quality,
         negative_prompt,
         img_url,
-        motion_mode: req.body.motion_mode,
-        seed: req.body.seed,
+        motion_mode,
+        seed,
+        style,
+        camera_movement,
+        water_mark: water_mark ?? watermark,
+        audio,
       }, selected.apiBaseUrl);
     } else if (isHappyHorse) {
       adapted = adaptHappyHorseRequest(apiKey, {
@@ -209,11 +214,17 @@ const handleGenerate = async (req: Request, res: Response) => {
         prompt,
         negative_prompt,
         size: size || "1280*720",
+        resolution,
         duration: duration || 5,
         img_url: modelId.includes("i2v") ? img_url : undefined,
         img_urls: modelId.includes("r2v") ? (img_urls || (img_url ? [img_url] : undefined)) : undefined,
         video_url: modelId.includes("r2v") ? video_url : undefined,
-        prompt_extend: true,
+        prompt_extend: prompt_extend !== undefined ? prompt_extend : true,
+        seed,
+        watermark,
+        audio,
+        audio_url,
+        shot_type,
       });
     }
 

@@ -130,6 +130,7 @@ export function adaptImageRequest(
     negative_prompt?: string;
     ref_img?: string;
     image_url?: string;
+    seed?: number;
     style_index?: number;
     style_ref_url?: string;
     model_version?: "v2" | "v3";
@@ -155,7 +156,7 @@ export function adaptImageRequest(
   }
   
   // Legacy wanx format
-  const dashscopeBody = {
+  const dashscopeBody: any = {
     model: body.model,
     input: {
       prompt: body.prompt || "",
@@ -164,6 +165,7 @@ export function adaptImageRequest(
     parameters: {
       size: normalizedSize || "1024*1024",
       n: body.n || 1,
+      ...(body.seed !== undefined && body.seed !== null && { seed: body.seed }),
     },
   };
 
@@ -186,10 +188,10 @@ export function adaptImageRequest(
  */
 function adaptWan26ImageRequest(
   apiKey: string,
-  body: { model: string; prompt?: string; n?: number; size?: string; negative_prompt?: string }
+  body: { model: string; prompt?: string; n?: number; size?: string; negative_prompt?: string; seed?: number }
 ): AdapterResult {
   // wan2.6-t2i uses the model name directly (no mapping needed)
-  const dashscopeBody = {
+  const dashscopeBody: any = {
     model: body.model,
     input: {
       messages: [
@@ -207,6 +209,7 @@ function adaptWan26ImageRequest(
       negative_prompt: body.negative_prompt || "",
       prompt_extend: true,
       watermark: false,
+      ...(body.seed !== undefined && body.seed !== null && { seed: body.seed }),
     },
   };
 
@@ -318,27 +321,47 @@ export function adaptVideoRequest(
     prompt: string;
     negative_prompt?: string;
     size?: string;
+    resolution?: string;
     duration?: number;
     img_url?: string;
     img_urls?: string[];
     video_url?: string;
     prompt_extend?: boolean;
+    seed?: number;
+    watermark?: boolean;
+    audio?: boolean;
+    audio_url?: string;
+    shot_type?: string;
   }
 ): AdapterResult {
+  const isI2V = body.model.includes("i2v");
+  const isR2V = body.model.includes("r2v");
+
   const input: any = {
     prompt: body.prompt,
   };
   if (body.negative_prompt) input.negative_prompt = body.negative_prompt;
-  if (body.img_url) input.img_url = body.img_url;
-  // wan2.6-r2v: reference images -> reference_urls, reference video -> reference_video_urls
-  if (body.img_urls && body.img_urls.length > 0) input.reference_urls = body.img_urls;
-  else if (body.img_url && body.model.includes("r2v")) input.reference_urls = [body.img_url];
-  if (body.video_url && body.model.includes("r2v")) input.reference_video_urls = [body.video_url];
+  if (body.img_url && (isI2V || !isR2V)) input.img_url = body.img_url;
+  if (body.audio_url) input.audio_url = body.audio_url;
+  if (isR2V) {
+    if (body.img_urls && body.img_urls.length > 0) input.reference_urls = body.img_urls;
+    else if (body.img_url) input.reference_urls = [body.img_url];
+    if (body.video_url) input.reference_video_urls = [body.video_url];
+  }
 
   const parameters: any = {};
-  if (body.size) parameters.size = body.size;
+  if (isI2V) {
+    if (body.resolution) parameters.resolution = body.resolution;
+    else if (body.size) parameters.resolution = body.size.includes("1080") ? "1080P" : "720P";
+  } else {
+    if (body.size) parameters.size = body.size;
+  }
   if (body.duration) parameters.duration = body.duration;
   if (body.prompt_extend !== undefined) parameters.prompt_extend = body.prompt_extend;
+  if (body.seed !== undefined && body.seed !== null) parameters.seed = body.seed;
+  if (body.watermark !== undefined) parameters.watermark = body.watermark;
+  if (body.audio !== undefined) parameters.audio = body.audio;
+  if (body.shot_type) parameters.shot_type = body.shot_type;
 
   const dashscopeBody = {
     model: getDashScopeVideoModel(body.model),
@@ -534,6 +557,11 @@ export function adaptPixVerseRequest(
     img_url?: string;
     motion_mode?: string;
     seed?: number;
+    style?: string;
+    camera_movement?: string;
+    water_mark?: boolean;
+    watermark?: boolean;
+    audio?: boolean | number;
   },
   apiBaseUrl = "https://app-api.pixverse.ai/openapi/v2"
 ): AdapterResult {
@@ -552,9 +580,16 @@ export function adaptPixVerseRequest(
   if (body.img_url) pixBody.img_url = body.img_url;
   if (body.motion_mode) pixBody.motion_mode = body.motion_mode;
   if (body.seed !== undefined && body.seed !== null) pixBody.seed = body.seed;
+  if (body.style) pixBody.style = body.style;
+  if (body.camera_movement) pixBody.camera_movement = body.camera_movement;
+  if (body.water_mark !== undefined) pixBody.water_mark = body.water_mark;
+  else if (body.watermark !== undefined) pixBody.water_mark = body.watermark;
+  if (body.audio !== undefined) pixBody.audio = body.audio === true || body.audio === 1 ? 1 : 0;
+
+  const endpoint = body.img_url ? "/video/image/generate" : "/video/text/generate";
 
   return {
-    url: `${apiBaseUrl.replace(/\/$/, "")}/video/text/generate`,
+    url: `${apiBaseUrl.replace(/\/$/, "")}${endpoint}`,
     method: "POST",
     headers: {
       "API-KEY": apiKey,

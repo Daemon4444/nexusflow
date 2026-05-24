@@ -271,12 +271,13 @@ while True:
 const requestParams: Record<TabKey, { name: string; type: string; required: boolean; desc: string }[]> = {
   t2v: [
     { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
-    { name: "input.prompt", type: "string", required: true, desc: "文本提示词，支持中英文，不超过 2048 字符" },
+    { name: "input.prompt", type: "string", required: true, desc: "文本提示词，支持中英文，不超过 5000 字符。支持多镜头描述（镜头1:... 镜头2:...）" },
     { name: "parameters.size", type: "string", required: true, desc: "视频分辨率（宽*高），如 1280*720、1920*1080" },
-    { name: "parameters.duration", type: "integer", required: true, desc: "视频时长（秒）。360P~720P 可选 5/8/10；1080P 可选 5/8" },
-    { name: "parameters.audio", type: "boolean", required: false, desc: "是否生成有声视频，默认 false" },
+    { name: "parameters.duration", type: "integer", required: true, desc: "视频时长（秒）。v6 支持 1~15 秒" },
+    { name: "parameters.audio", type: "boolean", required: false, desc: "是否生成有声视频（AI 配音/音效），默认 false" },
     { name: "parameters.watermark", type: "boolean", required: false, desc: "是否添加水印，默认 false" },
-    { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]" },
+    { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]，固定可提高复现性" },
+    { name: "parameters.shot_type", type: "string", required: false, desc: "镜头类型：single（默认）或 multi（多镜头）" },
   ],
   i2v: [
     { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
