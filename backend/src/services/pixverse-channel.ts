@@ -1,3 +1,5 @@
+import { getProviderChannelConfig } from "../data/provider-channels";
+
 export type PixVerseRuntimeChannel = {
   id: string;
   name: string;
@@ -33,8 +35,30 @@ function normalizePixVerseBaseUrl(apiBaseUrl: string): string {
   return normalized;
 }
 
-export function getPixVerseRuntimeChannel(channelId?: string): PixVerseRuntimeChannel {
-  const fallbackId = channelId || "bailian";
+export async function getPixVerseRuntimeChannel(channelId?: string): Promise<PixVerseRuntimeChannel> {
+  let selectedId = channelId;
+
+  if (!selectedId) {
+    const dbConfig = await getProviderChannelConfig("pixverse");
+    if (dbConfig) {
+      selectedId = dbConfig.active_channel;
+      const dbChannel = dbConfig.channels[selectedId];
+      if (dbChannel) {
+        const envKey = dbChannel.adapter === "dashscope" ? process.env.DASHSCOPE_API_KEY : process.env.PIXVERSE_API_KEY;
+        const apiKey = dbChannel.api_key || envKey || "";
+        return {
+          id: selectedId,
+          name: dbChannel.name,
+          adapter: dbChannel.adapter,
+          apiBaseUrl: normalizePixVerseBaseUrl(dbChannel.api_base_url),
+          apiKey,
+          taskProvider: `pixverse:${selectedId}:${dbChannel.adapter}`,
+        };
+      }
+    }
+  }
+
+  const fallbackId = selectedId || "bailian";
   const fallback = DEFAULT_CHANNELS[fallbackId as keyof typeof DEFAULT_CHANNELS] || DEFAULT_CHANNELS.bailian;
   const selected = { id: fallbackId, ...fallback };
   const envKey = selected.adapter === "dashscope" ? process.env.DASHSCOPE_API_KEY : process.env.PIXVERSE_API_KEY;
@@ -50,7 +74,7 @@ export function getPixVerseRuntimeChannel(channelId?: string): PixVerseRuntimeCh
   };
 }
 
-export function getPixVerseTaskChannel(provider: string): PixVerseRuntimeChannel {
+export async function getPixVerseTaskChannel(provider: string): Promise<PixVerseRuntimeChannel> {
   if (!provider.startsWith("pixverse:")) return getPixVerseRuntimeChannel();
   const [, channelId] = provider.split(":");
   return getPixVerseRuntimeChannel(channelId);

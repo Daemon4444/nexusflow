@@ -42,7 +42,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
   }
 
   const model = req.body.model || "pixverse-v6";
-  const channel = getPixVerseRuntimeChannel();
+  const channel = await getPixVerseRuntimeChannel();
 
   const startTime = Date.now();
 
@@ -169,7 +169,7 @@ async function handleImageToVideo(req: Request, res: Response) {
   }
 
   const model = req.body.model || "pixverse-v6";
-  const channel = getPixVerseRuntimeChannel();
+  const channel = await getPixVerseRuntimeChannel();
 
   if (channel.adapter === "pixverse") {
     // 官方 API 暂时用文生视频端点 + img_url
@@ -250,7 +250,7 @@ router.get("/tasks/:taskId", async (req: Request, res: Response) => {
   }
 
   const taskId = req.params.taskId as string;
-  const channel = getPixVerseRuntimeChannel();
+  const channel = await getPixVerseRuntimeChannel();
 
   try {
     if (channel.adapter === "pixverse") {
@@ -305,7 +305,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   }
 
   const taskId = req.params.taskId as string;
-  const channel = getPixVerseRuntimeChannel();
+  const channel = await getPixVerseRuntimeChannel();
 
   try {
     if (channel.adapter === "pixverse") {

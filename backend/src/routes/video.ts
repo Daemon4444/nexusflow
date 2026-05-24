@@ -18,7 +18,8 @@ import {
   failTask,
   updateTaskStatus
 } from "../data/tasks";
-import { getPixVerseRuntimeChannel } from "../services/pixverse-channel";
+import { selectProvider, acquireConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
+import { getProviderById } from "../data/providers";
 import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { checkRPM } from "../services/rate-limiter";
@@ -136,32 +137,14 @@ const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
-  // PixVerse models - check channel config from database
-  const isPixVerseModel = modelId.startsWith("pixverse-") || modelId.startsWith("pixverse/");
-  const isDashScopeModel = modelId.startsWith("wan") || modelId.startsWith("wanx") || isHappyHorse;
-
-  if (!isPixVerseModel && !isDashScopeModel) {
-    res.status(400).json({ success: false, message: `不支持的视频模型: ${modelId}` });
+  // Select provider via scheduler
+  const selected = await selectProvider(modelId, { userId: caller.userId });
+  if (!selected) {
+    res.status(503).json({ success: false, message: "当前无可用渠道" });
     return;
   }
-
-  // Get channel config for PixVerse models using new channel system
-  let pixverseChannel: ReturnType<typeof getPixVerseRuntimeChannel> | null = null;
-  if (isPixVerseModel) {
-    pixverseChannel = getPixVerseRuntimeChannel();
-  }
-
-  // Determine adapter type
-  const useDashScopeAdapter = isDashScopeModel || (pixverseChannel && pixverseChannel.adapter === "dashscope");
-  const apiKey = pixverseChannel?.apiKey || (useDashScopeAdapter ? getDashScopeKey() : getPixVerseKey());
-
-  if (!apiKey) {
-    res.status(500).json({
-      success: false,
-      message: useDashScopeAdapter ? "未配置 DashScope API Key" : "未配置 PixVerse API Key"
-    });
-    return;
-  }
+  const apiKey = selected.apiKey;
+  acquireConcurrency(selected.providerId, modelId);
 
   if ((modelId.includes("-i2v") || modelId.includes("-r2v")) && !img_url && !img_urls?.length) {
     res.status(400).json({
@@ -179,21 +162,22 @@ const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
+  const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
+
   // Create internal task record
   const task = await createTask({
     userId: caller.userId,
     apiKeyId: caller.apiKeyId,
     type: "video",
     model: modelId,
-    provider: useDashScopeAdapter ? "dashscope" : "pixverse",
+    provider: selected.providerId,
     input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_urls, video_url, resolution, ratio, audio, audio_setting, seed, watermark },
   });
 
-  // Build request based on provider/adapter
+  // Build request based on provider
   try {
     let adapted;
-    if (!useDashScopeAdapter && isPixVerseModel) {
-      // Official PixVerse API (when channel is "official")
+    if (isPixVerseOfficial) {
       adapted = adaptPixVerseRequest(apiKey, {
         model: modelId,
         prompt,
@@ -204,7 +188,7 @@ const handleGenerate = async (req: Request, res: Response) => {
         img_url,
         motion_mode: req.body.motion_mode,
         seed: req.body.seed,
-      });
+      }, selected.apiBaseUrl);
     } else if (isHappyHorse) {
       adapted = adaptHappyHorseRequest(apiKey, {
         model: modelId,
@@ -220,8 +204,6 @@ const handleGenerate = async (req: Request, res: Response) => {
         audio_setting,
       });
     } else {
-      // DashScope API (wan video models, HappyHorse, or PixVerse via bailian channel)
-      // adapters.ts handles model name normalization (pixverse-v6 -> pixverse/pixverse-v6-t2v)
       adapted = adaptVideoRequest(apiKey, {
         model: modelId,
         prompt,
@@ -244,8 +226,9 @@ const handleGenerate = async (req: Request, res: Response) => {
     const data: any = await response.json();
 
     // Handle official PixVerse API response
-    if (!useDashScopeAdapter && isPixVerseModel) {
+    if (isPixVerseOfficial) {
       if (data.ErrCode !== 0) {
+        recordFailure(selected.providerId, modelId, data.ErrMsg || "视频生成失败");
         await failTask(task.id, data.ErrMsg || "视频生成失败");
         await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
         res.status(400).json({
@@ -255,7 +238,7 @@ const handleGenerate = async (req: Request, res: Response) => {
         return;
       }
 
-      // Official PixVerse API returns video_id in Resp
+      recordSuccess(selected.providerId, modelId, Date.now() - startTime);
       const upstreamId = data.Resp?.video_id || data.Resp?.task_id;
       if (upstreamId) {
         await setUpstreamTaskId(task.id, String(upstreamId));
@@ -274,6 +257,7 @@ const handleGenerate = async (req: Request, res: Response) => {
     // Handle DashScope response
     if (!response.ok || data.code) {
       const errorMsg = data.message || `HTTP ${response.status}`;
+      recordFailure(selected.providerId, modelId, errorMsg);
       await failTask(task.id, errorMsg);
       await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
       res.status(response.status || 400).json({
@@ -283,6 +267,8 @@ const handleGenerate = async (req: Request, res: Response) => {
       });
       return;
     }
+
+    recordSuccess(selected.providerId, modelId, Date.now() - startTime);
 
     if (data.output?.task_id) {
       await setUpstreamTaskId(task.id, data.output.task_id);
@@ -298,6 +284,7 @@ const handleGenerate = async (req: Request, res: Response) => {
     });
 
   } catch (err: any) {
+    recordFailure(selected.providerId, modelId, err.message);
     await failTask(task.id, err.message);
     await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
     res.status(500).json({
@@ -347,12 +334,27 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
     // Poll upstream
     try {
-      const isPixVerse = task.provider === "pixverse";
-      const apiKey = isPixVerse ? getPixVerseKey() : getDashScopeKey();
-      
-      const result = isPixVerse
-        ? await pollPixVerseTask(apiKey, task.upstream_task_id)
-        : await pollDashScopeTask(apiKey, task.upstream_task_id);
+      let pollApiKey: string;
+      let isPixVerseOfficialPoll: boolean;
+
+      if (task.provider.includes(":")) {
+        // Backward compatibility: old format "pixverse:channelId:adapter"
+        const [, , adapter] = task.provider.split(":");
+        isPixVerseOfficialPoll = adapter === "pixverse";
+        pollApiKey = isPixVerseOfficialPoll ? getPixVerseKey() : getDashScopeKey();
+      } else {
+        const providerRecord = await getProviderById(task.provider);
+        if (!providerRecord) {
+          res.status(500).json({ success: false, message: "渠道配置不存在" });
+          return;
+        }
+        pollApiKey = providerRecord.api_key;
+        isPixVerseOfficialPoll = providerRecord.api_base_url.includes("pixverse.ai");
+      }
+
+      const result = isPixVerseOfficialPoll
+        ? await pollPixVerseTask(pollApiKey, task.upstream_task_id)
+        : await pollDashScopeTask(pollApiKey, task.upstream_task_id);
 
       if (result.status === "succeeded") {
         const model = models.find((m) => m.id === task.model);

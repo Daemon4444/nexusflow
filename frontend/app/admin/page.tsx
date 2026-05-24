@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { fetchAPI } from "@/lib/api";
@@ -428,6 +428,56 @@ interface OperationsDashboard {
   }>;
 }
 
+function ModelCombobox({ value, onChange, options }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const ref = useRef<HTMLDivElement>(null);
+  const filtered = query
+    ? options.filter((o) => o.value.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  useEffect(() => { setQuery(value); }, [value]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <input
+        placeholder="搜索模型 ID..."
+        value={query}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
+        style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }}
+      />
+      {open && filtered.length > 0 && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #d1d5db", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 100, maxHeight: 220, overflowY: "auto", marginTop: 2 }}>
+          {filtered.map((o) => (
+            <div
+              key={o.value}
+              onMouseDown={() => { onChange(o.value); setQuery(o.value); setOpen(false); }}
+              style={{ padding: "7px 10px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid #f3f4f6" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f9ff")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type TabKey = "overview" | "operations" | "users" | "approvals" | "providers" | "models" | "tickets";
 
 const statusColors: Record<string, string> = {
@@ -521,6 +571,9 @@ export default function AdminPage() {
   const [savingProvider, setSavingProvider] = useState(false);
   const [actionLoading, setActionLoading] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("all");
+  const [providerViewMode, setProviderViewMode] = useState<"by-provider" | "by-model">("by-provider");
+  const [modelSearchQuery, setModelSearchQuery] = useState("");
+  const [modelCategoryFilter, setModelCategoryFilter] = useState("all");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -1121,6 +1174,23 @@ export default function AdminPage() {
   const filteredProviders = filter === "all" ? providers : providers.filter((provider) => provider.status === filter);
   const filteredModels = filter === "all" ? models : models.filter((model) => model.status === filter);
   const filteredTickets = filter === "all" ? tickets : tickets.filter((ticket) => ticket.status === filter);
+
+  const filteredByModelModels = useMemo(() => {
+    let result = models;
+    if (modelCategoryFilter !== "all") {
+      result = result.filter((m) => m.category === modelCategoryFilter);
+    }
+    if (modelSearchQuery.trim()) {
+      const q = modelSearchQuery.trim().toLowerCase();
+      result = result.filter((m) => m.modelId.toLowerCase().includes(q) || m.name.toLowerCase().includes(q));
+    }
+    return result;
+  }, [models, modelCategoryFilter, modelSearchQuery]);
+
+  const modelCategories = useMemo(() => {
+    const cats = new Set(models.map((m) => m.category));
+    return Array.from(cats).sort();
+  }, [models]);
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "overview", label: "总览" },
@@ -1833,9 +1903,14 @@ export default function AdminPage() {
 
                             {rateLimitForm && rateLimitFormTarget === null && (
                               <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 140px", gap: 8, padding: "8px 10px", alignItems: "center", background: "#f0fdf4", borderRadius: 8, marginTop: 8, border: "1px solid #bbf7d0" }}>
-                                <input placeholder="模型 ID，* 表示全局默认" value={rateLimitForm.model}
-                                  onChange={(e) => setRateLimitForm({ ...rateLimitForm, model: e.target.value })}
-                                  style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
+                                <ModelCombobox
+                                  value={rateLimitForm.model}
+                                  onChange={(v) => setRateLimitForm({ ...rateLimitForm, model: v })}
+                                  options={[
+                                    { value: "*", label: "* 全局默认" },
+                                    ...models.map((m) => ({ value: m.modelId, label: m.modelId })),
+                                  ]}
+                                />
                                 <input type="number" value={rateLimitForm.qpm} onChange={(e) => setRateLimitForm({ ...rateLimitForm, qpm: e.target.value })}
                                   style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
                                 <input type="number" value={rateLimitForm.tpm} onChange={(e) => setRateLimitForm({ ...rateLimitForm, tpm: e.target.value })}
@@ -2121,6 +2196,31 @@ export default function AdminPage() {
                     刷新
                   </button>
                 </div>
+
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  {(["by-provider", "by-model"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setProviderViewMode(mode)}
+                      style={{
+                        padding: "8px 16px",
+                        background: providerViewMode === mode ? "#111827" : "#fff",
+                        color: providerViewMode === mode ? "#fff" : "#4b5563",
+                        border: "1px solid #d1d5db",
+                        borderRadius: 9999,
+                        fontSize: 13,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        fontWeight: providerViewMode === mode ? 600 : 400,
+                      }}
+                    >
+                      {mode === "by-provider" ? "按供应商" : "按模型"}
+                    </button>
+                  ))}
+                </div>
+
+                {providerViewMode === "by-provider" ? (
+                <>
 
                 {monitorOverview ? (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
@@ -2460,6 +2560,109 @@ export default function AdminPage() {
                     )}
                   </div>
                 </div>
+                </>
+                ) : (
+                <>
+                  <div style={{ ...cardStyle, padding: 16, marginBottom: 16 }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                      <input
+                        type="text"
+                        placeholder="搜索模型 ID 或名称..."
+                        value={modelSearchQuery}
+                        onChange={(e) => setModelSearchQuery(e.target.value)}
+                        style={{ flex: 1, minWidth: 200, padding: "9px 14px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, fontFamily: "inherit", outline: "none" }}
+                      />
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => setModelCategoryFilter("all")}
+                          style={{ padding: "6px 12px", background: modelCategoryFilter === "all" ? "#111827" : "#fff", color: modelCategoryFilter === "all" ? "#fff" : "#4b5563", border: "1px solid #d1d5db", borderRadius: 9999, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                        >
+                          全部
+                        </button>
+                        {modelCategories.map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => setModelCategoryFilter(cat)}
+                            style={{ padding: "6px 12px", background: modelCategoryFilter === cat ? "#111827" : "#fff", color: modelCategoryFilter === cat ? "#fff" : "#4b5563", border: "1px solid #d1d5db", borderRadius: 9999, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>共 {filteredByModelModels.length} 个模型</div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {filteredByModelModels.length === 0 ? (
+                      <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>没有匹配的模型</div>
+                    ) : filteredByModelModels.map((model) => (
+                      <div key={model.id} style={{ ...cardStyle, padding: "16px 20px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>{model.name}</span>
+                            <code style={{ fontSize: 12, color: "#1d4ed8", background: "#eff6ff", padding: "2px 8px", borderRadius: 6 }}>{model.modelId}</code>
+                            <span style={{ padding: "2px 8px", borderRadius: 9999, fontSize: 12, background: "#f3f4f6", color: "#374151" }}>{model.category}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "#6b7280", whiteSpace: "nowrap" }}>
+                            {model.routes?.filter((r) => r.isEnabled).length || 0}/{model.routes?.length || 0} 路由启用
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                          {model.routes && model.routes.length > 0 ? model.routes.map((route) => {
+                            const isTask = isTaskModelCategory(model.category);
+                            return (
+                              <div
+                                key={`${model.modelId}-${route.providerId}`}
+                                style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr auto", gap: 12, alignItems: "center", padding: 12, borderRadius: 10, border: "1px solid #e5e7eb", background: route.isEnabled ? "#f8fafc" : "#fff", opacity: route.isEnabled ? 1 : 0.6 }}
+                              >
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{route.providerName}</div>
+                                  <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                                    <span style={{ color: route.isEnabled ? "#10b981" : "#ef4444", fontWeight: 600 }}>{route.isEnabled ? "启用" : "停用"}</span>
+                                  </div>
+                                </div>
+                                {isTask ? (
+                                  <div style={{ fontSize: 12, color: "#4b5563" }}>
+                                    RPM {route.currentRpm}/{route.rpmLimit}<br />
+                                    任务并发 {route.concurrentLimit}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: 12, color: "#4b5563" }}>
+                                    RPM {route.currentRpm}/{route.rpmLimit}<br />
+                                    TPM {route.currentTpm}/{route.tpmLimit}
+                                  </div>
+                                )}
+                                <div style={{ fontSize: 12, color: "#4b5563" }}>
+                                  优先级 {route.priority}<br />
+                                  权重 {route.weight}
+                                </div>
+                                <button
+                                  onClick={() => handleSaveModelRoute(model, route)}
+                                  style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}
+                                >
+                                  编辑
+                                </button>
+                              </div>
+                            );
+                          }) : (
+                            <div style={{ fontSize: 12.5, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 12 }}>
+                              当前没有启用渠道路由
+                            </div>
+                          )}
+                          <button
+                            onClick={() => handleSaveModelRoute(model)}
+                            style={{ alignSelf: "flex-start", padding: "7px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}
+                          >
+                            + 添加渠道路由
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+                )}
               </>
             ) : activeTab === "models" ? (
               <>

@@ -32,7 +32,8 @@ import {
 } from "../services/adapters";
 import { checkConsumerLimits, checkRPM, recordRequest } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
-import { getPixVerseRuntimeChannel, getPixVerseTaskChannel } from "../services/pixverse-channel";
+import { selectProvider, acquireConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
+import { getProviderById } from "../data/providers";
 import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
 
 const router = Router();
@@ -179,19 +180,17 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  // Determine provider
-  const isPixVerse = modelId.startsWith("pixverse-");
-  const pixVerseChannel = isPixVerse ? getPixVerseRuntimeChannel() : null;
-  const provider = pixVerseChannel?.taskProvider || "dashscope";
-
-  // Get appropriate API key
-  const upstreamApiKey = pixVerseChannel?.apiKey || getApiKey();
-  if (!upstreamApiKey) {
-    res.status(500).json({
-      error: { message: "Upstream API key not configured", type: "server_error", code: "upstream_error" },
+  // Select provider via scheduler (respects provider_capacity config)
+  const selected = await selectProvider(modelId, { userId: apiKeyRecord.user_id });
+  if (!selected) {
+    res.status(503).json({
+      error: { message: "No available provider for this model", type: "server_error", code: "provider_unavailable" },
     });
     return;
   }
+  const upstreamApiKey = selected.apiKey;
+  const provider = selected.providerId;
+  acquireConcurrency(selected.providerId, modelId);
 
   // Create task record
   const task = await createTask({
@@ -207,20 +206,20 @@ router.post("/", async (req: Request, res: Response) => {
   recordRequest("system", modelId, apiKeyRecord.id, 0);
 
   // Build upstream request
+  const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
   let adapted;
   try {
     if (modelType === "image") {
       adapted = adaptImageRequest(upstreamApiKey, { model: modelId, prompt, ...params });
-    } else if (isPixVerse && pixVerseChannel?.adapter === "pixverse") {
-      adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, pixVerseChannel.apiBaseUrl);
-    } else if (isPixVerse) {
-      adapted = adaptVideoRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+    } else if (isPixVerseOfficial) {
+      adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, selected.apiBaseUrl);
     } else if (modelId.startsWith("happyhorse-")) {
       adapted = adaptHappyHorseRequest(upstreamApiKey, { model: modelId, prompt, ...params });
     } else {
       adapted = adaptVideoRequest(upstreamApiKey, { model: modelId, prompt, ...params });
     }
   } catch (err: any) {
+    recordFailure(selected.providerId, modelId, err.message);
     await failTask(task.id, `Adapter error: ${err.message}`);
     res.status(500).json({
       error: { message: `Failed to prepare request: ${err.message}`, type: "server_error", code: "adapter_error" },
@@ -229,6 +228,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // Submit to upstream
+  const submitStart = Date.now();
   try {
     const response = await fetch(adapted.url, {
       method: adapted.method,
@@ -240,6 +240,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     if (!response.ok || data.code || (data.ErrCode !== undefined && data.ErrCode !== 0)) {
       const errorMsg = data.message || data.error?.message || data.ErrMsg || `HTTP ${response.status}`;
+      recordFailure(selected.providerId, modelId, errorMsg);
       await failTask(task.id, errorMsg);
       await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
       res.status(response.ok ? 400 : response.status).json({
@@ -247,6 +248,8 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
+
+    recordSuccess(selected.providerId, modelId, Date.now() - submitStart);
 
     // Extract task ID from response
     let upstreamTaskId: string | undefined;
@@ -312,6 +315,7 @@ router.post("/", async (req: Request, res: Response) => {
     });
 
   } catch (err: any) {
+    recordFailure(selected.providerId, modelId, err.message);
     await failTask(task.id, `Request failed: ${err.message}`);
     await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
     res.status(500).json({
@@ -384,13 +388,35 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 
   try {
-    const isPixVerse = task.provider.startsWith("pixverse");
-    const pixVerseChannel = isPixVerse ? getPixVerseTaskChannel(task.provider) : null;
-    const apiKey = pixVerseChannel?.apiKey || getApiKey();
-    
-    const result = isPixVerse && pixVerseChannel?.adapter === "pixverse"
-      ? await pollPixVerseTask(apiKey, task.upstream_task_id, pixVerseChannel.apiBaseUrl)
-      : await pollDashScopeTask(apiKey, task.upstream_task_id);
+    let pollApiKey: string;
+    let isPixVerseOfficial: boolean;
+    let pixVerseBaseUrl: string | undefined;
+
+    // Backward compatibility: old tasks stored provider as "pixverse:channelId:adapter"
+    if (task.provider.includes(":")) {
+      const [, , adapter] = task.provider.split(":");
+      isPixVerseOfficial = adapter === "pixverse";
+      pollApiKey = isPixVerseOfficial
+        ? (process.env.PIXVERSE_API_KEY || "")
+        : getApiKey();
+      pixVerseBaseUrl = isPixVerseOfficial ? "https://app-api.pixverse.ai/openapi/v2" : undefined;
+    } else {
+      // New format: provider ID directly
+      const providerRecord = await getProviderById(task.provider);
+      if (!providerRecord) {
+        res.status(500).json({
+          error: { message: "Provider not found for this task", type: "server_error", code: "provider_not_found" },
+        });
+        return;
+      }
+      pollApiKey = providerRecord.api_key;
+      isPixVerseOfficial = providerRecord.api_base_url.includes("pixverse.ai");
+      pixVerseBaseUrl = providerRecord.api_base_url;
+    }
+
+    const result = isPixVerseOfficial
+      ? await pollPixVerseTask(pollApiKey, task.upstream_task_id, pixVerseBaseUrl!)
+      : await pollDashScopeTask(pollApiKey, task.upstream_task_id);
 
     // Update task based on result
     if (result.status === "succeeded") {
