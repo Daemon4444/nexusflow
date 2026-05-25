@@ -29,6 +29,7 @@ export function buildUpstreamChatRequest(model: AIModel, body: any, options: { f
     "repetition_penalty",
     "enable_search",
     "search_options",
+    "enable_context_caching",
     "parallel_tool_calls",
   ]) {
     if (allowed.has(key) && body[key] !== undefined) {

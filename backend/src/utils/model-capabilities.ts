@@ -16,6 +16,7 @@ export interface ModelCapabilities {
   supports_thinking_budget: boolean;
   supports_preserve_thinking: boolean;
   supports_search: boolean;
+  supports_context_caching: boolean;
   supports_parallel_tool_calls: boolean;
   supports_top_k: boolean;
   supports_seed: boolean;
@@ -143,6 +144,7 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     supports_thinking_budget: supportsThinkingBudget,
     supports_preserve_thinking: PRESERVE_THINKING_MODELS.has(model.id),
     supports_search: supportsSearch,
+    supports_context_caching: isQwenChat || isGLM,
     supports_parallel_tool_calls: supportsTools && (isQwenChat || isDeepSeek || isGLM || model.provider === "Anthropic"),
     supports_top_k: isQwenChat || isGLM,
     supports_seed: isQwenChat || isGLM,
@@ -195,6 +197,9 @@ export function getAllowedChatParameters(model: AIModel): string[] {
   }
   if (capabilities.supports_search) {
     params.push("enable_search", "search_options");
+  }
+  if (capabilities.supports_context_caching) {
+    params.push("enable_context_caching");
   }
   if (capabilities.supports_parallel_tool_calls) {
     params.push("parallel_tool_calls");
