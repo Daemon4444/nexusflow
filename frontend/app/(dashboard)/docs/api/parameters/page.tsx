@@ -112,8 +112,8 @@ function Matrix({ rows, columns }: { rows: string[][]; columns: string[] }) {
       {rows.map((row, index) => (
         <div key={row[0]} style={{ display: "grid", gridTemplateColumns: columns.map((c) => c).join(" "), borderTop: index === 0 ? "none" : "1px solid #e2e8f0", background: index % 2 === 0 ? "#ffffff" : "#f8fafc", fontSize: 13 }}>
           {row.map((cell, cellIndex) => (
-            <div key={cellIndex} style={{ padding: "11px 14px", color: cellIndex === 0 ? "#2563eb" : "#475569", lineHeight: 1.6 }}>
-              {cellIndex === 0 ? <code>{cell}</code> : cell}
+            <div key={cellIndex} style={{ padding: "11px 14px", color: cellIndex === 0 ? "#2563eb" : "#475569", lineHeight: 1.6, minWidth: 0 }}>
+              {cellIndex === 0 ? <code style={{ wordBreak: "break-all" }}>{cell}</code> : cell}
             </div>
           ))}
         </div>
