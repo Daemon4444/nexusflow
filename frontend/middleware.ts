@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
     "media-src 'self' blob: https:",
     `style-src 'self' 'unsafe-inline'`,
     "font-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src 'self' 'unsafe-inline'`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
