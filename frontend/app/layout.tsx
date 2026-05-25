@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
@@ -28,14 +29,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const hdrs = await headers();
+  const nonce = hdrs.get("x-nonce") || "";
   return (
     <html lang="zh-CN">
-      <body className="antialiased">
+      <body className="antialiased" nonce={nonce}>
         <I18nProvider>
           <AuthProvider>
             {children}
