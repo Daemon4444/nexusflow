@@ -85,21 +85,26 @@ const providers: ProviderItem[] = [
   },
 ];
 
-const platformLinks = [
-  { href: "/docs/principles", label: "平台优势" },
-  { href: "/docs/multi-protocol", label: "三协议接入" },
-  { href: "/docs/provider-routing", label: "供应商路由" },
-  { href: "/docs/model-fallback", label: "模型降级" },
-  { href: "/docs/api-keys", label: "API 密钥管理" },
-];
-
-const refLinks = [
-  { href: "/docs/api/parameters", label: "参数矩阵" },
-  { href: "/docs/api/tasks", label: "异步任务 API" },
+const apiRefLinks = [
+  { href: "/docs/api/chat", label: "Chat Completions" },
+  { href: "/docs/api/parameters", label: "参数详解" },
+  { href: "/docs/api/embeddings", label: "Embeddings" },
+  { href: "/docs/api/tasks", label: "Async Tasks (图像/视频)" },
   { href: "/docs/api/anthropic", label: "Anthropic Messages" },
-  { href: "/docs/api/gemini", label: "Gemini 协议" },
+  { href: "/docs/api/gemini", label: "Gemini GenerateContent" },
   { href: "/docs/api/errors", label: "错误码" },
   { href: "/docs/api/limits", label: "限流说明" },
+];
+
+const platformLinks = [
+  { href: "/docs/multi-protocol", label: "多协议支持" },
+  { href: "/docs/provider-routing", label: "智能路由" },
+  { href: "/docs/model-fallback", label: "模型降级", tag: "Coming Soon" },
+  { href: "/docs/api-keys", label: "API 密钥管理" },
+  { href: "/docs/principles", label: "平台优势" },
+];
+
+const helpLinks = [
   { href: "/docs/faq", label: "常见问题" },
 ];
 
@@ -247,7 +252,7 @@ function DocsNav() {
       </div>
 
       <nav style={{ padding: "0 10px 24px" }}>
-        {/* 快速开始 */}
+        {/* 开始 */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
             开始
@@ -279,12 +284,12 @@ function DocsNav() {
           })}
         </div>
 
-        {/* 平台功能 */}
+        {/* API 参考 */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            平台功能
+            API 参考
           </div>
-          {platformLinks.map((item) => {
+          {apiRefLinks.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -308,11 +313,27 @@ function DocsNav() {
           })}
         </div>
 
-        {/* 模型方列表 */}
+        {/* 模型 */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            模型方
+            模型
           </div>
+          <Link
+            href="/docs/models"
+            style={{
+              display: "block",
+              padding: "8px 12px",
+              fontSize: 13,
+              color: pathname === "/docs/models" ? "var(--text-primary)" : "var(--text-secondary)",
+              fontWeight: pathname === "/docs/models" ? 600 : 400,
+              textDecoration: "none",
+              borderRadius: 6,
+              background: pathname === "/docs/models" ? "var(--bg-elevated)" : "transparent",
+              transition: "all 0.15s",
+            }}
+          >
+            选型指南
+          </Link>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {providers.map((p) => (
               <ProviderSection key={p.key} provider={p} pathname={pathname} fullUrl={fullUrl} />
@@ -320,12 +341,48 @@ function DocsNav() {
           </div>
         </div>
 
-        {/* 参考 */}
+        {/* 平台能力 */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            参考
+            平台能力
           </div>
-          {refLinks.map((item) => {
+          {platformLinks.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 12px",
+                  fontSize: 13,
+                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                  fontWeight: isActive ? 600 : 400,
+                  textDecoration: "none",
+                  borderRadius: 6,
+                  background: isActive ? "var(--bg-elevated)" : "transparent",
+                  transition: "all 0.15s",
+                }}
+              >
+                {item.label}
+                {"tag" in item && item.tag && (
+                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>
+                    {item.tag}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* 帮助 */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+            帮助
+          </div>
+          {helpLinks.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
