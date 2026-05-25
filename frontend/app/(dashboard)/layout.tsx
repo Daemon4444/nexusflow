@@ -9,7 +9,7 @@ export default function DashboardLayout({
   return (
     <>
       <Header />
-      <main style={{ minHeight: "calc(100vh - 56px)", background: "var(--bg)" }}>
+      <main id="main-content" style={{ minHeight: "calc(100vh - 56px)", background: "var(--bg)" }}>
         {children}
       </main>
       <Footer />

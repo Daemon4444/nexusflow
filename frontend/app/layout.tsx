@@ -39,6 +39,26 @@ export default async function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="antialiased" nonce={nonce}>
+        <a href="#main-content" className="skip-link">Skip to content</a>
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "NexusFlow",
+            "url": "https://nexusflow.hk",
+            "description": "Unified AI model aggregation platform providing OpenAI-compatible API access to leading text, vision, image and video models.",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Any",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "CNY",
+              "description": "Pay-as-you-go pricing with no minimum spend"
+            }
+          }) }}
+        />
         <I18nProvider>
           <AuthProvider>
             {children}
