@@ -97,10 +97,10 @@ export default function Header() {
         {/* Right Section */}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
           {/* Status indicator */}
-          <div className="header-status" style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 8 }}>
+          <Link href="/monitor" className="header-status" style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 8, textDecoration: "none" }}>
             <div className="status-dot" />
             <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{t("online")}</span>
-          </div>
+          </Link>
 
           {/* Language Switcher */}
           <div ref={langRef} style={{ position: "relative", marginRight: 8 }}>
