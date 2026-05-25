@@ -118,7 +118,8 @@ export async function calculateDiscountedTokenCost(
   model: AIModel,
   promptTokens: number,
   completionTokens: number,
-  cachedTokens: number = 0
+  cachedTokens: number = 0,
+  cacheCreationTokens: number = 0
 ): Promise<DiscountedAmount> {
-  return applyUserModelDiscount(userId, model.id, calculateTokenCost(model, promptTokens, completionTokens, cachedTokens));
+  return applyUserModelDiscount(userId, model.id, calculateTokenCost(model, promptTokens, completionTokens, cachedTokens, cacheCreationTokens));
 }

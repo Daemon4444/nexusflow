@@ -43,7 +43,7 @@ function estimateChatTokens(model: any, messages: unknown[], maxTokens?: number)
   return promptTokens + completionTokens;
 }
 
-function parseSseUsage(payload: string): { prompt_tokens: number; completion_tokens: number; total_tokens: number; prompt_tokens_details?: { cached_tokens?: number } } {
+function parseSseUsage(payload: string): { prompt_tokens: number; completion_tokens: number; total_tokens: number; prompt_tokens_details?: { cached_tokens?: number; cache_creation_input_tokens?: number } } {
   for (const line of payload.split(/\r?\n/).reverse()) {
     const trimmed = line.trim();
     if (!trimmed.startsWith("data: ") || trimmed === "data: [DONE]") continue;
@@ -250,7 +250,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       const usage = parseSseUsage(fullResponse);
       const playgroundCached = usage.prompt_tokens_details?.cached_tokens || 0;
-      const totalCost = (await calculateDiscountedTokenCost(session.id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, playgroundCached)).finalAmount;
+      const playgroundCreation = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
+      const totalCost = (await calculateDiscountedTokenCost(session.id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, playgroundCached, playgroundCreation)).finalAmount;
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = usage.completion_tokens > 1 ? streamDuration / (usage.completion_tokens - 1) : 0;
 
@@ -287,7 +288,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
     const usage = data.usage || {};
     const playgroundCachedNS = usage.prompt_tokens_details?.cached_tokens || 0;
-    const totalCost = (await calculateDiscountedTokenCost(session.id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, playgroundCachedNS)).finalAmount;
+    const playgroundCreationNS = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
+    const totalCost = (await calculateDiscountedTokenCost(session.id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, playgroundCachedNS, playgroundCreationNS)).finalAmount;
 
     await logUsage({
       apiKeyId: null,

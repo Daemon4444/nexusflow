@@ -210,9 +210,9 @@ function convertToAnthropic(openaiData: any, model: string): any {
     usage: {
       input_tokens: usage.prompt_tokens || 0,
       output_tokens: usage.completion_tokens || 0,
-      ...(usage.prompt_tokens_details?.cached_tokens ? {
-        cache_read_input_tokens: usage.prompt_tokens_details.cached_tokens,
-        cache_creation_input_tokens: 0,
+      ...((usage.prompt_tokens_details?.cached_tokens || usage.prompt_tokens_details?.cache_creation_input_tokens) ? {
+        cache_read_input_tokens: usage.prompt_tokens_details.cached_tokens || 0,
+        cache_creation_input_tokens: usage.prompt_tokens_details.cache_creation_input_tokens || 0,
       } : {}),
     },
   };
@@ -661,6 +661,7 @@ router.post("/", async (req: Request, res: Response) => {
       let lastChunkTime = 0;
       let fullText = "";
       let cachedTokensStream = 0;
+      let cacheCreationStream = 0;
 
       const processLine = (line: string) => {
         const event = parseSseEvent(line);
@@ -673,6 +674,7 @@ router.post("/", async (req: Request, res: Response) => {
           inputTokens = event.usage.prompt_tokens || inputTokens;
           outputTokens = event.usage.completion_tokens || outputTokens;
           cachedTokensStream = event.usage.prompt_tokens_details?.cached_tokens || cachedTokensStream;
+          cacheCreationStream = event.usage.prompt_tokens_details?.cache_creation_input_tokens || cacheCreationStream;
         }
 
         if (delta?.content && !contentBlockStarted) {
@@ -703,9 +705,9 @@ router.post("/", async (req: Request, res: Response) => {
 
           const stopReason = mapFinishReason(finishReason);
           const deltaUsage: any = { output_tokens: outputTokens };
-          if (cachedTokensStream > 0) {
+          if (cachedTokensStream > 0 || cacheCreationStream > 0) {
             deltaUsage.cache_read_input_tokens = cachedTokensStream;
-            deltaUsage.cache_creation_input_tokens = 0;
+            deltaUsage.cache_creation_input_tokens = cacheCreationStream;
           }
           res.write(`event: message_delta\ndata: ${JSON.stringify({
             type: "message_delta",
@@ -773,7 +775,7 @@ router.post("/", async (req: Request, res: Response) => {
 
       // Billing
       const latencyMs = Date.now() - startTime;
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, inputTokens, outputTokens, cachedTokensStream)).finalAmount;
+      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, inputTokens, outputTokens, cachedTokensStream, cacheCreationStream)).finalAmount;
 
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
@@ -838,7 +840,8 @@ router.post("/", async (req: Request, res: Response) => {
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
     const cachedTokensNonStream = usage.prompt_tokens_details?.cached_tokens || 0;
-    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, cachedTokensNonStream)).finalAmount;
+    const cacheCreationNonStream = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
+    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, cachedTokensNonStream, cacheCreationNonStream)).finalAmount;
 
     await logUsage({
       apiKeyId: apiKeyRecord.id,
