@@ -30,6 +30,7 @@ const openAiParams = [
   ["preserve_thinking", "boolean", "可选", "将历史消息中的 reasoning_content 透传回模型，支持 qwen3.7-max、qwen3.6-max-preview、qwen3.6-plus、kimi-k2.6。"],
   ["enable_search", "boolean", "可选", "联网搜索，支持通义千问文本类模型（非 VL / math 系列）。"],
   ["search_options", "object", "可选", "联网搜索配置，与 enable_search 配套使用。"],
+  ["enable_context_caching", "boolean", "可选", "启用上下文缓存。重复的 prompt 前缀自动缓存，命中部分按 0.1x 输入价计费。支持通义千问、GLM 系列。"],
   ["seed", "integer", "可选", "随机种子，通义千问文本模型支持透传。"],
   ["top_k", "integer", "可选", "Top-K 采样，通义千问文本模型支持透传。"],
   ["logprobs", "boolean", "可选", "返回 log 概率，通义千问文本模型支持透传。"],

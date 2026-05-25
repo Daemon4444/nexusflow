@@ -149,6 +149,32 @@ export default function ClaudeDocsPage() {
         </div>
       </section>
 
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Prompt Caching（上下文缓存）</h2>
+        <p style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 14 }}>
+          通过 <code>/v1/messages</code> 调用时支持 Prompt Caching。在 system 或 messages 的 content block 上添加 <code>cache_control</code> 注解，重复前缀将被缓存，后续请求命中缓存部分享受 90% 折扣：
+        </p>
+        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", fontSize: 13, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 14px", background: "var(--bg-elevated)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
+            <span>Token 类型</span><span>计费倍率</span><span>说明</span>
+          </div>
+          {[
+            ["cache_creation_input_tokens", "1.25x", "首次写入缓存"],
+            ["cache_read_input_tokens", "0.1x", "命中缓存，90% 折扣"],
+            ["input_tokens", "1x", "未缓存部分，正常计费"],
+          ].map(([type, rate, desc], i) => (
+            <div key={type} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 14px", borderBottom: i < 2 ? "1px solid var(--border)" : "none", background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+              <code style={{ fontSize: 11 }}>{type}</code>
+              <span style={{ color: "var(--success)", fontWeight: 500 }}>{rate}</span>
+              <span style={{ color: "var(--text-tertiary)" }}>{desc}</span>
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
+          用法示例：在 system 块上添加 <code>{`"cache_control": {"type": "ephemeral"}`}</code>。适用于长 system prompt、文档上下文等重复内容。Claude 直连和百炼模型均支持。
+        </p>
+      </section>
+
       <section style={{ padding: 18, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-elevated)" }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>相关文档</div>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 13 }}>

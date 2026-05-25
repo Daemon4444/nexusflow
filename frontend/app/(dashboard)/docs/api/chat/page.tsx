@@ -763,7 +763,7 @@ data: [DONE]`} />
             ))}
           </div>
           <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6, marginTop: 10 }}>
-            缓存对 <code>/v1/chat/completions</code>（OpenAI 协议）暂不可用。如需利用缓存降低成本，请使用 Anthropic Messages 接口。
+            <code>/v1/chat/completions</code> 支持通过 <code>enable_context_caching: true</code> 参数启用显式缓存（百炼系列模型）。<code>/v1/messages</code>（Anthropic 协议）支持 <code>cache_control</code> 内容块注解。两种协议均自动享受隐式缓存折扣。
           </p>
         </div>
       </section>

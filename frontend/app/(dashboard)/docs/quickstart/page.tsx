@@ -275,6 +275,13 @@ export default function QuickstartPage() {
         </div>
       </section>
 
+      <section style={{ marginBottom: 36, padding: 16, background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>💡 省钱提示：上下文缓存</div>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0 }}>
+          对于重复的 system prompt 或长文档上下文，可启用 <code>enable_context_caching: true</code>（OpenAI 协议）或 <code>cache_control</code> 注解（Anthropic 协议），缓存命中部分仅按 10% 输入价计费。详见 <Link href="/docs/api/chat" style={{ color: "#1d4ed8" }}>计费说明</Link>。
+        </p>
+      </section>
+
       <section>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
           下一步
