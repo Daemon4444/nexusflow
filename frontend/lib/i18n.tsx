@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 
 export type Locale = "zh" | "en";
 
@@ -254,6 +254,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("locale", l);
     document.documentElement.lang = l === "zh" ? "zh-CN" : "en";
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+  }, [locale]);
 
   const t = useCallback((key: TransKey): string => {
     const entry = translations[key];
