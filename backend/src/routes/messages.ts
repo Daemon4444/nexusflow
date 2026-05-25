@@ -142,6 +142,15 @@ function convertToOpenAI(body: any): any {
     result.stream_options = { include_usage: true };
   }
 
+  // Auto-enable context caching when cache_control annotations are present
+  const hasCacheControl = (body.system || []).some?.((b: any) => b.cache_control)
+    || (body.messages || []).some((m: any) =>
+      Array.isArray(m.content) && m.content.some((b: any) => b.cache_control)
+    );
+  if (hasCacheControl) {
+    result.enable_context_caching = true;
+  }
+
   return result;
 }
 
@@ -651,6 +660,7 @@ router.post("/", async (req: Request, res: Response) => {
       let firstChunkTime = 0;
       let lastChunkTime = 0;
       let fullText = "";
+      let cachedTokensStream = 0;
 
       const processLine = (line: string) => {
         const event = parseSseEvent(line);
@@ -662,6 +672,7 @@ router.post("/", async (req: Request, res: Response) => {
         if (event?.usage) {
           inputTokens = event.usage.prompt_tokens || inputTokens;
           outputTokens = event.usage.completion_tokens || outputTokens;
+          cachedTokensStream = event.usage.prompt_tokens_details?.cached_tokens || cachedTokensStream;
         }
 
         if (delta?.content && !contentBlockStarted) {
@@ -691,10 +702,15 @@ router.post("/", async (req: Request, res: Response) => {
           }
 
           const stopReason = mapFinishReason(finishReason);
+          const deltaUsage: any = { output_tokens: outputTokens };
+          if (cachedTokensStream > 0) {
+            deltaUsage.cache_read_input_tokens = cachedTokensStream;
+            deltaUsage.cache_creation_input_tokens = 0;
+          }
           res.write(`event: message_delta\ndata: ${JSON.stringify({
             type: "message_delta",
             delta: { stop_reason: stopReason, stop_sequence: null },
-            usage: { output_tokens: outputTokens },
+            usage: deltaUsage,
           })}\n\n`);
 
           res.write(`event: message_stop\ndata: ${JSON.stringify({
@@ -757,7 +773,7 @@ router.post("/", async (req: Request, res: Response) => {
 
       // Billing
       const latencyMs = Date.now() - startTime;
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, inputTokens, outputTokens)).finalAmount;
+      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, inputTokens, outputTokens, cachedTokensStream)).finalAmount;
 
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
@@ -821,7 +837,8 @@ router.post("/", async (req: Request, res: Response) => {
     // Billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
+    const cachedTokensNonStream = usage.prompt_tokens_details?.cached_tokens || 0;
+    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, cachedTokensNonStream)).finalAmount;
 
     await logUsage({
       apiKeyId: apiKeyRecord.id,

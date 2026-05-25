@@ -510,6 +510,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     repetition_penalty,
     enable_search,
     search_options,
+    enable_context_caching,
     parallel_tool_calls,
   } = req.body;
 
@@ -672,6 +673,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       repetition_penalty,
       enable_search,
       search_options,
+      enable_context_caching,
       parallel_tool_calls,
     },
     { forceStream: requiresUpstreamStream }
