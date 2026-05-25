@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
     `script-src 'self' 'unsafe-inline'`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    "form-action 'self' https://openapi.alipay.com",
   ].join("; ");
 
   const response = NextResponse.next();
