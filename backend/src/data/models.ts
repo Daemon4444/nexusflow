@@ -36,11 +36,14 @@ export function getTokenPricingTier(model: AIModel, promptTokens: number): Token
     || model.tokenPricingTiers[model.tokenPricingTiers.length - 1];
 }
 
-export function calculateTokenCost(model: AIModel, promptTokens: number, completionTokens: number): number {
+export function calculateTokenCost(model: AIModel, promptTokens: number, completionTokens: number, cachedTokens: number = 0): number {
   const tier = getTokenPricingTier(model, promptTokens);
   const promptPrice = tier?.promptPrice ?? model.promptPrice;
   const completionPrice = tier?.completionPrice ?? model.completionPrice;
-  return (Math.max(0, promptTokens || 0) / 1_000_000) * promptPrice
+  const effectiveCached = Math.min(Math.max(0, cachedTokens || 0), Math.max(0, promptTokens || 0));
+  const nonCachedPrompt = Math.max(0, (promptTokens || 0) - effectiveCached);
+  return (nonCachedPrompt / 1_000_000) * promptPrice
+    + (effectiveCached / 1_000_000) * promptPrice * 0.1
     + (Math.max(0, completionTokens || 0) / 1_000_000) * completionPrice;
 }
 
