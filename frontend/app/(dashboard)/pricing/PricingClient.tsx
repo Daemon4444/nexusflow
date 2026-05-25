@@ -352,12 +352,13 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
       }}>
         <strong style={{ color: "var(--text-primary)" }}>Pricing Notes:</strong>
         <ul style={{ margin: "12px 0 0", paddingLeft: 20 }}>
-          <li>All prices are in CNY (¥)</li>
-          <li>Text models: per million tokens billing based on actual token usage</li>
+          <li>All prices are in CNY (¥), per million tokens unless otherwise noted</li>
+          <li><strong>阶梯计费</strong>：通义千问、GLM 系列按单次请求输入 token 总量分档计费，长 prompt 自动适用更高档位价格</li>
+          <li><strong>上下文缓存</strong>：支持缓存的模型（Qwen、GLM、DeepSeek V3.2、Kimi、Claude），缓存命中按 0.1x 输入价计费，首次写入按 1.25x。详见 <a href="/docs/context-cache" style={{ color: "#1d4ed8" }}>缓存文档</a></li>
+          <li><strong>Claude 定价</strong>：基于 Anthropic 官方 USD 价格按 1 USD ≈ ¥6.8 折算，汇率变动时可能调整</li>
           <li>Video models: per-second billing based on resolution and audio options</li>
           <li>Image models: per-image billing</li>
-          <li>Account balance can be recharged at any time</li>
-          <li>Unused balance never expires</li>
+          <li>Account balance can be recharged at any time, unused balance never expires</li>
         </ul>
       </div>
     </div>
