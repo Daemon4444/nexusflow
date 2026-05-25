@@ -222,8 +222,8 @@ export default function LandingPage() {
             Between question and answer, there is always a path. NexusFlow turns that uncertainty into one deliberate API for text, vision, image and video intelligence.
           </p>
           <div className="nf-hero-actions">
-            <Link href={user ? "/dashboard" : "/login"} className="nf-btn nf-btn-primary nf-btn-lg">
-              {user ? "Open Console" : "Get API access"}
+            <Link href={user ? "/dashboard" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">
+              {user ? "Open Console" : "免费开始"}
             </Link>
             <Link href="/docs/quickstart" className="nf-btn nf-btn-secondary nf-btn-lg">
               Read quickstart
@@ -292,8 +292,8 @@ export default function LandingPage() {
           </h2>
           <p>Validate in Playground, then ship through the same model names, keys and billing path in production.</p>
         </div>
-        <Link href={user ? "/keys" : "/login"} className="nf-btn nf-btn-primary nf-btn-lg">
-          {user ? "Create API key" : "Create account"}
+        <Link href={user ? "/keys" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">
+          {user ? "Create API key" : "免费开始"}
         </Link>
       </section>
     </main>

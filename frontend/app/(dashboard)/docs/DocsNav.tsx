@@ -27,6 +27,14 @@ const providers: ProviderItem[] = [
     ],
   },
   {
+    key: "claude",
+    label: "Claude (Anthropic)",
+    children: [
+      { href: "/docs/models/claude", label: "模型介绍" },
+      { href: "/docs/api/anthropic", label: "Messages API" },
+    ],
+  },
+  {
     key: "deepseek",
     label: "DeepSeek",
     children: [
