@@ -715,6 +715,59 @@ data: [DONE]`} />
         </div>
       </section>
 
+      {/* ───────── Pricing Info ───────── */}
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={sectionHeading}>计费说明</h2>
+
+        <div style={{ marginBottom: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>阶梯计费</h3>
+          <p style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 12 }}>
+            百炼系列模型（通义千问、GLM 等）采用<strong>按请求输入 token 数分阶梯计费</strong>。单次请求的 prompt token 总量决定该请求适用的价格档位，输入和输出分别按对应档位的单价计费。
+          </p>
+          <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", fontSize: 13, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", padding: "10px 14px", background: "var(--bg-elevated)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
+              <span>示例：qwen3-max</span><span>输入 Token 范围</span><span>输入价格 (¥/M)</span><span>输出价格 (¥/M)</span>
+            </div>
+            {[
+              ["第一阶", "0 ~ 32K", "2.5", "10"],
+              ["第二阶", "32K ~ 128K", "4", "16"],
+              ["第三阶", "128K ~ 256K", "7", "28"],
+            ].map(([tier, range, inp, out], i) => (
+              <div key={tier} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", padding: "10px 14px", borderBottom: i < 2 ? "1px solid var(--border)" : "none", background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+                <span style={{ fontWeight: 500 }}>{tier}</span><span>{range}</span><span style={{ color: "var(--success)" }}>{inp}</span><span style={{ color: "var(--success)" }}>{out}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
+            例如：一次请求含 50K 输入 token + 2K 输出 token，则输入按 ¥4/M 计费、输出按 ¥16/M 计费（落入第二阶）。完整阶梯价格见 <Link href="/pricing" style={{ color: "#1d4ed8" }}>定价页</Link>。
+          </p>
+        </div>
+
+        <div>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>上下文缓存（Prompt Caching）</h3>
+          <p style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 12 }}>
+            通过 <code>/v1/messages</code>（Anthropic 协议）调用时支持上下文缓存。对重复的 system prompt 或长文档，DashScope 会自动缓存 prompt 前缀，后续请求命中缓存部分享受折扣：
+          </p>
+          <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", fontSize: 13 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 14px", background: "var(--bg-elevated)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
+              <span>Token 类型</span><span>计费倍率</span><span>说明</span>
+            </div>
+            {[
+              ["cache_creation_input_tokens", "1.25x 输入价", "首次写入缓存，略高于常规输入"],
+              ["cache_read_input_tokens", "0.1x 输入价", "命中缓存，享 90% 折扣"],
+              ["input_tokens（非缓存部分）", "1x 输入价", "正常计费"],
+            ].map(([type, rate, desc], i) => (
+              <div key={type} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 14px", borderBottom: i < 2 ? "1px solid var(--border)" : "none", background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+                <code style={{ fontSize: 11, wordBreak: "break-all" }}>{type}</code><span style={{ color: "var(--success)", fontWeight: 500 }}>{rate}</span><span style={{ color: "var(--text-tertiary)" }}>{desc}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6, marginTop: 10 }}>
+            缓存对 <code>/v1/chat/completions</code>（OpenAI 协议）暂不可用。如需利用缓存降低成本，请使用 Anthropic Messages 接口。
+          </p>
+        </div>
+      </section>
+
       <section style={{ marginBottom: 36 }}>
         <h2 style={sectionHeading}>注意事项</h2>
         <div style={{
