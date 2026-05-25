@@ -792,6 +792,8 @@ router.post("/", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs,
         tpotMs,
+        cachedTokens: cachedTokensStream,
+        cacheCreationTokens: cacheCreationStream,
       });
       recordProviderTokens(provider.id, modelId, inputTokens + outputTokens);
       if (apiKeyRecord.user_id) {
@@ -853,6 +855,8 @@ router.post("/", async (req: Request, res: Response) => {
       cost: totalCost,
       status: "success",
       latencyMs,
+      cachedTokens: cachedTokensNonStream,
+      cacheCreationTokens: cacheCreationNonStream,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
     if (apiKeyRecord.user_id) {

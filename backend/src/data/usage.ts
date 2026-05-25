@@ -27,10 +27,12 @@ export async function logUsage(params: {
   latencyMs: number;
   ttftMs?: number;
   tpotMs?: number;
+  cachedTokens?: number;
+  cacheCreationTokens?: number;
 }): Promise<void> {
   await db.execute(
-    `INSERT INTO usage_logs (api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO usage_logs (api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       params.apiKeyId,
       params.userId || null,
@@ -43,6 +45,8 @@ export async function logUsage(params: {
       params.latencyMs,
       params.ttftMs || 0,
       params.tpotMs || 0,
+      params.cachedTokens || 0,
+      params.cacheCreationTokens || 0,
       new Date().toISOString(),
     ]
   );

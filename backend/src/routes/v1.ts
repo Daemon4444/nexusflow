@@ -802,9 +802,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs,
         tpotMs,
+        cachedTokens,
+        cacheCreationTokens,
       });
-      recordProviderTokens(provider.id, modelId, streamTokens.total_tokens || 0);
-      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
 
       if (totalCost > 0) {
         await consume(
@@ -883,6 +883,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs: nonStreamTtft,
         tpotMs: nonStreamTpot,
+        cachedTokens: cachedTokensNonStream,
+        cacheCreationTokens: cacheCreationNonStream,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
@@ -942,6 +944,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       cost: totalCost,
       status: "success",
       latencyMs,
+      cachedTokens: cachedTokensDirect,
+      cacheCreationTokens: cacheCreationDirect,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
     await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);

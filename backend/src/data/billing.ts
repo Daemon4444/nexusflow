@@ -62,13 +62,15 @@ function money6(value: number): number {
   return Math.round((Number(value) || 0) * 1_000_000) / 1_000_000;
 }
 
-function getModelBillingBreakdown(model: AIModel | undefined, promptTokens: number, completionTokens: number, billedAmount: number) {
+function getModelBillingBreakdown(model: AIModel | undefined, promptTokens: number, completionTokens: number, billedAmount: number, cachedTokens: number = 0, cacheCreationTokens: number = 0) {
   const prompt = Math.max(0, Number(promptTokens || 0));
   const completion = Math.max(0, Number(completionTokens || 0));
+  const cached = Math.max(0, Number(cachedTokens || 0));
+  const creation = Math.max(0, Number(cacheCreationTokens || 0));
   const tier = model ? getTokenPricingTier(model, prompt) : null;
   const promptUnit = tier?.promptPrice ?? model?.promptPrice ?? 0;
   const completionUnit = tier?.completionPrice ?? model?.completionPrice ?? 0;
-  const recalculatedAmount = model ? calculateTokenCost(model, prompt, completion) : Number(billedAmount || 0);
+  const recalculatedAmount = model ? calculateTokenCost(model, prompt, completion, cached, creation) : Number(billedAmount || 0);
   const promptAmount = (prompt / 1_000_000) * promptUnit;
   const completionAmount = (completion / 1_000_000) * completionUnit;
 
@@ -249,6 +251,8 @@ export async function getBillingUsageExport(userId: string, params: { startDate?
        ul.prompt_tokens,
        ul.completion_tokens,
        ul.total_tokens,
+       ul.cached_tokens,
+       ul.cache_creation_tokens,
        ul.cost,
        ul.status,
        ul.created_at
@@ -267,7 +271,7 @@ export async function getBillingUsageExport(userId: string, params: { startDate?
     const billedAmount = money6(Number(row.cost || 0));
     const promptTokens = Number(row.prompt_tokens || 0);
     const completionTokens = Number(row.completion_tokens || 0);
-    const breakdown = getModelBillingBreakdown(model, promptTokens, completionTokens, billedAmount);
+    const breakdown = getModelBillingBreakdown(model, promptTokens, completionTokens, billedAmount, Number(row.cached_tokens || 0), Number(row.cache_creation_tokens || 0));
     return {
       usage_id: Number(row.usage_id),
       api_key_id: row.api_key_id || null,

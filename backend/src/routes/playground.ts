@@ -267,6 +267,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs: Date.now() - startTime,
         ttftMs,
         tpotMs,
+        cachedTokens: playgroundCached,
+        cacheCreationTokens: playgroundCreation,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
       await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
@@ -301,6 +303,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       cost: totalCost,
       status: "success",
       latencyMs: Date.now() - startTime,
+      cachedTokens: playgroundCachedNS,
+      cacheCreationTokens: playgroundCreationNS,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
     await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
