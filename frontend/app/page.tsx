@@ -208,7 +208,7 @@ export default function LandingPage() {
           ) : (
             <>
               <Link href="/login" className="nf-btn nf-btn-secondary">Log in</Link>
-              <Link href="/login" className="nf-btn nf-btn-primary">Start building</Link>
+              <Link href="/login?tab=register" className="nf-btn nf-btn-primary">Start building</Link>
             </>
           )}
         </div>
@@ -216,7 +216,7 @@ export default function LandingPage() {
 
       <section className="nf-hero">
         <div className="nf-hero-copy">
-          <div className="nf-eyebrow">To choose the model, or to become the route</div>
+          <div className="nf-eyebrow">One API, every leading AI model</div>
           <h1>NexusFlow</h1>
           <p className="nf-hero-lead">
             Between question and answer, there is always a path. NexusFlow turns that uncertainty into one deliberate API for text, vision, image and video intelligence.

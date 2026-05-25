@@ -2807,3 +2807,62 @@ textarea.input:focus {
     min-height: auto;
   }
 }
+
+/* ── Footer ── */
+.nf-footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  padding: 48px 40px 24px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.nf-footer-inner {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+  flex-wrap: wrap;
+}
+.nf-footer-brand strong {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.nf-footer-brand p {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+.nf-footer-links {
+  display: flex;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+.nf-footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nf-footer-col h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.nf-footer-col a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.nf-footer-col a:hover {
+  color: var(--text-primary);
+}
+.nf-footer-bottom {
+  max-width: 1100px;
+  margin: 32px auto 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}

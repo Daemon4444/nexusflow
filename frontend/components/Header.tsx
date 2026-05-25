@@ -173,7 +173,7 @@ export default function Header() {
           {/* Desktop user nav + auth */}
           <div className="header-desktop-user">
             {loading ? (
-              <div style={{ fontSize: 12, color: "var(--text-tertiary)", padding: "0 8px" }}>{t("loading")}</div>
+              <div style={{ width: 80, height: 32 }} />
             ) : user ? (
               <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                 {userNav.map((item) => {

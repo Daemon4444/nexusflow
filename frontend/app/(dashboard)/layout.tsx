@@ -1,4 +1,5 @@
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 export default function DashboardLayout({
   children,
@@ -11,6 +12,7 @@ export default function DashboardLayout({
       <main style={{ minHeight: "calc(100vh - 56px)", background: "var(--bg)" }}>
         {children}
       </main>
+      <Footer />
     </>
   );
 }
