@@ -180,12 +180,18 @@ export default function BillingPage() {
 
   // 支付表单渲染后自动提交
   useEffect(() => {
-    if (paymentFormHtml) {
+    if (!paymentFormHtml) return;
+    let attempts = 0;
+    const trySubmit = () => {
       const form = document.querySelector("#alipay-submit-form form") as HTMLFormElement | null;
       if (form) {
         form.submit();
+      } else if (attempts < 10) {
+        attempts++;
+        requestAnimationFrame(trySubmit);
       }
-    }
+    };
+    requestAnimationFrame(trySubmit);
   }, [paymentFormHtml]);
 
   function formatDate(dateStr: string) {
@@ -390,9 +396,23 @@ export default function BillingPage() {
       )}
       {/* 支付宝表单自动提交容器 */}
       {paymentFormHtml && (
-        <div id="alipay-submit-form" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 9999, background: "#fff" }}>
-          <div style={{ textAlign: "center", padding: 40, color: "#666" }}>正在跳转到支付宝...</div>
-          <div dangerouslySetInnerHTML={{ __html: paymentFormHtml }} />
+        <div id="alipay-submit-form" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 9999, background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ textAlign: "center", padding: 40, color: "#666" }}>
+            <div style={{ marginBottom: 16 }}>正在跳转到支付宝...</div>
+            <button
+              onClick={() => {
+                const form = document.querySelector("#alipay-submit-form form") as HTMLFormElement | null;
+                if (form) form.submit();
+              }}
+              style={{ padding: "10px 24px", fontSize: 14, background: "#1677ff", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}
+            >
+              如未自动跳转，点此手动前往
+            </button>
+            <div style={{ marginTop: 12 }}>
+              <button onClick={() => setPaymentFormHtml("")} style={{ fontSize: 12, color: "#999", background: "none", border: "none", cursor: "pointer" }}>取消</button>
+            </div>
+          </div>
+          <div style={{ display: "none" }} dangerouslySetInnerHTML={{ __html: paymentFormHtml }} />
         </div>
       )}
     </UserLayout>
