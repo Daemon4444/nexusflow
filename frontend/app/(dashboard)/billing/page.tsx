@@ -178,18 +178,12 @@ export default function BillingPage() {
     }
   }
 
-  // 支付表单渲染后自动提交
+  // 支付表单：直接写入整个文档（最可靠的方式）
   useEffect(() => {
     if (!paymentFormHtml) return;
-    const container = document.createElement("div");
-    container.style.display = "none";
-    container.innerHTML = paymentFormHtml;
-    document.body.appendChild(container);
-    const form = container.querySelector("form") as HTMLFormElement | null;
-    if (form) {
-      form.submit();
-    }
-    return () => { container.remove(); };
+    document.open();
+    document.write(paymentFormHtml);
+    document.close();
   }, [paymentFormHtml]);
 
   function formatDate(dateStr: string) {
@@ -399,11 +393,9 @@ export default function BillingPage() {
             <div style={{ marginBottom: 16 }}>正在跳转到支付宝...</div>
             <button
               onClick={() => {
-                const container = document.createElement("div");
-                container.innerHTML = paymentFormHtml;
-                document.body.appendChild(container);
-                const form = container.querySelector("form") as HTMLFormElement | null;
-                if (form) form.submit();
+                document.open();
+                document.write(paymentFormHtml);
+                document.close();
               }}
               style={{ padding: "10px 24px", fontSize: 14, background: "#1677ff", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}
             >
