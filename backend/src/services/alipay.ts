@@ -141,8 +141,9 @@ export async function createPagePayment(
   try {
     const client = getAlipayClient();
 
-    // 电脑网站支付 - 返回 HTML form
+    // 电脑网站支付 - 返回跳转 URL（GET 方式）
     const result = await client.pageExec("alipay.trade.page.pay", {
+      method: "GET",
       notify_url: process.env.ALIPAY_NOTIFY_URL,
       return_url: process.env.ALIPAY_RETURN_URL,
       bizContent: {
@@ -150,9 +151,7 @@ export async function createPagePayment(
         total_amount: amount.toFixed(2),
         subject,
         product_code: "FAST_INSTANT_TRADE_PAY",
-        // 订单过期时间 15 分钟
         timeout_express: "15m",
-        // 附加数据，回调时原样返回
         passback_params: encodeURIComponent(JSON.stringify({ userId })),
       },
     });

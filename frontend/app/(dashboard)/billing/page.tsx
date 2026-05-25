@@ -178,12 +178,10 @@ export default function BillingPage() {
     }
   }
 
-  // 支付表单：直接写入整个文档（最可靠的方式）
+  // 支付跳转：后端返回 URL，直接跳转
   useEffect(() => {
     if (!paymentFormHtml) return;
-    document.open();
-    document.write(paymentFormHtml);
-    document.close();
+    window.location.href = paymentFormHtml;
   }, [paymentFormHtml]);
 
   function formatDate(dateStr: string) {
@@ -391,16 +389,12 @@ export default function BillingPage() {
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 9999, background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           <div style={{ textAlign: "center", padding: 40, color: "#666" }}>
             <div style={{ marginBottom: 16 }}>正在跳转到支付宝...</div>
-            <button
-              onClick={() => {
-                document.open();
-                document.write(paymentFormHtml);
-                document.close();
-              }}
-              style={{ padding: "10px 24px", fontSize: 14, background: "#1677ff", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}
+            <a
+              href={paymentFormHtml}
+              style={{ display: "inline-block", padding: "10px 24px", fontSize: 14, background: "#1677ff", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", textDecoration: "none" }}
             >
               如未自动跳转，点此手动前往
-            </button>
+            </a>
             <div style={{ marginTop: 12 }}>
               <button onClick={() => setPaymentFormHtml("")} style={{ fontSize: 12, color: "#999", background: "none", border: "none", cursor: "pointer" }}>取消</button>
             </div>
