@@ -39,32 +39,38 @@ function anthropicContentToOpenAI(content: any): string | any[] {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
 
-  // Check if all blocks are text-only
-  const allText = content.every((block: any) => block.type === "text");
-  if (allText) {
+  // Check if all blocks are text-only (no images, no cache_control)
+  const allSimpleText = content.every((block: any) => block.type === "text" && !block.cache_control);
+  if (allSimpleText) {
     return content.map((block: any) => block.text).join("");
   }
 
-  // Mixed content: convert to OpenAI multimodal format
+  // Mixed content: convert to OpenAI multimodal format, preserving cache_control
   return content.map((block: any) => {
     if (block.type === "text") {
-      return { type: "text", text: block.text };
+      const item: any = { type: "text", text: block.text };
+      if (block.cache_control) item.cache_control = block.cache_control;
+      return item;
     }
     if (block.type === "image") {
       const source = block.source;
       if (source?.type === "base64") {
-        return {
+        const item: any = {
           type: "image_url",
           image_url: {
             url: `data:${source.media_type};base64,${source.data}`,
           },
         };
+        if (block.cache_control) item.cache_control = block.cache_control;
+        return item;
       }
       if (source?.type === "url") {
-        return {
+        const item: any = {
           type: "image_url",
           image_url: { url: source.url },
         };
+        if (block.cache_control) item.cache_control = block.cache_control;
+        return item;
       }
     }
     return { type: "text", text: "" };
@@ -80,12 +86,24 @@ function convertToOpenAI(body: any): any {
     if (typeof body.system === "string") {
       openaiMessages.push({ role: "system", content: body.system });
     } else if (Array.isArray(body.system)) {
-      const systemText = body.system
-        .filter((b: any) => b.type === "text")
-        .map((b: any) => b.text)
-        .join("\n");
-      if (systemText) {
-        openaiMessages.push({ role: "system", content: systemText });
+      const hasCacheControl = body.system.some((b: any) => b.cache_control);
+      if (hasCacheControl) {
+        const contentBlocks = body.system
+          .filter((b: any) => b.type === "text")
+          .map((b: any) => {
+            const item: any = { type: "text", text: b.text };
+            if (b.cache_control) item.cache_control = b.cache_control;
+            return item;
+          });
+        openaiMessages.push({ role: "system", content: contentBlocks });
+      } else {
+        const systemText = body.system
+          .filter((b: any) => b.type === "text")
+          .map((b: any) => b.text)
+          .join("\n");
+        if (systemText) {
+          openaiMessages.push({ role: "system", content: systemText });
+        }
       }
     }
   }
@@ -183,6 +201,10 @@ function convertToAnthropic(openaiData: any, model: string): any {
     usage: {
       input_tokens: usage.prompt_tokens || 0,
       output_tokens: usage.completion_tokens || 0,
+      ...(usage.prompt_tokens_details?.cached_tokens ? {
+        cache_read_input_tokens: usage.prompt_tokens_details.cached_tokens,
+        cache_creation_input_tokens: 0,
+      } : {}),
     },
   };
 }
