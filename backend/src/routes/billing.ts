@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { validateSession } from "../data/users";
 import { recharge, getTransactions, getBillingSummary, getMonthlyStats, getBillingUsageExport } from "../data/billing";
+import { listUserModelDiscounts, UserModelDiscount } from "../data/user-discounts";
 import {
   createPagePayment,
   createQrPayment,
@@ -113,18 +114,49 @@ router.get("/transactions", async (req: Request, res: Response) => {
   const offset = Number(req.query.offset) || 0;
 
   const { rows, total } = await getTransactions(userId, limit, offset);
+  const discounts = await listUserModelDiscounts(userId);
+
+  function findDiscount(desc: string): UserModelDiscount | null {
+    const m = desc.match(/[:：]\s*([a-zA-Z0-9\-_.]+)/);
+    if (!m) return null;
+    const modelId = m[1];
+    const exact = discounts.find((d) => d.model_id === modelId && d.is_enabled);
+    if (exact) return exact;
+    const prefixMatches = discounts
+      .filter((d) => d.is_enabled && d.model_id.endsWith("*") && d.model_id !== "*" && modelId.startsWith(d.model_id.slice(0, -1)))
+      .sort((a, b) => b.model_id.length - a.model_id.length);
+    if (prefixMatches.length > 0) return prefixMatches[0];
+    const global = discounts.find((d) => d.model_id === "*" && d.is_enabled);
+    return global || null;
+  }
+
+  const enriched = rows.map((r) => {
+    let discountRate: number | undefined;
+    let discountAmountCny: number | undefined;
+    if (r.type === "consumption" && r.discount_rate === null) {
+      const d = findDiscount(r.description || "");
+      if (d && d.discount_rate < 1) {
+        discountRate = d.discount_rate;
+        discountAmountCny = Math.round(((Number(r.amount) / discountRate) - Number(r.amount)) * 1_000_000) / 1_000_000;
+      }
+    }
+    return {
+      id: r.id,
+      type: r.type,
+      amount: r.amount,
+      balanceAfter: r.balance_after,
+      description: r.description,
+      refId: r.ref_id,
+      createdAt: r.created_at,
+      discountRate: r.discount_rate !== null && r.discount_rate !== undefined ? Number(r.discount_rate) : discountRate,
+      discountAmountCny: r.discount_amount_cny !== null && r.discount_amount_cny !== undefined ? Number(r.discount_amount_cny) : discountAmountCny,
+    };
+  });
+
   res.json({
     success: true,
     data: {
-      rows: rows.map((r) => ({
-        id: r.id,
-        type: r.type,
-        amount: r.amount,
-        balanceAfter: r.balance_after,
-        description: r.description,
-        refId: r.ref_id,
-        createdAt: r.created_at,
-      })),
+      rows: enriched,
       total,
       limit,
       offset,
