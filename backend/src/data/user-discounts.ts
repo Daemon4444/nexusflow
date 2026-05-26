@@ -42,8 +42,15 @@ export async function getUserModelDiscount(userId: string | null | undefined, mo
   if (!userId || !modelId) return null;
   const row = await db.queryOne<UserModelDiscount>(
     `SELECT * FROM user_model_discounts
-     WHERE user_id = ? AND model_id = ? AND is_enabled = TRUE`,
-    [userId, modelId]
+     WHERE user_id = ? AND is_enabled = TRUE
+       AND (model_id = ? OR model_id = '*' OR (model_id LIKE '%*' AND ? LIKE REPLACE(model_id, '*', '%')))
+     ORDER BY
+       CASE WHEN model_id = ? THEN 0
+            WHEN model_id != '*' THEN 1
+            ELSE 2 END,
+       LENGTH(model_id) DESC
+     LIMIT 1`,
+    [userId, modelId, modelId, modelId]
   );
   return row ? normalizeDiscount(row) : null;
 }

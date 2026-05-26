@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { getOverview, getDaily, getByModel, getRecent, getUsageLogs, getPerformanceOverview, getPerformanceHourly, getPerformanceByModel, getRecentPerformance } from "../data/usage";
 import { validateSession } from "../data/users";
 import { isAdminSession } from "../middleware/admin";
+import { listUserModelDiscounts, UserModelDiscount } from "../data/user-discounts";
 
 const router = Router();
 
@@ -67,6 +68,17 @@ router.get("/by-model", async (req: Request, res: Response) => {
   res.json({ success: true, data: await getByModel((await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
+function findMatchingDiscount(modelId: string, discounts: UserModelDiscount[]): UserModelDiscount | null {
+  const exact = discounts.find((d) => d.model_id === modelId && d.is_enabled);
+  if (exact) return exact;
+  const prefixMatches = discounts
+    .filter((d) => d.is_enabled && d.model_id.endsWith("*") && d.model_id !== "*" && modelId.startsWith(d.model_id.slice(0, -1)))
+    .sort((a, b) => b.model_id.length - a.model_id.length);
+  if (prefixMatches.length > 0) return prefixMatches[0];
+  const global = discounts.find((d) => d.model_id === "*" && d.is_enabled);
+  return global || null;
+}
+
 router.get("/recent", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
@@ -74,7 +86,19 @@ router.get("/recent", async (req: Request, res: Response) => {
     return;
   }
   const limit = Math.min(Number(req.query.limit) || 50, 200);
-  res.json({ success: true, data: await getRecent((await shouldUseGlobalScope(req)) ? undefined : userId, limit) });
+  const globalScope = await shouldUseGlobalScope(req);
+  const records = await getRecent(globalScope ? undefined : userId, limit);
+  const discounts = await listUserModelDiscounts(globalScope ? undefined : userId);
+  const enriched = records.map((r: any) => {
+    const d = findMatchingDiscount(r.model, discounts);
+    const rate = d ? d.discount_rate : 1;
+    return {
+      ...r,
+      discount_rate: rate < 1 ? rate : undefined,
+      list_cost: rate < 1 && r.cost > 0 ? Math.round((r.cost / rate) * 1000000) / 1000000 : undefined,
+    };
+  });
+  res.json({ success: true, data: enriched });
 });
 
 // ========== 性能监控端点 ==========
