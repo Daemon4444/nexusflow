@@ -12,6 +12,8 @@ export interface Transaction {
   description: string;
   ref_id: string | null;
   created_at: string;
+  discount_rate: number | null;
+  discount_amount_cny: number | null;
 }
 
 export interface BillingUsageExportRow {
