@@ -12,7 +12,7 @@ import SmartRecharge from "@/components/SmartRechargeRecommendation";
 import { ErrorState, LoadingState } from "@/components/AppState";
 
 interface BillingSummary { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; }
-interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; }
+interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; discountRate?: number; discountAmountCny?: number; }
 interface ApiKeyInfo { id: string; key: string; name: string; }
 type PayMethod = "mock" | "alipay";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
@@ -368,7 +368,17 @@ export default function BillingPage() {
                       </span>
                     )}
                   </span>
-                  <span style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{tx.type === "recharge" ? "+" : "-"}{formatCnyPrecise(tx.amount)}</span>
+                  <span style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                    {tx.type !== "recharge" && tx.discountRate !== undefined && tx.discountRate < 1 && tx.discountAmountCny !== undefined && (
+                      <span style={{ color: "var(--text-tertiary)", textDecoration: "line-through", fontSize: 11, fontWeight: 400 }}>¥{formatCnyPrecise(tx.amount + tx.discountAmountCny)}</span>
+                    )}
+                    <span>{tx.type === "recharge" ? "+" : "-"}{formatCnyPrecise(tx.amount)}</span>
+                    {tx.type !== "recharge" && tx.discountRate !== undefined && tx.discountRate < 1 && (
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 5px", borderRadius: 4, background: "#fef3c7", color: "#b45309", whiteSpace: "nowrap", marginLeft: 2 }}>
+                        {Math.round(tx.discountRate * 10)}折
+                      </span>
+                    )}
+                  </span>
                   <span style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCnyPrecise(tx.balanceAfter)}</span>
                   <span style={{ textAlign: "right", color: "var(--text-tertiary)", fontSize: 12 }}>{formatDate(tx.createdAt)}</span>
                 </div>
