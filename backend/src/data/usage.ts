@@ -84,14 +84,14 @@ export async function getDaily(userId?: string) {
   const { and, params } = userFilter(userId);
   return db.queryMany(
     `SELECT
-      to_char(created_at, 'MM-DD') as date,
+      to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'MM-DD') as date,
       COUNT(*)::int as requests,
       COALESCE(SUM(total_tokens), 0)::int as tokens,
       ROUND(COALESCE(SUM(cost), 0)::numeric, 2)::float as cost
     FROM usage_logs
     WHERE created_at >= NOW() - INTERVAL '7 days'
       ${and}
-    GROUP BY to_char(created_at, 'YYYY-MM-DD'), to_char(created_at, 'MM-DD')
+    GROUP BY to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD'), to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'MM-DD')
     ORDER BY date`,
     params
   );
@@ -126,7 +126,7 @@ export async function getRecent(userId?: string, limit: number = 20) {
   const { clause, params } = userFilter(userId);
   return db.queryMany(
     `SELECT
-      to_char(created_at, 'MM-DD HH24:MI') as time,
+      to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'MM-DD HH24:MI') as time,
       model,
       total_tokens as tokens,
       ROUND(cost::numeric, 6)::float as cost,
