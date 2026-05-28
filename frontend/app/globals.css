@@ -996,7 +996,8 @@ select.input {
 /* ====== User Sidebar Layout ====== */
 .usr-layout {
   display: flex;
-  min-height: calc(100vh - 56px);
+  height: calc(100vh - 56px);
+  overflow: hidden;
 }
 .usr-sidebar {
   width: 220px;
@@ -1004,10 +1005,8 @@ select.input {
   border-right: 1px solid var(--border);
   background: var(--bg);
   padding: 24px 0;
-  position: sticky;
-  top: 56px;
-  height: calc(100vh - 56px);
-  overflow-y: auto;
+  height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -1022,6 +1021,7 @@ select.input {
 }
 .usr-sidebar-nav {
   flex: 1;
+  overflow-y: auto;
   padding: 0 12px;
 }
 .usr-sidebar-group {
@@ -1134,12 +1134,14 @@ select.input {
   min-width: 0;
   padding: 32px 40px;
   max-width: 1000px;
+  overflow-y: auto;
 }
 .usr-content-wide {
   flex: 1;
   min-width: 0;
   padding: 32px 40px;
   max-width: 1200px;
+  overflow-y: auto;
 }
 
 /* Page section styles for user pages */
