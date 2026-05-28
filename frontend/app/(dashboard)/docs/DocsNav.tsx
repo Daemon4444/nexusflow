@@ -89,6 +89,7 @@ const apiRefLinks = [
   { href: "/docs/api/chat", label: "Chat Completions" },
   { href: "/docs/context-cache", label: "上下文缓存" },
   { href: "/docs/api/parameters", label: "参数详解" },
+  { href: "/docs/api/cache", label: "上下文缓存" },
   { href: "/docs/api/embeddings", label: "Embeddings" },
   { href: "/docs/api/tasks", label: "Async Tasks (图像/视频)" },
   { href: "/docs/api/anthropic", label: "Anthropic Messages" },

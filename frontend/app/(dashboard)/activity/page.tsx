@@ -16,6 +16,7 @@ interface UsageData {
     activeModels: number;
     avgLatency: number;
     successRate: number;
+    totalCachedTokens: number;
   };
   daily: { date: string; requests: number; tokens: number; cost: number }[];
   byModel: {
@@ -111,6 +112,7 @@ export default function ActivityPage() {
               { label: t("activeModels"), value: data.overview.activeModels.toString() },
               { label: t("avgLatency"), value: data.overview.avgLatency + "s" },
               { label: t("successRate"), value: data.overview.successRate + "%" },
+              ...(data.overview.totalCachedTokens > 0 ? [{ label: "缓存命中", value: formatTokensCompact(data.overview.totalCachedTokens) }] : []),
             ].map((m) => (
               <div key={m.label} className="usr-metric">
                 <div className="usr-metric-label">{m.label}</div>

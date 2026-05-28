@@ -65,7 +65,8 @@ export async function getOverview(userId?: string) {
       COALESCE(SUM(cost), 0) as "totalCost",
       COUNT(DISTINCT model) as "activeModels",
       COALESCE(AVG(CASE WHEN latency_ms > 0 THEN latency_ms END), 0) as "avgLatencyMs",
-      ROUND((SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END)::numeric / GREATEST(COUNT(*), 1)) * 100, 1) as "successRate"
+      ROUND((SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END)::numeric / GREATEST(COUNT(*), 1)) * 100, 1) as "successRate",
+      COALESCE(SUM(cached_tokens), 0) as "totalCachedTokens"
     FROM usage_logs
     ${clause}`,
     params
@@ -77,6 +78,7 @@ export async function getOverview(userId?: string) {
     activeModels: Number(row?.activeModels || 0),
     avgLatency: Math.round(Number(row?.avgLatencyMs || 0) / 100) / 10,
     successRate: Number(row?.successRate || 100),
+    totalCachedTokens: Number(row?.totalCachedTokens || 0),
   };
 }
 
