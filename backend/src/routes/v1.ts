@@ -761,7 +761,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.end();
 
       // Parse SSE data to extract usage for billing
-      let streamTokens = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      let streamTokens: any = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
       try {
         const lines = fullResponse.split("\n");
         for (let i = lines.length - 1; i >= 0; i--) {
@@ -798,6 +798,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs,
         tpotMs,
+        cachedTokens: streamTokens.prompt_tokens_details?.cached_tokens || 0,
+        cacheCreationTokens: streamTokens.prompt_tokens_details?.cache_creation_input_tokens || 0,
       });
       recordProviderTokens(provider.id, modelId, streamTokens.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
@@ -877,6 +879,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs: nonStreamTtft,
         tpotMs: nonStreamTpot,
+        cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
+        cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
@@ -934,6 +938,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       cost: totalCost,
       status: "success",
       latencyMs,
+      cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
+      cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
     await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
