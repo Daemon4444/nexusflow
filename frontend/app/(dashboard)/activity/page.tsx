@@ -177,14 +177,12 @@ export default function ActivityPage() {
             </div>
           </div>
 
-          {/* Tables Row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            {/* Daily Cost */}
-            <div className="usr-section">
-              <div className="usr-section-header"><h3>{t("dailyCost")}</h3></div>
-              <div>
-                <div className="table-row" style={{
-                  gridTemplateColumns: "1fr 1fr 1fr 1fr",
+          {/* Daily Cost Table */}
+          <div className="usr-section" style={{ marginBottom: 16 }}>
+            <div className="usr-section-header"><h3>{t("dailyCost")}</h3></div>
+            <div>
+              <div className="table-row" style={{
+                gridTemplateColumns: "1fr 1fr 1fr 1fr",
                   fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const,
                   color: "var(--text-tertiary)", background: "var(--bg-elevated)",
                 }}>
@@ -204,27 +202,30 @@ export default function ActivityPage() {
               </div>
             </div>
 
-            {/* Recent Requests */}
-            <div className="usr-section">
-              <div className="usr-section-header"><h3>{t("recentRequests")}</h3></div>
-              <div>
-                <div className="table-row" style={{
-                  gridTemplateColumns: "0.8fr 1.2fr 0.8fr 0.8fr 0.5fr",
-                  fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const,
-                  color: "var(--text-tertiary)", background: "var(--bg-elevated)",
-                }}>
-                  <span>{t("txTime")}</span>
-                  <span>{t("model")}</span>
-                  <span>{t("tokens")}</span>
-                  <span>{t("cost")}</span>
-                  <span>{t("status")}</span>
-                </div>
-                {data.recent.map((r, i) => (
-                  <div key={i} className="table-row" style={{ gridTemplateColumns: "0.8fr 1.2fr 0.8fr 0.8fr 0.5fr" }}>
+            {/* Recent Requests - Full Width */}
+          <div className="usr-section" style={{ marginTop: 16 }}>
+            <div className="usr-section-header"><h3>{t("recentRequests")}</h3></div>
+            <div>
+              <div className="table-row" style={{
+                gridTemplateColumns: "0.7fr 1.2fr 1fr 0.8fr 0.4fr",
+                fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const,
+                color: "var(--text-tertiary)", background: "var(--bg-elevated)",
+              }}>
+                <span>{t("txTime")}</span>
+                <span>{t("model")}</span>
+                <span>{t("tokens")}</span>
+                <span>{t("cost")}</span>
+                <span>{t("status")}</span>
+              </div>
+              {data.recent.map((r, i) => {
+                const hasCacheCreation = (r.cache_creation_tokens ?? 0) > 0;
+                const hasCacheHit = (r.cached_tokens ?? 0) > 0;
+                return (
+                  <div key={i} className="table-row" style={{ gridTemplateColumns: "0.7fr 1.2fr 1fr 0.8fr 0.4fr" }}>
                     <span style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", fontSize: 11.5 }}>
                       {r.time}
                     </span>
-                    <span style={{ color: "var(--text-primary)", fontSize: 12.5, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ color: "var(--text-primary)", fontSize: 12.5, fontWeight: 500, display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
                       {r.model}
                       {r.discount_rate !== undefined && r.discount_rate < 1 && (
                         <span style={{ fontSize: 9.5, fontWeight: 600, padding: "1px 4px", borderRadius: 3, background: "#fef3c7", color: "#b45309" }}>
@@ -232,15 +233,28 @@ export default function ActivityPage() {
                         </span>
                       )}
                     </span>
-                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums", display: "flex", alignItems: "center", gap: 4 }}>
-                      {r.tokens.toLocaleString()}
-                      {(r.cached_tokens ?? 0) > 0 && (
-                        <span style={{ fontSize: 9.5, padding: "1px 4px", borderRadius: 3, background: "#dbeafe", color: "#1d4ed8", fontWeight: 600 }}>
-                          缓存{r.cached_tokens!.toLocaleString()}
+                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums", display: "flex", flexDirection: "column", gap: 2 }}>
+                      <span>{r.tokens.toLocaleString()} tokens</span>
+                      {hasCacheHit && (
+                        <span style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}>
+                          <span style={{ padding: "1px 5px", borderRadius: 3, background: "#dbeafe", color: "#1d4ed8", fontWeight: 600 }}>
+                            缓存命中
+                          </span>
+                          <span style={{ color: "#1d4ed8" }}>{r.cached_tokens!.toLocaleString()} tokens (节省 {Math.round((r.cached_tokens! / r.tokens) * 100)}%)</span>
+                        </span>
+                      )}
+                      {hasCacheCreation && (
+                        <span style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}>
+                          <span style={{ padding: "1px 5px", borderRadius: 3, background: "#ffedd5", color: "#c2410c", fontWeight: 600 }}>
+                            创建缓存
+                          </span>
+                          <span style={{ color: "#c2410c" }}>{r.cache_creation_tokens!.toLocaleString()} tokens</span>
                         </span>
                       )}
                     </span>
-                    <span style={{ color: "#10b981", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCnyPrecise(r.cost)}</span>
+                    <span style={{ color: "#10b981", fontSize: 12.5, fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>
+                      {formatCnyPrecise(r.cost)}
+                    </span>
                     <span>
                       <span style={{
                         width: 7, height: 7, borderRadius: "50%", display: "inline-block",
@@ -248,8 +262,8 @@ export default function ActivityPage() {
                       }} />
                     </span>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
         </>

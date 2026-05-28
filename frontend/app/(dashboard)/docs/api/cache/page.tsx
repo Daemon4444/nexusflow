@@ -1,5 +1,7 @@
 "use client";
 
+import DocsCodeBlock from "@/components/DocsCodeBlock";
+
 const API_BASE = "https://nexusflow.hk";
 
 const explicitModels = [
@@ -104,8 +106,7 @@ export default function CacheDocsPage() {
           <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>{`"cache_control": {"type": "ephemeral"}`}</code>
           ，即可标记该内容块为缓存点。
         </p>
-        <div style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px 20px", marginBottom: 16, overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, fontFamily: "'JetBrains Mono', monospace", color: "var(--text-primary)" }}>{`curl -X POST ${API_BASE}/v1/chat/completions \\
+        <DocsCodeBlock code={`curl -X POST ${API_BASE}/v1/chat/completions \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -124,8 +125,7 @@ export default function CacheDocsPage() {
     {"role": "user", "content": "基于上文回答问题"}
   ],
   "max_tokens": 200
-}'`}</pre>
-        </div>
+}'`} />
         <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.8 }}>
           <p style={{ marginBottom: 8 }}><strong>约束：</strong></p>
           <ul style={{ paddingLeft: 20, margin: 0 }}>
@@ -157,8 +157,7 @@ export default function CacheDocsPage() {
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 12, lineHeight: 1.7 }}>
           API 响应的 <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>usage.prompt_tokens_details</code> 中会包含缓存信息：
         </p>
-        <div style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 10, padding: "16px 20px", overflow: "auto" }}>
-          <pre style={{ margin: 0, fontSize: 12.5, lineHeight: 1.6, fontFamily: "'JetBrains Mono', monospace", color: "var(--text-primary)" }}>{`"usage": {
+        <DocsCodeBlock code={`"usage": {
   "prompt_tokens": 1584,
   "completion_tokens": 20,
   "total_tokens": 1604,
@@ -166,8 +165,7 @@ export default function CacheDocsPage() {
     "cached_tokens": 1568,           // 命中缓存的 token 数
     "cache_creation_input_tokens": 0  // 本次创建缓存的 token 数
   }
-}`}</pre>
-        </div>
+}`} />
         <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 12 }}>
           在控制台的<strong>使用记录</strong>页面，命中缓存的调用会显示蓝色「缓存N」标签。
         </p>
