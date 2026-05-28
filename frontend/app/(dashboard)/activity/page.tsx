@@ -34,6 +34,8 @@ interface UsageData {
     latency: number;
     discount_rate?: number;
     list_cost?: number;
+    cached_tokens?: number;
+    cache_creation_tokens?: number;
   }[];
 }
 
@@ -220,21 +222,23 @@ export default function ActivityPage() {
                     <span style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", fontSize: 11.5 }}>
                       {r.time}
                     </span>
-                    <span style={{ color: "var(--text-primary)", fontSize: 12.5, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "var(--text-primary)", fontSize: 12.5, fontWeight: 500, display: "flex", alignItems: "center", gap: 5 }}>
                       {r.model}
                       {r.discount_rate !== undefined && r.discount_rate < 1 && (
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: "1px 5px", borderRadius: 4, background: "#fef3c7", color: "#b45309", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 9.5, fontWeight: 600, padding: "1px 4px", borderRadius: 3, background: "#fef3c7", color: "#b45309" }}>
                           {Math.round(r.discount_rate * 10)}折
                         </span>
                       )}
                     </span>
-                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{r.tokens.toLocaleString()}</span>
-                    <span style={{ fontSize: 12.5, fontVariantNumeric: "tabular-nums", display: "flex", alignItems: "center", gap: 4 }}>
-                      {r.list_cost !== undefined && (
-                        <span style={{ color: "var(--text-tertiary)", textDecoration: "line-through", fontSize: 11 }}>{formatCnyPrecise(r.list_cost)}</span>
+                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums", display: "flex", alignItems: "center", gap: 4 }}>
+                      {r.tokens.toLocaleString()}
+                      {(r.cached_tokens ?? 0) > 0 && (
+                        <span style={{ fontSize: 9.5, padding: "1px 4px", borderRadius: 3, background: "#dbeafe", color: "#1d4ed8", fontWeight: 600 }}>
+                          缓存{r.cached_tokens!.toLocaleString()}
+                        </span>
                       )}
-                      <span style={{ color: "#10b981", fontWeight: 500 }}>{formatCnyPrecise(r.cost)}</span>
                     </span>
+                    <span style={{ color: "#10b981", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCnyPrecise(r.cost)}</span>
                     <span>
                       <span style={{
                         width: 7, height: 7, borderRadius: "50%", display: "inline-block",

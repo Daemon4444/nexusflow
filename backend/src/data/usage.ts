@@ -131,7 +131,9 @@ export async function getRecent(userId?: string, limit: number = 20) {
       total_tokens as tokens,
       ROUND(cost::numeric, 6)::float as cost,
       CASE WHEN status = 'success' THEN '成功' ELSE '失败' END as status,
-      ROUND((latency_ms / 1000.0)::numeric, 1)::float as latency
+      ROUND((latency_ms / 1000.0)::numeric, 1)::float as latency,
+      COALESCE(cached_tokens, 0)::int as cached_tokens,
+      COALESCE(cache_creation_tokens, 0)::int as cache_creation_tokens
     FROM usage_logs
     ${clause}
     ORDER BY created_at DESC

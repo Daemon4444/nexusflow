@@ -510,7 +510,6 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     repetition_penalty,
     enable_search,
     search_options,
-    enable_context_caching,
     parallel_tool_calls,
   } = req.body;
 
@@ -673,7 +672,6 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       repetition_penalty,
       enable_search,
       search_options,
-      enable_context_caching,
       parallel_tool_calls,
     },
     { forceStream: requiresUpstreamStream }
@@ -763,7 +761,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.end();
 
       // Parse SSE data to extract usage for billing
-      let streamTokens: { prompt_tokens: number; completion_tokens: number; total_tokens: number; prompt_tokens_details?: { cached_tokens?: number; cache_creation_input_tokens?: number } } = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      let streamTokens: any = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
       try {
         const lines = fullResponse.split("\n");
         for (let i = lines.length - 1; i >= 0; i--) {
@@ -780,9 +778,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       // Log usage and bill
       const latencyMs = Date.now() - startTime;
-      const cachedTokens = streamTokens.prompt_tokens_details?.cached_tokens || 0;
-      const cacheCreationTokens = streamTokens.prompt_tokens_details?.cache_creation_input_tokens || 0;
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, streamTokens.prompt_tokens, streamTokens.completion_tokens, cachedTokens, cacheCreationTokens)).finalAmount;
+      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, streamTokens.prompt_tokens, streamTokens.completion_tokens)).finalAmount;
 
       // Calculate TPOT: time per output token (ms)
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
@@ -802,9 +798,11 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs,
         tpotMs,
-        cachedTokens,
-        cacheCreationTokens,
+        cachedTokens: streamTokens.prompt_tokens_details?.cached_tokens || 0,
+        cacheCreationTokens: streamTokens.prompt_tokens_details?.cache_creation_input_tokens || 0,
       });
+      recordProviderTokens(provider.id, modelId, streamTokens.total_tokens || 0);
+      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
 
       if (totalCost > 0) {
         await consume(
@@ -861,9 +859,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const data = buildChatCompletionFromSse(events, !!include_reasoning);
       const latencyMs = Date.now() - startTime;
       const usage = data.usage || {};
-      const cachedTokensNonStream = usage.prompt_tokens_details?.cached_tokens || 0;
-      const cacheCreationNonStream = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, cachedTokensNonStream, cacheCreationNonStream)).finalAmount;
+      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
 
       // Non-stream: ttft = full latency, tpot = latency / completion_tokens
       const nonStreamTtft = latencyMs;
@@ -883,8 +879,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs: nonStreamTtft,
         tpotMs: nonStreamTpot,
-        cachedTokens: cachedTokensNonStream,
-        cacheCreationTokens: cacheCreationNonStream,
+        cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
+        cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
@@ -930,9 +926,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     // Log usage and billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const cachedTokensDirect = usage.prompt_tokens_details?.cached_tokens || 0;
-    const cacheCreationDirect = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
-    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, cachedTokensDirect, cacheCreationDirect)).finalAmount;
+    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
     
     await logUsage({
       apiKeyId: apiKeyRecord.id,
@@ -944,8 +938,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       cost: totalCost,
       status: "success",
       latencyMs,
-      cachedTokens: cachedTokensDirect,
-      cacheCreationTokens: cacheCreationDirect,
+      cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
+      cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
     await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
