@@ -34,7 +34,7 @@ async function forwardToOpenAi(token: string, body: any): Promise<globalThis.Res
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(180_000),
+    signal: AbortSignal.timeout(600_000),
   });
 }
 

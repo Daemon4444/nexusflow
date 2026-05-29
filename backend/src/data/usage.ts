@@ -1,4 +1,5 @@
 import { db } from "../db/client";
+import { logToSLS } from "../services/sls";
 
 export interface UsageLog {
   id: number;
@@ -29,6 +30,8 @@ export async function logUsage(params: {
   tpotMs?: number;
   cachedTokens?: number;
   cacheCreationTokens?: number;
+  requestBody?: any;
+  responseBody?: any;
 }): Promise<void> {
   await db.execute(
     `INSERT INTO usage_logs (api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens, created_at)
@@ -50,6 +53,21 @@ export async function logUsage(params: {
       new Date().toISOString(),
     ]
   );
+  logToSLS({
+    apiKeyId: params.apiKeyId,
+    userId: params.userId,
+    model: params.model,
+    promptTokens: params.promptTokens,
+    completionTokens: params.completionTokens,
+    totalTokens: params.totalTokens,
+    cost: params.cost,
+    status: params.status,
+    latencyMs: params.latencyMs,
+    cachedTokens: params.cachedTokens,
+    cacheCreationTokens: params.cacheCreationTokens,
+    request: params.requestBody,
+    response: params.responseBody,
+  });
 }
 
 function userFilter(userId?: string) {

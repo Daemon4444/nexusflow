@@ -24,7 +24,7 @@ import { buildUpstreamChatRequest } from "../utils/chat-request";
 const router = Router();
 
 // 上游请求超时时间（毫秒）
-const UPSTREAM_TIMEOUT = 120000; // 2分钟
+const UPSTREAM_TIMEOUT = 600000; // 10分钟
 
 /** Extract Bearer token from Authorization header */
 function extractToken(req: Request): string | null {
@@ -800,6 +800,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs,
         cachedTokens: streamTokens.prompt_tokens_details?.cached_tokens || 0,
         cacheCreationTokens: streamTokens.prompt_tokens_details?.cache_creation_input_tokens || 0,
+        requestBody: req.body,
+        responseBody: fullResponse.slice(-3000),
       });
       recordProviderTokens(provider.id, modelId, streamTokens.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
@@ -940,6 +942,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs,
       cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
       cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
+      requestBody: req.body,
+      responseBody: data.choices?.[0]?.message,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
     await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);

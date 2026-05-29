@@ -21,7 +21,7 @@ import { buildUpstreamChatRequest } from "../utils/chat-request";
 
 const router = Router();
 
-const UPSTREAM_TIMEOUT = 120000;
+const UPSTREAM_TIMEOUT = 600000; // 10分钟
 
 /** Extract API key from x-api-key header or Authorization Bearer */
 function extractAnthropicToken(req: Request): string | null {
