@@ -180,7 +180,7 @@ export async function adminAdjustBalance(params: {
 }
 
 export async function hasSufficientBalance(userId: string | null | undefined, estimatedAmount: number): Promise<boolean> {
-  if (!userId) return true;
+  if (!userId) return false;
   const normalizedAmount = roundBalance(Math.max(0, estimatedAmount));
   if (normalizedAmount <= 0) return true;
   const user = await getUserById(userId);

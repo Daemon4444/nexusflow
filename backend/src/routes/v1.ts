@@ -21,6 +21,7 @@ import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { getSupportedProtocols } from "../utils/model-protocols";
 import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
+import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 
 const router = Router();
 
@@ -188,7 +189,8 @@ router.get("/models", async (req: Request, res: Response) => {
 // POST /v1/images/generations — OpenAI compatible image generation
 router.post("/images/generations", async (req: Request, res: Response) => {
   const token = extractToken(req);
-  if (!token || !await validateApiKey(token)) {
+  const apiKeyRecord = token ? await validateApiKey(token) : null;
+  if (!apiKeyRecord) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -298,8 +300,6 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     });
     return;
   }
-
-  const apiKeyRecord = (await validateApiKey(token))!;
 
   // Anonymous keys (no user_id) are not allowed on public endpoints
   if (!apiKeyRecord.user_id) {
@@ -475,7 +475,8 @@ router.post("/images/generations", async (req: Request, res: Response) => {
 router.post("/chat/completions", async (req: Request, res: Response) => {
   // Auth
   const token = extractToken(req);
-  if (!token || !await validateApiKey(token)) {
+  const apiKeyRecord = token ? await validateApiKey(token) : null;
+  if (!apiKeyRecord) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -597,8 +598,6 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const apiKeyRecord = (await validateApiKey(token))!;
-
   // Anonymous keys (no user_id) are not allowed on public endpoints
   if (!apiKeyRecord.user_id) {
     res.status(403).json({
@@ -683,6 +682,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   // Record rate limits
   recordRequest(provider.id, modelId, apiKeyRecord.id, 0);
+  acquireConcurrency(provider.id, modelId);
 
   try {
     // Streaming
@@ -733,7 +733,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
             lastChunkTime = now;
             chunkCount++;
             const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-            const rewritten = text.replace(/"id":"[^"]*"/g, `"id":"${logId}"`);
+            const rewritten = text.replace(/"id":"[^"]*"/, `"id":"${logId}"`);
             fullResponse += rewritten;
             res.write(rewritten);
           }
@@ -751,7 +751,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
             lastChunkTime = now;
             chunkCount++;
             const text = decoder.decode(value, { stream: true });
-            const rewritten = text.replace(/"id":"[^"]*"/g, `"id":"${logId}"`);
+            const rewritten = text.replace(/"id":"[^"]*"/, `"id":"${logId}"`);
             fullResponse += rewritten;
             res.write(rewritten);
           }
@@ -992,6 +992,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         code: "upstream_error",
       },
     });
+  } finally {
+    releaseConcurrency(provider.id, modelId);
   }
 });
 
@@ -999,7 +1001,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 router.post("/embeddings", async (req: Request, res: Response) => {
   // Auth
   const token = extractToken(req);
-  if (!token || !await validateApiKey(token)) {
+  const apiKeyRecord = token ? await validateApiKey(token) : null;
+  if (!apiKeyRecord) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -1071,8 +1074,6 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     });
     return;
   }
-
-  const apiKeyRecord = (await validateApiKey(token))!;
 
   // Anonymous keys (no user_id) are not allowed on public endpoints
   if (!apiKeyRecord.user_id) {

@@ -101,7 +101,7 @@ export function acquireConcurrency(providerId: string, modelId: string): void {
   concurrentRequests.set(key, (concurrentRequests.get(key) || 0) + 1);
 }
 
-function releaseConcurrency(providerId: string, modelId: string): void {
+export function releaseConcurrency(providerId: string, modelId: string): void {
   const key = `${providerId}:${modelId}`;
   concurrentRequests.set(key, Math.max(0, (concurrentRequests.get(key) || 0) - 1));
 }

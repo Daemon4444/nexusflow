@@ -18,6 +18,7 @@ import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
+import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 
 const router = Router();
 
@@ -387,6 +388,9 @@ router.post("/", async (req: Request, res: Response) => {
   const startTime = Date.now();
   const logId = require("crypto").randomUUID();
   recordRequest(provider.id, modelId, apiKeyRecord.id, 0);
+  acquireConcurrency(provider.id, modelId);
+
+  try {
 
   if (provider.id === "anthropic") {
     try {
@@ -442,7 +446,7 @@ router.post("/", async (req: Request, res: Response) => {
           lastChunkTime = now;
           chunkCount++;
           const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-          const rewritten = text.replace(/"id":"[^"]*"/g, `"id":"${logId}"`);
+          const rewritten = text.replace(/"id":"[^"]*"/, `"id":"msg_${logId}"`);
           fullResponse += rewritten;
           res.write(rewritten);
         };
@@ -544,7 +548,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
-      if (data && typeof data === "object") data.id = logId;
+      if (data && typeof data === "object") data.id = `msg_${logId}`;
       res.json(data);
       return;
     } catch (err: any) {
@@ -577,7 +581,7 @@ router.post("/", async (req: Request, res: Response) => {
     ...req.body,
     ...convertedRequest,
   });
-  const messageId = logId;
+  const messageId = `msg_${logId}`;
 
   try {
     if (stream) {
@@ -798,7 +802,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     // Convert to Anthropic format
     const anthropicResponse = convertToAnthropic(data, modelId);
-    anthropicResponse.id = logId;
+    anthropicResponse.id = `msg_${logId}`;
 
     // Billing
     const latencyMs = Date.now() - startTime;
@@ -852,6 +856,10 @@ router.post("/", async (req: Request, res: Response) => {
         message: `Upstream request failed: ${err.message}`,
       },
     });
+  }
+
+  } finally {
+    releaseConcurrency(provider.id, modelId);
   }
 });
 
