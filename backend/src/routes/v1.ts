@@ -8,6 +8,7 @@
  */
 
 import { Router, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
@@ -678,6 +679,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   );
 
   const startTime = Date.now();
+  const logId = randomUUID();
 
   // Record rate limits
   recordRequest(provider.id, modelId, apiKeyRecord.id, 0);
@@ -711,6 +713,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      res.setHeader("X-Log-ID", logId);
 
       // Collect all chunks for billing + track TTFT/TPOT
       let fullResponse = "";
@@ -787,6 +790,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         : 0;
 
       await logUsage({
+        logId,
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -870,6 +874,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         : 0;
 
       await logUsage({
+        logId,
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -897,6 +902,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       }
 
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      res.setHeader("X-Log-ID", logId);
       res.json(data);
       return;
     }
@@ -931,6 +937,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
     
     await logUsage({
+      logId,
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -960,10 +967,12 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
     // Add rate limit headers
     res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+    res.setHeader("X-Log-ID", logId);
     res.json(data);
 
   } catch (err: any) {
     await logUsage({
+      logId,
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
