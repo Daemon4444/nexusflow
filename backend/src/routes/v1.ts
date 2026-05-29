@@ -713,7 +713,6 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
-      res.setHeader("X-Log-ID", logId);
 
       // Collect all chunks for billing + track TTFT/TPOT
       let fullResponse = "";
@@ -734,8 +733,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
             lastChunkTime = now;
             chunkCount++;
             const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-            fullResponse += text;
-            res.write(chunk);
+            const rewritten = text.replace(/"id":"[^"]*"/g, `"id":"${logId}"`);
+            fullResponse += rewritten;
+            res.write(rewritten);
           }
         } else if (reader && reader.getReader) {
           const r = reader.getReader();
@@ -751,8 +751,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
             lastChunkTime = now;
             chunkCount++;
             const text = decoder.decode(value, { stream: true });
-            fullResponse += text;
-            res.write(value);
+            const rewritten = text.replace(/"id":"[^"]*"/g, `"id":"${logId}"`);
+            fullResponse += rewritten;
+            res.write(rewritten);
           }
         }
       } catch (streamErr: any) {
@@ -902,7 +903,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       }
 
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
-      res.setHeader("X-Log-ID", logId);
+      data.id = logId;
       res.json(data);
       return;
     }
@@ -967,7 +968,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
     // Add rate limit headers
     res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
-    res.setHeader("X-Log-ID", logId);
+    data.id = logId;
     res.json(data);
 
   } catch (err: any) {
