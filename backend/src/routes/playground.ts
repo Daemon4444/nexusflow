@@ -11,7 +11,7 @@ import { checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProvider
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 
 const router = Router();
-const UPSTREAM_TIMEOUT = 120000;
+const UPSTREAM_TIMEOUT = 600000; // 10分钟
 
 function extractToken(req: Request): string | null {
   const auth = req.headers.authorization;
