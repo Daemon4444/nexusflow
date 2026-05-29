@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { fetchAPI } from "@/lib/api";
 import { authHeaders, useAuth } from "@/lib/auth";
+import AdminDashboard from "./AdminDashboard";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
 
@@ -478,7 +479,7 @@ function ModelCombobox({ value, onChange, options }: {
   );
 }
 
-type TabKey = "overview" | "operations" | "users" | "approvals" | "providers" | "models" | "tickets";
+type TabKey = "dashboard" | "overview" | "operations" | "users" | "approvals" | "providers" | "models" | "tickets" | "logs";
 
 const statusColors: Record<string, string> = {
   draft: "#d97706",
@@ -576,6 +577,17 @@ export default function AdminPage() {
   const [modelCategoryFilter, setModelCategoryFilter] = useState("all");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [logSearchId, setLogSearchId] = useState("");
+  const [logSearchModel, setLogSearchModel] = useState("");
+  const [logSearchUser, setLogSearchUser] = useState("");
+  const [logSearchFrom, setLogSearchFrom] = useState("");
+  const [logSearchTo, setLogSearchTo] = useState("");
+  const [logResults, setLogResults] = useState<any[]>([]);
+  const [logSearching, setLogSearching] = useState(false);
+  const [logExpandedId, setLogExpandedId] = useState<string | null>(null);
+  const [logDetail, setLogDetail] = useState<any>(null);
+  const [logDetailLoading, setLogDetailLoading] = useState(false);
+  const [logDetailNote, setLogDetailNote] = useState("");
 
   // Route protection: redirect unauthenticated users to login
   useEffect(() => {
@@ -1171,6 +1183,60 @@ export default function AdminPage() {
     }
   }
 
+  async function handleLogSearch() {
+    setLogSearching(true);
+    setLogExpandedId(null);
+    setLogDetail(null);
+    const params = new URLSearchParams();
+    if (logSearchId.trim()) params.set("log_id", logSearchId.trim());
+    if (logSearchModel.trim()) params.set("model", logSearchModel.trim());
+    if (logSearchUser.trim()) {
+      const v = logSearchUser.trim();
+      // If it looks like a UUID, treat as user_id; otherwise search by email/nickname on the client side
+      if (/^[0-9a-f-]{36}$/i.test(v)) params.set("user_id", v);
+    }
+    if (logSearchFrom) params.set("from", new Date(logSearchFrom).toISOString());
+    if (logSearchTo) params.set("to", new Date(logSearchTo).toISOString());
+    params.set("limit", "100");
+    const headers = authHeaders();
+    const res = await fetchAPI(`/api/admin/logs/search?${params}`, { headers });
+    if (res.success) {
+      let rows = res.data || [];
+      // Client-side filter by email/nickname if not a UUID
+      const kw = logSearchUser.trim().toLowerCase();
+      if (kw && !/^[0-9a-f-]{36}$/i.test(kw)) {
+        rows = rows.filter((r: any) =>
+          (r.user_email || "").toLowerCase().includes(kw) ||
+          (r.user_nickname || "").toLowerCase().includes(kw)
+        );
+      }
+      setLogResults(rows);
+    }
+    setLogSearching(false);
+  }
+
+  async function handleLogDetail(logId: string) {
+    if (logExpandedId === logId) { setLogExpandedId(null); return; }
+    setLogExpandedId(logId);
+    setLogDetailLoading(true);
+    setLogDetail(null);
+    setLogDetailNote("");
+    const headers = authHeaders();
+    const res = await fetchAPI(`/api/admin/logs/${logId}/detail`, { headers });
+    if (res.success) {
+      setLogDetail(res.data);
+      if (res.note) setLogDetailNote(res.note);
+    } else {
+      setLogDetailNote(res.message || "查询失败");
+    }
+    setLogDetailLoading(false);
+  }
+
+  function formatLogJson(s: string | null | undefined): string {
+    if (!s) return "";
+    try { return JSON.stringify(JSON.parse(s), null, 2); } catch { return s; }
+  }
+
   const filteredProviders = filter === "all" ? providers : providers.filter((provider) => provider.status === filter);
   const filteredModels = filter === "all" ? models : models.filter((model) => model.status === filter);
   const filteredTickets = filter === "all" ? tickets : tickets.filter((ticket) => ticket.status === filter);
@@ -1193,6 +1259,7 @@ export default function AdminPage() {
   }, [models]);
 
   const tabs: { key: TabKey; label: string }[] = [
+    { key: "dashboard", label: "监控大盘" },
     { key: "overview", label: "总览" },
     { key: "operations", label: "供应商运营" },
     { key: "users", label: "用户管理" },
@@ -1200,6 +1267,7 @@ export default function AdminPage() {
     { key: "providers", label: "渠道控制台" },
     { key: "models", label: "模型管理" },
     { key: "tickets", label: "工单中心" },
+    { key: "logs", label: "日志查询" },
   ];
 
   const selectedProvider = useMemo(
@@ -1324,7 +1392,9 @@ export default function AdminPage() {
               <div style={{ marginBottom: 16, background: "#ecfdf5", border: "1px solid #86efac", color: "#166534", padding: 14, borderRadius: 12 }}>{notice}</div>
             ) : null}
 
-            {activeTab === "overview" ? (
+            {activeTab === "dashboard" ? (
+              <AdminDashboard />
+            ) : activeTab === "overview" ? (
               <>
                 <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>管理总览</h1>
                 {stats ? (
@@ -2777,7 +2847,7 @@ export default function AdminPage() {
                   ))}
                 </div>
               </>
-            ) : (
+            ) : activeTab === "tickets" ? (
               <>
                 <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>工单中心</h1>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -2834,6 +2904,89 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
+              </>
+            ) : (
+              <>
+                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>日志查询</h1>
+                <div style={{ ...cardStyle, padding: 20, marginBottom: 16 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
+                    <div>
+                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Request ID</label>
+                      <input value={logSearchId} onChange={(e) => setLogSearchId(e.target.value)} placeholder="输入 Request ID" onKeyDown={(e) => e.key === "Enter" && handleLogSearch()} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>模型</label>
+                      <input value={logSearchModel} onChange={(e) => setLogSearchModel(e.target.value)} placeholder="如 qwen3.7-max" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>用户 ID / Email</label>
+                      <input value={logSearchUser} onChange={(e) => setLogSearchUser(e.target.value)} placeholder="用户 ID 或邮箱" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>开始时间</label>
+                      <input type="datetime-local" value={logSearchFrom} onChange={(e) => setLogSearchFrom(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>结束时间</label>
+                      <input type="datetime-local" value={logSearchTo} onChange={(e) => setLogSearchTo(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
+                    </div>
+                    <button onClick={handleLogSearch} disabled={logSearching} style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "#111827", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", height: 34 }}>
+                      {logSearching ? "搜索中..." : "搜索"}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12, padding: "8px 12px", background: "#f8fafc", borderRadius: 6, border: "1px solid #e5e7eb" }}>
+                  💡 管理员可查看所有用户的日志。输入 Request ID 可精确查询。日志写入后约 1-2 分钟才可查询详情。
+                </div>
+
+                {logResults.length > 0 ? (
+                  <div style={{ ...cardStyle, overflow: "hidden" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 0.8fr 0.6fr 0.6fr 0.6fr 1fr", padding: "10px 16px", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "#6b7280", background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
+                      <span>Request ID</span><span>用户</span><span>模型</span><span>Tokens</span><span>费用</span><span>状态</span><span>时间</span>
+                    </div>
+                    {logResults.map((r) => (
+                      <div key={r.log_id}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 0.8fr 0.6fr 0.6fr 0.6fr 1fr", padding: "10px 16px", cursor: "pointer", borderBottom: "1px solid #f3f4f6", alignItems: "center" }} onClick={() => handleLogDetail(r.log_id)}>
+                          <span style={{ fontFamily: "monospace", fontSize: 11, color: "#1d4ed8", overflow: "hidden", textOverflow: "ellipsis" }}>{r.log_id?.slice(0, 12)}...</span>
+                          <span style={{ fontSize: 12, color: "#4b5563", overflow: "hidden", textOverflow: "ellipsis" }}>{r.user_nickname || r.user_email || r.user_id?.slice(0, 8)}</span>
+                          <span style={{ fontSize: 12, color: "#111827", fontWeight: 500 }}>{r.model}</span>
+                          <span style={{ fontSize: 12, color: "#4b5563", fontVariantNumeric: "tabular-nums" }}>{r.total_tokens?.toLocaleString()}</span>
+                          <span style={{ fontSize: 12, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>¥{r.cost}</span>
+                          <span><span style={{ width: 7, height: 7, borderRadius: "50%", display: "inline-block", background: r.status === "success" ? "#10b981" : "#ef4444" }} /></span>
+                          <span style={{ fontSize: 11.5, color: "#6b7280" }}>{r.time}</span>
+                        </div>
+                        {logExpandedId === r.log_id && (
+                          <div style={{ padding: "16px 20px", background: "#f9fafb", borderTop: "1px solid #e5e7eb", borderBottom: "1px solid #e5e7eb" }}>
+                            {logDetailLoading ? (
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>加载中...</div>
+                            ) : logDetail ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                {logDetail.user_email || logDetail.user_nickname ? (
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                    用户：{logDetail.user_nickname || ""} {logDetail.user_email ? `(${logDetail.user_email})` : ""}
+                                  </div>
+                                ) : null}
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6 }}>REQUEST</div>
+                                  <pre style={{ margin: 0, padding: 12, background: "#111827", color: "#e5e7eb", borderRadius: 6, fontSize: 11.5, lineHeight: 1.5, overflow: "auto", maxHeight: 400 }}>{formatLogJson(logDetail.request)}</pre>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", marginBottom: 6 }}>RESPONSE</div>
+                                  <pre style={{ margin: 0, padding: 12, background: "#111827", color: "#e5e7eb", borderRadius: 6, fontSize: 11.5, lineHeight: 1.5, overflow: "auto", maxHeight: 400 }}>{formatLogJson(logDetail.response)}</pre>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>{logDetailNote || "暂无详情数据"}</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : logResults.length === 0 && logSearching === false && logSearchId ? (
+                  <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>未找到匹配的日志</div>
+                ) : null}
               </>
             )}
           </>
