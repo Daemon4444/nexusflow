@@ -176,7 +176,7 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
   const to = new Date(created.getTime() + 120000);
 
   try {
-    const logs = await slsClient.getLogs("nexusflow", "nexusflow", from, to, { query: logId, line: 1 });
+    const logs = await slsClient.getLogs("nexusflow", "nexusflow", from, to, { query: `"${logId}"`, line: 1 }, { readTimeout: 10000, connectTimeout: 5000 });
     const entry = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
     res.json({
       success: true,
