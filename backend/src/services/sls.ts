@@ -64,4 +64,8 @@ export function logToSLS(fields: Record<string, any>) {
   }
 }
 
-process.on("beforeExit", flush);
+export function getSlsClient() {
+  return getClient();
+}
+
+process.on('beforeExit', flush);

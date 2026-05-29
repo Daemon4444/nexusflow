@@ -1,8 +1,10 @@
 import { db } from "../db/client";
 import { logToSLS } from "../services/sls";
+import { randomUUID } from "crypto";
 
 export interface UsageLog {
   id: number;
+  log_id: string | null;
   api_key_id: string | null;
   model: string;
   prompt_tokens: number;
@@ -17,6 +19,7 @@ export interface UsageLog {
 }
 
 export async function logUsage(params: {
+  logId?: string;
   apiKeyId: string | null;
   userId?: string | null;
   model: string;
@@ -32,11 +35,13 @@ export async function logUsage(params: {
   cacheCreationTokens?: number;
   requestBody?: any;
   responseBody?: any;
-}): Promise<void> {
+}): Promise<string> {
+  const logId = params.logId || randomUUID();
   await db.execute(
-    `INSERT INTO usage_logs (api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO usage_logs (log_id, api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
+      logId,
       params.apiKeyId,
       params.userId || null,
       params.model,
@@ -54,6 +59,7 @@ export async function logUsage(params: {
     ]
   );
   logToSLS({
+    logId,
     apiKeyId: params.apiKeyId,
     userId: params.userId,
     model: params.model,
@@ -68,6 +74,7 @@ export async function logUsage(params: {
     request: params.requestBody,
     response: params.responseBody,
   });
+  return logId;
 }
 
 function userFilter(userId?: string) {
@@ -146,6 +153,7 @@ export async function getRecent(userId?: string, limit: number = 20) {
   const { clause, params } = userFilter(userId);
   return db.queryMany(
     `SELECT
+      log_id,
       to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'MM-DD HH24:MI') as time,
       model,
       total_tokens as tokens,
