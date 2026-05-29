@@ -385,6 +385,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   const startTime = Date.now();
+  const logId = require("crypto").randomUUID();
   recordRequest(provider.id, modelId, apiKeyRecord.id, 0);
 
   if (provider.id === "anthropic") {
@@ -441,8 +442,9 @@ router.post("/", async (req: Request, res: Response) => {
           lastChunkTime = now;
           chunkCount++;
           const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-          fullResponse += text;
-          res.write(chunk);
+          const rewritten = text.replace(/"id":"[^"]*"/g, `"id":"${logId}"`);
+          fullResponse += rewritten;
+          res.write(rewritten);
         };
 
         if (reader && typeof reader[Symbol.asyncIterator] === "function") {
@@ -542,6 +544,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      if (data && typeof data === "object") data.id = logId;
       res.json(data);
       return;
     } catch (err: any) {
@@ -574,7 +577,7 @@ router.post("/", async (req: Request, res: Response) => {
     ...req.body,
     ...convertedRequest,
   });
-  const messageId = `msg_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const messageId = logId;
 
   try {
     if (stream) {
@@ -795,6 +798,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     // Convert to Anthropic format
     const anthropicResponse = convertToAnthropic(data, modelId);
+    anthropicResponse.id = logId;
 
     // Billing
     const latencyMs = Date.now() - startTime;
