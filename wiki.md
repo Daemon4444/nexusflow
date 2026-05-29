@@ -529,3 +529,102 @@ docker exec quadrant-postgres psql -U quadrant -d quadrant \
 - `codex/nexusflow-developer-conversion` — 开发分支
 
 **远程仓库**：`git@github.com:Daemon4444/nexusflow.git`
+
+---
+
+## SLS 日志服务（2026-05-29 接入）
+
+### 配置
+
+| 配置项 | 值 |
+|--------|---|
+| Provider | 阿里云日志服务 (SLS) |
+| Region | cn-beijing |
+| Project | nexusflow |
+| Logstore | nexusflow |
+| AccessKey ID | 见 backend/.env `SLS_ACCESS_KEY_ID` |
+| 写入方式 | @alicloud/log SDK protobuf |
+| 缓冲机制 | 内存 buffer，3 秒或 50 条自动 flush |
+
+### 记录范围
+
+**所有经过 `logUsage` 的请求**自动推送到 SLS，覆盖：
+
+| 路径 | 类型 |
+|------|------|
+| `/v1/chat/completions` | stream + non-stream + error |
+| `/v1/messages` (Anthropic) | stream + non-stream |
+| `/v1/embeddings` | 向量嵌入 |
+| `/v1/images/generations` | 图像生成 |
+| `/api/playground` | Playground 对话 |
+| `/v1/tasks` | 异步任务（视频/图片） |
+
+### 日志字段
+
+| 字段 | 说明 |
+|------|------|
+| `userId` | 用户 ID |
+| `apiKeyId` | API Key ID |
+| `model` | 模型名 |
+| `promptTokens` | 输入 token 数 |
+| `completionTokens` | 输出 token 数 |
+| `totalTokens` | 总 token 数 |
+| `cost` | 费用（折后） |
+| `status` | success / error |
+| `latencyMs` | 延迟（毫秒） |
+| `cachedTokens` | 缓存命中 token 数 |
+| `cacheCreationTokens` | 缓存创建 token 数 |
+| `request` | 完整请求体（JSON）含 messages |
+| `response` | 完整回复内容 |
+
+### 查询示例
+
+```bash
+# 在服务器上查询最近 5 分钟日志
+cd /root/distiny/nexusflow && node -e "
+const ALY = require('./node_modules/@alicloud/log');
+const client = new ALY({
+  accessKeyId: 'REDACTED_ALIYUN_AK_ID',
+  accessKeySecret: 'REDACTED',
+  region: 'cn-beijing',
+});
+const now = new Date();
+const from = new Date(now.getTime() - 300000);
+client.getLogs('nexusflow', 'nexusflow', from, now, { query: '*', line: 10 }).then(r => {
+  (Array.isArray(r) ? r : []).forEach(log => console.log(log.model, log.status, log.request?.slice(0,100)));
+});
+"
+```
+
+### 注意事项
+
+- SLS 写入后约 **1-2 分钟**才能查询到（索引延迟）
+- stream 模式下 `response` 字段记录最后 3000 字符的 SSE 原始数据
+- `logToSLS` 是异步非阻塞的，不影响 API 响应速度
+- SLS Logstore TTL 为 30 天，超过自动清理
+
+---
+
+## 运维增强（2026-05-28~29）
+
+### 后端多实例
+
+后端现在以 PM2 fork 模式运行 2 个实例（Linux SO_REUSEPORT 内核负载均衡）：
+```bash
+pm2 status
+# quadrant-backend (id 7) - fork - online
+# quadrant-backend (id 8) - fork - online
+
+# 扩容到 4 实例
+pm2 scale quadrant-backend 4
+```
+
+### 上游超时
+
+所有协议的上游超时统一设为 **10 分钟**（600000ms），避免长推理请求被截断：
+- `/v1/chat/completions` (v1.ts)
+- `/v1/messages` (messages.ts)
+- `/api/playground` (playground.ts)
+- `/v1beta` Gemini (protocols.ts)
+
+**远程仓库**：`git@github.com:Daemon4444/nexusflow.git`
