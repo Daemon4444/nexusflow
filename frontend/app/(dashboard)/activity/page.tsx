@@ -353,8 +353,8 @@ function LogAnalysis() {
         <div className="usr-section-body">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>Log ID</label>
-              <input value={searchLogId} onChange={(e) => setSearchLogId(e.target.value)} placeholder="UUID..." style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
+              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>Request ID</label>
+              <input value={searchLogId} onChange={(e) => setSearchLogId(e.target.value)} placeholder="输入 Request ID" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
             </div>
             <div>
               <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>模型</label>
@@ -384,7 +384,7 @@ function LogAnalysis() {
           <div className="usr-section-header"><h3>查询结果（{results.length} 条）</h3></div>
           <div>
             <div className="table-row" style={{ gridTemplateColumns: "1.5fr 1fr 0.6fr 0.6fr 0.6fr 1fr", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "var(--text-tertiary)", background: "var(--bg-elevated)" }}>
-              <span>Log ID</span><span>模型</span><span>Tokens</span><span>费用</span><span>状态</span><span>时间</span>
+              <span>Request ID</span><span>模型</span><span>Tokens</span><span>费用</span><span>状态</span><span>时间</span>
             </div>
             {results.map((r) => (
               <div key={r.log_id}>

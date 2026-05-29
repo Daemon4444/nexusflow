@@ -14,20 +14,18 @@ export const metadata: Metadata = {
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="docs-layout" style={{ display: "flex", minHeight: "calc(100vh - 56px)" }}>
+    <div className="docs-layout" style={{ display: "flex", height: "100%" }}>
       <aside className="docs-sidebar" style={{
         width: 240,
         flexShrink: 0,
         borderRight: "1px solid var(--border)",
         background: "var(--bg)",
-        position: "sticky",
-        top: 56,
-        height: "calc(100vh - 56px)",
+        height: "100%",
         overflowY: "auto",
       }}>
         <DocsNavSidebar />
       </aside>
-      <main className="docs-main" style={{ flex: 1, minWidth: 0, background: "var(--bg)" }}>
+      <main className="docs-main" style={{ flex: 1, minWidth: 0, background: "var(--bg)", overflowY: "auto" }}>
         {children}
       </main>
     </div>
