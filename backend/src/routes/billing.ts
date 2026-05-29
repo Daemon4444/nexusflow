@@ -407,22 +407,29 @@ router.post("/alipay/notify", async (req: Request, res: Response) => {
     } catch {}
   }
 
-  // 7. 执行充值
-  const tx = await recharge(userId, totalAmount, `支付宝充值 ¥${totalAmount.toFixed(2)} (${outTradeNo})`);
-  if (tx) {
-    await markOrderPaid({
-      orderNo: outTradeNo,
-      providerTradeNo: params.trade_no,
-      notifyPayload: JSON.stringify(params),
-      processed: true,
-    });
-    console.log(`[ALIPAY-NOTIFY] 充值成功: 用户=${userId}, 金额=¥${totalAmount}, 订单=${outTradeNo}`);
-  } else {
-    await setOrderStatus(outTradeNo, "failed");
-    console.error(`[ALIPAY-NOTIFY] 充值失败: 用户=${userId}, 订单=${outTradeNo}`);
+  // 7. 原子标记订单为已支付（互斥门：只有一个调用者能成功）
+  const claimed = await markOrderPaid({
+    orderNo: outTradeNo,
+    providerTradeNo: params.trade_no,
+    notifyPayload: JSON.stringify(params),
+    processed: true,
+  });
+  if (!claimed) {
+    console.log(`[ALIPAY-NOTIFY] 订单已被处理（跳过重复充值）: ${outTradeNo}`);
+    res.send("success");
+    return;
   }
 
-  // 8. 返回 success 告知支付宝停止通知
+  // 8. 执行充值（markOrderPaid 已成功，此处为唯一执行者）
+  const tx = await recharge(userId, totalAmount, `支付宝充值 ¥${totalAmount.toFixed(2)} (${outTradeNo})`);
+  if (tx) {
+    console.log(`[ALIPAY-NOTIFY] 充值成功: 用户=${userId}, 金额=¥${totalAmount}, 订单=${outTradeNo}`);
+  } else {
+    console.error(`[ALIPAY-NOTIFY] ⚠️ 订单已标记支付但充值失败，需人工介入: 用户=${userId}, 金额=¥${totalAmount}, 订单=${outTradeNo}`);
+    await setOrderStatus(outTradeNo, "failed");
+  }
+
+  // 9. 返回 success 告知支付宝停止通知
   res.send("success");
 });
 
@@ -454,17 +461,23 @@ router.get("/order/status", async (req: Request, res: Response) => {
   if (tradeResult.success && tradeResult.status === "TRADE_SUCCESS") {
     // 支付成功但回调还没到，手动处理
     if (!order.processed) {
-      const tx = await recharge(order.user_id, order.amount, `支付宝充值 ¥${order.amount.toFixed(2)} (${orderNo})`);
-      if (tx) {
-        await markOrderPaid({
-          orderNo,
-          providerTradeNo: tradeResult.tradeNo,
-          notifyPayload: JSON.stringify(tradeResult.raw || {}),
-          processed: true,
-        });
-        console.log(`[ALIPAY-POLL] 充值成功: 用户=${order.user_id}, 金额=¥${order.amount}`);
+      // 原子标记订单为已支付（互斥门：防止与 notify 回调并发充值）
+      const claimed = await markOrderPaid({
+        orderNo,
+        providerTradeNo: tradeResult.tradeNo,
+        notifyPayload: JSON.stringify(tradeResult.raw || {}),
+        processed: true,
+      });
+      if (claimed) {
+        const tx = await recharge(order.user_id, order.amount, `支付宝充值 ¥${order.amount.toFixed(2)} (${orderNo})`);
+        if (tx) {
+          console.log(`[ALIPAY-POLL] 充值成功: 用户=${order.user_id}, 金额=¥${order.amount}`);
+        } else {
+          console.error(`[ALIPAY-POLL] ⚠️ 订单已标记支付但充值失败，需人工介入: 用户=${order.user_id}, 金额=¥${order.amount}`);
+          await setOrderStatus(orderNo, "failed");
+        }
       } else {
-        await setOrderStatus(orderNo, "failed");
+        console.log(`[ALIPAY-POLL] 订单已被其他路径处理（跳过重复充值）: ${orderNo}`);
       }
     }
     res.json({ success: true, data: { status: "paid" } });

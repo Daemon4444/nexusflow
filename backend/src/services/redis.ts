@@ -9,6 +9,7 @@
  */
 
 import Redis from "ioredis";
+import crypto from "crypto";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -272,22 +273,14 @@ export async function setSemanticCache(
  * 生产环境可替换为更精确的语义相似度算法
  */
 function hashContent(content: string): string {
-  // 简化处理：标准化后取 MD5-like hash
+  // 标准化后取 SHA-256 前 16 hex (64-bit) 作为缓存 key
   const normalized = content
     .toLowerCase()
     .trim()
     .replace(/\s+/g, " ")
     .slice(0, 1000); // 取前1000字符
 
-  // 使用简单 hash 算法
-  let hash = 0;
-  for (let i = 0; i < normalized.length; i++) {
-    const char = normalized.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-
-  return `${Math.abs(hash).toString(36)}`;
+  return crypto.createHash("sha256").update(normalized).digest("hex").slice(0, 16);
 }
 
 // ============================================================
