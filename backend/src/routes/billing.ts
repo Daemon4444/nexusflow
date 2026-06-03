@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { sanitizeError } from "../utils/sanitize-error";
 import { validateSession } from "../data/users";
 import { recharge, getTransactions, getBillingSummary, getMonthlyStats, getBillingUsageExport } from "../data/billing";
 import { listUserModelDiscounts, UserModelDiscount } from "../data/user-discounts";
@@ -20,16 +21,6 @@ import {
 } from "../data/paymentOrders";
 
 const router = Router();
-
-function sanitizeError(err: unknown): string {
-  if (err && typeof err === "object") {
-    const e = err as any;
-    if (e.name === "AbortError" || e.code === "ABORT_ERR") return "Request timed out.";
-    if (e.code === "ECONNREFUSED") return "Service unavailable.";
-    if (e.code === "ENOTFOUND") return "Service unreachable.";
-  }
-  return "An internal error occurred. Please try again.";
-}
 
 /** 从请求头提取 session token 并验证用户 */
 async function requireAuth(req: Request, res: Response): Promise<string | null> {

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { requireAdmin } from "../middleware/admin";
+import { sanitizeError } from "../utils/sanitize-error";
 import { getAdminUserLimitSummaries, getUserLimitsOverview } from "../data/ratelimits";
 import { adminAdjustBalance, getBillingUsageExport, getTransactions } from "../data/billing";
 import { getByModel, getOverview, getRecent, getUsageSummary } from "../data/usage";
@@ -18,16 +19,6 @@ import { db } from "../db/client";
 import { getSlsClient } from "../services/sls";
 
 const router = Router();
-
-function sanitizeError(err: unknown): string {
-  if (err && typeof err === "object") {
-    const e = err as any;
-    if (e.name === "AbortError" || e.code === "ABORT_ERR") return "Request timed out.";
-    if (e.code === "ECONNREFUSED") return "Service unavailable.";
-    if (e.code === "ENOTFOUND") return "Service unreachable.";
-  }
-  return "An internal error occurred. Please try again.";
-}
 
 router.use(requireAdmin);
 
@@ -357,7 +348,7 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
       note: entry ? undefined : "日志可能仍在索引中（SLS 延迟 1-2 分钟），请稍后重试",
     });
   } catch (err: any) {
-    res.json({ success: false, message: "SLS 查询失败: " + err.message });
+    res.json({ success: false, message: sanitizeError(err) });
   }
 });
 
