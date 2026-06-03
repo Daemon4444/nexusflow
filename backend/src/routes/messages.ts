@@ -19,6 +19,7 @@ import { detectModelType } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
+import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
 const router = Router();
 
@@ -568,7 +569,7 @@ router.post("/", async (req: Request, res: Response) => {
         type: "error",
         error: {
           type: "api_error",
-          message: `Upstream request failed: ${err.message}`,
+          message: `Upstream request failed: ${sanitizeUpstreamError(err)}`,
         },
       });
       return;
@@ -853,7 +854,7 @@ router.post("/", async (req: Request, res: Response) => {
       type: "error",
       error: {
         type: "api_error",
-        message: `Upstream request failed: ${err.message}`,
+        message: `Upstream request failed: ${sanitizeUpstreamError(err)}`,
       },
     });
   }

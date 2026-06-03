@@ -22,6 +22,7 @@ import { getSupportedProtocols } from "../utils/model-protocols";
 import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
+import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
 const router = Router();
 
@@ -128,13 +129,7 @@ async function estimateEmbeddingCost(userId: string | null | undefined, model: a
 }
 
 /** Sanitize error messages — never expose internal hostnames, paths, or stack traces */
-function sanitizeError(err: any): string {
-  if (err?.name === "AbortError" || err?.code === "ABORT_ERR") return "Upstream request timed out.";
-  if (err?.code === "ECONNREFUSED") return "Upstream service unavailable.";
-  if (err?.code === "ENOTFOUND") return "Upstream service unreachable.";
-  // Generic fallback — do NOT include err.message which may contain internal IPs/paths
-  return "An internal error occurred. Please try again.";
-}
+const sanitizeError = sanitizeUpstreamError;
 
 function rejectInsufficientBalance(res: Response): void {
   res.status(402).json({

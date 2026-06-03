@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { sanitizeError } from "../utils/sanitize-error";
 import { getOverview, getDaily, getByModel, getRecent, getUsageLogs, getPerformanceOverview, getPerformanceHourly, getPerformanceByModel, getRecentPerformance } from "../data/usage";
 import { validateSession } from "../data/users";
 import { isAdminSession } from "../middleware/admin";
