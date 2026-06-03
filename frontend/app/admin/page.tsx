@@ -516,7 +516,7 @@ const cardStyle: CSSProperties = {
 };
 
 function isTaskModelCategory(category?: string): boolean {
-  return category === "图像生成" || category === "视频生成";
+  return category === "图像生成" || category === "视频生成" || category === "语音模型";
 }
 
 function formatPercent(value: number): string {
@@ -2518,7 +2518,7 @@ export default function AdminPage() {
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                             <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>容量与路由策略</h3>
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>文本/VL 看 RPM/TPM；生图/生视频看任务提交速率和后台任务并发</div>
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>文本/VL 看 RPM/TPM；生图/生视频/语音看任务提交速率和后台任务并发</div>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {providerDetail.models.length === 0 ? (
