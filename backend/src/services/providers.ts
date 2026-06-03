@@ -29,7 +29,7 @@ export const providers: ProviderConfig[] = [
     apiKeyEnv: "DASHSCOPE_API_KEY",
     models: [
       // 通义千问系列
-      "qwen", "qwq", "wan", "wanx",
+      "qwen", "qwq", "wan", "wanx", "tongyi",
       // 向量
       "text-embedding", "cosyvoice", "paraformer",
       // DeepSeek (百炼代理)
@@ -104,7 +104,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
   for (const model of models) {
     const routedProvider = model.id.startsWith("claude-") ? anthropic : dashscope;
     if (await getCapacity(routedProvider.id, model.id)) continue;
-    const isTaskModel = model.category === "图像生成" || model.category === "视频生成";
+    const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
     await upsertCapacity(routedProvider.id, model.id, {
       rpm_limit: 1000,
       tpm_limit: isTaskModel ? 0 : 1000000,

@@ -22,6 +22,7 @@ import adminRouter from "./routes/admin";
 import providerRouter from "./routes/provider";
 import providerMonitorRouter from "./routes/provider-monitor";
 import tasksRouter from "./routes/tasks";
+import audioRouter from "./routes/audio";
 import rateLimitsRouter from "./routes/ratelimits";
 import ticketsRouter from "./routes/tickets";
 import protocolRouter from "./routes/protocols";
@@ -56,6 +57,9 @@ app.use(express.urlencoded({ extended: false })); // 支付宝回调等表单请
 
 // Anthropic Messages 兼容 API（/v1/messages）— 必须在 /v1 之前挂载
 app.use("/v1/messages", messagesRouter);
+
+// OpenAI Audio API（/v1/audio/speech, /v1/audio/transcriptions）— 必须在 /v1 之前挂载
+app.use("/v1/audio", audioRouter);
 
 // OpenAI 兼容 API（/v1/chat/completions, /v1/models）
 app.use("/v1", v1Router);
