@@ -47,6 +47,25 @@ export function calculateTokenCost(model: AIModel, promptTokens: number, complet
 export const models: AIModel[] = [
   // ========== 通义千问 Qwen 旗舰系列 ==========
   {
+    id: "qwen3.7-plus",
+    name: "Qwen3.7 Plus",
+    provider: "通义千问",
+    description: "Qwen3.7系列高性价比Plus模型，在强大文本能力基础上全面升级视觉-语言能力，保持编码、工具使用和生产力工作流的完整智能体能力。支持多模态交互混合智能体：感知真实世界场景、读取屏幕并操作GUI、基于视觉参考生成代码、端到端导航移动应用。功能等同于快照 qwen3.7-plus-2026-05-26。",
+    contextLength: 1000000,
+    promptPrice: 2,
+    completionPrice: 8,
+    tokenPricingTiers: [
+      { label: "0<Token≤256K", maxTokens: 262144, promptPrice: 2, completionPrice: 8 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 8, completionPrice: 32 },
+    ],
+    category: "多模态模型",
+    tags: ["高性价比", "多模态", "智能体", "视觉理解", "思考模式", "百万上下文"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 65536,
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "结构化输出"]
+  },
+  {
     id: "qwen3.7-max",
     name: "Qwen3.7 Max",
     provider: "通义千问",
@@ -221,6 +240,20 @@ export const models: AIModel[] = [
     maxOutput: 32768,
     supported: ["文本"]
   },
+  {
+    id: "qwen-flash",
+    name: "Qwen Flash",
+    provider: "通义千问",
+    description: "通义千问极速通用模型，百万级上下文窗口，响应速度极快，成本极低，适合大规模高并发应用场景。支持函数调用和思考模式。",
+    contextLength: 1000000,
+    promptPrice: 0.15,
+    completionPrice: 1.5,
+    category: "大语言模型",
+    tags: ["极速", "低成本", "百万上下文", "通用", "思考模式"],
+    isNew: true,
+    maxOutput: 32768,
+    supported: ["文本", "函数调用", "思考模式"]
+  },
 
   // ========== Qwen3 开源系列 ==========
   {
@@ -235,6 +268,20 @@ export const models: AIModel[] = [
     tags: ["开源", "MoE", "推理", "思考模式"],
     isNew: true,
     maxOutput: 8192,
+    supported: ["文本", "函数调用", "思考模式"]
+  },
+  {
+    id: "qwen3.6-35b-a3b",
+    name: "Qwen3.6 35B-A3B",
+    provider: "通义千问",
+    description: "Qwen3.6开源MoE模型，350亿总参数仅激活30亿，在智能体编程、STEM和推理任务上表现优异，Apache 2.0开源。支持思考模式切换。",
+    contextLength: 262144,
+    promptPrice: 1.8,
+    completionPrice: 10.8,
+    category: "大语言模型",
+    tags: ["开源", "MoE", "轻量", "编程", "思考模式"],
+    isNew: true,
+    maxOutput: 32768,
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
@@ -422,6 +469,20 @@ export const models: AIModel[] = [
     maxOutput: 8192,
     supported: ["文本", "翻译"]
   },
+  {
+    id: "tongyi-intent-detect-v3",
+    name: "通义意图识别 V3",
+    provider: "通义千问",
+    description: "通义千问意图理解模型，可在百毫秒级时间内快速、准确地解析用户意图，适用于客服路由、智能对话分流和指令解析等场景。",
+    contextLength: 8192,
+    promptPrice: 0.42,
+    completionPrice: 1.04,
+    category: "专业模型",
+    tags: ["意图识别", "快速", "客服路由", "分类"],
+    isNew: true,
+    maxOutput: 1024,
+    supported: ["文本", "意图分类"]
+  },
 
   // ========== 向量模型 ==========
   {
@@ -452,6 +513,44 @@ export const models: AIModel[] = [
     isNew: true,
     maxOutput: 1,
     supported: ["文本到向量"]
+  },
+
+  // ========== 语音模型 ==========
+  {
+    id: "qwen3-asr-flash",
+    name: "Qwen3 ASR Flash",
+    provider: "通义千问",
+    description: "Qwen3代语音识别模型，支持11种语言自动检测及转录，支持字级时间戳、情感识别、歌唱识别和说话人分离。实时与非实时双模式。",
+    contextLength: 0,
+    promptPrice: 0.23,
+    completionPrice: 0,
+    pricingType: "per-second",
+    pricingTiers: [
+      { label: "实时识别", price: 0.23 },
+    ],
+    category: "语音模型",
+    tags: ["语音识别", "ASR", "多语言", "实时"],
+    isNew: true,
+    maxOutput: 0,
+    supported: ["语音转文本"]
+  },
+  {
+    id: "qwen3-tts-flash-realtime",
+    name: "Qwen3 TTS Flash Realtime",
+    provider: "通义千问",
+    description: "Qwen3代实时语音合成模型，通过WebSocket协议进行流式语音合成，支持中文、英文等多种语言和音色，适用于语音助手、有声读物等场景。",
+    contextLength: 0,
+    promptPrice: 1,
+    completionPrice: 0,
+    pricingType: "per-second",
+    pricingTiers: [
+      { label: "实时合成", price: 1 },
+    ],
+    category: "语音模型",
+    tags: ["语音合成", "TTS", "实时", "多语言"],
+    isNew: true,
+    maxOutput: 0,
+    supported: ["文本转语音"]
   },
 
   // ========== 图像生成 ==========

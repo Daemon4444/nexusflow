@@ -45,7 +45,7 @@ const PROVIDERS: ProviderConfig[] = [
     baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     apiKeyEnv: "DASHSCOPE_API_KEY",
     models: [
-      "qwen3-max", "qwen3.6-max-preview", "qwen3.6-plus", "qwen3.5-plus", "qwen3.5-flash", "qwen-plus", "qwen-turbo",
+      "qwen3.7-plus", "qwen3.7-max", "qwen3-max", "qwen3.6-max-preview", "qwen3.6-plus", "qwen3.5-plus", "qwen3.5-flash", "qwen-plus", "qwen-turbo",
       "qwq-plus", "qwen-vl-max", "qwen-vl-plus",
       "deepseek-v4-pro", "deepseek-v4-flash", "deepseek-v3.2", "deepseek-r1", "glm-4.7", "kimi-k2.5", "MiniMax-M2.1"
     ],
