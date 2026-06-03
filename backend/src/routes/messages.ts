@@ -18,6 +18,7 @@ import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
+import { calculateOpenAiCacheAwareCost, getOpenAiPromptCacheUsage, hasCacheControl } from "../utils/cache-billing";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
@@ -497,6 +498,8 @@ router.post("/", async (req: Request, res: Response) => {
           latencyMs,
           ttftMs,
           tpotMs,
+          cachedTokens: cacheReadInputTokens,
+          cacheCreationTokens: cacheCreationInputTokens,
         });
         recordProviderTokens(provider.id, modelId, totalTokens);
         if (apiKeyRecord.user_id) {
@@ -533,6 +536,8 @@ router.post("/", async (req: Request, res: Response) => {
         cost: totalCost,
         status: "success",
         latencyMs: Date.now() - startTime,
+        cachedTokens: usage.cache_read_input_tokens || 0,
+        cacheCreationTokens: usage.cache_creation_input_tokens || 0,
       });
       recordProviderTokens(provider.id, modelId, totalTokens);
       if (apiKeyRecord.user_id) {
@@ -582,6 +587,7 @@ router.post("/", async (req: Request, res: Response) => {
     ...req.body,
     ...convertedRequest,
   });
+  const explicitCache = hasCacheControl(openaiRequest.messages);
   const messageId = `msg_${logId}`;
 
   try {
@@ -632,6 +638,8 @@ router.post("/", async (req: Request, res: Response) => {
       let contentBlockStarted = false;
       let inputTokens = 0;
       let outputTokens = 0;
+      let cachedTokens = 0;
+      let cacheCreationTokens = 0;
       let ttftMs = 0;
       let chunkCount = 0;
       let firstChunkTime = 0;
@@ -648,6 +656,9 @@ router.post("/", async (req: Request, res: Response) => {
         if (event?.usage) {
           inputTokens = event.usage.prompt_tokens || inputTokens;
           outputTokens = event.usage.completion_tokens || outputTokens;
+          const cacheUsage = getOpenAiPromptCacheUsage(event.usage);
+          cachedTokens = cacheUsage.cachedTokens || cachedTokens;
+          cacheCreationTokens = cacheUsage.cacheCreationTokens || cacheCreationTokens;
         }
 
         if (delta?.content && !contentBlockStarted) {
@@ -743,7 +754,19 @@ router.post("/", async (req: Request, res: Response) => {
 
       // Billing
       const latencyMs = Date.now() - startTime;
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, inputTokens, outputTokens)).finalAmount;
+      const totalCost = await calculateOpenAiCacheAwareCost({
+        userId: apiKeyRecord.user_id,
+        model,
+        usage: {
+          prompt_tokens: inputTokens,
+          completion_tokens: outputTokens,
+          prompt_tokens_details: {
+            cached_tokens: cachedTokens,
+            cache_creation_input_tokens: cacheCreationTokens,
+          },
+        },
+        explicitCache,
+      });
 
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
@@ -760,6 +783,8 @@ router.post("/", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs,
         tpotMs,
+        cachedTokens,
+        cacheCreationTokens,
       });
       recordProviderTokens(provider.id, modelId, inputTokens + outputTokens);
       if (apiKeyRecord.user_id) {
@@ -808,7 +833,13 @@ router.post("/", async (req: Request, res: Response) => {
     // Billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
+    const totalCost = await calculateOpenAiCacheAwareCost({
+      userId: apiKeyRecord.user_id,
+      model,
+      usage,
+      explicitCache,
+    });
+    const cacheUsage = getOpenAiPromptCacheUsage(usage);
 
     await logUsage({
       apiKeyId: apiKeyRecord.id,
@@ -820,6 +851,8 @@ router.post("/", async (req: Request, res: Response) => {
       cost: totalCost,
       status: "success",
       latencyMs,
+      cachedTokens: cacheUsage.cachedTokens,
+      cacheCreationTokens: cacheUsage.cacheCreationTokens,
     });
     recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
     if (apiKeyRecord.user_id) {

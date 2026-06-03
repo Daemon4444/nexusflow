@@ -6,6 +6,7 @@ const API_BASE = "https://nexusflow.hk";
 
 const explicitModels = [
   { model: "qwen3.7-max", provider: "通义千问", minTokens: 1024 },
+  { model: "qwen3.7-plus", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.6-max-preview", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.6-plus", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.6-flash", provider: "通义千问", minTokens: 1024 },
@@ -26,6 +27,7 @@ const explicitModels = [
 
 const implicitModels = [
   { model: "qwen3.7-max", provider: "通义千问", minTokens: "~1000" },
+  { model: "qwen3.7-plus", provider: "通义千问", minTokens: "~256" },
   { model: "qwen3.6-max-preview", provider: "通义千问", minTokens: "~256" },
   { model: "qwen3.6-plus", provider: "通义千问", minTokens: "~256" },
   { model: "qwen3.6-flash", provider: "通义千问", minTokens: "~256" },
@@ -149,6 +151,138 @@ export default function CacheDocsPage() {
           <li>动态内容（用户最新问题）放在最后</li>
           <li>多轮对话保持 system prompt 不变</li>
         </ul>
+      </section>
+
+      {/* Request and response examples */}
+      <section style={{ marginBottom: 40 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>请求与返回示例</h2>
+        <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.7 }}>
+          缓存信息会随正常 Chat Completions 响应一起返回。业务侧仍然从 <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>choices[0].message.content</code> 读取模型结果，从 <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>usage.prompt_tokens_details</code> 读取缓存创建和命中情况。
+        </p>
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "20px 0 10px" }}>显式缓存：请求输入</h3>
+        <DocsCodeBlock code={`curl -X POST ${API_BASE}/v1/chat/completions \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+  "model": "qwen3.5-flash",
+  "messages": [
+    {
+      "role": "system",
+      "content": [
+        {
+          "type": "text",
+          "text": "<稳定公共前缀，至少 1024 tokens，例如代码库、产品手册、长文档>",
+          "cache_control": {"type": "ephemeral"}
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": "基于上面的文档，回答第一个问题"
+    }
+  ],
+  "temperature": 0,
+  "max_tokens": 200
+}'`} />
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "20px 0 10px" }}>显式缓存：首次返回（创建缓存）</h3>
+        <DocsCodeBlock code={`{
+  "id": "chatcmpl-...",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "这里是模型正常返回的答案"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 18628,
+    "completion_tokens": 344,
+    "total_tokens": 18972,
+    "prompt_tokens_details": {
+      "text_tokens": 18628,
+      "cache_creation_input_tokens": 18613,
+      "cache_type": "ephemeral",
+      "cached_tokens": 0
+    }
+  }
+}`} />
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "20px 0 10px" }}>显式缓存：第二次返回（命中缓存）</h3>
+        <DocsCodeBlock code={`{
+  "id": "chatcmpl-...",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "这里是第二次请求的答案"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 18628,
+    "completion_tokens": 445,
+    "total_tokens": 19073,
+    "prompt_tokens_details": {
+      "text_tokens": 18628,
+      "cache_creation_input_tokens": 0,
+      "cache_type": "ephemeral",
+      "cached_tokens": 18613
+    }
+  }
+}`} />
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "20px 0 10px" }}>隐式缓存：请求输入</h3>
+        <DocsCodeBlock code={`curl -X POST ${API_BASE}/v1/chat/completions \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+  "model": "qwen3.7-max",
+  "messages": [
+    {
+      "role": "system",
+      "content": "<稳定公共前缀，例如长期不变的知识库、产品说明、代码上下文>"
+    },
+    {
+      "role": "user",
+      "content": "基于上面的内容，回答新的问题"
+    }
+  ],
+  "temperature": 0,
+  "max_tokens": 200
+}'`} />
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", margin: "20px 0 10px" }}>隐式缓存：可能的命中返回</h3>
+        <DocsCodeBlock code={`{
+  "choices": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "这里是模型正常返回的答案"
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 15365,
+    "completion_tokens": 1,
+    "total_tokens": 15366,
+    "prompt_tokens_details": {
+      "cached_tokens": 15232
+    }
+  }
+}`} />
+
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 12, lineHeight: 1.8 }}>
+          隐式缓存没有 <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>cache_control</code> 标记，也不会返回 <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>cache_type</code>。如果本次没有命中，<code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>prompt_tokens_details.cached_tokens</code> 可能为 0 或不存在；命中与否由上游自动策略决定。
+        </p>
       </section>
 
       {/* How to check cache hit */}

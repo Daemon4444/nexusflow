@@ -123,6 +123,8 @@ function usageRowsToCsv(rows: Record<string, unknown>[]): string {
     "prompt_tokens",
     "completion_tokens",
     "total_tokens",
+    "cached_tokens",
+    "cache_creation_tokens",
     "tier_label",
     "tier_max_tokens",
     "prompt_unit_price_cny_per_1m_tokens",
@@ -213,6 +215,8 @@ router.get("/users/:id/billing-export.csv", async (req: Request, res: Response) 
       prompt_tokens: row.prompt_tokens,
       completion_tokens: row.completion_tokens,
       total_tokens: row.total_tokens,
+      cached_tokens: row.cached_tokens,
+      cache_creation_tokens: row.cache_creation_tokens,
       tier_label: row.tier_label,
       tier_max_tokens: row.tier_max_tokens,
       prompt_unit_price_cny_per_1m_tokens: row.prompt_unit_price_cny_per_1m,
@@ -287,7 +291,9 @@ router.get("/logs/search", async (req: Request, res: Response) => {
     const rows = await db.queryMany(
       `SELECT ul.log_id, ul.user_id, ul.model, ul.status,
               ul.prompt_tokens, ul.completion_tokens, ul.total_tokens,
-              ROUND(ul.cost::numeric, 6)::float as cost, ul.latency_ms, ul.cached_tokens,
+              ROUND(ul.cost::numeric, 6)::float as cost, ul.latency_ms,
+              COALESCE(ul.cached_tokens, 0)::int as cached_tokens,
+              COALESCE(ul.cache_creation_tokens, 0)::int as cache_creation_tokens,
               u.email as user_email, u.nickname as user_nickname,
               to_char(ul.created_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD HH24:MI:SS') as time
        FROM usage_logs ul
