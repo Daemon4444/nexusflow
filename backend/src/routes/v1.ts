@@ -21,6 +21,7 @@ import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { getSupportedProtocols } from "../utils/model-protocols";
 import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
+import { calculateOpenAiCacheAwareCost, getOpenAiPromptCacheUsage, hasCacheControl } from "../utils/cache-billing";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
@@ -671,6 +672,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     },
     { forceStream: requiresUpstreamStream }
   );
+  const explicitCache = hasCacheControl(messages);
 
   const startTime = Date.now();
   const logId = randomUUID();
@@ -777,7 +779,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       // Log usage and bill
       const latencyMs = Date.now() - startTime;
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, streamTokens.prompt_tokens, streamTokens.completion_tokens)).finalAmount;
+      const totalCost = await calculateOpenAiCacheAwareCost({
+        userId: apiKeyRecord.user_id,
+        model,
+        usage: streamTokens,
+        explicitCache,
+      });
+      const streamCacheUsage = getOpenAiPromptCacheUsage(streamTokens);
 
       // Calculate TPOT: time per output token (ms)
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
@@ -798,8 +806,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs,
         tpotMs,
-        cachedTokens: streamTokens.prompt_tokens_details?.cached_tokens || 0,
-        cacheCreationTokens: streamTokens.prompt_tokens_details?.cache_creation_input_tokens || 0,
+        cachedTokens: streamCacheUsage.cachedTokens,
+        cacheCreationTokens: streamCacheUsage.cacheCreationTokens,
         requestBody: req.body,
         responseBody: fullResponse.slice(-3000),
       });
@@ -861,7 +869,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const data = buildChatCompletionFromSse(events, !!include_reasoning);
       const latencyMs = Date.now() - startTime;
       const usage = data.usage || {};
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
+      const totalCost = await calculateOpenAiCacheAwareCost({
+        userId: apiKeyRecord.user_id,
+        model,
+        usage,
+        explicitCache,
+      });
+      const cacheUsage = getOpenAiPromptCacheUsage(usage);
 
       // Non-stream: ttft = full latency, tpot = latency / completion_tokens
       const nonStreamTtft = latencyMs;
@@ -882,8 +896,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         latencyMs,
         ttftMs: nonStreamTtft,
         tpotMs: nonStreamTpot,
-        cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
-        cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
+        cachedTokens: cacheUsage.cachedTokens,
+        cacheCreationTokens: cacheUsage.cacheCreationTokens,
       });
       recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
@@ -930,7 +944,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     // Log usage and billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
+    const totalCost = await calculateOpenAiCacheAwareCost({
+      userId: apiKeyRecord.user_id,
+      model,
+      usage,
+      explicitCache,
+    });
+    const cacheUsage = getOpenAiPromptCacheUsage(usage);
     
     await logUsage({
       logId,
@@ -943,8 +963,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       cost: totalCost,
       status: "success",
       latencyMs,
-      cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
-      cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
+      cachedTokens: cacheUsage.cachedTokens,
+      cacheCreationTokens: cacheUsage.cacheCreationTokens,
       requestBody: req.body,
       responseBody: data.choices?.[0]?.message,
     });
