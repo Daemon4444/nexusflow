@@ -30,6 +30,16 @@ const nextConfig: NextConfig = {
         destination: "https://nexusflow.hk/:path*",
         permanent: true,
       },
+      {
+        source: "/register",
+        destination: "/login?tab=register",
+        permanent: false,
+      },
+      {
+        source: "/signup",
+        destination: "/login?tab=register",
+        permanent: false,
+      },
     ];
   },
   async rewrites() {

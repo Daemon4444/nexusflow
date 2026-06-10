@@ -107,7 +107,7 @@ export default function QuickstartPage() {
       </div>
 
       <section style={{ marginBottom: 40 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
           {[
             { title: "三协议同步", desc: "OpenAI、Anthropic、Gemini 兼容入口共用同一套模型。" },
             { title: "异步任务", desc: "图像和视频统一走 `/v1/tasks` 提交与轮询。" },
@@ -125,11 +125,11 @@ export default function QuickstartPage() {
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
           选择兼容协议
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
           {protocols.map((protocol) => (
-            <Link key={protocol.title} href={protocol.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg)", textDecoration: "none" }}>
+            <Link key={protocol.title} href={protocol.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg)", textDecoration: "none", minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{protocol.title}</div>
-              <code style={{ display: "block", fontSize: 11.5, lineHeight: 1.5, color: "var(--accent)", fontFamily: "'JetBrains Mono', monospace", marginBottom: 10 }}>{protocol.endpoint}</code>
+              <code style={{ display: "block", fontSize: 11.5, lineHeight: 1.5, color: "var(--accent)", fontFamily: "'JetBrains Mono', monospace", marginBottom: 10, wordBreak: "break-all" }}>{protocol.endpoint}</code>
               <div style={{ fontSize: 12.5, lineHeight: 1.7, color: "var(--text-secondary)" }}>{protocol.desc}</div>
             </Link>
           ))}

@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { NexusflowLogo } from "@/components/QuadrantLogo";
 
 type LoginMode = "code" | "password";
 
-export default function LoginPage() {
+function LoginPageInner() {
+  const searchParams = useSearchParams();
+  const isRegister = searchParams.get("tab") === "register";
   const [mode, setMode] = useState<LoginMode>("code");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -120,17 +122,18 @@ export default function LoginPage() {
             <NexusflowLogo size={28} color="var(--text-primary)" />
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6, letterSpacing: "-0.3px" }}>
-            登录 nexusflow
+            {isRegister ? "注册 nexusflow" : "登录 nexusflow"}
           </h1>
           <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            {mode === "code" ? "使用邮箱验证码登录" : "使用邮箱和密码登录"}
+            {isRegister ? "输入邮箱，验证后即刻创建账户" : mode === "code" ? "使用邮箱验证码登录" : "使用邮箱和密码登录"}
           </p>
         </div>
 
         <form onSubmit={handleLogin}>
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
 
-            {/* Mode Tabs */}
+            {/* Mode Tabs — 注册语境只有验证码一种方式，隐藏切换 */}
+            {!isRegister && (
             <div style={{ display: "flex", gap: 0, marginBottom: 20, background: "var(--bg-elevated)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
               {([["code", "验证码登录"], ["password", "密码登录"]] as const).map(([m, label]) => (
                 <button
@@ -150,6 +153,7 @@ export default function LoginPage() {
                 </button>
               ))}
             </div>
+            )}
 
             {/* Email */}
             <div style={{ marginBottom: 18 }}>
@@ -254,15 +258,23 @@ export default function LoginPage() {
                 opacity: submitting ? 0.7 : 1,
               }}
             >
-              {submitting ? "登录中..." : "登录 / 注册"}
+              {isRegister ? (submitting ? "创建中..." : "创建账户") : submitting ? "登录中..." : "登录 / 注册"}
             </button>
           </div>
         </form>
 
         <p style={{ textAlign: "center", marginTop: 16, fontSize: 11.5, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
-          {mode === "code" ? "首次登录将自动创建账户" : "请先通过验证码登录并设置密码"}
+          {isRegister ? "已有账户？输入邮箱验证码即可直接登录" : mode === "code" ? "首次登录将自动创建账户" : "请先通过验证码登录并设置密码"}
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
   );
 }
