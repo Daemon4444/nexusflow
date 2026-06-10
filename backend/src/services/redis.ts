@@ -207,83 +207,6 @@ export async function adjustTPMUsageRedis(
 }
 
 // ============================================================
-// 语义缓存
-// ============================================================
-
-interface CacheEntry {
-  response: any;
-  model: string;
-  timestamp: number;
-  tokens: { prompt: number; completion: number };
-}
-
-/**
- * 语义缓存 - 使用请求内容的 hash 作为 key
- * 相似请求可返回缓存结果，降低成本和延迟
- */
-export async function getSemanticCache(
-  prompt: string,
-  model: string,
-  threshold: number = 0.95
-): Promise<CacheEntry | null> {
-  if (process.env.SEMANTIC_CACHE_ENABLED !== "true") return null;
-
-  const client = getRedis();
-  const cacheKey = `semantic:${model}:${hashContent(prompt)}`;
-
-  try {
-    const cached = await client.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached) as CacheEntry;
-    }
-  } catch {
-    // 缓存读取失败，忽略
-  }
-
-  return null;
-}
-
-/**
- * 存储语义缓存
- */
-export async function setSemanticCache(
-  prompt: string,
-  model: string,
-  response: any,
-  tokens: { prompt: number; completion: number },
-  ttl: number = 3600
-): Promise<void> {
-  if (process.env.SEMANTIC_CACHE_ENABLED !== "true") return;
-
-  const client = getRedis();
-  const cacheKey = `semantic:${model}:${hashContent(prompt)}`;
-
-  const entry: CacheEntry = {
-    response,
-    model,
-    timestamp: Date.now(),
-    tokens,
-  };
-
-  await client.set(cacheKey, JSON.stringify(entry), "EX", ttl);
-}
-
-/**
- * 简单 hash 函数（用于缓存 key）
- * 生产环境可替换为更精确的语义相似度算法
- */
-function hashContent(content: string): string {
-  // 标准化后取 SHA-256 前 16 hex (64-bit) 作为缓存 key
-  const normalized = content
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, " ")
-    .slice(0, 1000); // 取前1000字符
-
-  return crypto.createHash("sha256").update(normalized).digest("hex").slice(0, 16);
-}
-
-// ============================================================
 // 会话缓存
 // ============================================================
 
@@ -374,8 +297,6 @@ export default {
   closeRedis,
   checkRateLimitRedis,
   checkTPMLimitRedis,
-  getSemanticCache,
-  setSemanticCache,
   cacheSession,
   getCachedSession,
   deleteSession,

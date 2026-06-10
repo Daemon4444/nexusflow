@@ -132,12 +132,16 @@ export async function consume(
   userId: string,
   amount: number,
   description: string,
-  refId?: string
+  refId?: string,
+  discountRate?: number,
+  discountAmountCny?: number
 ): Promise<Transaction | null> {
   if (amount <= 0) return null;
   const normalizedAmount = roundBalance(amount);
   const txId = uuidv4();
   const now = new Date().toISOString();
+  const savedDiscountRate = discountRate !== undefined && discountRate < 1 ? discountRate : null;
+  const savedDiscountAmount = discountAmountCny && discountAmountCny > 0 ? roundBalance(discountAmountCny) : null;
 
   return db.transaction(async (client) => {
     const user = await client.queryOne<{ balance: number }>("SELECT balance FROM users WHERE id = ? FOR UPDATE", [userId]);
@@ -147,10 +151,10 @@ export async function consume(
     const newBalance = roundBalance(currentBalance - normalizedAmount);
     await client.execute("UPDATE users SET balance = ?, updated_at = ? WHERE id = ?", [newBalance, now, userId]);
     const tx = await client.queryOne<Transaction>(
-      `INSERT INTO transactions (id, user_id, type, amount, balance_after, description, ref_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO transactions (id, user_id, type, amount, balance_after, description, ref_id, created_at, discount_rate, discount_amount_cny)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
-      [txId, userId, "consumption", normalizedAmount, newBalance, description, refId || null, now]
+      [txId, userId, "consumption", normalizedAmount, newBalance, description, refId || null, now, savedDiscountRate, savedDiscountAmount]
     );
     return tx!;
   });

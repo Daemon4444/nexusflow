@@ -40,12 +40,21 @@ export function getOpenAiPromptCacheUsage(usage: any): {
   };
 }
 
+export interface BillingResult {
+  finalAmount: number;
+  listAmount: number;
+  discountRate: number;
+  discountAmount: number;
+  cachedTokens: number;
+  cacheCreationTokens: number;
+}
+
 export async function calculateOpenAiCacheAwareCost(params: {
   userId?: string | null;
   model: AIModel;
   usage: any;
   explicitCache: boolean;
-}): Promise<number> {
+}): Promise<BillingResult> {
   const { promptTokens, completionTokens, cachedTokens, cacheCreationTokens } = getOpenAiPromptCacheUsage(params.usage);
   const uncachedPromptTokens = Math.max(0, promptTokens - cachedTokens - cacheCreationTokens);
   const tier = getTokenPricingTier(params.model, promptTokens);
@@ -53,11 +62,28 @@ export async function calculateOpenAiCacheAwareCost(params: {
   const completionPrice = tier?.completionPrice ?? params.model.completionPrice;
   const cacheReadMultiplier = params.explicitCache ? 0.1 : 0.2;
 
-  const listAmount =
+  const listAmount = money(
     (uncachedPromptTokens / 1_000_000) * promptPrice +
     (cacheCreationTokens / 1_000_000) * promptPrice * 1.25 +
     (cachedTokens / 1_000_000) * promptPrice * cacheReadMultiplier +
-    (completionTokens / 1_000_000) * completionPrice;
+    (completionTokens / 1_000_000) * completionPrice
+  );
 
-  return (await applyUserModelDiscount(params.userId, params.model.id, money(listAmount))).finalAmount;
+  const discounted = await applyUserModelDiscount(params.userId, params.model.id, listAmount);
+  return {
+    finalAmount: discounted.finalAmount,
+    listAmount: discounted.listAmount,
+    discountRate: discounted.discountRate,
+    discountAmount: discounted.discountAmount,
+    cachedTokens,
+    cacheCreationTokens,
+  };
+}
+
+export function buildApiDescription(modelId: string, totalTokens: number, cachedTokens: number, stream?: boolean): string {
+  const suffix = stream ? ", stream" : "";
+  if (cachedTokens > 0) {
+    return `API 调用: ${modelId} (${totalTokens} tokens, ${cachedTokens} 缓存${suffix})`;
+  }
+  return `API 调用: ${modelId} (${totalTokens} tokens${suffix})`;
 }
