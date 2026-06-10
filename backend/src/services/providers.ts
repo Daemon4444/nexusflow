@@ -51,7 +51,7 @@ export const providers: ProviderConfig[] = [
 export function findProvider(modelId: string): ProviderConfig | null {
   return providers.find((provider) =>
     provider.models.some((modelPattern) => modelId === modelPattern || modelId.startsWith(modelPattern))
-  ) || providers.find((provider) => provider.id === "dashscope") || null;
+  ) || null;
 }
 
 /**

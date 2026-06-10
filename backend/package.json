@@ -19,6 +19,7 @@
   "description": "Quadrant AI Router Platform Backend",
   "dependencies": {
     "@alicloud/credentials": "^2.4.4",
+    "@alicloud/log": "^1.2.6",
     "@alicloud/dysmsapi20170525": "^4.5.0",
     "@alicloud/openapi-client": "^0.4.15",
     "alipay-sdk": "^4.14.0",

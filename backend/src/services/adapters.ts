@@ -135,24 +135,26 @@ export function adaptImageRequest(
     style_ref_url?: string;
     model_version?: "v2" | "v3";
     ref_prompt_weight?: number;
-  }
+  },
+  options: { nativeBase?: string } = {}
 ): AdapterResult {
+  const base = (options.nativeBase || DASHSCOPE_BASE).replace(/\/$/, "");
   const normalizedSize = normalizeImageSize(body.size);
   const sourceImage = body.ref_img || body.image_url;
 
   if (body.model === "wanx-style-repaint" || body.model === "wanx-style-repaint-v1") {
-    return adaptStyleRepaintRequest(apiKey, body, sourceImage);
+    return adaptStyleRepaintRequest(apiKey, body, sourceImage, base);
   }
 
   if (body.model === "wanx-background-generation" || body.model === "wanx-background-generation-v2") {
-    return adaptBackgroundGenerationRequest(apiKey, body, sourceImage);
+    return adaptBackgroundGenerationRequest(apiKey, body, sourceImage, base);
   }
 
   // Check if it's wan2.6 series (uses new multimodal API)
   const isWan26 = body.model.startsWith("wan2.6") || body.model.startsWith("wan2.5");
-  
+
   if (isWan26) {
-    return adaptWan26ImageRequest(apiKey, { ...body, size: normalizedSize });
+    return adaptWan26ImageRequest(apiKey, { ...body, size: normalizedSize }, base);
   }
   
   // Legacy wanx format
@@ -170,7 +172,7 @@ export function adaptImageRequest(
   };
 
   return {
-    url: `${DASHSCOPE_BASE}/api/v1/services/aigc/text2image/image-synthesis`,
+    url: `${base}/api/v1/services/aigc/text2image/image-synthesis`,
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
@@ -188,7 +190,8 @@ export function adaptImageRequest(
  */
 function adaptWan26ImageRequest(
   apiKey: string,
-  body: { model: string; prompt?: string; n?: number; size?: string; negative_prompt?: string; seed?: number }
+  body: { model: string; prompt?: string; n?: number; size?: string; negative_prompt?: string; seed?: number },
+  base: string = DASHSCOPE_BASE
 ): AdapterResult {
   // wan2.6-t2i uses the model name directly (no mapping needed)
   const dashscopeBody: any = {
@@ -214,7 +217,7 @@ function adaptWan26ImageRequest(
   };
 
   return {
-    url: `${DASHSCOPE_BASE}/api/v1/services/aigc/multimodal-generation/generation`,
+    url: `${base}/api/v1/services/aigc/multimodal-generation/generation`,
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
@@ -232,12 +235,13 @@ function adaptStyleRepaintRequest(
     style_index?: number;
     style_ref_url?: string;
   },
-  sourceImage?: string
+  sourceImage?: string,
+  base: string = DASHSCOPE_BASE
 ): AdapterResult {
   const styleIndex = body.style_ref_url ? -1 : body.style_index ?? 3;
 
   return {
-    url: `${DASHSCOPE_BASE}/api/v1/services/aigc/image-generation/generation`,
+    url: `${base}/api/v1/services/aigc/image-generation/generation`,
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
@@ -266,7 +270,8 @@ function adaptBackgroundGenerationRequest(
     image_url?: string;
     ref_prompt_weight?: number;
   },
-  sourceImage?: string
+  sourceImage?: string,
+  base: string = DASHSCOPE_BASE
 ): AdapterResult {
   const parameters: Record<string, unknown> = {
     n: body.n || 1,
@@ -278,7 +283,7 @@ function adaptBackgroundGenerationRequest(
   }
 
   return {
-    url: `${DASHSCOPE_BASE}/api/v1/services/aigc/background-generation/generation/`,
+    url: `${base}/api/v1/services/aigc/background-generation/generation/`,
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
