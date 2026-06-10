@@ -59,10 +59,14 @@ export async function resolveUpstream(
   const config = await getProviderChannelConfig(provider.id);
 
   if (config) {
-    // 渠道未单独配 key 时，可回退使用 provider 级环境变量 key（同账号跨区域通用场景）
+    // 渠道未单独配 key 时可回退 provider 级环境变量 key，但仅限默认区域：
+    // 实测（2026-06）国内 DASHSCOPE_API_KEY 调海外区域返回 401，海外渠道必须配独立 key
     const hasFallbackKey = !!getResolvedProviderApiKey(provider);
     let candidates = Object.entries(config.channels)
-      .filter(([, channel]) => isChannelUsable(channel, { hasFallbackKey }) && channelAllowsModel(channel, modelId));
+      .filter(([, channel]) => {
+        const fallbackApplies = hasFallbackKey && (!channel.region || channel.region === DEFAULT_REGION);
+        return isChannelUsable(channel, { hasFallbackKey: fallbackApplies }) && channelAllowsModel(channel, modelId);
+      });
 
     if (requestedRegion) {
       candidates = candidates.filter(([, channel]) => channel.region === requestedRegion);
@@ -136,8 +140,8 @@ export async function resolveUpstream(
 
 /**
  * 预置 dashscope 四区域渠道。仅在配置不存在时写入。
- * 海外区域默认 disabled；api_key 留空表示复用 DASHSCOPE_API_KEY（同账号跨区域通用），
- * 新加坡/法兰克福需补 workspace_id 后启用，美国区填好 key（或留空复用）后直接启用即可。
+ * 海外区域默认 disabled，且必须配置该区域专属的 API Key（实测国内 key 调海外返回 401）；
+ * 新加坡/法兰克福还需补 workspace_id。北京渠道 key 留空时回退 DASHSCOPE_API_KEY。
  */
 export async function ensureDashScopeChannelConfig(): Promise<void> {
   if (await getProviderChannelConfig("dashscope")) return;
