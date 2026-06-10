@@ -31,11 +31,14 @@ const ALWAYS_THINKING_MODELS = new Set([
 
 const MIXED_THINKING_DEFAULT_ON = new Set([
   "qwen3.7-max",
+  "qwen3.7-plus",
   "qwen3.6-max-preview",
   "qwen3.6-plus",
   "qwen3.6-flash",
+  "qwen3.6-35b-a3b",
   "qwen3.5-plus",
   "qwen3.5-flash",
+  "qwen-flash",
   "deepseek-v4-pro",
   "deepseek-v4-flash",
   "glm-5.1",
@@ -61,6 +64,7 @@ const THINKING_BUDGET_PREFIXES = [
   "qwen3.5-",
   "qwen3-vl-",
   "qwen3-",
+  "qwen-flash",
   "deepseek-v3",
   "deepseek-r1",
   "deepseek-v4",
@@ -68,6 +72,7 @@ const THINKING_BUDGET_PREFIXES = [
 
 const PRESERVE_THINKING_MODELS = new Set([
   "qwen3.7-max",
+  "qwen3.7-plus",
   "qwen3.6-max-preview",
   "qwen3.6-plus",
   "kimi-k2.6",
@@ -127,7 +132,7 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
   const isDeepSeek = model.provider === "DeepSeek";
   const isMiniMax = model.provider === "MiniMax";
   const supportsSearch =
-    (isQwenChat && !supportsVision && !model.id.includes("math") && !model.id.includes("mt")) ||
+    (isQwenChat && !model.id.includes("math") && !model.id.includes("mt")) ||
     isDeepSeek ||
     isMiniMax;
 

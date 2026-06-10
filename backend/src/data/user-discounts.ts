@@ -40,7 +40,9 @@ function normalizeDiscount(row: UserModelDiscount): UserModelDiscount {
 
 export async function getUserModelDiscount(userId: string | null | undefined, modelId: string): Promise<UserModelDiscount | null> {
   if (!userId || !modelId) return null;
-  const row = await db.queryOne<UserModelDiscount>(
+
+  // 1. Exact match (highest priority)
+  const exact = await db.queryOne<UserModelDiscount>(
     `SELECT * FROM user_model_discounts
      WHERE user_id = ? AND is_enabled = TRUE
        AND (model_id = ? OR model_id = '*' OR (model_id LIKE '%*' AND ? LIKE REPLACE(model_id, '*', '%')))
@@ -52,7 +54,28 @@ export async function getUserModelDiscount(userId: string | null | undefined, mo
      LIMIT 1`,
     [userId, modelId, modelId, modelId]
   );
-  return row ? normalizeDiscount(row) : null;
+  if (exact) return normalizeDiscount(exact);
+
+  // 2. Prefix wildcard match (longest prefix wins)
+  const wildcards = await db.queryMany<UserModelDiscount>(
+    `SELECT * FROM user_model_discounts
+     WHERE user_id = ? AND model_id LIKE '%*' AND model_id != '*' AND is_enabled = TRUE`,
+    [userId]
+  );
+  if (wildcards.length > 0) {
+    const matched = wildcards
+      .filter((r) => modelId.startsWith(r.model_id.slice(0, -1)))
+      .sort((a, b) => b.model_id.length - a.model_id.length);
+    if (matched.length > 0) return normalizeDiscount(matched[0]);
+  }
+
+  // 3. Global wildcard '*' (lowest priority)
+  const global = await db.queryOne<UserModelDiscount>(
+    `SELECT * FROM user_model_discounts
+     WHERE user_id = ? AND model_id = '*' AND is_enabled = TRUE`,
+    [userId]
+  );
+  return global ? normalizeDiscount(global) : null;
 }
 
 export async function listUserModelDiscounts(userId?: string): Promise<UserModelDiscount[]> {

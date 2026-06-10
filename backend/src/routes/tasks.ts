@@ -35,6 +35,7 @@ import { getEffectiveRateLimit } from "../data/ratelimits";
 import { selectProvider, acquireConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
 import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
+import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
 const router = Router();
 
@@ -222,7 +223,7 @@ router.post("/", async (req: Request, res: Response) => {
     recordFailure(selected.providerId, modelId, err.message);
     await failTask(task.id, `Adapter error: ${err.message}`);
     res.status(500).json({
-      error: { message: `Failed to prepare request: ${err.message}`, type: "server_error", code: "adapter_error" },
+      error: { message: `Failed to prepare request: ${sanitizeUpstreamError(err)}`, type: "server_error", code: "adapter_error" },
     });
     return;
   }

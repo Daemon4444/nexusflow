@@ -57,14 +57,15 @@ export async function markOrderPaid(args: {
   providerTradeNo?: string;
   notifyPayload?: string;
   processed?: boolean;
-}): Promise<void> {
+}): Promise<boolean> {
   const now = new Date().toISOString();
-  await db.execute(
+  const affected = await db.execute(
     `UPDATE payment_orders
        SET status = 'paid', provider_trade_no = ?, paid_at = ?, notify_payload = ?, processed = ?, updated_at = ?
-     WHERE order_no = ?`,
+     WHERE order_no = ? AND status NOT IN ('paid', 'failed', 'closed')`,
     [args.providerTradeNo || null, now, args.notifyPayload || null, !!args.processed, now, args.orderNo]
   );
+  return affected > 0;
 }
 
 export async function setOrderStatus(orderNo: string, status: PaymentStatus): Promise<void> {

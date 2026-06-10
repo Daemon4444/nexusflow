@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { getUserById } from "../data/users";
@@ -93,7 +94,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
       });
     } catch (err: any) {
       await logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: "error", latencyMs: Date.now() - startTime });
-      res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+      res.status(500).json({ error: { message: `Upstream request failed: ${sanitizeUpstreamError(err)}` } });
     }
   } else {
     // ── 走 DashScope（百炼）──
@@ -151,7 +152,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
       res.json(data);
     } catch (err: any) {
       await logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: "error", latencyMs: Date.now() - startTime });
-      res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+      res.status(500).json({ error: { message: `Upstream request failed: ${sanitizeUpstreamError(err)}` } });
     }
   }
 }
@@ -202,7 +203,7 @@ async function handleImageToVideo(req: Request, res: Response) {
         output: { task_id: String(data.Resp?.video_id || ""), task_status: "PENDING" },
       });
     } catch (err: any) {
-      res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+      res.status(500).json({ error: { message: `Upstream request failed: ${sanitizeUpstreamError(err)}` } });
     }
   } else {
     // DashScope
@@ -234,7 +235,7 @@ async function handleImageToVideo(req: Request, res: Response) {
       await logUsage({ apiKeyId: keyRecord.id, model, promptTokens: 0, completionTokens: 0, totalTokens: 0, cost: 0, status: response.ok ? "success" : "error", latencyMs: Date.now() });
       res.status(response.status).json(data);
     } catch (err: any) {
-      res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+      res.status(500).json({ error: { message: `Upstream request failed: ${sanitizeUpstreamError(err)}` } });
     }
   }
 }
@@ -292,7 +293,7 @@ router.get("/tasks/:taskId", async (req: Request, res: Response) => {
       res.status(response.status).json(data);
     }
   } catch (err: any) {
-    res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+    res.status(500).json({ error: { message: `Upstream request failed: ${sanitizeUpstreamError(err)}` } });
   }
 });
 
@@ -325,7 +326,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
       res.status(response.status).json(data);
     }
   } catch (err: any) {
-    res.status(500).json({ error: { message: `Upstream request failed: ${err.message}` } });
+    res.status(500).json({ error: { message: `Upstream request failed: ${sanitizeUpstreamError(err)}` } });
   }
 });
 

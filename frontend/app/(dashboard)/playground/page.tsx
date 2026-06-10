@@ -47,7 +47,7 @@ interface AIModel {
 }
 interface Message { role: "user" | "assistant" | "system"; content: string; reasoningContent?: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
 interface UsageInfo { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost: string; }
-type ModelMode = "chat" | "image" | "video";
+type ModelMode = "chat" | "image" | "video" | "audio";
 
 interface UploadedFile {
   id: string;
@@ -400,6 +400,7 @@ function PlaygroundInner() {
     if (m) {
       if (m.category === "图像生成") setMode("image");
       else if (m.category === "视频生成") setMode("video");
+      else if (m.category === "语音模型") setMode("audio");
       else setMode("chat");
       if (m.capabilities?.supports_enable_thinking) {
         setEnableThinking(Boolean(m.capabilities.thinking_default));
@@ -420,18 +421,41 @@ function PlaygroundInner() {
   async function sendChatMessageStream() {
     if (!input.trim() || sending) return;
 
-    const userMsg: Message = { role: "user", content: input.trim(), type: "text" };
+    // 获取已上传的图像（视觉聊天模型用）
+    const { images: chatImages } = getUploadedUrls();
+    const currentModelData = models.find(m => m.id === selectedModel);
+    const isVisionChat = currentModelData?.capabilities?.supports_vision && chatImages.length > 0;
+
+    // 构建用户消息：如有图像，使用多模态格式
+    const userMsg: Message = isVisionChat
+      ? { role: "user", content: input.trim(), type: "image", mediaUrl: chatImages[0], status: "done" }
+      : { role: "user", content: input.trim(), type: "text" };
+
     const assistantMsg: Message = { role: "assistant", content: "", reasoningContent: "", type: "text", isStreaming: true };
 
     setMessages((p) => [...p, userMsg, assistantMsg]);
     setInput("");
     setSending(true);
+    if (isVisionChat) setUploadedFiles([]);  // 图像已附加到消息，清空上传区
 
+    // 构建发送给 API 的消息列表（不再过滤非文本消息）
     const allMsgs = [
       ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
-      ...messages.filter(m => m.type === "text"),
+      ...messages,
       userMsg,
     ];
+
+    // 将 Message 转换为 API 格式：图像消息 → 多模态 content 数组
+    const buildApiMessage = (m: Message) => {
+      if (m.type === "image" && m.mediaUrl) {
+        const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+          { type: "image_url", image_url: { url: m.mediaUrl } },
+        ];
+        if (m.content) contentParts.push({ type: "text", text: m.content });
+        return { role: m.role, content: contentParts };
+      }
+      return { role: m.role, content: m.content };
+    };
 
     // 创建 AbortController 用于取消请求
     abortControllerRef.current = new AbortController();
@@ -452,7 +476,7 @@ function PlaygroundInner() {
         headers: getChatHeaders(),
         body: JSON.stringify({
           model: selectedModel,
-          messages: allMsgs.map(m => ({ role: m.role, content: m.content })),
+          messages: allMsgs.map(buildApiMessage),
           stream: true,
           ...getChatRequestOptions(),
         }),
@@ -591,16 +615,37 @@ function PlaygroundInner() {
       return;
     }
 
-    const userMsg: Message = { role: "user", content: input.trim(), type: "text" };
+    // 获取已上传的图像（视觉聊天模型用）
+    const { images: chatImages } = getUploadedUrls();
+    const currentModelData = models.find(m => m.id === selectedModel);
+    const isVisionChat = currentModelData?.capabilities?.supports_vision && chatImages.length > 0;
+
+    const userMsg: Message = isVisionChat
+      ? { role: "user", content: input.trim(), type: "image", mediaUrl: chatImages[0], status: "done" }
+      : { role: "user", content: input.trim(), type: "text" };
+
     const allMsgs = [
       ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
-      ...messages.filter(m => m.type === "text"),
+      ...messages,
       userMsg,
     ];
+
+    // 将 Message 转换为 API 格式
+    const buildApiMessage = (m: Message) => {
+      if (m.type === "image" && m.mediaUrl) {
+        const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+          { type: "image_url", image_url: { url: m.mediaUrl } },
+        ];
+        if (m.content) contentParts.push({ type: "text", text: m.content });
+        return { role: m.role, content: contentParts };
+      }
+      return { role: m.role, content: m.content };
+    };
 
     setMessages((p) => [...p, userMsg]);
     setInput("");
     setSending(true);
+    if (isVisionChat) setUploadedFiles([]);
 
     try {
       const res = await fetch(getChatEndpoint(), {
@@ -608,7 +653,7 @@ function PlaygroundInner() {
         headers: getChatHeaders(),
         body: JSON.stringify({
           model: selectedModel,
-          messages: allMsgs.map(m => ({ role: m.role, content: m.content })),
+          messages: allMsgs.map(buildApiMessage),
           stream: false,
           ...getChatRequestOptions(),
         }),
@@ -904,9 +949,10 @@ function PlaygroundInner() {
       }
     } else if (mode === "image") {
       generateImage();
-    } else {
+    } else if (mode === "video") {
       generateVideo();
     }
+    // audio mode: no-op for now
   }
 
   function handleHistorySelect(entry: HistoryEntry) {
@@ -956,7 +1002,15 @@ function PlaygroundInner() {
       "wan2.6-t2v": { maxImages: 0, maxVideos: 0, accept: "", multiple: false },
       "wan2.6-t2i": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: false },
     };
-    return configs[modelId] || { maxImages: 0, maxVideos: 0, accept: "", multiple: false };
+    if (configs[modelId]) return configs[modelId];
+
+    // 视觉聊天模型：支持图像输入（如 qwen3.7-plus、qwen-vl-max 等）
+    const selectedModelData = models.find(m => m.id === modelId);
+    if (selectedModelData?.capabilities?.supports_vision) {
+      return { maxImages: 5, maxVideos: 0, accept: "image/*", multiple: true, requiredImages: false };
+    }
+
+    return { maxImages: 0, maxVideos: 0, accept: "", multiple: false };
   }
 
   function needsUpload(modelId: string) {
@@ -1127,11 +1181,13 @@ function PlaygroundInner() {
     chat: { label: "文本对话", color: "var(--success)", bg: "var(--success-bg)", border: "var(--success-border)" },
     image: { label: "图片生成", color: "var(--warning)", bg: "var(--warning-bg)", border: "var(--warning-border)" },
     video: { label: "视频生成", color: "var(--accent)", bg: "var(--accent-bg)", border: "var(--accent-border)" },
+    audio: { label: "语音模型", color: "#7c2d12", bg: "#fff7ed", border: "#fed7aa" },
   };
   const placeholders = {
     chat: "输入消息... (Enter 发送，Shift+Enter 换行)",
     image: "描述你想生成的图片...",
     video: "描述你想生成的视频...",
+    audio: "语音模型 Playground 即将上线，敬请期待",
   };
 
   return (
@@ -1403,13 +1459,13 @@ function PlaygroundInner() {
                 {mode === "video" && <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>}
               </div>
               <div style={{ fontSize: 15, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}>
-                {mode === "chat" ? "开始对话" : mode === "image" ? "生成图片" : "生成视频"}
+                {mode === "chat" ? "开始对话" : mode === "image" ? "生成图片" : mode === "video" ? "生成视频" : "语音模型"}
               </div>
               <div style={{ fontSize: 12.5, color: "var(--text-tertiary)" }}>
                 当前模型: {currentModel?.name || "未选择"}
               </div>
               <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", marginTop: 10, opacity: 0.7 }}>
-                {mode === "chat" ? (streamEnabled ? "流式模式：实时显示生成内容" : "在下方输入消息，按 Enter 发送") : "在下方输入描述，点击生成"}
+                {mode === "audio" ? "语音模型 Playground 即将上线，敬请期待" : mode === "chat" ? (streamEnabled ? "流式模式：实时显示生成内容" : "在下方输入消息，按 Enter 发送") : "在下方输入描述，点击生成"}
               </div>
                           </div>
           )}
@@ -1831,8 +1887,8 @@ function PlaygroundInner() {
               className={canUsePlayground ? "btn-primary" : "btn-secondary"}
               style={{ padding: "9px 18px", alignSelf: "flex-end", flexShrink: 0, opacity: canUsePlayground ? 1 : 0.6 }}
               onClick={handleSend}
-              disabled={sending || !input.trim() || !canUsePlayground}
-              title={!canUsePlayground ? "请先登录" : "调用会从账户余额扣费"}
+              disabled={sending || !input.trim() || !canUsePlayground || mode === "audio"}
+              title={mode === "audio" ? "语音模型 Playground 即将上线" : !canUsePlayground ? "请先登录" : "调用会从账户余额扣费"}
             >
               {sending ? (
                 <span className="spinner" style={{ width: 13, height: 13 }} />

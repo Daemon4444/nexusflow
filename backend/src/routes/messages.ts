@@ -18,6 +18,9 @@ import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
 import { getRequestedRegion, resolveUpstream } from "../services/upstream";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
+import { calculateOpenAiCacheAwareCost, buildApiDescription, getOpenAiPromptCacheUsage, hasCacheControl } from "../utils/cache-billing";
+import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
+import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
 const router = Router();
 
@@ -39,18 +42,20 @@ function anthropicContentToOpenAI(content: any): string | any[] {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
 
-  // Check if all blocks are text-only (no images, no cache_control)
-  const allSimpleText = content.every((block: any) => block.type === "text" && !block.cache_control);
-  if (allSimpleText) {
+  // Keep marked text blocks structured so upstream cache_control survives conversion.
+  const allText = content.every((block: any) => block.type === "text" && !block.cache_control);
+  if (allText) {
     return content.map((block: any) => block.text).join("");
   }
 
   // Mixed content: convert to OpenAI multimodal format, preserving cache_control
   return content.map((block: any) => {
     if (block.type === "text") {
-      const item: any = { type: "text", text: block.text };
-      if (block.cache_control) item.cache_control = block.cache_control;
-      return item;
+      return {
+        type: "text",
+        text: block.text,
+        ...(block.cache_control ? { cache_control: block.cache_control } : {}),
+      };
     }
     if (block.type === "image") {
       const source = block.source;
@@ -86,24 +91,12 @@ function convertToOpenAI(body: any): any {
     if (typeof body.system === "string") {
       openaiMessages.push({ role: "system", content: body.system });
     } else if (Array.isArray(body.system)) {
-      const hasCacheControl = body.system.some((b: any) => b.cache_control);
-      if (hasCacheControl) {
-        const contentBlocks = body.system
-          .filter((b: any) => b.type === "text")
-          .map((b: any) => {
-            const item: any = { type: "text", text: b.text };
-            if (b.cache_control) item.cache_control = b.cache_control;
-            return item;
-          });
-        openaiMessages.push({ role: "system", content: contentBlocks });
-      } else {
-        const systemText = body.system
-          .filter((b: any) => b.type === "text")
-          .map((b: any) => b.text)
-          .join("\n");
-        if (systemText) {
-          openaiMessages.push({ role: "system", content: systemText });
-        }
+      const systemContent = anthropicContentToOpenAI(body.system);
+      if (
+        (typeof systemContent === "string" && systemContent) ||
+        (Array.isArray(systemContent) && systemContent.length > 0)
+      ) {
+        openaiMessages.push({ role: "system", content: systemContent });
       }
     }
   }
@@ -198,6 +191,16 @@ function convertToAnthropic(openaiData: any, model: string): any {
   }
 
   const stopReason = mapFinishReason(choice?.finish_reason);
+  const details = usage.prompt_tokens_details || {};
+  const cacheReadTokens = details.cached_tokens || 0;
+  const cacheCreationTokens = details.cache_creation_input_tokens || 0;
+
+  const usageOut: any = {
+    input_tokens: usage.prompt_tokens || 0,
+    output_tokens: usage.completion_tokens || 0,
+  };
+  if (cacheReadTokens > 0) usageOut.cache_read_input_tokens = cacheReadTokens;
+  if (cacheCreationTokens > 0) usageOut.cache_creation_input_tokens = cacheCreationTokens;
 
   return {
     id: `msg_${openaiData.id || Date.now()}`,
@@ -207,14 +210,7 @@ function convertToAnthropic(openaiData: any, model: string): any {
     model,
     stop_reason: stopReason,
     stop_sequence: null,
-    usage: {
-      input_tokens: usage.prompt_tokens || 0,
-      output_tokens: usage.completion_tokens || 0,
-      ...((usage.prompt_tokens_details?.cached_tokens || usage.prompt_tokens_details?.cache_creation_input_tokens) ? {
-        cache_read_input_tokens: usage.prompt_tokens_details.cached_tokens || 0,
-        cache_creation_input_tokens: usage.prompt_tokens_details.cache_creation_input_tokens || 0,
-      } : {}),
-    },
+    usage: usageOut,
   };
 }
 
@@ -268,7 +264,7 @@ function rejectInsufficientBalance(res: Response): void {
   });
 }
 
-async function calculateAnthropicUsageCost(userId: string | null | undefined, model: any, usage: any): Promise<number> {
+async function calculateAnthropicUsageCost(userId: string | null | undefined, model: any, usage: any) {
   const inputTokens = usage?.input_tokens || 0;
   const outputTokens = usage?.output_tokens || 0;
   const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
@@ -279,7 +275,8 @@ async function calculateAnthropicUsageCost(userId: string | null | undefined, mo
     + (cacheCreationTokens / 1_000_000) * model.promptPrice * 1.25
     + (cacheReadTokens / 1_000_000) * model.promptPrice * 0.1
     + (outputTokens / 1_000_000) * model.completionPrice;
-  return (await applyUserModelDiscount(userId, model.id, listAmount)).finalAmount;
+  const discounted = await applyUserModelDiscount(userId, model.id, listAmount);
+  return { ...discounted, cachedTokens: cacheReadTokens, cacheCreationTokens };
 }
 
 function getAnthropicVersion(req: Request): string {
@@ -408,6 +405,9 @@ router.post("/", async (req: Request, res: Response) => {
   const startTime = Date.now();
   const logId = require("crypto").randomUUID();
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
+  acquireConcurrency(upstream.providerId, modelId);
+
+  try {
 
   if (upstream.providerId === "anthropic") {
     try {
@@ -463,7 +463,7 @@ router.post("/", async (req: Request, res: Response) => {
           lastChunkTime = now;
           chunkCount++;
           const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-          const rewritten = text.replace(/"id":"[^"]*"/g, `"id":"${logId}"`);
+          const rewritten = text.replace(/"id":"[^"]*"/, `"id":"msg_${logId}"`);
           fullResponse += rewritten;
           res.write(rewritten);
         };
@@ -491,7 +491,7 @@ router.post("/", async (req: Request, res: Response) => {
         }
 
         const latencyMs = Date.now() - startTime;
-        const totalCost = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, {
+        const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, {
           input_tokens: inputTokens,
           output_tokens: outputTokens,
           cache_creation_input_tokens: cacheCreationInputTokens,
@@ -509,23 +509,27 @@ router.post("/", async (req: Request, res: Response) => {
           promptTokens: inputTokens,
           completionTokens: outputTokens,
           totalTokens,
-          cost: totalCost,
+          cost: billing.finalAmount,
           status: "success",
           latencyMs,
           ttftMs,
           tpotMs,
+          cachedTokens: cacheReadInputTokens,
+          cacheCreationTokens: cacheCreationInputTokens,
         });
         recordProviderTokens(upstream.providerId, modelId, totalTokens);
         if (apiKeyRecord.user_id) {
           await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
         }
 
-        if (apiKeyRecord.user_id && totalCost > 0) {
+        if (apiKeyRecord.user_id && billing.finalAmount > 0) {
           await consume(
             apiKeyRecord.user_id,
-            totalCost,
-            `API (Claude): ${modelId} (${totalTokens} tokens, stream)`,
-            apiKeyRecord.id
+            billing.finalAmount,
+            buildApiDescription(modelId, totalTokens, cacheReadInputTokens, true),
+            apiKeyRecord.id,
+            billing.discountRate,
+            billing.discountAmount,
           );
         }
         return;
@@ -538,7 +542,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       const usage = data.usage || {};
-      const totalCost = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage);
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage);
       const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
       await logUsage({
         region: upstream.region,
@@ -548,26 +552,30 @@ router.post("/", async (req: Request, res: Response) => {
         promptTokens: usage.input_tokens || 0,
         completionTokens: usage.output_tokens || 0,
         totalTokens,
-        cost: totalCost,
+        cost: billing.finalAmount,
         status: "success",
         latencyMs: Date.now() - startTime,
+        cachedTokens: usage.cache_read_input_tokens || 0,
+        cacheCreationTokens: usage.cache_creation_input_tokens || 0,
       });
       recordProviderTokens(upstream.providerId, modelId, totalTokens);
       if (apiKeyRecord.user_id) {
         await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
       }
 
-      if (apiKeyRecord.user_id && totalCost > 0) {
+      if (apiKeyRecord.user_id && billing.finalAmount > 0) {
         await consume(
           apiKeyRecord.user_id,
-          totalCost,
-          `API (Claude): ${modelId} (${totalTokens} tokens)`,
-          apiKeyRecord.id
+          billing.finalAmount,
+          buildApiDescription(modelId, totalTokens, usage.cache_read_input_tokens || 0),
+          apiKeyRecord.id,
+          billing.discountRate,
+          billing.discountAmount,
         );
       }
 
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
-      if (data && typeof data === "object") data.id = logId;
+      if (data && typeof data === "object") data.id = `msg_${logId}`;
       res.json(data);
       return;
     } catch (err: any) {
@@ -588,7 +596,7 @@ router.post("/", async (req: Request, res: Response) => {
         type: "error",
         error: {
           type: "api_error",
-          message: `Upstream request failed: ${err.message}`,
+          message: `Upstream request failed: ${sanitizeUpstreamError(err)}`,
         },
       });
       return;
@@ -601,7 +609,8 @@ router.post("/", async (req: Request, res: Response) => {
     ...req.body,
     ...convertedRequest,
   });
-  const messageId = logId;
+  const explicitCache = hasCacheControl(openaiRequest.messages);
+  const messageId = `msg_${logId}`;
 
   try {
     if (stream) {
@@ -651,13 +660,15 @@ router.post("/", async (req: Request, res: Response) => {
       let contentBlockStarted = false;
       let inputTokens = 0;
       let outputTokens = 0;
+      let cachedTokens = 0;
+      let cacheCreationTokens = 0;
       let ttftMs = 0;
       let chunkCount = 0;
       let firstChunkTime = 0;
       let lastChunkTime = 0;
       let fullText = "";
-      let cachedTokensStream = 0;
-      let cacheCreationStream = 0;
+      let pendingFinishReason: string | undefined;
+      let contentBlockStopped = false;
 
       const processLine = (line: string) => {
         const event = parseSseEvent(line);
@@ -669,8 +680,9 @@ router.post("/", async (req: Request, res: Response) => {
         if (event?.usage) {
           inputTokens = event.usage.prompt_tokens || inputTokens;
           outputTokens = event.usage.completion_tokens || outputTokens;
-          cachedTokensStream = event.usage.prompt_tokens_details?.cached_tokens || cachedTokensStream;
-          cacheCreationStream = event.usage.prompt_tokens_details?.cache_creation_input_tokens || cacheCreationStream;
+          const cacheUsage = getOpenAiPromptCacheUsage(event.usage);
+          cachedTokens = cacheUsage.cachedTokens || cachedTokens;
+          cacheCreationTokens = cacheUsage.cacheCreationTokens || cacheCreationTokens;
         }
 
         if (delta?.content && !contentBlockStarted) {
@@ -692,28 +704,14 @@ router.post("/", async (req: Request, res: Response) => {
         }
 
         if (finishReason) {
-          if (contentBlockStarted) {
+          pendingFinishReason = finishReason;
+          if (contentBlockStarted && !contentBlockStopped) {
             res.write(`event: content_block_stop\ndata: ${JSON.stringify({
               type: "content_block_stop",
               index: 0,
             })}\n\n`);
+            contentBlockStopped = true;
           }
-
-          const stopReason = mapFinishReason(finishReason);
-          const deltaUsage: any = { output_tokens: outputTokens };
-          if (cachedTokensStream > 0 || cacheCreationStream > 0) {
-            deltaUsage.cache_read_input_tokens = cachedTokensStream;
-            deltaUsage.cache_creation_input_tokens = cacheCreationStream;
-          }
-          res.write(`event: message_delta\ndata: ${JSON.stringify({
-            type: "message_delta",
-            delta: { stop_reason: stopReason, stop_sequence: null },
-            usage: deltaUsage,
-          })}\n\n`);
-
-          res.write(`event: message_stop\ndata: ${JSON.stringify({
-            type: "message_stop",
-          })}\n\n`);
         }
       };
 
@@ -767,11 +765,48 @@ router.post("/", async (req: Request, res: Response) => {
         processLine(buffer);
       }
 
+      if (contentBlockStarted && !contentBlockStopped) {
+        res.write(`event: content_block_stop\ndata: ${JSON.stringify({
+          type: "content_block_stop",
+          index: 0,
+        })}\n\n`);
+      }
+
+      res.write(`event: message_delta\ndata: ${JSON.stringify({
+        type: "message_delta",
+        delta: {
+          stop_reason: mapFinishReason(pendingFinishReason),
+          stop_sequence: null,
+        },
+        usage: {
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          cache_read_input_tokens: cachedTokens,
+          cache_creation_input_tokens: cacheCreationTokens,
+        },
+      })}\n\n`);
+
+      res.write(`event: message_stop\ndata: ${JSON.stringify({
+        type: "message_stop",
+      })}\n\n`);
+
       res.end();
 
       // Billing
       const latencyMs = Date.now() - startTime;
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, inputTokens, outputTokens, cachedTokensStream, cacheCreationStream)).finalAmount;
+      const billing = await calculateOpenAiCacheAwareCost({
+        userId: apiKeyRecord.user_id,
+        model,
+        usage: {
+          prompt_tokens: inputTokens,
+          completion_tokens: outputTokens,
+          prompt_tokens_details: {
+            cached_tokens: cachedTokens,
+            cache_creation_input_tokens: cacheCreationTokens,
+          },
+        },
+        explicitCache,
+      });
 
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
@@ -784,25 +819,27 @@ router.post("/", async (req: Request, res: Response) => {
         promptTokens: inputTokens,
         completionTokens: outputTokens,
         totalTokens: inputTokens + outputTokens,
-        cost: totalCost,
+        cost: billing.finalAmount,
         status: "success",
         latencyMs,
         ttftMs,
         tpotMs,
-        cachedTokens: cachedTokensStream,
-        cacheCreationTokens: cacheCreationStream,
+        cachedTokens,
+        cacheCreationTokens,
       });
       recordProviderTokens(upstream.providerId, modelId, inputTokens + outputTokens);
       if (apiKeyRecord.user_id) {
         await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, inputTokens + outputTokens);
       }
 
-      if (apiKeyRecord.user_id && totalCost > 0) {
+      if (apiKeyRecord.user_id && billing.finalAmount > 0) {
         await consume(
           apiKeyRecord.user_id,
-          totalCost,
-          `API (Anthropic): ${modelId} (${inputTokens + outputTokens} tokens, stream)`,
-          apiKeyRecord.id
+          billing.finalAmount,
+          buildApiDescription(modelId, inputTokens + outputTokens, billing.cachedTokens, true),
+          apiKeyRecord.id,
+          billing.discountRate,
+          billing.discountAmount,
         );
       }
       return;
@@ -834,14 +871,17 @@ router.post("/", async (req: Request, res: Response) => {
 
     // Convert to Anthropic format
     const anthropicResponse = convertToAnthropic(data, modelId);
-    anthropicResponse.id = logId;
+    anthropicResponse.id = `msg_${logId}`;
 
     // Billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const cachedTokensNonStream = usage.prompt_tokens_details?.cached_tokens || 0;
-    const cacheCreationNonStream = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
-    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, cachedTokensNonStream, cacheCreationNonStream)).finalAmount;
+    const billing = await calculateOpenAiCacheAwareCost({
+      userId: apiKeyRecord.user_id,
+      model,
+      usage,
+      explicitCache,
+    });
 
     await logUsage({
       region: upstream.region,
@@ -851,23 +891,25 @@ router.post("/", async (req: Request, res: Response) => {
       promptTokens: usage.prompt_tokens || 0,
       completionTokens: usage.completion_tokens || 0,
       totalTokens: usage.total_tokens || 0,
-      cost: totalCost,
+      cost: billing.finalAmount,
       status: "success",
       latencyMs,
-      cachedTokens: cachedTokensNonStream,
-      cacheCreationTokens: cacheCreationNonStream,
+      cachedTokens: billing.cachedTokens,
+      cacheCreationTokens: billing.cacheCreationTokens,
     });
     recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
     if (apiKeyRecord.user_id) {
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, usage.total_tokens || 0);
     }
 
-    if (apiKeyRecord.user_id && totalCost > 0) {
+    if (apiKeyRecord.user_id && billing.finalAmount > 0) {
       await consume(
         apiKeyRecord.user_id,
-        totalCost,
-        `API (Anthropic): ${modelId} (${usage.total_tokens || 0} tokens)`,
-        apiKeyRecord.id
+        billing.finalAmount,
+        buildApiDescription(modelId, usage.total_tokens || 0, billing.cachedTokens),
+        apiKeyRecord.id,
+        billing.discountRate,
+        billing.discountAmount,
       );
     }
 
@@ -891,9 +933,13 @@ router.post("/", async (req: Request, res: Response) => {
       type: "error",
       error: {
         type: "api_error",
-        message: `Upstream request failed: ${err.message}`,
+        message: `Upstream request failed: ${sanitizeUpstreamError(err)}`,
       },
     });
+  }
+
+  } finally {
+    releaseConcurrency(upstream.providerId, modelId);
   }
 });
 

@@ -24,7 +24,7 @@
 
 NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
-- **45+ 模型**: 涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、图像生成和视频生成
+- **50+ 模型**: 涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成
 - **OpenAI 协议兼容**: 支持 OpenAI Chat Completions、Embeddings、Image Generations 协议
 - **多协议支持**: 同时支持 Anthropic Messages 和 Google Generate Content 协议
 - **统一计费**: 按 Token 或按生成数量计费，价格透明
@@ -36,15 +36,16 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
 | 分类 | 模型数量 | 说明 |
 |------|----------|------|
-| 大语言模型 | 21 | 通用对话、文本生成 |
+| 大语言模型 | 23 | 通用对话、文本生成 |
 | 推理模型 | 4 | 数学、逻辑、复杂推理 |
-| 多模态模型 | 5 | 视觉理解、图像输入 |
+| 多模态模型 | 6 | 视觉理解、图像输入 |
 | 编程模型 | 2 | 代码生成、代码补全 |
-| 专业模型 | 1 | 翻译专用 |
-| 向量模型 | 1 | 文本嵌入、语义搜索 |
+| 专业模型 | 2 | 翻译、意图识别 |
+| 向量模型 | 2 | 文本嵌入、语义搜索 |
+| 语音模型 | 2 | 语音识别、语音合成 |
 | 图像生成 | 1 | 文生图、图像编辑 |
 | 视频生成 | 11 | 文生视频、图生视频、视频编辑 |
-| **总计** | **45** | |
+| **总计** | **53** | |
 
 ---
 
@@ -107,11 +108,13 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | `qwen-plus` | Qwen Plus | 131K | 16K | ¥0.8/M | ¥2/M | 经典平衡 |
 | `qwen-turbo` | Qwen Turbo | 131K | 16K | ¥0.3/M | ¥0.6/M | 最快最便宜 |
 | `qwen-long` | Qwen Long | **10M** | 8K | ¥0.5/M | ¥2/M | 超长文本 |
+| `qwen-flash` | Qwen Flash | **1M** | 32K | ¥0.15/M | ¥1.5/M | 极速低成本，思考模式 |
 
 ### Qwen3 开源系列
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
+| `qwen3.6-35b-a3b` | Qwen3.6 35B-A3B | 262K | 32K | ¥1.8/M | ¥10.8/M | MoE 35B/3B，思考模式 |
 | `qwen3-235b-a22b` | Qwen3 235B-A22B | 131K | 8K | ¥1/M | ¥4/M | MoE架构，思考模式 |
 | `qwen3-32b` | Qwen3 32B | 131K | 8K | ¥0.5/M | ¥2/M | 开源密集模型 |
 | `qwen3-8b` | Qwen3 8B | 131K | 8K | **免费** | **免费** | 轻量边缘部署 |
@@ -168,6 +171,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | `qwen3-vl-plus` | Qwen3 VL Plus | 262K | 8K | ¥1/M | ¥10/M | 文本、图像(高分辨率) |
 | `qwen3-vl-flash` | Qwen3 VL Flash | 131K | 8K | **免费** | **免费** | 文本、图像 |
 | `qwen3-omni-flash` | Qwen3 Omni Flash | 65K | 8K | ¥1.8/M | ¥6.9/M | 文本、图像、视频 |
+| `qwen3.7-plus` | Qwen3.7 Plus | **1M** | 64K | ¥2/M | ¥8/M | 文本、图像，智能体，思考模式 |
 
 ---
 
@@ -185,6 +189,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
 | `qwen-mt-plus` | Qwen MT Plus | 16K | 8K | ¥1.8/M | ¥5.4/M | 92语种翻译 |
+| `tongyi-intent-detect-v3` | 通义意图识别 V3 | 8K | 1K | ¥0.42/M | ¥1.04/M | 百毫秒级意图识别 |
 
 ---
 
@@ -193,6 +198,17 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | 模型 ID | 名称 | 上下文窗口 | 输出维度 | 输入价格 | 输出价格 | 应用场景 |
 |---------|------|------------|----------|----------|----------|----------|
 | `text-embedding-v4` | Text Embedding V4 | 8K | 64-2048 维可选 | ¥0.5/M | ¥0/M | 语义搜索、聚类、推荐、分类 |
+
+---
+
+## 语音模型
+
+| 模型 ID | 名称 | 类型 | 价格 | 支持功能 |
+|---------|------|------|------|----------|
+| `qwen3-asr-flash` | Qwen3 ASR Flash | 语音识别 | ¥0.23/秒 | 11语言识别、情感识别、说话人分离 |
+| `qwen3-tts-flash-realtime` | Qwen3 TTS Flash Realtime | 语音合成 | ¥1/秒 | 实时流式合成、多语言多音色 |
+
+语音模型通过 DashScope 专用 API 调用，暂不支持 OpenAI 兼容协议。Playground 语音模型交互界面即将上线。
 
 ---
 
@@ -371,13 +387,14 @@ Authorization: Bearer YOUR_API_KEY
 
 | 提供商 | 模型数量 | 主要模型 |
 |--------|----------|----------|
-| 通义千问 | 21 | Qwen系列、万相、QwQ、Math、MT |
-| DeepSeek | 5 | V3、V3.2、V4、R1 |
+| 通义千问 | 27 | Qwen系列、万相、QwQ、Math、MT、ASR、TTS、意图识别 |
+| DeepSeek | 5 | V3、V3.2、V4 Pro、V4 Flash、R1 |
 | 拍我AI (PixVerse) | 1 | PixVerse V6 |
 | 阿里巴巴 (Alibaba) | 4 | HappyHorse 系列 |
 | 智谱AI | 3 | GLM 4.7、GLM 5、GLM 5.1 |
 | 月之暗面 | 2 | Kimi K2.5、Kimi K2.6 |
 | MiniMax | 2 | M2.1、M2.5 |
+| Anthropic | 3 | Claude Opus 4.7、Sonnet 4.6、Haiku 4.5 |
 
 ---
 
@@ -396,7 +413,7 @@ Authorization: Bearer YOUR_API_KEY
 
 ## 更新日期
 
-文档更新时间: 2026-05-05
+文档更新时间: 2026-06-03
 模型数据来源: `/api/models` API + 代码配置文件
 
 ---
@@ -419,6 +436,7 @@ Authorization: Bearer YOUR_API_KEY
 | 模型 ID | 名称 | 分类 | 推荐场景 |
 |---------|------|------|----------|
 | `qwen3-max` | Qwen3 Max | 大语言 | 通用对话、复杂推理 |
+| `qwen3.7-plus` | Qwen3.7 Plus | 多模态 | 多模态智能体、视觉理解、GUI操作 |
 | `qwen3-coder-plus` | Qwen3 Coder Plus | 编程 | 代码生成、大型代码库 |
 | `qwen-vl-max` | Qwen VL Max | 多模态 | 图像理解、OCR |
 | `deepseek-r1` | DeepSeek R1 | 推理 | 数学、逻辑推理 |

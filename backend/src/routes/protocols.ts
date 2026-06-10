@@ -51,7 +51,7 @@ async function streamOpenAiToGemini(response: globalThis.Response, res: ExpressR
 
   const decoder = new TextDecoder();
   let buffer = "";
-  let usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+  let usage: any = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
   let finishReason = "stop";
   const toolBuffers = new Map<number, { id: string; name: string; arguments: string }>();
 
@@ -138,8 +138,10 @@ async function streamOpenAiToGemini(response: globalThis.Response, res: ExpressR
       },
     ],
     usageMetadata: {
+      cachedContentTokenCount: usage.prompt_tokens_details?.cached_tokens || 0,
       promptTokenCount: usage.prompt_tokens || 0,
       candidatesTokenCount: usage.completion_tokens || 0,
+      thoughtsTokenCount: usage.completion_tokens_details?.reasoning_tokens || 0,
       totalTokenCount: usage.total_tokens || 0,
     },
     modelVersion: modelId,

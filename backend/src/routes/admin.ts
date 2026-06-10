@@ -1,24 +1,104 @@
 import { Router, Request, Response } from "express";
 import { requireAdmin } from "../middleware/admin";
+import { sanitizeError } from "../utils/sanitize-error";
 import { getAdminUserLimitSummaries, getUserLimitsOverview } from "../data/ratelimits";
 import { adminAdjustBalance, getBillingUsageExport, getTransactions } from "../data/billing";
-import { getByModel, getRecent, getUsageSummary } from "../data/usage";
+import { getByModel, getOverview, getRecent, getUsageSummary } from "../data/usage";
+import {
+  getDashboardDailyStats,
+  getDashboardHourlyStats,
+  getUserGrowth,
+  getActiveUserCounts,
+  getTopUsersByUsage,
+  getRevenueOverview,
+  getModelDistribution,
+} from "../data/dashboard";
 import { listUserModelDiscounts } from "../data/user-discounts";
 import { getUserById } from "../data/users";
+import { db } from "../db/client";
+import { getSlsClient } from "../services/sls";
 
 const router = Router();
 
-function sanitizeError(err: unknown): string {
-  if (err && typeof err === "object") {
-    const e = err as any;
-    if (e.name === "AbortError" || e.code === "ABORT_ERR") return "Request timed out.";
-    if (e.code === "ECONNREFUSED") return "Service unavailable.";
-    if (e.code === "ENOTFOUND") return "Service unreachable.";
-  }
-  return "An internal error occurred. Please try again.";
-}
-
 router.use(requireAdmin);
+
+// ========== 监控大盘 ==========
+
+router.get("/dashboard", async (req: Request, res: Response) => {
+  try {
+    const range = String(req.query.range || "7d");
+    const isHourly = range.endsWith("h");
+    const rangeValue = parseInt(range, 10) || (isHourly ? 1 : 7);
+
+    // Parse range into hours/days
+    let hours: number;
+    let days: number;
+    let granularity: "hourly" | "daily";
+
+    if (isHourly) {
+      hours = Math.min(Math.max(rangeValue, 1), 24);
+      days = Math.ceil(hours / 24) || 1;
+      granularity = "hourly";
+    } else {
+      days = Math.min(Math.max(rangeValue, 1), 90);
+      hours = days * 24;
+      granularity = "daily";
+    }
+
+    const growthDays = Math.min(days * 4, 30); // user growth always shows up to 30 days
+
+    // Get time series data based on granularity
+    const timeSeriesPromise = granularity === "hourly"
+      ? getDashboardHourlyStats(hours)
+      : getDashboardDailyStats(days);
+
+    const [timeSeries, userGrowth, activeUsers, topUsers, revenue, modelDist, overview] =
+      await Promise.all([
+        timeSeriesPromise,
+        getUserGrowth(growthDays),
+        getActiveUserCounts(),
+        getTopUsersByUsage(10, days),
+        getRevenueOverview(days),
+        getModelDistribution(),
+        getOverview(), // global scope (no userId)
+      ]);
+
+    // Compute period totals from time series
+    const periodTotals = timeSeries.reduce(
+      (acc, item) => ({
+        requests: acc.requests + item.requests,
+        success: acc.success + item.success,
+        errors: acc.errors + item.errors,
+        cost: acc.cost + item.cost,
+      }),
+      { requests: 0, success: 0, errors: 0, cost: 0 }
+    );
+    const periodSuccessRate = periodTotals.requests > 0
+      ? Math.round((periodTotals.success / periodTotals.requests) * 1000) / 10
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        timeSeries,
+        userGrowth,
+        activeUsers,
+        topUsers,
+        revenue,
+        modelDist,
+        overview,
+        granularity,
+        period: {
+          requests: periodTotals.requests,
+          successRate: periodSuccessRate,
+          cost: Number(periodTotals.cost.toFixed(2)),
+        },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: sanitizeError(err) });
+  }
+});
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -43,6 +123,8 @@ function usageRowsToCsv(rows: Record<string, unknown>[]): string {
     "prompt_tokens",
     "completion_tokens",
     "total_tokens",
+    "cached_tokens",
+    "cache_creation_tokens",
     "tier_label",
     "tier_max_tokens",
     "prompt_unit_price_cny_per_1m_tokens",
@@ -133,6 +215,8 @@ router.get("/users/:id/billing-export.csv", async (req: Request, res: Response) 
       prompt_tokens: row.prompt_tokens,
       completion_tokens: row.completion_tokens,
       total_tokens: row.total_tokens,
+      cached_tokens: row.cached_tokens,
+      cache_creation_tokens: row.cache_creation_tokens,
       tier_label: row.tier_label,
       tier_max_tokens: row.tier_max_tokens,
       prompt_unit_price_cny_per_1m_tokens: row.prompt_unit_price_cny_per_1m,
@@ -183,6 +267,95 @@ router.post("/users/:id/balance-adjust", async (req: Request, res: Response) => 
     return;
   }
   res.json({ success: true, data: tx, message: "余额已调整" });
+});
+
+// ========== 日志查询端点（Admin 全局可见） ==========
+
+router.get("/logs/search", async (req: Request, res: Response) => {
+  try {
+    const { log_id, model, user_id, from, to } = req.query;
+    const maxLimit = Math.min(Number(req.query.limit) || 50, 200);
+
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (log_id) { conditions.push(`ul.log_id = $${idx++}`); params.push(log_id); }
+    if (model) { conditions.push(`ul.model = $${idx++}`); params.push(model); }
+    if (user_id) { conditions.push(`ul.user_id = $${idx++}`); params.push(user_id); }
+    if (from) { conditions.push(`ul.created_at >= $${idx++}`); params.push(from); }
+    if (to) { conditions.push(`ul.created_at <= $${idx++}`); params.push(to); }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const rows = await db.queryMany(
+      `SELECT ul.log_id, ul.user_id, ul.model, ul.status,
+              ul.prompt_tokens, ul.completion_tokens, ul.total_tokens,
+              ROUND(ul.cost::numeric, 6)::float as cost, ul.latency_ms,
+              COALESCE(ul.cached_tokens, 0)::int as cached_tokens,
+              COALESCE(ul.cache_creation_tokens, 0)::int as cache_creation_tokens,
+              u.email as user_email, u.nickname as user_nickname,
+              to_char(ul.created_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD HH24:MI:SS') as time
+       FROM usage_logs ul
+       LEFT JOIN users u ON ul.user_id = u.id
+       ${where}
+       ORDER BY ul.created_at DESC
+       LIMIT $${idx}`,
+      [...params, maxLimit]
+    );
+    res.json({ success: true, data: rows });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: sanitizeError(err) });
+  }
+});
+
+router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
+  try {
+    const { logId } = req.params;
+
+    // Admin 可查任意日志，不检查 user_id
+    const row = await db.queryOne<{ user_id: string; created_at: string; user_email: string; user_nickname: string }>(
+      `SELECT ul.user_id, ul.created_at, u.email as user_email, u.nickname as user_nickname
+       FROM usage_logs ul
+       LEFT JOIN users u ON ul.user_id = u.id
+       WHERE ul.log_id = $1`,
+      [logId]
+    );
+    if (!row) {
+      res.json({ success: false, message: "日志不存在" });
+      return;
+    }
+
+    const slsClient = getSlsClient();
+    if (!slsClient) {
+      res.json({ success: false, message: "SLS 未配置" });
+      return;
+    }
+
+    const created = new Date(row.created_at);
+    const from = new Date(created.getTime() - 60000);
+    const to = new Date(created.getTime() + 120000);
+
+    const logs = await slsClient.getLogs("nexusflow", "nexusflow", from, to,
+      { query: `"${logId}"`, line: 1 },
+      { readTimeout: 10000, connectTimeout: 5000 }
+    );
+    const entry = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
+
+    res.json({
+      success: true,
+      data: entry ? {
+        request: entry.request || null,
+        response: entry.response || null,
+        user_email: row.user_email,
+        user_nickname: row.user_nickname,
+      } : null,
+      user: { email: row.user_email, nickname: row.user_nickname },
+      note: entry ? undefined : "日志可能仍在索引中（SLS 延迟 1-2 分钟），请稍后重试",
+    });
+  } catch (err: any) {
+    res.json({ success: false, message: sanitizeError(err) });
+  }
 });
 
 export default router;

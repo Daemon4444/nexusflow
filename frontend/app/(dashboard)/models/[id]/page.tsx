@@ -67,6 +67,7 @@ const categoryColors: Record<string, string> = {
   "视频生成": "#f97316",
   "向量模型": "#0f766e",
   "专业模型": "#64748b",
+  "语音模型": "#7c2d12",
 };
 
 function getProtocolExamples(model: AIModel): ProtocolExample[] {
@@ -242,6 +243,42 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   }'`,
       note: "提交后返回 task_id，再轮询 GET /v1/tasks/:id 获取状态和结果。",
     });
+  }
+
+  if (model.category === "语音模型") {
+    if (model.id.toLowerCase().includes("tts")) {
+      examples.push({
+        id: "openai/audio-speech",
+        label: "OpenAI Audio Speech (TTS)",
+        endpoint: "/v1/audio/speech",
+        filename: "openai-tts.sh",
+        params: ["model", "input", "voice", "response_format"],
+        code: `curl https://api.nexusflow.ai/v1/audio/speech \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "${model.id}",
+    "input": "你好世界，这是语音合成测试。",
+    "voice": "alloy"
+  }' \\
+  --output speech.wav`,
+        note: "返回音频二进制数据。voice 支持 alloy/ash/nova/echo/sage/shimmer 等，也可传 DashScope 原生音色名。",
+      });
+    }
+    if (model.id.toLowerCase().includes("asr")) {
+      examples.push({
+        id: "openai/audio-transcriptions",
+        label: "OpenAI Audio Transcriptions (ASR)",
+        endpoint: "/v1/audio/transcriptions",
+        filename: "openai-asr.sh",
+        params: ["model", "file_url", "response_format"],
+        code: `curl https://api.nexusflow.ai/v1/audio/transcriptions \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -F "model=${model.id}" \\
+  -F "file_url=https://example.com/audio.wav"`,
+        note: "file_url 指向公网可访问的音频文件 URL。返回 { text: '...' } 转录结果。",
+      });
+    }
   }
 
   return examples;

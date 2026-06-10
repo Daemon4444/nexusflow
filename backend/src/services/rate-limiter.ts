@@ -165,7 +165,7 @@ export async function checkRPM(
 ): Promise<{ allowed: boolean; remaining: number; resetMs: number }> {
   if (USE_REDIS) {
     try {
-      return await checkRateLimitRedis(key, limit, windowMs);
+      return await checkRateLimitRedis(`rpm:${key}`, limit, windowMs);
     } catch {
       // Redis 失败，降级到内存模式
       console.warn("[RateLimiter] Redis 失败，降级到内存模式");
@@ -193,7 +193,7 @@ export async function checkTPM(
 ): Promise<{ allowed: boolean; remaining: number }> {
   if (USE_REDIS) {
     try {
-      return await checkTPMLimitRedis(key, limit, estimatedTokens, windowMs);
+      return await checkTPMLimitRedis(`tpm:${key}`, limit, estimatedTokens, windowMs);
     } catch {
       console.warn("[RateLimiter] Redis 失败，降级到内存模式");
     }

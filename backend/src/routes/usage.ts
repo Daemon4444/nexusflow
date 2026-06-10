@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { sanitizeError } from "../utils/sanitize-error";
 import { getOverview, getDaily, getByModel, getRecent, getUsageLogs, getPerformanceOverview, getPerformanceHourly, getPerformanceByModel, getRecentPerformance } from "../data/usage";
 import { validateSession } from "../data/users";
 import { isAdminSession } from "../middleware/admin";
@@ -161,7 +162,9 @@ router.get("/logs/search", async (req: Request, res: Response) => {
   const { db } = await import("../db/client");
   const rows = await db.queryMany(
     `SELECT log_id, model, status, prompt_tokens, completion_tokens, total_tokens,
-            ROUND(cost::numeric, 6)::float as cost, latency_ms, cached_tokens,
+            ROUND(cost::numeric, 6)::float as cost, latency_ms,
+            COALESCE(cached_tokens, 0)::int as cached_tokens,
+            COALESCE(cache_creation_tokens, 0)::int as cache_creation_tokens,
             to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD HH24:MI:SS') as time
      FROM usage_logs
      WHERE ${conditions.join(" AND ")}
@@ -200,7 +203,7 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
   const to = new Date(created.getTime() + 120000);
 
   try {
-    const logs = await slsClient.getLogs("nexusflow", "nexusflow", from, to, { query: logId, line: 1 });
+    const logs = await slsClient.getLogs("nexusflow", "nexusflow", from, to, { query: `"${logId}"`, line: 1 }, { readTimeout: 10000, connectTimeout: 5000 });
     const entry = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
     res.json({
       success: true,

@@ -27,6 +27,8 @@ export interface BillingUsageExportRow {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  cached_tokens: number;
+  cache_creation_tokens: number;
   status: string;
   created_at: string;
   tier_label: string;
@@ -64,17 +66,25 @@ function money6(value: number): number {
   return Math.round((Number(value) || 0) * 1_000_000) / 1_000_000;
 }
 
-function getModelBillingBreakdown(model: AIModel | undefined, promptTokens: number, completionTokens: number, billedAmount: number, cachedTokens: number = 0, cacheCreationTokens: number = 0) {
+function getModelBillingBreakdown(
+  model: AIModel | undefined,
+  promptTokens: number,
+  completionTokens: number,
+  billedAmount: number,
+  cachedTokens: number = 0,
+  cacheCreationTokens: number = 0
+) {
   const prompt = Math.max(0, Number(promptTokens || 0));
   const completion = Math.max(0, Number(completionTokens || 0));
   const cached = Math.max(0, Number(cachedTokens || 0));
-  const creation = Math.max(0, Number(cacheCreationTokens || 0));
+  const cacheCreation = Math.max(0, Number(cacheCreationTokens || 0));
   const tier = model ? getTokenPricingTier(model, prompt) : null;
   const promptUnit = tier?.promptPrice ?? model?.promptPrice ?? 0;
   const completionUnit = tier?.completionPrice ?? model?.completionPrice ?? 0;
-  const recalculatedAmount = model ? calculateTokenCost(model, prompt, completion, cached, creation) : Number(billedAmount || 0);
+  const recalculatedAmount = model ? calculateTokenCost(model, prompt, completion, cached, cacheCreation) : Number(billedAmount || 0);
   const promptAmount = (prompt / 1_000_000) * promptUnit;
   const completionAmount = (completion / 1_000_000) * completionUnit;
+  const hasCache = cached > 0 || cacheCreation > 0;
 
   return {
     pricingType: model?.pricingType || "token" as const,
@@ -84,13 +94,15 @@ function getModelBillingBreakdown(model: AIModel | undefined, promptTokens: numb
     completionUnit,
     promptAmount: money6(promptAmount),
     completionAmount: money6(completionAmount),
-    recalculatedAmount: money6(recalculatedAmount),
-    roundingDelta: money6(Number(billedAmount || 0) - recalculatedAmount),
-    pricingNote: tier
-      ? "Input-length tier selected by prompt_tokens for this request"
-      : model
-        ? "Standard catalog price"
-        : "Model not found in current catalog; billed amount preserved",
+    recalculatedAmount: hasCache ? money6(Number(billedAmount || 0)) : money6(recalculatedAmount),
+    roundingDelta: hasCache ? 0 : money6(Number(billedAmount || 0) - recalculatedAmount),
+    pricingNote: hasCache
+      ? "Cache-aware billed amount preserved from usage log; cached token fields show cache savings separately"
+      : tier
+        ? "Input-length tier selected by prompt_tokens for this request"
+        : model
+          ? "Standard catalog price"
+          : "Model not found in current catalog; billed amount preserved",
   };
 }
 
@@ -120,12 +132,16 @@ export async function consume(
   userId: string,
   amount: number,
   description: string,
-  refId?: string
+  refId?: string,
+  discountRate?: number,
+  discountAmountCny?: number
 ): Promise<Transaction | null> {
   if (amount <= 0) return null;
   const normalizedAmount = roundBalance(amount);
   const txId = uuidv4();
   const now = new Date().toISOString();
+  const savedDiscountRate = discountRate !== undefined && discountRate < 1 ? discountRate : null;
+  const savedDiscountAmount = discountAmountCny && discountAmountCny > 0 ? roundBalance(discountAmountCny) : null;
 
   return db.transaction(async (client) => {
     const user = await client.queryOne<{ balance: number }>("SELECT balance FROM users WHERE id = ? FOR UPDATE", [userId]);
@@ -135,10 +151,10 @@ export async function consume(
     const newBalance = roundBalance(currentBalance - normalizedAmount);
     await client.execute("UPDATE users SET balance = ?, updated_at = ? WHERE id = ?", [newBalance, now, userId]);
     const tx = await client.queryOne<Transaction>(
-      `INSERT INTO transactions (id, user_id, type, amount, balance_after, description, ref_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO transactions (id, user_id, type, amount, balance_after, description, ref_id, created_at, discount_rate, discount_amount_cny)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
-      [txId, userId, "consumption", normalizedAmount, newBalance, description, refId || null, now]
+      [txId, userId, "consumption", normalizedAmount, newBalance, description, refId || null, now, savedDiscountRate, savedDiscountAmount]
     );
     return tx!;
   });
@@ -182,7 +198,7 @@ export async function adminAdjustBalance(params: {
 }
 
 export async function hasSufficientBalance(userId: string | null | undefined, estimatedAmount: number): Promise<boolean> {
-  if (!userId) return true;
+  if (!userId) return false;
   const normalizedAmount = roundBalance(Math.max(0, estimatedAmount));
   if (normalizedAmount <= 0) return true;
   const user = await getUserById(userId);
@@ -253,8 +269,8 @@ export async function getBillingUsageExport(userId: string, params: { startDate?
        ul.prompt_tokens,
        ul.completion_tokens,
        ul.total_tokens,
-       ul.cached_tokens,
-       ul.cache_creation_tokens,
+       COALESCE(ul.cached_tokens, 0) as cached_tokens,
+       COALESCE(ul.cache_creation_tokens, 0) as cache_creation_tokens,
        ul.cost,
        ul.status,
        ul.created_at
@@ -273,7 +289,9 @@ export async function getBillingUsageExport(userId: string, params: { startDate?
     const billedAmount = money6(Number(row.cost || 0));
     const promptTokens = Number(row.prompt_tokens || 0);
     const completionTokens = Number(row.completion_tokens || 0);
-    const breakdown = getModelBillingBreakdown(model, promptTokens, completionTokens, billedAmount, Number(row.cached_tokens || 0), Number(row.cache_creation_tokens || 0));
+    const cachedTokens = Number(row.cached_tokens || 0);
+    const cacheCreationTokens = Number(row.cache_creation_tokens || 0);
+    const breakdown = getModelBillingBreakdown(model, promptTokens, completionTokens, billedAmount, cachedTokens, cacheCreationTokens);
     return {
       usage_id: Number(row.usage_id),
       api_key_id: row.api_key_id || null,
@@ -285,6 +303,8 @@ export async function getBillingUsageExport(userId: string, params: { startDate?
       prompt_tokens: promptTokens,
       completion_tokens: completionTokens,
       total_tokens: Number(row.total_tokens || 0),
+      cached_tokens: cachedTokens,
+      cache_creation_tokens: cacheCreationTokens,
       status: row.status,
       created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
       tier_label: breakdown.tierLabel,
