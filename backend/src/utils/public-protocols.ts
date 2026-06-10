@@ -239,8 +239,10 @@ export function openAiResponseToGemini(data: any, fallbackModel: string): any {
       },
     ],
     usageMetadata: {
+      cachedContentTokenCount: usage.prompt_tokens_details?.cached_tokens || 0,
       promptTokenCount: usage.prompt_tokens || 0,
       candidatesTokenCount: usage.completion_tokens || 0,
+      thoughtsTokenCount: usage.completion_tokens_details?.reasoning_tokens || 0,
       totalTokenCount: usage.total_tokens || 0,
     },
   };

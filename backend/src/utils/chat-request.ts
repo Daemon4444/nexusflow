@@ -47,8 +47,14 @@ export function buildUpstreamChatRequest(model: AIModel, body: any, options: { f
     requestBody.enable_thinking = false;
   }
 
-  if (requestBody.stream && requestBody.stream_options === undefined) {
-    requestBody.stream_options = { include_usage: true };
+  if (requestBody.stream) {
+    const requestedStreamOptions =
+      requestBody.stream_options &&
+      typeof requestBody.stream_options === "object" &&
+      !Array.isArray(requestBody.stream_options)
+        ? requestBody.stream_options
+        : {};
+    requestBody.stream_options = { ...requestedStreamOptions, include_usage: true };
   }
 
   return requestBody;
