@@ -504,8 +504,9 @@ body {
   }
 }
 @media (max-width: 920px) {
-  .nf-nav { height: auto; padding-top: 14px; padding-bottom: 14px; flex-wrap: wrap; }
-  .nf-nav-links { order: 3; width: 100%; overflow-x: auto; }
+  .nf-nav { height: auto; padding-top: 12px; padding-bottom: 12px; flex-wrap: wrap; row-gap: 10px; }
+  .nf-nav-links { order: 3; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .nf-nav-links a { white-space: nowrap; }
   .nf-hero, .nf-workflow { grid-template-columns: 1fr; }
   .nf-hero {
     padding-top: 48px;
@@ -529,8 +530,9 @@ body {
   }
 }
 @media (max-width: 620px) {
-  .nf-nav-actions { width: 100%; margin-left: 0; }
-  .nf-nav-actions .nf-btn { flex: 1; }
+  .nf-nav { padding-left: 20px; padding-right: 20px; }
+  .nf-nav-actions { margin-left: auto; gap: 8px; }
+  .nf-nav-actions .nf-btn { min-height: 34px; padding: 0 14px; font-size: 13px; }
   .nf-hero {
     padding: 44px 30px 28px;
   }
