@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useI18n, localeLabels } from "@/lib/i18n";
 import { Locale } from "@/lib/i18n";
 import { NexusflowLogo } from "./QuadrantLogo";
+import { formatCny } from "@/lib/money";
 import { useState, useRef, useEffect } from "react";
 
 export default function Header() {
@@ -38,14 +39,12 @@ export default function Header() {
     { href: "/pricing", label: t("navPricing") },
   ];
 
+  // 控制台内部导航由侧边栏承担，顶栏只保留一个 Console 入口，避免双导航
   const userNav = [
     { href: "/dashboard", label: "Console" },
-    { href: "/keys", label: t("navKeys") },
-    { href: "/billing", label: t("navBilling") },
-    { href: "/monitor", label: t("navMonitor") },
-    { href: "/activity", label: t("navActivity") },
-    { href: "/settings", label: t("navSettings") },
   ];
+  const consolePaths = ["/dashboard", "/keys", "/billing", "/monitor", "/activity", "/settings", "/rate-limits", "/tickets"];
+  const inConsole = consolePaths.some((p) => pathname.startsWith(p));
 
   return (
     <>
@@ -176,27 +175,44 @@ export default function Header() {
               <div style={{ width: 80, height: 32 }} />
             ) : user ? (
               <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                {userNav.map((item) => {
-                  const active = isActive(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      style={{
-                        padding: "5px 10px",
-                        borderRadius: 6,
-                        fontSize: 12.5,
-                        fontWeight: active ? 600 : 450,
-                        color: active ? "var(--text-primary)" : "var(--text-tertiary)",
-                        textDecoration: "none",
-                        transition: "color 0.15s, background 0.15s",
-                        background: active ? "var(--accent-bg)" : "transparent",
-                      }}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
+                <Link
+                  href="/dashboard"
+                  style={{
+                    padding: "5px 14px",
+                    borderRadius: 6,
+                    fontSize: 12.5,
+                    fontWeight: inConsole ? 600 : 500,
+                    color: inConsole ? "var(--text-primary)" : "var(--text-secondary)",
+                    textDecoration: "none",
+                    transition: "color 0.15s, background 0.15s",
+                    background: inConsole ? "var(--accent-bg)" : "transparent",
+                    border: inConsole ? "1px solid var(--border)" : "1px solid transparent",
+                  }}
+                >
+                  Console
+                </Link>
+                <Link
+                  href="/billing"
+                  title="余额，点击进入账单"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    marginLeft: 6,
+                    padding: "4px 11px",
+                    borderRadius: 999,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-elevated)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                    textDecoration: "none",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                  {formatCny(user.balance ?? 0)}
+                </Link>
                 <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 8px" }} />
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{

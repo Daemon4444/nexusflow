@@ -29,7 +29,7 @@ export default function UserSidebar() {
     {
       group: t("sidebarAccount"),
       items: [
-        { href: "/dashboard", label: "控制台", icon: "dashboard" },
+        { href: "/dashboard", label: "概览", icon: "dashboard" },
         { href: "/playground", label: t("navPlayground"), icon: "play" },
         { href: "/settings", label: t("sidebarProfile"), icon: "user" },
         { href: "/keys", label: t("sidebarApiKeys"), icon: "key" },

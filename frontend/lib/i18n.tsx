@@ -44,7 +44,7 @@ const translations = {
   navSettings: { zh: "设置", en: "Settings" },
 
   // ======== Sidebar ========
-  sidebarTitle: { zh: "设置", en: "Settings" },
+  sidebarTitle: { zh: "控制台", en: "Console" },
   sidebarAccount: { zh: "账户", en: "Account" },
   sidebarAnalytics: { zh: "分析", en: "Analytics" },
   sidebarProfile: { zh: "个人资料", en: "Profile" },
