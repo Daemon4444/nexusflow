@@ -46,6 +46,7 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
   const preferredIds = [
     "claude-sonnet-4-6",
     "qwen3.7-max",
+    "qwen3.7-plus",
     "deepseek-v4-pro",
     "qwen3.6-max-preview",
     "qwen3.6-plus",
@@ -75,7 +76,7 @@ export function pickDefaultPlaygroundModel(models: ModelSummary[], requestedMode
     "qwen3-max",
     "qwen-plus",
   ].filter(Boolean);
-  const chatModels = models.filter((model) => ["大语言模型", "推理模型", "编程模型"].includes(model.category));
+  const chatModels = models.filter((model) => ["大语言模型", "推理模型", "编程模型", "多模态模型"].includes(model.category));
   const preferred = preferredIds.find((id) => chatModels.some((model) => model.id === id));
   return preferred || chatModels[0]?.id || models[0]?.id || "";
 }

@@ -90,8 +90,8 @@ async function createSession(user: User): Promise<{ user: User; token: string }>
 }
 
 export async function loginByPhone(phone: string, _code: string): Promise<{ user: User; token: string } | null> {
-  const user = (await getUserByPhone(phone)) || (await createUser(phone));
-  return createSession(user);
+  // TODO: 短信验证码校验未实现，禁止调用此函数
+  throw new Error("loginByPhone is not implemented — SMS code verification required");
 }
 
 export async function loginByEmail(email: string): Promise<{ user: User; token: string } | null> {

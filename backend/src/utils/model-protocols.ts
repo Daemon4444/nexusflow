@@ -7,6 +7,8 @@ export type SupportedProtocol =
   | "google/generate-content"
   | "openai/embeddings"
   | "openai/image-generations"
+  | "openai/audio-speech"
+  | "openai/audio-transcriptions"
   | "nexusflow/tasks";
 
 export function getSupportedProtocols(model: AIModel): SupportedProtocol[] {
@@ -34,6 +36,18 @@ export function getSupportedProtocols(model: AIModel): SupportedProtocol[] {
 
   if (modelType === "video") {
     return ["nexusflow/tasks"];
+  }
+
+  if (modelType === "audio") {
+    // TTS models -> audio/speech, ASR models -> audio/transcriptions
+    const id = model.id.toLowerCase();
+    if (id.includes("tts")) {
+      return ["openai/audio-speech"];
+    }
+    if (id.includes("asr")) {
+      return ["openai/audio-transcriptions"];
+    }
+    return ["openai/audio-speech", "openai/audio-transcriptions"];
   }
 
   return [];

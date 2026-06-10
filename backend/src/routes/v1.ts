@@ -21,6 +21,9 @@ import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../servi
 import { getSupportedProtocols } from "../utils/model-protocols";
 import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
+import { calculateOpenAiCacheAwareCost, buildApiDescription, getOpenAiPromptCacheUsage, hasCacheControl } from "../utils/cache-billing";
+import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
+import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
 const router = Router();
 
@@ -49,6 +52,40 @@ function extractImageUrls(data: any): string[] {
     .filter((value: unknown): value is string => typeof value === "string" && value.length > 0);
 
   return [...choiceUrls, ...resultUrls];
+}
+
+function normalizeOpenAiStreamLine(line: string, logId: string): string {
+  const hasCarriageReturn = line.endsWith("\r");
+  const content = hasCarriageReturn ? line.slice(0, -1) : line;
+  const trimmed = content.trim();
+  if (!trimmed.startsWith("data: ") || trimmed === "data: [DONE]") return line;
+
+  try {
+    const event = JSON.parse(trimmed.slice(6));
+    if (event && typeof event === "object") {
+      event.id = logId;
+      if (event.usage && typeof event.usage === "object") {
+        const details =
+          event.usage.prompt_tokens_details &&
+          typeof event.usage.prompt_tokens_details === "object"
+            ? event.usage.prompt_tokens_details
+            : {};
+        event.usage.prompt_tokens = Number(event.usage.prompt_tokens || 0);
+        event.usage.completion_tokens = Number(event.usage.completion_tokens || 0);
+        event.usage.total_tokens = Number(
+          event.usage.total_tokens || event.usage.prompt_tokens + event.usage.completion_tokens
+        );
+        event.usage.prompt_tokens_details = {
+          ...details,
+          cached_tokens: Number(details.cached_tokens || 0),
+          cache_creation_input_tokens: Number(details.cache_creation_input_tokens || 0),
+        };
+      }
+    }
+    return `data: ${JSON.stringify(event)}${hasCarriageReturn ? "\r" : ""}`;
+  } catch {
+    return line.replace(/"id":"[^"]*"/, `"id":"${logId}"`);
+  }
 }
 
 function parseSseEvents(payload: string): any[] {
@@ -127,13 +164,7 @@ async function estimateEmbeddingCost(userId: string | null | undefined, model: a
 }
 
 /** Sanitize error messages — never expose internal hostnames, paths, or stack traces */
-function sanitizeError(err: any): string {
-  if (err?.name === "AbortError" || err?.code === "ABORT_ERR") return "Upstream request timed out.";
-  if (err?.code === "ECONNREFUSED") return "Upstream service unavailable.";
-  if (err?.code === "ENOTFOUND") return "Upstream service unreachable.";
-  // Generic fallback — do NOT include err.message which may contain internal IPs/paths
-  return "An internal error occurred. Please try again.";
-}
+const sanitizeError = sanitizeUpstreamError;
 
 function rejectInsufficientBalance(res: Response): void {
   res.status(402).json({
@@ -188,7 +219,8 @@ router.get("/models", async (req: Request, res: Response) => {
 // POST /v1/images/generations — OpenAI compatible image generation
 router.post("/images/generations", async (req: Request, res: Response) => {
   const token = extractToken(req);
-  if (!token || !await validateApiKey(token)) {
+  const apiKeyRecord = token ? await validateApiKey(token) : null;
+  if (!apiKeyRecord) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -282,8 +314,6 @@ router.post("/images/generations", async (req: Request, res: Response) => {
   }
   const upstream = resolvedUpstream.upstream;
   const upstreamApiKey = upstream.apiKey;
-
-  const apiKeyRecord = (await validateApiKey(token))!;
 
   // Anonymous keys (no user_id) are not allowed on public endpoints
   if (!apiKeyRecord.user_id) {
@@ -461,7 +491,8 @@ router.post("/images/generations", async (req: Request, res: Response) => {
 router.post("/chat/completions", async (req: Request, res: Response) => {
   // Auth
   const token = extractToken(req);
-  if (!token || !await validateApiKey(token)) {
+  const apiKeyRecord = token ? await validateApiKey(token) : null;
+  if (!apiKeyRecord) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -567,8 +598,6 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   const upstream = resolvedUpstream.upstream;
   const upstreamApiKey = upstream.apiKey;
 
-  const apiKeyRecord = (await validateApiKey(token))!;
-
   // Anonymous keys (no user_id) are not allowed on public endpoints
   if (!apiKeyRecord.user_id) {
     res.status(403).json({
@@ -647,12 +676,14 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     },
     { forceStream: requiresUpstreamStream }
   );
+  const explicitCache = hasCacheControl(messages);
 
   const startTime = Date.now();
   const logId = randomUUID();
 
   // Record rate limits
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
+  acquireConcurrency(upstream.providerId, modelId);
 
   try {
     // Streaming
@@ -692,6 +723,21 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       let lastChunkTime = 0;
       let streamError = false;
       const reader = response.body as any;
+      let sseBuffer = "";
+      const forwardStreamText = (text: string, flush = false) => {
+        sseBuffer += text;
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() || "";
+        if (flush && sseBuffer) {
+          lines.push(sseBuffer);
+          sseBuffer = "";
+        }
+        for (const line of lines) {
+          const rewritten = normalizeOpenAiStreamLine(line, logId);
+          fullResponse += `${rewritten}\n`;
+          res.write(`${rewritten}\n`);
+        }
+      };
       try {
         if (reader && typeof reader[Symbol.asyncIterator] === "function") {
           for await (const chunk of reader) {
@@ -703,9 +749,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
             lastChunkTime = now;
             chunkCount++;
             const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-            const rewritten = text.replace(/"id":"[^"]*"/g, `"id":"${logId}"`);
-            fullResponse += rewritten;
-            res.write(rewritten);
+            forwardStreamText(text);
           }
         } else if (reader && reader.getReader) {
           const r = reader.getReader();
@@ -721,11 +765,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
             lastChunkTime = now;
             chunkCount++;
             const text = decoder.decode(value, { stream: true });
-            const rewritten = text.replace(/"id":"[^"]*"/g, `"id":"${logId}"`);
-            fullResponse += rewritten;
-            res.write(rewritten);
+            forwardStreamText(text);
           }
         }
+        forwardStreamText("", true);
       } catch (streamErr: any) {
         streamError = true;
         // Headers already sent — write an SSE error event so the client knows
@@ -752,7 +795,12 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       // Log usage and bill
       const latencyMs = Date.now() - startTime;
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, streamTokens.prompt_tokens, streamTokens.completion_tokens)).finalAmount;
+      const billing = await calculateOpenAiCacheAwareCost({
+        userId: apiKeyRecord.user_id,
+        model,
+        usage: streamTokens,
+        explicitCache,
+      });
 
       // Calculate TPOT: time per output token (ms)
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
@@ -769,25 +817,27 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         promptTokens: streamTokens.prompt_tokens,
         completionTokens: streamTokens.completion_tokens,
         totalTokens: streamTokens.total_tokens,
-        cost: totalCost,
+        cost: billing.finalAmount,
         status: "success",
         latencyMs,
         ttftMs,
         tpotMs,
-        cachedTokens: streamTokens.prompt_tokens_details?.cached_tokens || 0,
-        cacheCreationTokens: streamTokens.prompt_tokens_details?.cache_creation_input_tokens || 0,
+        cachedTokens: billing.cachedTokens,
+        cacheCreationTokens: billing.cacheCreationTokens,
         requestBody: req.body,
         responseBody: fullResponse.slice(-3000),
       });
       recordProviderTokens(upstream.providerId, modelId, streamTokens.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
 
-      if (totalCost > 0) {
+      if (billing.finalAmount > 0) {
         await consume(
           apiKeyRecord.user_id,
-          totalCost,
-          `API 调用: ${modelId} (${streamTokens.total_tokens} tokens, stream)`,
-          apiKeyRecord.id
+          billing.finalAmount,
+          buildApiDescription(modelId, streamTokens.total_tokens || 0, billing.cachedTokens, true),
+          apiKeyRecord.id,
+          billing.discountRate,
+          billing.discountAmount,
         );
       }
       return;
@@ -837,7 +887,12 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const data = buildChatCompletionFromSse(events, !!include_reasoning);
       const latencyMs = Date.now() - startTime;
       const usage = data.usage || {};
-      const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
+      const billing = await calculateOpenAiCacheAwareCost({
+        userId: apiKeyRecord.user_id,
+        model,
+        usage,
+        explicitCache,
+      });
 
       // Non-stream: ttft = full latency, tpot = latency / completion_tokens
       const nonStreamTtft = latencyMs;
@@ -854,23 +909,25 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         promptTokens: usage.prompt_tokens || 0,
         completionTokens: usage.completion_tokens || 0,
         totalTokens: usage.total_tokens || 0,
-        cost: totalCost,
+        cost: billing.finalAmount,
         status: "success",
         latencyMs,
         ttftMs: nonStreamTtft,
         tpotMs: nonStreamTpot,
-        cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
-        cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
+        cachedTokens: billing.cachedTokens,
+        cacheCreationTokens: billing.cacheCreationTokens,
       });
       recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
 
-      if (totalCost > 0) {
+      if (billing.finalAmount > 0) {
         await consume(
           apiKeyRecord.user_id,
-          totalCost,
-          `API 调用: ${modelId} (${usage.total_tokens || 0} tokens)`,
-          apiKeyRecord.id
+          billing.finalAmount,
+          buildApiDescription(modelId, usage.total_tokens || 0, billing.cachedTokens),
+          apiKeyRecord.id,
+          billing.discountRate,
+          billing.discountAmount,
         );
       }
 
@@ -907,8 +964,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     // Log usage and billing
     const latencyMs = Date.now() - startTime;
     const usage = data.usage || {};
-    const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0)).finalAmount;
-    
+    const billing = await calculateOpenAiCacheAwareCost({
+      userId: apiKeyRecord.user_id,
+      model,
+      usage,
+      explicitCache,
+    });
+
     await logUsage({
       region: upstream.region,
       logId,
@@ -918,11 +980,11 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       promptTokens: usage.prompt_tokens || 0,
       completionTokens: usage.completion_tokens || 0,
       totalTokens: usage.total_tokens || 0,
-      cost: totalCost,
+      cost: billing.finalAmount,
       status: "success",
       latencyMs,
-      cachedTokens: usage.prompt_tokens_details?.cached_tokens || 0,
-      cacheCreationTokens: usage.prompt_tokens_details?.cache_creation_input_tokens || 0,
+      cachedTokens: billing.cachedTokens,
+      cacheCreationTokens: billing.cacheCreationTokens,
       requestBody: req.body,
       responseBody: data.choices?.[0]?.message,
     });
@@ -930,12 +992,14 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
 
     // Auto-billing
-    if (totalCost > 0) {
+    if (billing.finalAmount > 0) {
       await consume(
         apiKeyRecord.user_id,
-        totalCost,
-        `API 调用: ${modelId} (${usage.total_tokens || 0} tokens)`,
-        apiKeyRecord.id
+        billing.finalAmount,
+        buildApiDescription(modelId, usage.total_tokens || 0, billing.cachedTokens),
+        apiKeyRecord.id,
+        billing.discountRate,
+        billing.discountAmount,
       );
     }
 
@@ -966,6 +1030,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         code: "upstream_error",
       },
     });
+  } finally {
+    releaseConcurrency(upstream.providerId, modelId);
   }
 });
 
@@ -973,7 +1039,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 router.post("/embeddings", async (req: Request, res: Response) => {
   // Auth
   const token = extractToken(req);
-  if (!token || !await validateApiKey(token)) {
+  const apiKeyRecord = token ? await validateApiKey(token) : null;
+  if (!apiKeyRecord) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -1029,8 +1096,6 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   }
   const upstream = resolvedUpstream.upstream;
   const upstreamApiKey = upstream.apiKey;
-
-  const apiKeyRecord = (await validateApiKey(token))!;
 
   // Anonymous keys (no user_id) are not allowed on public endpoints
   if (!apiKeyRecord.user_id) {

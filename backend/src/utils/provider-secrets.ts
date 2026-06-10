@@ -22,11 +22,18 @@ export function encryptProviderSecret(secret: string): string {
 
 export function decryptProviderSecret(secret: string): string {
   const key = getSecretKey();
-  if (!secret || !secret.startsWith(PREFIX) || !key) return secret;
+  if (!secret || !secret.startsWith(PREFIX)) return secret;
+  if (!key) {
+    console.error("[ProviderSecrets] ⚠️ PROVIDER_SECRET_KEY 未配置，无法解密 provider 密钥");
+    return "";
+  }
 
   const payload = secret.slice(PREFIX.length);
   const [ivRaw, tagRaw, encryptedRaw] = payload.split(":");
-  if (!ivRaw || !tagRaw || !encryptedRaw) return secret;
+  if (!ivRaw || !tagRaw || !encryptedRaw) {
+    console.error("[ProviderSecrets] ⚠️ 加密数据格式异常");
+    return "";
+  }
 
   try {
     const decipher = crypto.createDecipheriv(ALGO, key, Buffer.from(ivRaw, "base64"));
@@ -36,8 +43,9 @@ export function decryptProviderSecret(secret: string): string {
       decipher.final(),
     ]);
     return decrypted.toString("utf8");
-  } catch {
-    return secret;
+  } catch (err: any) {
+    console.error("[ProviderSecrets] ⚠️ 解密失败（PROVIDER_SECRET_KEY 可能已轮换）:", err.message);
+    return "";
   }
 }
 

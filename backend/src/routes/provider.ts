@@ -94,7 +94,7 @@ async function ensureInternalProviders(): Promise<void> {
   for (const model of staticModels) {
     const targetProvider = model.id.startsWith("claude-") ? anthropic : dashscope;
     if (await getCapacity(targetProvider.id, model.id)) continue;
-    const isTaskModel = model.category === "图像生成" || model.category === "视频生成";
+    const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
     await upsertCapacity(targetProvider.id, model.id, {
       rpm_limit: 1000,
       tpm_limit: isTaskModel ? 0 : 1000000,

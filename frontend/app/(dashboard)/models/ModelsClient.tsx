@@ -37,7 +37,7 @@ export interface ModelsPageProps {
 const categoryColors: Record<string, string> = {
   "大语言模型": "#2563eb", "推理模型": "#dc2626", "多模态模型": "#7c3aed",
   "编程模型": "#0891b2", "图像生成": "#db2777", "视频生成": "#f97316",
-  "向量模型": "#0f766e", "专业模型": "#64748b",
+  "向量模型": "#0f766e", "专业模型": "#64748b", "语音模型": "#7c2d12",
 };
 
 const protocolStyles: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -46,6 +46,8 @@ const protocolStyles: Record<string, { label: string; color: string; bg: string;
   "google/generate-content": { label: "Gemini", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
   "openai/embeddings": { label: "Embedding", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
   "openai/image-generations": { label: "Image", color: "#be185d", bg: "#fdf2f8", border: "#fbcfe8" },
+  "openai/audio-speech": { label: "TTS", color: "#7c2d12", bg: "#fff7ed", border: "#fed7aa" },
+  "openai/audio-transcriptions": { label: "ASR", color: "#7c2d12", bg: "#fff7ed", border: "#fed7aa" },
   "nexusflow/tasks": { label: "Tasks", color: "#475569", bg: "#f8fafc", border: "#cbd5e1" },
 };
 

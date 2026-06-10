@@ -16,6 +16,7 @@
     "build:backend": "cd backend && npm run build"
   },
   "dependencies": {
+    "@alicloud/log": "^1.2.6",
     "better-sqlite3": "^12.6.2"
   },
   "overrides": {
