@@ -14,8 +14,11 @@ import {
   getProviderChannelConfig,
   switchProviderChannel,
   upsertProviderChannelConfig,
+  upsertProviderChannel,
+  isChannelUsable,
   type ProviderChannelConfig,
 } from "../data/provider-channels";
+import { ensureDashScopeChannelConfig } from "../services/upstream";
 import {
   createCostVersion,
   getActiveCostVersion,
@@ -104,6 +107,7 @@ async function ensureInternalProviders(): Promise<void> {
   }
 
   await ensurePixVerseChannelConfig();
+  await ensureDashScopeChannelConfig();
   if (!(await getCapacity("pixverse", "pixverse-v6"))) {
     await upsertCapacity("pixverse", "pixverse-v6", {
       rpm_limit: 60,
@@ -150,6 +154,14 @@ async function getProviderChannelSummary(providerId: string) {
       adapter: channel.adapter,
       apiBaseUrl: channel.api_base_url,
       apiKeyMasked: channel.api_key ? maskSecret(channel.api_key) : "未配置",
+      region: channel.region || null,
+      workspaceId: channel.workspace_id || null,
+      enabled: channel.enabled !== false,
+      priority: channel.priority ?? 0,
+      modelAllowlist: channel.model_allowlist || null,
+      usable: isChannelUsable(channel, {
+        hasFallbackKey: !!(channel.adapter === "pixverse" ? process.env.PIXVERSE_API_KEY : process.env.DASHSCOPE_API_KEY),
+      }),
     })),
   };
 }
@@ -1146,6 +1158,44 @@ router.post("/:providerId/switch-channel", async (req: Request, res: Response) =
       adapter: selected.adapter,
     },
     message: `已切换到${selected.name}`,
+  });
+});
+
+// PUT /api/provider/:providerId/channels/:channelId — 新增或更新子渠道（区域）配置
+router.put("/:providerId/channels/:channelId", async (req: Request, res: Response) => {
+  const providerId = req.params.providerId as string;
+  const channelId = req.params.channelId as string;
+  await ensureInternalProviders();
+  const provider = await getProviderById(providerId);
+  if (!provider) {
+    res.status(404).json({ success: false, message: "供应商不存在" });
+    return;
+  }
+
+  const body = req.body || {};
+  const patch: Record<string, unknown> = {};
+  if (typeof body.name === "string") patch.name = body.name;
+  if (body.adapter === "dashscope" || body.adapter === "pixverse") patch.adapter = body.adapter;
+  if (typeof body.apiBaseUrl === "string") patch.api_base_url = body.apiBaseUrl;
+  if (typeof body.apiKey === "string") patch.api_key = body.apiKey;
+  if (typeof body.region === "string") patch.region = body.region;
+  if (typeof body.workspaceId === "string") patch.workspace_id = body.workspaceId;
+  if (typeof body.enabled === "boolean") patch.enabled = body.enabled;
+  if (typeof body.priority === "number") patch.priority = body.priority;
+  if (Array.isArray(body.modelAllowlist)) {
+    patch.model_allowlist = body.modelAllowlist.filter((item: unknown) => typeof item === "string");
+  }
+
+  const result = await upsertProviderChannel(providerId, channelId, patch);
+  if ("error" in result) {
+    res.status(400).json({ success: false, message: result.error });
+    return;
+  }
+
+  res.json({
+    success: true,
+    data: await getProviderChannelSummary(providerId),
+    message: `渠道 ${channelId} 已更新`,
   });
 });
 

@@ -33,13 +33,14 @@ export async function logUsage(params: {
   tpotMs?: number;
   cachedTokens?: number;
   cacheCreationTokens?: number;
+  region?: string | null;
   requestBody?: any;
   responseBody?: any;
 }): Promise<string> {
   const logId = params.logId || randomUUID();
   await db.execute(
-    `INSERT INTO usage_logs (log_id, api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO usage_logs (log_id, api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens, region, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       logId,
       params.apiKeyId,
@@ -55,6 +56,7 @@ export async function logUsage(params: {
       params.tpotMs || 0,
       params.cachedTokens || 0,
       params.cacheCreationTokens || 0,
+      params.region || null,
       new Date().toISOString(),
     ]
   );
@@ -62,6 +64,7 @@ export async function logUsage(params: {
     logId,
     apiKeyId: params.apiKeyId,
     userId: params.userId,
+    region: params.region || undefined,
     model: params.model,
     promptTokens: params.promptTokens,
     completionTokens: params.completionTokens,

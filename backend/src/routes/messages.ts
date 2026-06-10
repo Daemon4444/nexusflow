@@ -16,7 +16,7 @@ import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/us
 import { checkConsumerLimits, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { detectModelType } from "../services/adapters";
-import { findProvider, getResolvedProviderApiKey } from "../services/providers";
+import { getRequestedRegion, resolveUpstream } from "../services/upstream";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 
 const router = Router();
@@ -344,29 +344,19 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const provider = findProvider(modelId);
-  if (!provider) {
-    res.status(404).json({
+  const resolvedUpstream = await resolveUpstream(modelId, { region: getRequestedRegion(req) });
+  if (!resolvedUpstream.ok) {
+    res.status(resolvedUpstream.status).json({
       type: "error",
       error: {
-        type: "not_found_error",
-        message: `No provider configured for model '${modelId}'.`,
+        type: resolvedUpstream.status >= 500 ? "api_error" : resolvedUpstream.status === 404 ? "not_found_error" : "invalid_request_error",
+        message: resolvedUpstream.message,
       },
     });
     return;
   }
-
-  const upstreamApiKey = getResolvedProviderApiKey(provider);
-  if (!upstreamApiKey) {
-    res.status(500).json({
-      type: "error",
-      error: {
-        type: "api_error",
-        message: `Provider '${provider.name}' API key not configured.`,
-      },
-    });
-    return;
-  }
+  const upstream = resolvedUpstream.upstream;
+  const upstreamApiKey = upstream.apiKey;
 
   const reservedMessageTokens = apiKeyRecord.user_id ? estimateMessageTokens(model, req.body) : 0;
 
@@ -417,9 +407,9 @@ router.post("/", async (req: Request, res: Response) => {
 
   const startTime = Date.now();
   const logId = require("crypto").randomUUID();
-  recordRequest(provider.id, modelId, apiKeyRecord.id, 0);
+  recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
 
-  if (provider.id === "anthropic") {
+  if (upstream.providerId === "anthropic") {
     try {
       const headers: Record<string, string> = {
         "x-api-key": upstreamApiKey,
@@ -429,7 +419,7 @@ router.post("/", async (req: Request, res: Response) => {
       const beta = getAnthropicBeta(req);
       if (beta) headers["anthropic-beta"] = beta;
 
-      const response = await fetch(`${provider.baseUrl}/messages`, {
+      const response = await fetch(`${upstream.baseUrl}/messages`, {
         method: "POST",
         headers,
         body: JSON.stringify(req.body),
@@ -512,6 +502,7 @@ router.post("/", async (req: Request, res: Response) => {
         const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
 
         await logUsage({
+          region: upstream.region,
           apiKeyId: apiKeyRecord.id,
           userId: apiKeyRecord.user_id,
           model: modelId,
@@ -524,7 +515,7 @@ router.post("/", async (req: Request, res: Response) => {
           ttftMs,
           tpotMs,
         });
-        recordProviderTokens(provider.id, modelId, totalTokens);
+        recordProviderTokens(upstream.providerId, modelId, totalTokens);
         if (apiKeyRecord.user_id) {
           await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
         }
@@ -550,6 +541,7 @@ router.post("/", async (req: Request, res: Response) => {
       const totalCost = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage);
       const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
       await logUsage({
+        region: upstream.region,
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -560,7 +552,7 @@ router.post("/", async (req: Request, res: Response) => {
         status: "success",
         latencyMs: Date.now() - startTime,
       });
-      recordProviderTokens(provider.id, modelId, totalTokens);
+      recordProviderTokens(upstream.providerId, modelId, totalTokens);
       if (apiKeyRecord.user_id) {
         await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
       }
@@ -580,6 +572,7 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     } catch (err: any) {
       await logUsage({
+        region: upstream.region,
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -613,7 +606,7 @@ router.post("/", async (req: Request, res: Response) => {
   try {
     if (stream) {
       // Streaming mode
-      const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+      const response = await fetch(`${upstream.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${upstreamApiKey}`,
@@ -784,6 +777,7 @@ router.post("/", async (req: Request, res: Response) => {
       const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
 
       await logUsage({
+        region: upstream.region,
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -798,7 +792,7 @@ router.post("/", async (req: Request, res: Response) => {
         cachedTokens: cachedTokensStream,
         cacheCreationTokens: cacheCreationStream,
       });
-      recordProviderTokens(provider.id, modelId, inputTokens + outputTokens);
+      recordProviderTokens(upstream.providerId, modelId, inputTokens + outputTokens);
       if (apiKeyRecord.user_id) {
         await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, inputTokens + outputTokens);
       }
@@ -815,7 +809,7 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     // Non-streaming
-    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+    const response = await fetch(`${upstream.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${upstreamApiKey}`,
@@ -850,6 +844,7 @@ router.post("/", async (req: Request, res: Response) => {
     const totalCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, cachedTokensNonStream, cacheCreationNonStream)).finalAmount;
 
     await logUsage({
+      region: upstream.region,
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -862,7 +857,7 @@ router.post("/", async (req: Request, res: Response) => {
       cachedTokens: cachedTokensNonStream,
       cacheCreationTokens: cacheCreationNonStream,
     });
-    recordProviderTokens(provider.id, modelId, usage.total_tokens || 0);
+    recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
     if (apiKeyRecord.user_id) {
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, usage.total_tokens || 0);
     }
@@ -880,6 +875,7 @@ router.post("/", async (req: Request, res: Response) => {
 
   } catch (err: any) {
     await logUsage({
+      region: upstream.region,
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
