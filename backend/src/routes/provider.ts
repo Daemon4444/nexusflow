@@ -160,7 +160,9 @@ async function getProviderChannelSummary(providerId: string) {
       priority: channel.priority ?? 0,
       modelAllowlist: channel.model_allowlist || null,
       usable: isChannelUsable(channel, {
-        hasFallbackKey: !!(channel.adapter === "pixverse" ? process.env.PIXVERSE_API_KEY : process.env.DASHSCOPE_API_KEY),
+        // 环境变量 key 回退仅对默认区域有效（国内 key 实测无法调海外区域）
+        hasFallbackKey: (!channel.region || channel.region === "cn-beijing")
+          && !!(channel.adapter === "pixverse" ? process.env.PIXVERSE_API_KEY : process.env.DASHSCOPE_API_KEY),
       }),
     })),
   };
