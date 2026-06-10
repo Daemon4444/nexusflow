@@ -63,12 +63,13 @@ export default function ActivityPage() {
         fetchAPI("/api/usage/by-model", { headers, signal }),
         fetchAPI("/api/usage/recent?limit=50", { headers, signal }),
       ]);
-      if (ovRes.success && dayRes.success && modelRes.success && recentRes.success) {
+      // 部分接口失败时优雅降级：有任一数据即渲染，全部失败才报错
+      if (ovRes.success || dayRes.success || modelRes.success || recentRes.success) {
         setData({
-          overview: ovRes.data,
-          daily: dayRes.data,
-          byModel: modelRes.data,
-          recent: recentRes.data,
+          overview: ovRes.success ? ovRes.data : { totalRequests: 0, totalTokens: 0, totalCost: 0, activeModels: 0, avgLatency: 0, successRate: 0, totalCachedTokens: 0 },
+          daily: dayRes.success ? dayRes.data : [],
+          byModel: modelRes.success ? modelRes.data : [],
+          recent: recentRes.success ? recentRes.data : [],
         });
       } else {
         setError(ovRes.message || dayRes.message || modelRes.message || recentRes.message || "用量数据加载失败");
@@ -131,17 +132,22 @@ export default function ActivityPage() {
           {/* Overview Metrics */}
           <div className="usr-metric-grid">
             {[
-              { label: t("totalRequests"), value: data.overview.totalRequests.toLocaleString() },
-              { label: t("totalTokens"), value: formatTokensCompact(data.overview.totalTokens) },
-              { label: t("totalCost"), value: formatCny(data.overview.totalCost) },
-              { label: t("activeModels"), value: data.overview.activeModels.toString() },
-              { label: t("avgLatency"), value: data.overview.avgLatency + "s" },
-              { label: t("successRate"), value: data.overview.successRate + "%" },
-              ...(data.overview.totalCachedTokens > 0 ? [{ label: "缓存命中", value: formatTokensCompact(data.overview.totalCachedTokens) }] : []),
+              { label: t("totalRequests"), value: data.overview.totalRequests.toLocaleString(), tint: "tint-teal", icon: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/> },
+              { label: t("totalTokens"), value: formatTokensCompact(data.overview.totalTokens), tint: "tint-orange", icon: <><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></> },
+              { label: t("totalCost"), value: formatCny(data.overview.totalCost), tint: "tint-green", icon: <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></> },
+              { label: t("activeModels"), value: data.overview.activeModels.toString(), tint: "tint-purple", icon: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></> },
+              { label: t("avgLatency"), value: data.overview.avgLatency + "s", tint: "tint-blue", icon: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></> },
+              { label: t("successRate"), value: data.overview.successRate + "%", tint: "tint-teal", icon: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></> },
+              ...(data.overview.totalCachedTokens > 0 ? [{ label: "缓存命中", value: formatTokensCompact(data.overview.totalCachedTokens), tint: "tint-blue", icon: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></> }] : []),
             ].map((m) => (
-              <div key={m.label} className="usr-metric">
-                <div className="usr-metric-label">{m.label}</div>
-                <div className="usr-metric-value">{m.value}</div>
+              <div key={m.label} className="usr-metric with-icon">
+                <div className={`usr-metric-icon ${m.tint}`}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{m.icon}</svg>
+                </div>
+                <div className="usr-metric-body">
+                  <div className="usr-metric-label">{m.label}</div>
+                  <div className="usr-metric-value">{m.value}</div>
+                </div>
               </div>
             ))}
           </div>

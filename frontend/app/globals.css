@@ -1168,17 +1168,37 @@ select.input {
 /* OpenRouter-style metric cards */
 .usr-metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
 }
 .usr-metric {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 18px;
+  border-radius: 12px;
+  padding: 18px 20px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
+.usr-metric.with-icon {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.usr-metric-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.usr-metric-icon.tint-teal { background: rgba(20,184,166,0.1); color: #0d9488; }
+.usr-metric-icon.tint-orange { background: rgba(249,115,22,0.1); color: #ea580c; }
+.usr-metric-icon.tint-green { background: rgba(34,197,94,0.1); color: #16a34a; }
+.usr-metric-icon.tint-purple { background: rgba(168,85,247,0.1); color: #9333ea; }
+.usr-metric-icon.tint-blue { background: rgba(59,130,246,0.1); color: #2563eb; }
+.usr-metric-body { min-width: 0; }
 .usr-metric:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow-sm);

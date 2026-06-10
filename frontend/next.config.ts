@@ -43,18 +43,19 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
+    const backend = process.env.BACKEND_URL || "http://127.0.0.1:3001";
     return [
       {
         source: "/api/:path*",
-        destination: "http://127.0.0.1:3001/api/:path*",
+        destination: `${backend}/api/:path*`,
       },
       {
         source: "/v1/:path*",
-        destination: "http://127.0.0.1:3001/v1/:path*",
+        destination: `${backend}/v1/:path*`,
       },
       {
         source: "/v1beta/:path*",
-        destination: "http://127.0.0.1:3001/v1beta/:path*",
+        destination: `${backend}/v1beta/:path*`,
       },
     ];
   },

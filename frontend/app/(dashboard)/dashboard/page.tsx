@@ -105,25 +105,45 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="usr-metric-grid">
-            <div className="usr-metric">
-              <div className="usr-metric-label">余额</div>
-              <div className="usr-metric-value">{formatCny(summary?.balance ?? user?.balance ?? 0)}</div>
-              <div className="usr-metric-sub">Playground 和 API 调用共用账户余额</div>
+            <div className="usr-metric with-icon">
+              <div className="usr-metric-icon tint-teal">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              </div>
+              <div className="usr-metric-body">
+                <div className="usr-metric-label">余额</div>
+                <div className="usr-metric-value">{formatCny(summary?.balance ?? user?.balance ?? 0)}</div>
+                <div className="usr-metric-sub">Playground 和 API 调用共用账户余额</div>
+              </div>
             </div>
-            <div className="usr-metric">
-              <div className="usr-metric-label">API Keys</div>
-              <div className="usr-metric-value">{keys.length}</div>
-              <div className="usr-metric-sub">{keys[0] ? `最近 Key: ${keys[0].name}` : "还没有创建 Key"}</div>
+            <div className="usr-metric with-icon">
+              <div className="usr-metric-icon tint-orange">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+              </div>
+              <div className="usr-metric-body">
+                <div className="usr-metric-label">API Keys</div>
+                <div className="usr-metric-value">{keys.length}</div>
+                <div className="usr-metric-sub">{keys[0] ? `最近 Key: ${keys[0].name}` : "还没有创建 Key"}</div>
+              </div>
             </div>
-            <div className="usr-metric">
-              <div className="usr-metric-label">总调用</div>
-              <div className="usr-metric-value">{(summary?.totalCalls || 0).toLocaleString()}</div>
-              <div className="usr-metric-sub">累计消耗 {formatCnyPrecise(summary?.totalConsumption || 0)}</div>
+            <div className="usr-metric with-icon">
+              <div className="usr-metric-icon tint-green">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              </div>
+              <div className="usr-metric-body">
+                <div className="usr-metric-label">总调用</div>
+                <div className="usr-metric-value">{(summary?.totalCalls || 0).toLocaleString()}</div>
+                <div className="usr-metric-sub">累计消耗 {formatCnyPrecise(summary?.totalConsumption || 0)}</div>
+              </div>
             </div>
-            <div className="usr-metric">
-              <div className="usr-metric-label">模型目录</div>
-              <div className="usr-metric-value">{models.length}</div>
-              <div className="usr-metric-sub">文本、推理、视觉、图像、视频</div>
+            <div className="usr-metric with-icon">
+              <div className="usr-metric-icon tint-purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+              </div>
+              <div className="usr-metric-body">
+                <div className="usr-metric-label">模型目录</div>
+                <div className="usr-metric-value">{models.length}</div>
+                <div className="usr-metric-sub">文本、推理、视觉、图像、视频</div>
+              </div>
             </div>
           </div>
 
