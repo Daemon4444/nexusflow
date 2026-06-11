@@ -74,7 +74,7 @@ export default function MonitorPage() {
         <div style={{ textAlign: "center", padding: 80, color: "var(--text-tertiary)" }}>{t("loadingMetrics")}</div>
       ) : (
         <>
-          <div className="usr-metric-grid">
+          <div className="usr-metric-grid monitor-metric-grid">
             {[
               { label: t("avgTtft"), value: `${overview?.avgTtft || 0}ms`, sub: `${overview?.minTtft || 0} – ${overview?.maxTtft || 0}ms` },
               { label: t("avgTpot"), value: `${overview?.avgTpot || 0}ms`, sub: `${overview?.minTpot || 0} – ${overview?.maxTpot || 0}ms` },

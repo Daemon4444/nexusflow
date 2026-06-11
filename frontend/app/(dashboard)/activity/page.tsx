@@ -130,7 +130,7 @@ export default function ActivityPage() {
       ) : (
         <>
           {/* Overview Metrics */}
-          <div className="usr-metric-grid">
+          <div className="usr-metric-grid activity-metric-grid">
             {[
               { label: t("totalRequests"), value: data.overview.totalRequests.toLocaleString(), tint: "tint-teal", icon: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/> },
               { label: t("totalTokens"), value: formatTokensCompact(data.overview.totalTokens), tint: "tint-orange", icon: <><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></> },
@@ -169,7 +169,7 @@ export default function ActivityPage() {
                         <div style={{
                           width: "100%",
                           height: `${Math.max(16, (d.requests / maxReq) * 120)}px`,
-                          background: "linear-gradient(180deg, #333, #111)",
+                          background: "linear-gradient(180deg, #0d9488, #0891b2)",
                           borderRadius: "5px 5px 2px 2px",
                           transition: "height 0.5s ease",
                         }} />

@@ -3149,3 +3149,70 @@ textarea.input:focus {
 .metric-purple { border-top-color: #9333ea !important; }
 .metric-orange { border-top-color: #ea580c !important; }
 .metric-amber  { border-top-color: #d97706 !important; }
+
+/* ======================================================
+   ITER 3 — Table headers + Activity KPI colored borders
+   ====================================================== */
+
+/* Unified table header */
+.table-header {
+  display: grid;
+  padding: 9px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #57606a;
+  background: #f6f8fa;
+  border-bottom: 1px solid #d0d7de;
+}
+
+/* Activity page KPI - reuse metric-* classes */
+.activity-metric-grid .usr-metric:nth-child(1) { border-top-color: #0d9488 !important; }
+.activity-metric-grid .usr-metric:nth-child(2) { border-top-color: #ea580c !important; }
+.activity-metric-grid .usr-metric:nth-child(3) { border-top-color: #16a34a !important; }
+.activity-metric-grid .usr-metric:nth-child(4) { border-top-color: #9333ea !important; }
+.activity-metric-grid .usr-metric:nth-child(5) { border-top-color: #2f81f7 !important; }
+.activity-metric-grid .usr-metric:nth-child(6) { border-top-color: #0d9488 !important; }
+.activity-metric-grid .usr-metric:nth-child(7) { border-top-color: #2f81f7 !important; }
+
+/* Monitor page KPI */
+.monitor-metric-grid .usr-metric:nth-child(1) { border-top-color: #2f81f7 !important; }
+.monitor-metric-grid .usr-metric:nth-child(2) { border-top-color: #0d9488 !important; }
+.monitor-metric-grid .usr-metric:nth-child(3) { border-top-color: #9333ea !important; }
+.monitor-metric-grid .usr-metric:nth-child(4) { border-top-color: #ea580c !important; }
+.monitor-metric-grid .usr-metric:nth-child(5) { border-top-color: #16a34a !important; }
+.monitor-metric-grid .usr-metric:nth-child(6) { border-top-color: #cf222e !important; }
+
+/* Tab nav */
+.tab-nav {
+  display: flex;
+  border-bottom: 1px solid #d0d7de;
+  margin-bottom: 20px;
+  gap: 0;
+}
+.tab-btn {
+  padding: 9px 18px;
+  font-size: 13px;
+  font-family: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  color: #57606a;
+  font-weight: 500;
+  margin-bottom: -1px;
+  transition: color .12s, border-color .12s;
+}
+.tab-btn:hover { color: #0d1117; }
+.tab-btn.active {
+  color: #0d1117;
+  font-weight: 600;
+  border-bottom-color: #0d1117;
+}
+
+/* Bar chart in activity — teal gradient */
+.stat-bar {
+  background: linear-gradient(180deg, #0d9488, #0891b2) !important;
+  border-radius: 4px 4px 2px 2px;
+}
