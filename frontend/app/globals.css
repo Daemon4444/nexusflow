@@ -3298,3 +3298,175 @@ textarea.input:focus {
   color: #57606a;
   font-variant-numeric: tabular-nums;
 }
+
+/* ======================================================
+   ITER 5 — Billing page enhancements
+   ====================================================== */
+
+/* Transaction type badges — pill style */
+.tx-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.tx-badge-recharge  { background: rgba(26,127,55,.1);  color: #1a7f37; border-color: rgba(26,127,55,.2); }
+.tx-badge-consume   { background: rgba(207,34,46,.1);  color: #cf222e; border-color: rgba(207,34,46,.2); }
+.tx-badge-refund    { background: rgba(154,103,0,.1);  color: #9a6700; border-color: rgba(154,103,0,.2); }
+
+/* Preset amount buttons */
+.recharge-preset {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 8px;
+  border: 1px solid #d0d7de;
+  background: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: #57606a;
+  transition: border-color .12s, color .12s, background .12s;
+  font-family: inherit;
+}
+.recharge-preset:hover {
+  border-color: #0d9488;
+  color: #0d9488;
+  background: #f6fefe;
+}
+.recharge-preset.selected {
+  border: 2px solid #0d1117;
+  color: #0d1117;
+  background: rgba(0,0,0,.02);
+}
+
+/* ======================================================
+   ITER 6 — Keys page
+   ====================================================== */
+
+/* Key list rows as cards */
+.key-card {
+  padding: 14px 18px;
+  border-bottom: 1px solid #d0d7de;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: background .1s;
+}
+.key-card:last-child { border-bottom: none; }
+.key-card:hover { background: #f6f8fa; }
+.key-card-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(47,129,247,.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2f81f7;
+  flex-shrink: 0;
+}
+.key-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0d1117;
+  margin-bottom: 2px;
+}
+.key-meta {
+  font-size: 11.5px;
+  color: #8c959f;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.key-value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #57606a;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 5px;
+  padding: 3px 8px;
+  letter-spacing: 0.03em;
+}
+
+/* ======================================================
+   ITER 7 — Activity log improvements
+   ====================================================== */
+
+/* Log tab — filter bar */
+.log-filter-bar {
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #f6f8fa;
+  border-bottom: 1px solid #d0d7de;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.log-filter-bar .input {
+  font-size: 12.5px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+/* ======================================================
+   ITER 8 — Settings page
+   ====================================================== */
+
+/* User info card in settings */
+.settings-user-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+.settings-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0d9488, #2f81f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.settings-user-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0d1117;
+  margin-bottom: 3px;
+}
+.settings-user-email {
+  font-size: 12.5px;
+  color: #57606a;
+}
+
+/* ======================================================
+   Global — btn hover polish, input focus
+   ====================================================== */
+.btn-primary {
+  background: linear-gradient(180deg,#202020,#101010) !important;
+  border-radius: 7px !important;
+  font-weight: 600 !important;
+}
+.btn-primary:hover { background: linear-gradient(180deg,#2d2d2d,#1a1a1a) !important; }
+.btn-secondary {
+  border-radius: 7px !important;
+  border-color: #d0d7de !important;
+  background: #fff !important;
+}
+.btn-secondary:hover { background: #f6f8fa !important; border-color: #8c959f !important; }
+.input:focus, .select:focus {
+  border-color: #0d9488 !important;
+  box-shadow: 0 0 0 3px rgba(13,148,136,.12) !important;
+}
