@@ -3216,3 +3216,85 @@ textarea.input:focus {
   background: linear-gradient(180deg, #0d9488, #0891b2) !important;
   border-radius: 4px 4px 2px 2px;
 }
+
+/* ======================================================
+   ITER 4 — Dashboard model cards + recent requests table
+   ====================================================== */
+
+/* Recommended model cards */
+.dashboard-model {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 14px;
+  border-radius: 7px;
+  border: 1px solid #d0d7de;
+  background: #fff;
+  text-decoration: none;
+  transition: border-color .12s, box-shadow .12s, background .12s;
+  gap: 12px;
+}
+.dashboard-model:hover {
+  border-color: #0d9488;
+  background: #f6fefe;
+  box-shadow: 0 2px 8px rgba(13,148,136,.08);
+}
+.dashboard-model strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0d1117;
+  margin-bottom: 2px;
+}
+.dashboard-model span {
+  font-size: 11px;
+  color: #57606a;
+}
+.dashboard-model code {
+  display: block;
+  font-size: 11.5px;
+  color: #57606a;
+  text-align: right;
+  margin-bottom: 2px;
+  font-family: var(--font-mono);
+}
+.dashboard-model small {
+  display: block;
+  font-size: 11px;
+  color: #8c959f;
+  text-align: right;
+}
+
+/* Recent requests table header */
+.dashboard-recent-head {
+  grid-template-columns: 1.1fr 1.8fr 0.8fr 0.8fr 0.6fr !important;
+  padding: 9px 16px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+  color: #57606a !important;
+  background: #f6f8fa !important;
+}
+.dashboard-recent-row {
+  grid-template-columns: 1.1fr 1.8fr 0.8fr 0.8fr 0.6fr !important;
+  padding: 10px 16px !important;
+  align-items: center !important;
+}
+.dashboard-recent-row span:first-child {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #57606a;
+}
+.dashboard-recent-row span:nth-child(2) {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #0d1117;
+}
+.dashboard-recent-row span:nth-child(3),
+.dashboard-recent-row span:nth-child(4) {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: #57606a;
+  font-variant-numeric: tabular-nums;
+}
