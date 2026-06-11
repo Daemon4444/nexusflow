@@ -2916,3 +2916,200 @@ textarea.input:focus {
   font-size: 12px;
   color: var(--text-tertiary);
 }
+
+/* ======================================================
+   ITER 1 — Console redesign: dark sidebar + page bg
+   ====================================================== */
+
+/* New design tokens (console scope) */
+.usr-layout {
+  --sb-bg:         #0d1117;
+  --sb-bg-hover:   #161b22;
+  --sb-bg-active:  #1c2128;
+  --sb-border:     #21262d;
+  --sb-text:       #8b949e;
+  --sb-text-active:#e6edf3;
+  --sb-accent:     #2f81f7;
+  --page-bg:       #f6f8fa;
+  --card-bg:       #ffffff;
+  --card-border:   #d0d7de;
+  --card-hdr-bg:   #f6f8fa;
+}
+
+/* Layout shell */
+.usr-layout {
+  background: var(--page-bg) !important;
+}
+
+/* ── Sidebar ── */
+.usr-sidebar {
+  width: 240px !important;
+  background: var(--sb-bg) !important;
+  border-right: 1px solid var(--sb-border) !important;
+  padding: 0 !important;
+  scrollbar-color: #30363d transparent;
+}
+
+.usr-sidebar-header {
+  padding: 14px 14px 12px !important;
+  border-bottom: 1px solid var(--sb-border);
+}
+
+.usr-sidebar-title {
+  color: var(--sb-text-active) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.2px !important;
+  text-transform: none !important;
+}
+
+.usr-sidebar-subtitle {
+  font-size: 10.5px;
+  color: #484f58;
+  margin-top: 1px;
+}
+
+.usr-sidebar-nav {
+  padding: 8px 8px !important;
+}
+
+.usr-sidebar-group {
+  margin-bottom: 18px !important;
+}
+
+.usr-sidebar-group-label {
+  color: #484f58 !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  padding: 0 8px !important;
+  margin-bottom: 3px !important;
+}
+
+.usr-sidebar-link {
+  color: var(--sb-text) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  min-height: 32px !important;
+  border: 1px solid transparent !important;
+  transition: background 0.12s, color 0.12s !important;
+}
+
+.usr-sidebar-link:hover {
+  background: var(--sb-bg-hover) !important;
+  color: var(--sb-text-active) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.usr-sidebar-link.active {
+  background: var(--sb-bg-active) !important;
+  color: var(--sb-text-active) !important;
+  font-weight: 500 !important;
+  border-color: #30363d !important;
+  box-shadow: none !important;
+}
+
+/* Active left-bar indicator */
+.usr-sidebar-link.active::before {
+  display: block !important;
+  left: -8px !important;
+  width: 3px !important;
+  height: 16px !important;
+  background: var(--sb-accent) !important;
+  border-radius: 0 3px 3px 0 !important;
+}
+
+.usr-sidebar-icon { opacity: 0.65 !important; }
+.usr-sidebar-link.active .usr-sidebar-icon { opacity: 1 !important; }
+.usr-sidebar-link.active .usr-sidebar-icon svg { color: #2f81f7; }
+
+.usr-sidebar-footer {
+  border-top: 1px solid var(--sb-border) !important;
+  padding: 12px 8px !important;
+}
+
+.usr-sidebar-user {
+  background: var(--sb-bg-hover) !important;
+  border-color: #30363d !important;
+}
+
+.usr-sidebar-avatar {
+  background: linear-gradient(135deg, #0d9488, #2f81f7) !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+}
+
+.usr-sidebar-username {
+  color: var(--sb-text-active) !important;
+  font-size: 12.5px !important;
+}
+
+/* Balance in green (new element added in UserSidebar.tsx) */
+.usr-sidebar-balance {
+  font-size: 11px;
+  color: #3fb950;
+  font-weight: 600;
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Content area ── */
+.usr-content,
+.usr-content-wide {
+  background: var(--page-bg) !important;
+  padding: 28px 36px !important;
+}
+
+/* Section cards */
+.usr-section {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04) !important;
+}
+.usr-section:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.07) !important;
+}
+.usr-section-header {
+  background: var(--card-hdr-bg) !important;
+  border-bottom: 1px solid var(--card-border) !important;
+}
+.usr-page-header {
+  border-bottom: 1px solid var(--card-border) !important;
+}
+.usr-page-header h1 {
+  color: #0d1117 !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+}
+.usr-page-header p {
+  color: #57606a !important;
+}
+
+/* Table */
+.table-row { border-bottom-color: var(--card-border) !important; }
+.table-row:hover { background: var(--card-hdr-bg) !important; }
+
+/* Badges — more saturated fills */
+.badge-success {
+  background: rgba(26,127,55,.1) !important;
+  color: #1a7f37 !important;
+  border: 1px solid rgba(26,127,55,.2) !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+}
+.badge-danger {
+  background: rgba(207,34,46,.1) !important;
+  color: #cf222e !important;
+  border: 1px solid rgba(207,34,46,.2) !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+}
+
+/* Mobile */
+@media (max-width: 760px) {
+  .usr-sidebar { width: 100% !important; }
+}
