@@ -3113,3 +3113,39 @@ textarea.input:focus {
 @media (max-width: 760px) {
   .usr-sidebar { width: 100% !important; }
 }
+
+/* ======================================================
+   ITER 2 — KPI card colored top-border + larger numbers
+   ====================================================== */
+.usr-metric {
+  border-top-width: 3px !important;
+  transition: box-shadow .15s, transform .15s !important;
+}
+.usr-metric:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,.08) !important;
+}
+.usr-metric-value {
+  font-size: 27px !important;
+  font-weight: 700 !important;
+  letter-spacing: -.5px !important;
+  color: #0d1117 !important;
+  line-height: 1.15 !important;
+}
+.usr-metric-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: .06em !important;
+  color: #57606a !important;
+  text-transform: uppercase !important;
+  margin-bottom: 6px !important;
+}
+.usr-metric-sub { color: #8c959f !important; font-size: 11px !important; margin-top: 5px !important; }
+
+/* Colored top borders by card type */
+.metric-teal   { border-top-color: #0d9488 !important; }
+.metric-blue   { border-top-color: #2f81f7 !important; }
+.metric-green  { border-top-color: #16a34a !important; }
+.metric-purple { border-top-color: #9333ea !important; }
+.metric-orange { border-top-color: #ea580c !important; }
+.metric-amber  { border-top-color: #d97706 !important; }
