@@ -551,20 +551,45 @@ function buildWebhookPayload(type, data, markdown, plainText) {
   }
 }
 
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const RETRYABLE_CODES = new Set([11232, 19006]);
+const MAX_RETRIES = 3;
+const RETRY_DELAYS = [5000, 15000, 30000];
+
 async function sendWebhook(url, payload) {
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(10000),
-  });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000),
+    });
 
-  const body = await resp.text();
-  if (!resp.ok) {
-    throw new Error(`Webhook returned HTTP ${resp.status}: ${body.slice(0, 500)}`);
+    const body = await resp.text();
+    if (!resp.ok) {
+      throw new Error(`Webhook returned HTTP ${resp.status}: ${body.slice(0, 500)}`);
+    }
+
+    let parsed;
+    try { parsed = JSON.parse(body); } catch { parsed = null; }
+
+    const code = parsed?.code ?? parsed?.StatusCode ?? 0;
+    if (code === 0) {
+      return { status: resp.status, body: body.slice(0, 500) };
+    }
+
+    if (RETRYABLE_CODES.has(code) && attempt < MAX_RETRIES) {
+      const delay = RETRY_DELAYS[attempt];
+      console.warn(`Webhook returned code ${code} (${parsed?.msg}), retrying in ${delay / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+      await sleep(delay);
+      continue;
+    }
+
+    throw new Error(`Webhook returned error code ${code}: ${parsed?.msg || body.slice(0, 200)}`);
   }
-
-  return { status: resp.status, body: body.slice(0, 500) };
 }
 
 // ============================================================
@@ -613,10 +638,14 @@ async function main() {
     console.log(`Webhook type: ${webhookType}`);
 
     const payload = buildWebhookPayload(webhookType, data, markdown, plainText);
-    const result = await sendWebhook(WEBHOOK_URL, payload);
-
-    console.log(`Webhook sent successfully (HTTP ${result.status})`);
-    console.log(`Response: ${result.body}`);
+    try {
+      const result = await sendWebhook(WEBHOOK_URL, payload);
+      console.log(`Webhook sent successfully (HTTP ${result.status})`);
+      console.log(`Response: ${result.body}`);
+    } catch (err) {
+      console.error(`[ERROR] Webhook delivery failed after retries: ${err.message}`);
+      process.exitCode = 1;
+    }
   } finally {
     await pool.end();
   }
