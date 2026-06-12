@@ -708,9 +708,11 @@ data: [DONE]`} />
           padding: 16, background: "#f8fafc", border: "1px solid var(--border)",
           borderRadius: 8, fontSize: 13, lineHeight: 1.8, color: "var(--text-secondary)",
         }}>
-          NexusFlow 的 <code>/v1/chat/completions</code> 参考阿里云百炼 OpenAI-compatible Chat API 设计，稳定透传本文请求参数。
-          当前公开网关未承诺透传 <code>parallel_tool_calls</code>、<code>enable_search</code>、<code>search_options</code>、<code>seed</code> 等扩展字段。
-          需要这些扩展能力时，请先按实际模型做联调验证。官方参考：
+          NexusFlow 的 <code>/v1/chat/completions</code> 与阿里云百炼 OpenAI 兼容端点完全协议透传：
+          请求体原样转发上游，响应原样回传。<code>tools</code>、<code>tool_choice</code>、<code>response_format</code>、
+          <code>enable_thinking</code>、<code>thinking_budget</code>、<code>enable_search</code>、<code>search_options</code>、
+          <code>seed</code>、<code>top_k</code>、<code>logprobs</code>、<code>stream_options</code> 等百炼扩展字段都可直接使用，
+          具体支持范围以模型为准。官方参考：
           {" "}<a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "#1d4ed8" }}>千问 API 参考</a>。
         </div>
       </section>
@@ -781,7 +783,7 @@ data: [DONE]`} />
             <li>图像理解功能建议使用 Qwen-VL 系列等多模态模型。<code>content</code> 需传入数组格式包含 <code>image_url</code> 类型。</li>
             <li>Function Calling 推荐使用 Qwen、DeepSeek、GLM 等支持工具调用的模型系列。</li>
             <li>思考模式（<code>enable_thinking</code>）必须按模型 ID 使用；支持矩阵见 <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>参数矩阵</Link>。</li>
-            <li>文档未列出的百炼扩展字段不会保证透传；不要把未验证字段作为生产依赖。</li>
+            <li>请求体与上游百炼协议透传，文档之外的百炼扩展字段（如 <code>thinking_budget</code>、<code>enable_search</code>、<code>search_options</code>）可直接使用，具体支持以模型为准。</li>
             <li>完整参数说明与模型兼容矩阵见 <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>参数矩阵</Link>。</li>
           </ul>
         </div>
