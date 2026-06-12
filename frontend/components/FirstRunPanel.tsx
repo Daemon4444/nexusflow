@@ -17,7 +17,7 @@ export function getCurlExample(apiKey = "sk-air-...", modelId = "qwen-plus") {
   -d '{
     "model": "${modelId}",
     "messages": [
-      { "role": "user", "content": "用一句话介绍 NexusFlow" }
+      { "role": "user", "content": "Introduce NexusFlow in one sentence" }
     ]
   }'`;
 }
@@ -31,25 +31,25 @@ export function getJavascriptExample(apiKey = "sk-air-...", modelId = "qwen-plus
   },
   body: JSON.stringify({
     model: "${modelId}",
-    messages: [{ role: "user", content: "用一句话介绍 NexusFlow" }],
+    messages: [{ role: "user", content: "Introduce NexusFlow in one sentence" }],
   }),
 });`;
 }
 
 export default function FirstRunPanel({ state, apiKey, modelId, compact = false }: FirstRunPanelProps) {
   const steps = [
-    { key: "key", label: "创建 API Key", done: state.hasApiKey, href: "/keys" },
-    { key: "code", label: "复制调用示例", done: state.hasApiKey, href: "/keys" },
-    { key: "play", label: "Playground 试跑", done: state.hasUsage, href: `/playground${modelId ? `?model=${encodeURIComponent(modelId)}` : ""}` },
-    { key: "monitor", label: "查看用量监控", done: state.hasUsage, href: "/activity" },
+    { key: "key", label: "Create an API key", done: state.hasApiKey, href: "/keys" },
+    { key: "code", label: "Copy the example", done: state.hasApiKey, href: "/keys" },
+    { key: "play", label: "Try it in Playground", done: state.hasUsage, href: `/playground${modelId ? `?model=${encodeURIComponent(modelId)}` : ""}` },
+    { key: "monitor", label: "Check usage metrics", done: state.hasUsage, href: "/activity" },
   ];
 
   return (
     <section className="usr-section first-run-panel">
       <div className="usr-section-header">
         <div>
-          <h3>第一次 API 调用</h3>
-          <p>从 Key 到首个请求，按这个顺序最快。</p>
+          <h3>Your first API call</h3>
+          <p>From key to first request — this is the fastest path.</p>
         </div>
         <span className="badge badge-info">{state.completedSteps}/3</span>
       </div>
@@ -71,9 +71,9 @@ export default function FirstRunPanel({ state, apiKey, modelId, compact = false 
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link className="btn-primary" href={state.hasApiKey ? `/playground${modelId ? `?model=${encodeURIComponent(modelId)}` : ""}` : "/keys"}>
-            {state.hasApiKey ? "去 Playground 试跑" : "创建 API Key"}
+            {state.hasApiKey ? "Open Playground" : "Create API key"}
           </Link>
-          <Link className="btn-secondary" href="/models">浏览模型</Link>
+          <Link className="btn-secondary" href="/models">Browse models</Link>
         </div>
       </div>
     </section>

@@ -17,12 +17,12 @@ const router = Router();
 async function requireAuth(req: Request, res: Response): Promise<string | null> {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return null;
   }
   const session = await validateSession(auth.slice(7).trim());
   if (!session) {
-    res.status(401).json({ success: false, message: "登录已过期" });
+    res.status(401).json({ success: false, message: "Session expired" });
     return null;
   }
   return (session as any).user_id || session.id;
@@ -59,11 +59,11 @@ router.post("/request", async (req: Request, res: Response) => {
   const qpm = Number(requestedQpm);
   const tpm = Number(requestedTpm);
   if (!Number.isFinite(qpm) || qpm <= 0) {
-    res.status(400).json({ success: false, message: "请填写有效的 QPM" });
+    res.status(400).json({ success: false, message: "Please enter a valid QPM" });
     return;
   }
   if (!Number.isFinite(tpm) || tpm <= 0) {
-    res.status(400).json({ success: false, message: "请填写有效的 TPM" });
+    res.status(400).json({ success: false, message: "Please enter a valid TPM" });
     return;
   }
 
@@ -75,7 +75,7 @@ router.post("/request", async (req: Request, res: Response) => {
     reason: String(reason || ""),
   });
 
-  res.json({ success: true, data: request, message: "申请已提交" });
+  res.json({ success: true, data: request, message: "Request submitted" });
 });
 
 /** GET /api/rate-limits/:model — Get effective limit for a specific model */
@@ -103,25 +103,25 @@ router.put("/admin/users/:userId/models/:model", requireAdmin, async (req: Reque
   const qpm = Number(req.body?.qpm);
   const tpm = Number(req.body?.tpm);
   if (!Number.isFinite(qpm) || qpm <= 0) {
-    res.status(400).json({ success: false, message: "qpm 必须是大于 0 的数字" });
+    res.status(400).json({ success: false, message: "qpm must be a number greater than 0" });
     return;
   }
   if (!Number.isFinite(tpm) || tpm <= 0) {
-    res.status(400).json({ success: false, message: "tpm 必须是大于 0 的数字" });
+    res.status(400).json({ success: false, message: "tpm must be a number greater than 0" });
     return;
   }
   await setUserRateLimit(userId, model, Math.round(qpm), Math.round(tpm), "admin");
   res.json({
     success: true,
     data: await getEffectiveRateLimit(userId, model),
-    message: "用户模型限流已更新",
+    message: "User model rate limit updated",
   });
 });
 
 /** DELETE /api/rate-limits/admin/users/:userId/models/:model — Remove a direct user/model limit */
 router.delete("/admin/users/:userId/models/:model", requireAdmin, async (req: Request, res: Response) => {
   const ok = await deleteUserRateLimit(String(req.params.userId), String(req.params.model || "*"));
-  res.json({ success: ok, message: ok ? "用户模型限流已删除" : "限流规则不存在" });
+  res.json({ success: ok, message: ok ? "User model rate limit deleted" : "Rate limit rule not found" });
 });
 
 /** POST /api/rate-limits/admin/requests/:id/approve — Approve request */
@@ -136,10 +136,10 @@ router.post("/admin/requests/:id/approve", requireAdmin, async (req: Request, re
     reply: typeof reply === "string" ? reply : undefined,
   });
   if (!request) {
-    res.status(404).json({ success: false, message: "申请不存在或已处理" });
+    res.status(404).json({ success: false, message: "Request not found or already processed" });
     return;
   }
-  res.json({ success: true, data: request, message: "申请已批准" });
+  res.json({ success: true, data: request, message: "Request approved" });
 });
 
 /** POST /api/rate-limits/admin/requests/:id/reject — Reject request */
@@ -149,10 +149,10 @@ router.post("/admin/requests/:id/reject", requireAdmin, async (req: Request, res
   const { reply } = req.body || {};
   const request = await rejectRateLimitRequest(req.params.id as string, admin.id, typeof reply === "string" ? reply : undefined);
   if (!request) {
-    res.status(404).json({ success: false, message: "申请不存在或已处理" });
+    res.status(404).json({ success: false, message: "Request not found or already processed" });
     return;
   }
-  res.json({ success: true, data: request, message: "申请已拒绝" });
+  res.json({ success: true, data: request, message: "Request rejected" });
 });
 
 export default router;

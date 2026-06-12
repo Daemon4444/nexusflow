@@ -237,16 +237,16 @@ interface I18nContextType {
 }
 
 const I18nContext = createContext<I18nContextType>({
-  locale: "zh",
+  locale: "en",
   setLocale: () => {},
-  t: (key) => translations[key]?.zh || key,
+  t: (key) => translations[key]?.en || key,
 });
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window === "undefined") return "zh";
+    if (typeof window === "undefined") return "en";
     const saved = localStorage.getItem("locale") as Locale | null;
-    return saved && ["zh", "en"].includes(saved) ? saved : "zh";
+    return saved && ["zh", "en"].includes(saved) ? saved : "en";
   });
 
   const setLocale = useCallback((l: Locale) => {

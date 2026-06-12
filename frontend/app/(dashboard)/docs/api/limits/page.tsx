@@ -1,11 +1,11 @@
 "use client";
 
 const rateLimits = [
-  { tier: "免费版", rpm: 20, tpm: "40K", concurrent: 2, desc: "适合个人学习和测试" },
-  { tier: "开发者", rpm: 60, tpm: "150K", concurrent: 5, desc: "适合个人开发者和小型项目" },
-  { tier: "团队版", rpm: 200, tpm: "500K", concurrent: 20, desc: "适合团队协作和中型应用" },
-  { tier: "企业版", rpm: 1000, tpm: "2M", concurrent: 100, desc: "适合大规模生产环境" },
-  { tier: "定制版", rpm: "定制", tpm: "定制", concurrent: "定制", desc: "根据需求定制限额" },
+  { tier: "Free", rpm: 20, tpm: "40K", concurrent: 2, desc: "Suitable for personal study and testing" },
+  { tier: "Developer", rpm: 60, tpm: "150K", concurrent: 5, desc: "Suitable for individual developers and small projects" },
+  { tier: "Team", rpm: 200, tpm: "500K", concurrent: 20, desc: "Suitable for team collaboration and medium-sized apps" },
+  { tier: "Enterprise", rpm: 1000, tpm: "2M", concurrent: 100, desc: "Suitable for large-scale production environments" },
+  { tier: "Custom", rpm: "Custom", tpm: "Custom", concurrent: "Custom", desc: "Limits tailored to your needs" },
 ];
 
 const modelLimits = [
@@ -24,19 +24,19 @@ export default function LimitsPage() {
   return (
     <div style={{ padding: "48px 64px", maxWidth: 960 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8, letterSpacing: "-0.5px" }}>
-        限流说明
+        Rate Limits
       </h1>
       <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 40, lineHeight: 1.7 }}>
-        nexusflow 通过 RPM、TPM、审批流、异步任务和监控体系控制峰值流量。高并发不是单一数值，而是限流、队列、轮询节奏和模型延迟的组合。
+        nexusflow controls peak traffic with RPM, TPM, approval workflows, async tasks, and a monitoring system. High-concurrency capacity is not a single number—it's a combination of rate limits, queueing, polling cadence, and model latency.
       </p>
 
       <section style={{ marginBottom: 40 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
           {[
-            { title: "RPM", desc: "控制请求频率，防止瞬时尖峰打穿上游。" },
-            { title: "TPM", desc: "限制每分钟 Token 量，避免长上下文流量挤占资源。" },
-            { title: "并发", desc: "长任务建议走异步队列，而不是同步连接长时间占位。" },
-            { title: "监控", desc: "通过 TTFT、成功率和模型维度延迟观察高峰期退化。" },
+            { title: "RPM", desc: "Controls request frequency to prevent instantaneous spikes from overwhelming upstream services." },
+            { title: "TPM", desc: "Limits per-minute tokens, preventing long-context traffic from monopolizing resources." },
+            { title: "Concurrency", desc: "Long-running tasks should go through async queues rather than holding synchronous connections open." },
+            { title: "Monitoring", desc: "Use TTFT, success rate, and per-model latency to observe degradation during peak periods." },
           ].map((item) => (
             <div key={item.title} style={{ padding: 18, borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg)" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
@@ -47,16 +47,16 @@ export default function LimitsPage() {
       </section>
 
       <section style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>套餐速率限制</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>Plan Rate Limits</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>套餐</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Plan</th>
                 <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>RPM</th>
                 <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>TPM</th>
-                <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>并发数</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>Concurrency</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -75,15 +75,15 @@ export default function LimitsPage() {
       </section>
 
       <section style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>模型 Token 限制</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>Model Token Limits</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>模型</th>
-                <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>上下文窗口</th>
-                <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>最大输入</th>
-                <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>最大输出</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Model</th>
+                <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>Context Window</th>
+                <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>Max Input</th>
+                <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>Max Output</th>
               </tr>
             </thead>
             <tbody>
@@ -101,22 +101,22 @@ export default function LimitsPage() {
       </section>
 
       <section style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>限流相关响应头</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>Rate Limit Response Headers</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16 }}>
-          当前稳定可依赖的响应头是剩余额度相关信息。更细粒度头部建议以后续平台版本开放情况为准。
+          The currently stable headers expose remaining-quota information. Finer-grained headers depend on future platform releases.
         </p>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)", width: 260 }}>响应头</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)", width: 260 }}>Header</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
               {[
-                { header: "X-RateLimit-Remaining", desc: "当前请求链路可见的剩余请求额度" },
-                { header: "Retry-After", desc: "触发限流时建议等待秒数；客户端应配合指数退避" },
+                { header: "X-RateLimit-Remaining", desc: "Remaining request quota visible to the current request path" },
+                { header: "Retry-After", desc: "Recommended wait time in seconds when rate-limited; clients should combine this with exponential backoff" },
               ].map((item, idx) => (
                 <tr key={item.header} style={{ background: idx % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}><code>{item.header}</code></td>
@@ -129,13 +129,13 @@ export default function LimitsPage() {
       </section>
 
       <section style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>高并发场景建议</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>High-concurrency Recommendations</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
           {[
-            { title: "同步与异步分流", desc: "聊天走 `/v1/chat/completions`，图像 / 视频走 `/v1/tasks`，把长任务从同步链路拆出去。" },
-            { title: "轮询做退避", desc: "任务状态不要高频轮询；建议固定 3-5 秒或指数退避，减少额外放大效应。" },
-            { title: "结合监控页观察退化", desc: "看请求量、TTFT、成功率与模型维度延迟变化，识别是否已逼近容量上限。" },
-            { title: "业务侧做降级", desc: "在高峰期优先切换到更快模型，或降低 max_tokens 与长上下文占用。" },
+            { title: "Separate sync and async paths", desc: "Send chat to `/v1/chat/completions` and image/video to `/v1/tasks`, removing long-running work from the synchronous path." },
+            { title: "Back off when polling", desc: "Do not poll task status at high frequency; use a fixed 3-5 seconds or exponential backoff to avoid amplification effects." },
+            { title: "Watch the monitoring page for degradation", desc: "Monitor request volume, TTFT, success rate, and per-model latency to identify when capacity limits are being approached." },
+            { title: "Apply business-level fallbacks", desc: "During peak periods, switch to faster models or reduce max_tokens and long-context usage." },
           ].map((item) => (
             <div key={item.title} style={{ padding: 18, borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>

@@ -59,7 +59,7 @@ interface UploadedFile {
   error?: string;
 }
 
-function getErrorMessage(error: unknown, fallback = "网络错误") {
+function getErrorMessage(error: unknown, fallback = "Network error") {
   return error instanceof Error ? error.message : fallback;
 }
 
@@ -290,10 +290,10 @@ function PlaygroundInner() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [usage, setUsage] = useState<UsageInfo | null>(null);
-  const [systemPrompt, setSystemPrompt] = useState("你是一个有用的AI助手。");
+  const [systemPrompt, setSystemPrompt] = useState("You are a helpful AI assistant.");
   const [showSettings, setShowSettings] = useState(false);
   const [mode, setMode] = useState<ModelMode>("chat");
-  const [streamEnabled, setStreamEnabled] = useState(true); // 流式开关
+  const [streamEnabled, setStreamEnabled] = useState(true); // streaming toggle
   const [enableThinking, setEnableThinking] = useState(false);
   const [temperature, setTemperature] = useState(0.7);
   const [topP, setTopP] = useState(0.9);
@@ -340,17 +340,17 @@ function PlaygroundInner() {
 
   function formatUsageCost(promptTokens = 0, completionTokens = 0) {
     const model = models.find((item) => item.id === selectedModel);
-    if (!model) return "以账单为准";
+    if (!model) return "See billing for details";
     const tier = model.tokenPricingTiers?.find((item) => promptTokens <= item.maxTokens)
       || model.tokenPricingTiers?.[model.tokenPricingTiers.length - 1];
     const promptPrice = tier?.promptPrice ?? model.promptPrice;
     const completionPrice = tier?.completionPrice ?? model.completionPrice;
     const cost = (promptTokens / 1_000_000) * promptPrice + (completionTokens / 1_000_000) * completionPrice;
-    if (cost <= 0) return "¥0";
-    if (cost < 0.0001) return "<¥0.0001";
-    if (cost < 0.01) return `¥${cost.toFixed(4)}`;
-    if (cost < 1) return `¥${cost.toFixed(3)}`;
-    return `¥${cost.toFixed(2)}`;
+    if (cost <= 0) return "$0";
+    if (cost < 0.0001) return "<$0.0001";
+    if (cost < 0.01) return `$${cost.toFixed(4)}`;
+    if (cost < 1) return `$${cost.toFixed(3)}`;
+    return `$${cost.toFixed(2)}`;
   }
 
   function getChatRequestOptions(): Record<string, unknown> {
@@ -398,9 +398,9 @@ function PlaygroundInner() {
   useEffect(() => {
     const m = models.find((m) => m.id === selectedModel);
     if (m) {
-      if (m.category === "图像生成") setMode("image");
-      else if (m.category === "视频生成") setMode("video");
-      else if (m.category === "语音模型") setMode("audio");
+      if (m.category === "Image Generation") setMode("image");
+      else if (m.category === "Video Generation") setMode("video");
+      else if (m.category === "Audio" || m.category === "Audio Model") setMode("audio");
       else setMode("chat");
       if (m.capabilities?.supports_enable_thinking) {
         setEnableThinking(Boolean(m.capabilities.thinking_default));
@@ -415,18 +415,18 @@ function PlaygroundInner() {
   }, [selectedModel, models]);
 
   // ============================================================
-  // 流式聊天消息
+  // Streaming chat
   // ============================================================
 
   async function sendChatMessageStream() {
     if (!input.trim() || sending) return;
 
-    // 获取已上传的图像（视觉聊天模型用）
+    // Read uploaded images (used by vision chat models)
     const { images: chatImages } = getUploadedUrls();
     const currentModelData = models.find(m => m.id === selectedModel);
     const isVisionChat = currentModelData?.capabilities?.supports_vision && chatImages.length > 0;
 
-    // 构建用户消息：如有图像，使用多模态格式
+    // Build user message — if images attached, use multimodal format
     const userMsg: Message = isVisionChat
       ? { role: "user", content: input.trim(), type: "image", mediaUrl: chatImages[0], status: "done" }
       : { role: "user", content: input.trim(), type: "text" };
@@ -436,16 +436,16 @@ function PlaygroundInner() {
     setMessages((p) => [...p, userMsg, assistantMsg]);
     setInput("");
     setSending(true);
-    if (isVisionChat) setUploadedFiles([]);  // 图像已附加到消息，清空上传区
+    if (isVisionChat) setUploadedFiles([]);  // image attached to message — clear upload tray
 
-    // 构建发送给 API 的消息列表（不再过滤非文本消息）
+    // Build the message list for the API call (don't filter out non-text messages)
     const allMsgs = [
       ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
       ...messages,
       userMsg,
     ];
 
-    // 将 Message 转换为 API 格式：图像消息 → 多模态 content 数组
+    // Convert Message → API format: image messages become multimodal content arrays
     const buildApiMessage = (m: Message) => {
       if (m.type === "image" && m.mediaUrl) {
         const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
@@ -457,13 +457,13 @@ function PlaygroundInner() {
       return { role: m.role, content: m.content };
     };
 
-    // 创建 AbortController 用于取消请求
+    // Create AbortController to cancel the request
     abortControllerRef.current = new AbortController();
 
     try {
       if (!canUsePlayground) {
         updateLastMessage({
-          content: "请先登录后再使用 Playground。调用会从当前账户余额扣费。",
+          content: "Please sign in before using Playground. Calls are charged against your account balance.",
           isStreaming: false,
           status: "error",
         });
@@ -487,7 +487,7 @@ function PlaygroundInner() {
         const errData = await response.json();
         const errorMsg = errData.error?.message || `HTTP ${response.status}`;
         updateLastMessage({
-          content: `错误: ${errorMsg}`,
+          content: `Error: ${errorMsg}`,
           isStreaming: false,
           status: "error",
         });
@@ -496,7 +496,7 @@ function PlaygroundInner() {
         return;
       }
 
-      // 处理 SSE 流式响应
+      // Handle SSE streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -511,7 +511,7 @@ function PlaygroundInner() {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // 解析 SSE 数据
+          // Parse SSE data
           const lines = buffer.split("\n");
           buffer = lines.pop() || "";
 
@@ -519,9 +519,9 @@ function PlaygroundInner() {
             if (line.startsWith("data: ")) {
               const data = line.slice(6).trim();
                 if (data === "[DONE]") {
-                  // 流结束
+                  // Stream finished
                   updateLastMessage({
-                    content: fullContent || fullReasoning || "[空响应]",
+                    content: fullContent || fullReasoning || "[empty response]",
                     reasoningContent: fullReasoning,
                     isStreaming: false,
                     status: "done",
@@ -537,7 +537,7 @@ function PlaygroundInner() {
                 if (delta) {
                   fullContent += delta;
                   tokenCount++;
-                  // 实时更新消息
+                  // Update message in real time
                   updateLastMessage({
                     content: fullContent,
                     isStreaming: true,
@@ -552,7 +552,7 @@ function PlaygroundInner() {
                   });
                 }
 
-                // 处理 usage 信息
+                // Handle usage info
                 if (json.usage) {
                   setUsage({
                     prompt_tokens: json.usage.prompt_tokens || 0,
@@ -562,16 +562,16 @@ function PlaygroundInner() {
                   });
                 }
               } catch {
-                // JSON 解析错误，忽略
+                // JSON parse error — ignore
               }
             }
           }
         }
       }
 
-      // 流结束
+      // Stream finished
       updateLastMessage({
-        content: fullContent || fullReasoning || "[空响应]",
+        content: fullContent || fullReasoning || "[empty response]",
         reasoningContent: fullReasoning,
         isStreaming: false,
         status: "done",
@@ -580,15 +580,15 @@ function PlaygroundInner() {
 
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        // 用户取消了请求
+        // User cancelled the request
         updateLastMessage({
-          content: "[已取消]",
+          content: "[cancelled]",
           isStreaming: false,
           status: "error",
         });
       } else {
         updateLastMessage({
-          content: `网络错误: ${getErrorMessage(err)}`,
+          content: `Network error: ${getErrorMessage(err)}`,
           isStreaming: false,
           status: "error",
         });
@@ -599,7 +599,7 @@ function PlaygroundInner() {
   }
 
   // ============================================================
-  // 非流式聊天（备用）
+  // Non-streaming chat (fallback)
   // ============================================================
 
   async function sendChatMessageNonStream() {
@@ -608,14 +608,14 @@ function PlaygroundInner() {
     if (!canUsePlayground) {
       setMessages((p) => [...p, {
         role: "assistant",
-        content: "请先登录后再使用 Playground。调用会从当前账户余额扣费。",
+        content: "Please sign in before using Playground. Calls are charged against your account balance.",
         type: "text",
         status: "error",
       }]);
       return;
     }
 
-    // 获取已上传的图像（视觉聊天模型用）
+    // Read uploaded images (used by vision chat models)
     const { images: chatImages } = getUploadedUrls();
     const currentModelData = models.find(m => m.id === selectedModel);
     const isVisionChat = currentModelData?.capabilities?.supports_vision && chatImages.length > 0;
@@ -630,7 +630,7 @@ function PlaygroundInner() {
       userMsg,
     ];
 
-    // 将 Message 转换为 API 格式
+    // Convert Message to API format
     const buildApiMessage = (m: Message) => {
       if (m.type === "image" && m.mediaUrl) {
         const contentParts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
@@ -664,7 +664,7 @@ function PlaygroundInner() {
       if (res.ok && data.choices) {
         setMessages((p) => [...p, {
           role: "assistant",
-          content: data.choices[0].message.content || data.choices[0].message.reasoning_content || "[空响应]",
+          content: data.choices[0].message.content || data.choices[0].message.reasoning_content || "[empty response]",
           reasoningContent: data.choices[0].message.reasoning_content || "",
           type: "text",
           status: "done",
@@ -679,7 +679,7 @@ function PlaygroundInner() {
         const errorMsg = data.error?.message || `HTTP ${res.status}`;
         setMessages((p) => [...p, {
           role: "assistant",
-          content: `错误: ${errorMsg}`,
+          content: `Error: ${errorMsg}`,
           type: "text",
           status: "error",
         }]);
@@ -688,7 +688,7 @@ function PlaygroundInner() {
     } catch {
       setMessages((p) => [...p, {
         role: "assistant",
-        content: "网络错误，请确认后端服务已启动。",
+        content: "Network error. Please confirm the backend service is running.",
         type: "text",
         status: "error",
       }]);
@@ -699,7 +699,7 @@ function PlaygroundInner() {
   }
 
   // ============================================================
-  // 图像生成
+  // Image generation
   // ============================================================
 
   async function generateImage() {
@@ -708,7 +708,7 @@ function PlaygroundInner() {
     if (!canUsePlayground) {
       setMessages((p) => [...p, {
         role: "assistant",
-        content: "请先登录后再使用 Playground。调用会从当前账户余额扣费。",
+        content: "Please sign in before using Playground. Calls are charged against your account balance.",
         type: "text",
         status: "error",
       }]);
@@ -719,13 +719,13 @@ function PlaygroundInner() {
 
     // Check for uploading files
     if (uploadedFiles.some(f => f.uploading)) {
-      showInlineError("文件还在上传中，请稍候再发起生成。");
+      showInlineError("Files are still uploading. Please wait before starting generation.");
       return;
     }
 
     setMessages((p) => [...p,
       { role: "user", content: input.trim(), type: "text" },
-      { role: "assistant", content: "正在生成图片...", type: "image", status: "pending" }
+      { role: "assistant", content: "Generating image...", type: "image", status: "pending" }
     ]);
     setInput("");
     setSending(true);
@@ -746,11 +746,11 @@ function PlaygroundInner() {
       if (res.success && res.data.task_id) {
         pollImageStatus(res.data.task_id, messages.length + 1);
       } else {
-        updateLastMessage({ content: `错误: ${res.message || "图片生成失败"}`, status: "error" });
+        updateLastMessage({ content: `Error: ${res.message || "Image generation failed"}`, status: "error" });
         setSending(false);
       }
     } catch {
-      updateLastMessage({ content: "网络错误", status: "error" });
+      updateLastMessage({ content: "Network error", status: "error" });
       setSending(false);
     }
   }
@@ -760,7 +760,7 @@ function PlaygroundInner() {
     pollingRef.current = setInterval(async () => {
       if (++n > 60) {
         clearInterval(pollingRef.current!);
-        updateMessageAt(idx, { content: "超时，请重试", status: "error" });
+        updateMessageAt(idx, { content: "Timed out, please try again", status: "error" });
         setSending(false);
         return;
       }
@@ -773,18 +773,18 @@ function PlaygroundInner() {
           if (res.data.task_status === "SUCCEEDED") {
             clearInterval(pollingRef.current!);
             updateMessageAt(idx, {
-              content: "图片生成完成",
+              content: "Image ready",
               mediaUrl: res.data.results?.[0]?.url,
               status: "done",
             });
             setSending(false);
           } else if (res.data.task_status === "FAILED") {
             clearInterval(pollingRef.current!);
-            updateMessageAt(idx, { content: "生成失败", status: "error" });
+            updateMessageAt(idx, { content: "Generation failed", status: "error" });
             setSending(false);
           } else {
             updateMessageAt(idx, {
-              content: `正在生成... (${res.data.task_status})`,
+              content: `Generating... (${res.data.task_status})`,
               status: "processing",
             });
           }
@@ -796,7 +796,7 @@ function PlaygroundInner() {
   }
 
   // ============================================================
-  // 视频生成
+  // Video generation
   // ============================================================
 
   async function generateVideo() {
@@ -805,7 +805,7 @@ function PlaygroundInner() {
     if (!canUsePlayground) {
       setMessages((p) => [...p, {
         role: "assistant",
-        content: "请先登录后再使用 Playground。调用会从当前账户余额扣费。",
+        content: "Please sign in before using Playground. Calls are charged against your account balance.",
         type: "text",
         status: "error",
       }]);
@@ -817,23 +817,23 @@ function PlaygroundInner() {
     const config = getUploadConfig(selectedModel);
 
     if (config.requiredImages && images.length === 0) {
-      showInlineError("当前模型需要先上传图片。请在输入框上方添加图片后再生成。");
+      showInlineError("This model requires an image upload first. Please add an image above the input box before generating.");
       return;
     }
     if (config.requiredVideos && videos.length === 0) {
-      showInlineError("当前模型需要先上传视频。请在输入框上方添加视频后再生成。");
+      showInlineError("This model requires a video upload first. Please add a video above the input box before generating.");
       return;
     }
 
     // Check for uploading files
     if (uploadedFiles.some(f => f.uploading)) {
-      showInlineError("文件还在上传中，请稍候再发起生成。");
+      showInlineError("Files are still uploading. Please wait before starting generation.");
       return;
     }
 
     setMessages((p) => [...p,
       { role: "user", content: input.trim(), type: "text" },
-      { role: "assistant", content: "正在生成视频...", type: "video", status: "pending" }
+      { role: "assistant", content: "Generating video...", type: "video", status: "pending" }
     ]);
     setInput("");
     setSending(true);
@@ -860,11 +860,11 @@ function PlaygroundInner() {
       if (res.success && res.data.task_id) {
         pollVideoStatus(res.data.task_id, messages.length + 1);
       } else {
-        updateLastMessage({ content: `错误: ${res.message || "视频生成失败"}`, status: "error" });
+        updateLastMessage({ content: `Error: ${res.message || "Video generation failed"}`, status: "error" });
         setSending(false);
       }
     } catch {
-      updateLastMessage({ content: "网络错误", status: "error" });
+      updateLastMessage({ content: "Network error", status: "error" });
       setSending(false);
     }
   }
@@ -874,7 +874,7 @@ function PlaygroundInner() {
     pollingRef.current = setInterval(async () => {
       if (++n > 120) {
         clearInterval(pollingRef.current!);
-        updateMessageAt(idx, { content: "超时，请重试", status: "error" });
+        updateMessageAt(idx, { content: "Timed out, please try again", status: "error" });
         setSending(false);
         return;
       }
@@ -888,18 +888,18 @@ function PlaygroundInner() {
           if (s === "successful") {
             clearInterval(pollingRef.current!);
             updateMessageAt(idx, {
-              content: "视频生成完成",
+              content: "Video ready",
               mediaUrl: res.data.video_url,
               status: "done",
             });
             setSending(false);
           } else if (s === "failed") {
             clearInterval(pollingRef.current!);
-            updateMessageAt(idx, { content: "生成失败", status: "error" });
+            updateMessageAt(idx, { content: "Generation failed", status: "error" });
             setSending(false);
           } else {
             updateMessageAt(idx, {
-              content: `正在生成... (${s || "processing"})`,
+              content: `Generating... (${s || "processing"})`,
               status: "processing",
             });
           }
@@ -911,7 +911,7 @@ function PlaygroundInner() {
   }
 
   // ============================================================
-  // 辅助函数
+  // Helper functions
   // ============================================================
 
   function updateLastMessage(u: Partial<Message>) {
@@ -957,7 +957,7 @@ function PlaygroundInner() {
 
   function handleHistorySelect(entry: HistoryEntry) {
     setMessages(entry.messages);
-    setSystemPrompt(entry.systemPrompt || "你是一个有用的AI助手。");
+    setSystemPrompt(entry.systemPrompt || "You are a helpful AI assistant.");
     setSelectedModel(entry.model);
     setInput(entry.input);
   }
@@ -980,21 +980,21 @@ function PlaygroundInner() {
   }
 
   // ============================================================
-  // 文件上传
+  // File upload
   // ============================================================
 
   function getUploadConfig(modelId: string) {
-    // 根据模型决定上传限制
-    // requiredImages/requiredVideos: 是否必须上传（false = 可选）
+    // Per-model upload limits
+    // requiredImages/requiredVideos: whether the upload is mandatory (false = optional)
     const configs: Record<string, { maxImages: number; maxVideos: number; accept: string; multiple: boolean; requiredImages?: boolean; requiredVideos?: boolean }> = {
       // HappyHorse
       "happyhorse-1.0-i2v": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: true },
       "happyhorse-1.0-r2v": { maxImages: 9, maxVideos: 0, accept: "image/*", multiple: true, requiredImages: true },
       "happyhorse-1.0-video-edit": { maxImages: 5, maxVideos: 1, accept: "image/*,video/*", multiple: true, requiredVideos: true },
       "happyhorse-1.0-t2v": { maxImages: 0, maxVideos: 0, accept: "", multiple: false },
-      // PixVerse - 支持文生视频和图生视频，图片可选
+      // PixVerse — supports both text-to-video and image-to-video; image is optional
       "pixverse-v6": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: false },
-      // 万相 Wan 系列
+      // Wan series
       "wan2.6-i2v": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: true },
       "wan2.6-i2v-flash": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: true },
       "wan2.6-r2v": { maxImages: 1, maxVideos: 1, accept: "image/*,video/*", multiple: true, requiredImages: false },
@@ -1004,7 +1004,7 @@ function PlaygroundInner() {
     };
     if (configs[modelId]) return configs[modelId];
 
-    // 视觉聊天模型：支持图像输入（如 qwen3.7-plus、qwen-vl-max 等）
+    // Vision chat models — support image input (e.g. qwen3.7-plus, qwen-vl-max, etc.)
     const selectedModelData = models.find(m => m.id === modelId);
     if (selectedModelData?.capabilities?.supports_vision) {
       return { maxImages: 5, maxVideos: 0, accept: "image/*", multiple: true, requiredImages: false };
@@ -1031,8 +1031,8 @@ function PlaygroundInner() {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    // IMPORTANT: 先复制文件列表，再清空 input value
-    // 因为清空 value 会同时清空 FileList
+    // IMPORTANT: copy the file list first, then clear the input value.
+    // Clearing value also clears the FileList.
     const fileArray = Array.from(files);
 
     // Reset input value to allow re-upload of same file
@@ -1059,7 +1059,7 @@ function PlaygroundInner() {
         toUpload.push(file);
         remainingVideos -= 1;
       } else {
-        errors.push(`${file.name}: 不支持的文件类型或超出限制`);
+        errors.push(`${file.name}: unsupported file type or limit reached`);
       }
     }
 
@@ -1134,7 +1134,7 @@ function PlaygroundInner() {
   }
 
   // ============================================================
-  // 渲染
+  // Render
   // ============================================================
 
   const currentModel = models.find((m) => m.id === selectedModel);
@@ -1147,10 +1147,10 @@ function PlaygroundInner() {
   const supportsSearch = allowedParameters.has("enable_search");
   const thinkingLabel =
     thinkingMode === "mixed"
-      ? enableThinking ? "思考 ✓" : "直答"
+      ? enableThinking ? "Thinking ✓" : "Direct"
       : thinkingMode === "always"
-        ? "仅思考"
-        : "无思考";
+        ? "Thinking only"
+        : "No thinking";
   const visibleModels = useMemo(() => {
     const preferredOrder = [
       requestedModel,
@@ -1174,29 +1174,29 @@ function PlaygroundInner() {
         const bi = preferredOrder.indexOf(b.id);
         const ar = ai === -1 ? preferredOrder.length : ai;
         const br = bi === -1 ? preferredOrder.length : bi;
-        return ar - br || a.category.localeCompare(b.category, "zh-Hans-CN") || a.name.localeCompare(b.name, "zh-Hans-CN");
+        return ar - br || a.category.localeCompare(b.category, "en-US") || a.name.localeCompare(b.name, "en-US");
       });
   }, [models, modelQuery, requestedModel]);
   const modeConfig = {
-    chat: { label: "文本对话", color: "var(--success)", bg: "var(--success-bg)", border: "var(--success-border)" },
-    image: { label: "图片生成", color: "var(--warning)", bg: "var(--warning-bg)", border: "var(--warning-border)" },
-    video: { label: "视频生成", color: "var(--accent)", bg: "var(--accent-bg)", border: "var(--accent-border)" },
-    audio: { label: "语音模型", color: "#7c2d12", bg: "#fff7ed", border: "#fed7aa" },
+    chat: { label: "Text chat", color: "var(--success)", bg: "var(--success-bg)", border: "var(--success-border)" },
+    image: { label: "Image generation", color: "var(--warning)", bg: "var(--warning-bg)", border: "var(--warning-border)" },
+    video: { label: "Video generation", color: "var(--accent)", bg: "var(--accent-bg)", border: "var(--accent-border)" },
+    audio: { label: "Audio model", color: "#7c2d12", bg: "#fff7ed", border: "#fed7aa" },
   };
   const placeholders = {
-    chat: "输入消息... (Enter 发送，Shift+Enter 换行)",
-    image: "描述你想生成的图片...",
-    video: "描述你想生成的视频...",
-    audio: "语音模型 Playground 即将上线，敬请期待",
+    chat: "Type a message... (Enter to send, Shift+Enter for newline)",
+    image: "Describe the image you want to generate...",
+    video: "Describe the video you want to generate...",
+    audio: "Audio model Playground is coming soon — stay tuned",
   };
 
   return (
     <div className="playground-root" style={{ display: "flex", height: "calc(100vh - 56px)", fontFamily: "var(--font-sans)" }}>
       <aside className="playground-sidebar" style={{ width: 340, borderRight: "1px solid var(--border)", background: "var(--bg)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>模型</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>Model</div>
           <div style={{ fontSize: 12, color: "var(--text-tertiary)" }}>
-            {currentModel?.name || "未选择模型"}
+            {currentModel?.name || "No model selected"}
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
             <span style={{
@@ -1229,7 +1229,7 @@ function PlaygroundInner() {
             className="input"
             value={modelQuery}
             onChange={(e) => setModelQuery(e.target.value)}
-            placeholder="搜索模型、供应商、标签"
+            placeholder="Search models, providers or tags"
             style={{ width: "100%", fontSize: 13 }}
           />
         </div>
@@ -1262,7 +1262,7 @@ function PlaygroundInner() {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                   {model.id === requestedModel && (
                     <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 5px", borderRadius: 4, background: "var(--success-bg)", color: "var(--success)" }}>
-                      来源
+                      Source
                     </span>
                   )}
                   <span style={{ fontSize: 11, color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>
@@ -1309,7 +1309,7 @@ function PlaygroundInner() {
                   border: "1px solid var(--border)",
                 }}
               >
-                {currentModel?.name || "未选择模型"}
+                {currentModel?.name || "No model selected"}
               </span>
             </div>
             <div style={{ display: "flex", gap: 7 }}>
@@ -1338,7 +1338,7 @@ function PlaygroundInner() {
                   fontWeight: 600,
                 }}
               >
-                {user ? "账户扣费 ✓" : "需登录"}
+                {user ? "Account billed ✓" : "Sign in required"}
               </span>
               {mode === "chat" && (
                 <>
@@ -1347,7 +1347,7 @@ function PlaygroundInner() {
                       className={enableThinking ? "btn-primary" : "btn-secondary"}
                       style={{ padding: "5px 12px", fontSize: 12.5 }}
                       disabled={!canToggleThinking}
-                      title={canToggleThinking ? "切换 enable_thinking" : "该模型为仅思考模型，不能关闭"}
+                      title={canToggleThinking ? "Toggle enable_thinking" : "This model is thinking-only and cannot be disabled"}
                       onClick={() => canToggleThinking && setEnableThinking((value) => !value)}
                     >
                       {thinkingLabel}
@@ -1358,20 +1358,20 @@ function PlaygroundInner() {
                     style={{ padding: "5px 12px", fontSize: 12.5 }}
                     onClick={() => setStreamEnabled(!streamEnabled)}
                   >
-                    {streamEnabled ? "流式 ✓" : "非流式"}
+                    {streamEnabled ? "Stream ✓" : "No stream"}
                   </button>
                   <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={() => setShowSettings(!showSettings)}>
-                    设置
+                    Settings
                   </button>
                 </>
               )}
               {sending && streamEnabled && mode === "chat" && (
                 <button className="btn-danger" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={cancelStream}>
-                  取消
+                  Cancel
                 </button>
               )}
               <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={clearChat}>
-                清空
+                Clear
               </button>
             </div>
           </div>
@@ -1389,10 +1389,10 @@ function PlaygroundInner() {
           gap: 12,
         }}>
           <span>
-            Playground 使用当前登录账户调用模型，费用直接从账户余额扣除，不需要填写 API Key。
+            Playground uses the signed-in account to call models and bills the balance directly — no API key required.
           </span>
           <span style={{ color: user ? "var(--success)" : "#ef4444", fontWeight: 700, whiteSpace: "nowrap" }}>
-            {user ? `余额 ¥${Number(user.balance || 0).toFixed(4)}` : "未登录"}
+            {user ? `Balance $${Number(user.balance || 0).toFixed(4)}` : "Not signed in"}
           </span>
         </div>
 
@@ -1401,7 +1401,7 @@ function PlaygroundInner() {
             <label style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "block", fontWeight: 600, letterSpacing: "0.03em" }}>
               SYSTEM PROMPT
             </label>
-            <textarea className="input" style={{ minHeight: 52, resize: "vertical", fontSize: 13 }} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="设置AI的角色和行为..." />
+            <textarea className="input" style={{ minHeight: 52, resize: "vertical", fontSize: 13 }} value={systemPrompt} onChange={(e) => setSystemPrompt(e.target.value)} placeholder="Set the AI's role and behavior..." />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
               {allowedParameters.has("temperature") && (
                 <label style={{ display: "grid", gap: 5, fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
@@ -1436,13 +1436,13 @@ function PlaygroundInner() {
               {supportsSeed && (
                 <label style={{ display: "grid", gap: 5, fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
                   Seed
-                  <input className="input" type="number" value={seed} onChange={(e) => setSeed(e.target.value)} placeholder="随机" style={{ fontSize: 13 }} />
+                  <input className="input" type="number" value={seed} onChange={(e) => setSeed(e.target.value)} placeholder="Random" style={{ fontSize: 13 }} />
                 </label>
               )}
               {supportsSearch && (
                 <label style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 21, fontSize: 12.5, color: "var(--text-secondary)", fontWeight: 600 }}>
                   <input type="checkbox" checked={enableSearch} onChange={(e) => setEnableSearch(e.target.checked)} />
-                  联网搜索
+                  Web search
                 </label>
               )}
             </div>
@@ -1459,13 +1459,13 @@ function PlaygroundInner() {
                 {mode === "video" && <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>}
               </div>
               <div style={{ fontSize: 15, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 6 }}>
-                {mode === "chat" ? "开始对话" : mode === "image" ? "生成图片" : mode === "video" ? "生成视频" : "语音模型"}
+                {mode === "chat" ? "Start a conversation" : mode === "image" ? "Generate an image" : mode === "video" ? "Generate a video" : "Audio model"}
               </div>
               <div style={{ fontSize: 12.5, color: "var(--text-tertiary)" }}>
-                当前模型: {currentModel?.name || "未选择"}
+                Current model: {currentModel?.name || "None selected"}
               </div>
               <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", marginTop: 10, opacity: 0.7 }}>
-                {mode === "audio" ? "语音模型 Playground 即将上线，敬请期待" : mode === "chat" ? (streamEnabled ? "流式模式：实时显示生成内容" : "在下方输入消息，按 Enter 发送") : "在下方输入描述，点击生成"}
+                {mode === "audio" ? "Audio model Playground is coming soon — stay tuned" : mode === "chat" ? (streamEnabled ? "Streaming mode: tokens appear in real time" : "Type a message below and press Enter") : "Type a description below and click generate"}
               </div>
                           </div>
           )}
@@ -1474,7 +1474,7 @@ function PlaygroundInner() {
             <div key={idx} className="animate-fadeIn" style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
               <div className={msg.role === "user" ? "chat-user" : "chat-assistant"}>
                 <div style={{ fontSize: 10.5, color: "var(--text-tertiary)", marginBottom: 5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  {msg.role === "user" ? "你" : currentModel?.name || "AI"}
+                  {msg.role === "user" ? "You" : currentModel?.name || "AI"}
                 </div>
                 <div style={{ fontSize: 13.5, lineHeight: 1.7, color: "var(--text-primary)" }}>
                   <MarkdownBlock text={msg.content} compact />
@@ -1498,7 +1498,7 @@ function PlaygroundInner() {
                 {(msg.status === "pending" || msg.status === "processing") && (
                   <div style={{ marginTop: 7, display: "flex", alignItems: "center", gap: 7 }}>
                     <div className="spinner" style={{ width: 13, height: 13 }} />
-                    <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>处理中...</span>
+                    <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Processing...</span>
                   </div>
                 )}
               </div>
@@ -1523,25 +1523,25 @@ function PlaygroundInner() {
                 color: "var(--text-tertiary)",
               }}>
                 {selectedModel.includes("i2v") && (
-                  <>图生视频：上传1张图片作为首帧，支持 JPG/PNG，建议分辨率与输出一致</>
+                  <>Image-to-video: upload one image as the first frame. JPG/PNG. Match output resolution for best results.</>
                 )}
                 {selectedModel.includes("r2v") && (
-                  <>参考生视频：上传1-9张参考图片，支持 JPG/PNG，图片中人物/物体将作为主角</>
+                  <>Reference-to-video: upload 1-9 reference images (JPG/PNG). People/objects in the images become the subject.</>
                 )}
                 {selectedModel.includes("video-edit") && (
-                  <>视频编辑：上传1个视频（3-60秒），可选0-5张参考图片辅助编辑，支持 MP4/WebM</>
+                  <>Video edit: upload 1 video (3-60s) plus 0-5 optional reference images. MP4/WebM.</>
                 )}
                 {selectedModel === "pixverse-v6" && (
-                  <>PixVerse V6：可选上传1张图片进行图生视频，否则为文生视频模式</>
+                  <>PixVerse V6: optionally upload 1 image for image-to-video, otherwise it runs as text-to-video.</>
                 )}
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                 <span style={{ fontSize: 11.5, color: "var(--text-secondary)", fontWeight: 600 }}>
-                  上传文件 ({uploadedFiles.length} 个已选择)
+                  Uploads ({uploadedFiles.length} selected)
                   {uploadingCount > 0 && (
                     <span style={{ color: "var(--accent)", marginLeft: 6 }}>
-                      ({uploadingCount} 个上传中...)
+                      ({uploadingCount} uploading...)
                     </span>
                   )}
                 </span>
@@ -1554,7 +1554,7 @@ function PlaygroundInner() {
                     onClick={() => imageInputRef.current?.click()}
                     disabled={uploadingCount > 0}
                   >
-                    + 图片
+                    + Image
                   </button>
                 )}
                 {canUploadMore("video") && (
@@ -1565,7 +1565,7 @@ function PlaygroundInner() {
                     onClick={() => videoInputRef.current?.click()}
                     disabled={uploadingCount > 0}
                   >
-                    + 视频
+                    + Video
                   </button>
                 )}
               </div>
@@ -1604,7 +1604,7 @@ function PlaygroundInner() {
                           gap: 4,
                         }}>
                           <div className="spinner" style={{ width: 16, height: 16 }} />
-                          <span style={{ fontSize: 9, color: "#fff" }}>上传中</span>
+                          <span style={{ fontSize: 9, color: "#fff" }}>Uploading</span>
                         </div>
                       )}
                       {/* Success indicator */}
@@ -1636,7 +1636,7 @@ function PlaygroundInner() {
                           gap: 2,
                         }}>
                           <span style={{ fontSize: 10, color: "#ef4444" }}>✕</span>
-                          <span style={{ fontSize: 8, color: "#ef4444", padding: "0 4px" }}>失败</span>
+                          <span style={{ fontSize: 8, color: "#ef4444", padding: "0 4px" }}>Failed</span>
                         </div>
                       )}
                       <button
@@ -1711,12 +1711,12 @@ function PlaygroundInner() {
                   <line x1="12" y1="22" x2="2" y2="17"/>
                   <line x1="12" y1="22" x2="22" y2="17"/>
                 </svg>
-                视频参数
+                Video parameters
               </div>
               <div className="playground-video-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 {/* Duration - options based on model */}
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>时长</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Duration</div>
                   <select
                     className="input"
                     style={{ fontSize: 13, padding: "6px 10px" }}
@@ -1725,31 +1725,31 @@ function PlaygroundInner() {
                   >
                     {selectedModel.includes("pixverse") ? (
                       Array.from({ length: 15 }, (_, index) => index + 1).map((seconds) => (
-                        <option key={seconds} value={seconds}>{seconds}秒</option>
+                        <option key={seconds} value={seconds}>{seconds}s</option>
                       ))
                     ) : selectedModel.includes("happyhorse") || selectedModel.includes("wan2.6") ? (
                       <>
-                        <option value={3}>3秒</option>
-                        <option value={5}>5秒</option>
-                        <option value={8}>8秒</option>
-                        <option value={10}>10秒</option>
-                        <option value={12}>12秒</option>
-                        <option value={15}>15秒</option>
+                        <option value={3}>3s</option>
+                        <option value={5}>5s</option>
+                        <option value={8}>8s</option>
+                        <option value={10}>10s</option>
+                        <option value={12}>12s</option>
+                        <option value={15}>15s</option>
                       </>
                     ) : (
                       <>
-                        <option value={3}>3秒</option>
-                        <option value={5}>5秒</option>
-                        <option value={8}>8秒</option>
-                        <option value={10}>10秒</option>
-                        <option value={15}>15秒</option>
+                        <option value={3}>3s</option>
+                        <option value={5}>5s</option>
+                        <option value={8}>8s</option>
+                        <option value={10}>10s</option>
+                        <option value={15}>15s</option>
                       </>
                     )}
                   </select>
                 </div>
                 {/* Resolution - options based on model */}
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>分辨率</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Resolution</div>
                   <select
                     className="input"
                     style={{ fontSize: 13, padding: "6px 10px" }}
@@ -1783,16 +1783,16 @@ function PlaygroundInner() {
                 </div>
                 {/* Aspect ratio */}
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>宽高比</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Aspect ratio</div>
                   <select
                     className="input"
                     style={{ fontSize: 13, padding: "6px 10px" }}
                     value={videoRatio}
                     onChange={(e) => setVideoRatio(e.target.value)}
                   >
-                    <option value="16:9">16:9 横屏</option>
-                    <option value="9:16">9:16 竖屏</option>
-                    <option value="1:1">1:1 方形</option>
+                    <option value="16:9">16:9 Landscape</option>
+                    <option value="9:16">9:16 Portrait</option>
+                    <option value="1:1">1:1 Square</option>
                     {selectedModel.includes("pixverse") && (
                       <>
                         <option value="4:3">4:3</option>
@@ -1816,9 +1816,9 @@ function PlaygroundInner() {
 
           {usage && mode === "chat" && (
             <div style={{ display: "flex", gap: 12, fontSize: 11.5, color: "var(--text-tertiary)", marginBottom: 8 }}>
-              <span>输入 {usage.prompt_tokens} tokens</span>
-              <span>输出 {usage.completion_tokens} tokens</span>
-              <span style={{ color: "var(--success)" }}>费用 {usage.cost}</span>
+              <span>Input {usage.prompt_tokens} tokens</span>
+              <span>Output {usage.completion_tokens} tokens</span>
+              <span style={{ color: "var(--success)" }}>Cost {usage.cost}</span>
             </div>
           )}
 
@@ -1858,10 +1858,10 @@ function PlaygroundInner() {
                 </svg>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#ef4444", marginBottom: 4 }}>
-                    请先登录
+                    Please sign in
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    Playground 会直接使用当前账户余额扣费，不需要填写 API Key。
+                    Playground bills calls directly against your account balance — no API key needed.
                   </div>
                 </div>
               </div>
@@ -1888,15 +1888,15 @@ function PlaygroundInner() {
               style={{ padding: "9px 18px", alignSelf: "flex-end", flexShrink: 0, opacity: canUsePlayground ? 1 : 0.6 }}
               onClick={handleSend}
               disabled={sending || !input.trim() || !canUsePlayground || mode === "audio"}
-              title={mode === "audio" ? "语音模型 Playground 即将上线" : !canUsePlayground ? "请先登录" : "调用会从账户余额扣费"}
+              title={mode === "audio" ? "Audio Playground is coming soon" : !canUsePlayground ? "Please sign in" : "Calls are billed against the account balance"}
             >
               {sending ? (
                 <span className="spinner" style={{ width: 13, height: 13 }} />
               ) : !canUsePlayground ? (
-                <span style={{ fontSize: 12 }}>需登录</span>
+                <span style={{ fontSize: 12 }}>Sign in required</span>
               ) : mode === "chat" ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              ) : "生成"}
+              ) : "Generate"}
             </button>
           </div>
         </div>

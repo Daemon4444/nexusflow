@@ -57,7 +57,7 @@ export async function getUserById(id: string): Promise<User | null> {
 export async function createUser(phone: string): Promise<User> {
   const id = uuidv4();
   const now = new Date().toISOString();
-  const nickname = `用户${phone.slice(-4)}`;
+  const nickname = `User${phone.slice(-4)}`;
   const user = await db.queryOne<User>(
     "INSERT INTO users (id, phone, email, nickname, balance, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
     [id, phone, null, nickname, 0, now, now]
@@ -90,7 +90,7 @@ async function createSession(user: User): Promise<{ user: User; token: string }>
 }
 
 export async function loginByPhone(phone: string, _code: string): Promise<{ user: User; token: string } | null> {
-  // TODO: 短信验证码校验未实现，禁止调用此函数
+  // TODO: SMS code verification is not implemented; do not call this function
   throw new Error("loginByPhone is not implemented — SMS code verification required");
 }
 

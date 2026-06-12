@@ -3,19 +3,19 @@
 import Link from "next/link";
 
 const models = [
-  ["pixverse-v6", "当前主推", "支持文生视频和图生视频，后台可在百炼渠道与 PixVerse 官方渠道之间切换。"],
+  ["pixverse-v6", "Currently featured", "Supports text-to-video and image-to-video. The backend can switch between the Bailian channel and the official PixVerse channel."],
 ];
 
 export default function PixVerseModelPage() {
   return (
     <div style={{ padding: "48px 64px", maxWidth: 980 }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8, fontWeight: 600 }}>模型介绍</div>
+        <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8, fontWeight: 600 }}>Introduction</div>
         <h1 style={{ fontSize: 30, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
-          PixVerse 视频模型
+          PixVerse Video Models
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          PixVerse 模型用于文生视频、图生视频和参考生视频，平台侧通过统一任务接口管理提交、轮询、限流和结果记录。
+          PixVerse models cover text-to-video, image-to-video, and reference-to-video. The platform handles submission, polling, rate limiting, and result tracking through a unified task interface.
         </p>
       </div>
 
@@ -30,13 +30,13 @@ export default function PixVerseModelPage() {
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>能力范围</h2>
+        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>Capabilities</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           {[
-            ["文生视频", "prompt + model + duration + aspect_ratio + quality"],
-            ["图生视频", "prompt + image_url/img_url + model + duration"],
-            ["首尾帧", "first_frame_url + last_frame_url + prompt"],
-            ["参考生视频", "reference_image_url + prompt + style 控制"],
+            ["Text-to-Video", "prompt + model + duration + aspect_ratio + quality"],
+            ["Image-to-Video", "prompt + image_url/img_url + model + duration"],
+            ["First & Last Frame", "first_frame_url + last_frame_url + prompt"],
+            ["Reference-to-Video", "reference_image_url + prompt + style controls"],
           ].map(([name, desc], index) => (
             <div key={name} style={{ display: "grid", gridTemplateColumns: "180px 1fr", padding: "12px 16px", borderTop: index === 0 ? "none" : "1px solid var(--border)", background: index % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)", fontSize: 13 }}>
               <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>{name}</span>
@@ -47,8 +47,8 @@ export default function PixVerseModelPage() {
       </section>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Link href="/docs/api/pixverse" className="btn-primary">查看 PixVerse API</Link>
-        <Link href="/docs/api/tasks" className="btn-secondary">查看统一任务接口</Link>
+        <Link href="/docs/api/pixverse" className="btn-primary">View PixVerse API</Link>
+        <Link href="/docs/api/tasks" className="btn-secondary">View Unified Task API</Link>
       </div>
     </div>
   );

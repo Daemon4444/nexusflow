@@ -97,9 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(res.data.user);
         return { success: true, message: res.message };
       }
-      return { success: false, message: res.message || "登录失败" };
+      return { success: false, message: res.message || "Sign-in failed" };
     } catch {
-      return { success: false, message: "网络错误，请重试" };
+      return { success: false, message: "Network error. Please try again." };
     }
   };
 
@@ -114,9 +114,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(res.data.user);
         return { success: true, message: res.message };
       }
-      return { success: false, message: res.message || "登录失败" };
+      return { success: false, message: res.message || "Sign-in failed" };
     } catch {
-      return { success: false, message: "网络错误，请重试" };
+      return { success: false, message: "Network error. Please try again." };
     }
   };
 

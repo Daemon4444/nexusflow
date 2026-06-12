@@ -100,20 +100,20 @@ router.post("/generate", async (req: Request, res: Response) => {
   if (!modelId) {
     res.status(400).json({
       success: false,
-      message: "请提供模型ID",
+      message: "Please provide a model ID",
     });
     return;
   }
 
   const caller = await authenticateCaller(req);
   if (!caller) {
-    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
+    res.status(401).json({ success: false, message: "Please log in or provide a valid API key" });
     return;
   }
 
   const model = models.find((m) => m.id === modelId);
-  if (!model || model.category !== "图像生成") {
-    res.status(404).json({ success: false, message: "图像生成模型不存在" });
+  if (!model || model.category !== "Image Generation") {
+    res.status(404).json({ success: false, message: "Image generation model not found" });
     return;
   }
 
@@ -121,20 +121,20 @@ router.post("/generate", async (req: Request, res: Response) => {
     const userLimits = await getEffectiveRateLimit(caller.userId, modelId);
     const rpmCheck = await checkRPM(`user:${caller.userId}:${modelId}`, userLimits.qpm);
     if (!rpmCheck.allowed) {
-      res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${userLimits.qpm}/min，请 ${Math.ceil(rpmCheck.resetMs / 1000)} 秒后重试` });
+      res.status(429).json({ success: false, message: `Model QPM limit hit: ${userLimits.qpm}/min, please retry in ${Math.ceil(rpmCheck.resetMs / 1000)} seconds` });
       return;
     }
   }
 
   const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { n });
   if (!(await hasEnoughBalance(caller.userId, estimatedCost))) {
-    res.status(402).json({ success: false, message: "余额不足，请先充值" });
+    res.status(402).json({ success: false, message: "Insufficient balance, please recharge" });
     return;
   }
 
   const DASHSCOPE_API_KEY = getApiKey();
   if (!DASHSCOPE_API_KEY) {
-    res.status(500).json({ success: false, message: "未配置 API Key" });
+    res.status(500).json({ success: false, message: "API key is not configured" });
     return;
   }
 
@@ -146,7 +146,7 @@ router.post("/generate", async (req: Request, res: Response) => {
   if (requiresPrompt && !prompt) {
     res.status(400).json({
       success: false,
-      message: "请提供提示词",
+      message: "Please provide a prompt",
     });
     return;
   }
@@ -154,7 +154,7 @@ router.post("/generate", async (req: Request, res: Response) => {
   if ((modelId === "wanx-style-repaint" || modelId === "wanx-style-repaint-v1") && !ref_img) {
     res.status(400).json({
       success: false,
-      message: "风格重绘模型需要传入 ref_img",
+      message: "Style repaint model requires ref_img",
     });
     return;
   }
@@ -162,7 +162,7 @@ router.post("/generate", async (req: Request, res: Response) => {
   if ((modelId === "wanx-background-generation" || modelId === "wanx-background-generation-v2") && !ref_img) {
     res.status(400).json({
       success: false,
-      message: "背景生成模型需要传入 ref_img",
+      message: "Background generation model requires ref_img",
     });
     return;
   }
@@ -241,7 +241,7 @@ router.post("/generate", async (req: Request, res: Response) => {
         await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
         res.status(500).json({
           success: false,
-          message: "图像生成失败，未返回结果",
+          message: "Image generation failed, no result returned",
         });
       }
       return;
@@ -265,7 +265,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
     res.status(500).json({
       success: false,
-      message: `请求失败: ${err.message}`,
+      message: `Request failed: ${err.message}`,
     });
   }
 });
@@ -275,13 +275,13 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   const taskId = req.params.taskId as string;
 
   if (!(await authenticateCaller(req))) {
-    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
+    res.status(401).json({ success: false, message: "Please log in or provide a valid API key" });
     return;
   }
   
   const DASHSCOPE_API_KEY = getApiKey();
   if (!DASHSCOPE_API_KEY) {
-    res.status(500).json({ success: false, message: "未配置 API Key" });
+    res.status(500).json({ success: false, message: "API key not configured" });
     return;
   }
 
@@ -290,7 +290,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   
   if (task) {
     if (!(await canAccessTask(req, task.user_id, task.api_key_id))) {
-      res.status(403).json({ success: false, message: "无权查看该任务" });
+      res.status(403).json({ success: false, message: "Not authorized to view this task" });
       return;
     }
 
@@ -359,7 +359,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
     } catch (err: any) {
       res.status(500).json({
         success: false,
-        message: `查询失败: ${err.message}`,
+        message: `Query failed: ${err.message}`,
       });
       return;
     }
@@ -367,7 +367,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
   // Fallback: treat as direct DashScope task ID
   if (!(await authenticateCaller(req))) {
-    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
+    res.status(401).json({ success: false, message: "Please log in or provide a valid API key" });
     return;
   }
 
@@ -388,7 +388,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({
       success: false,
-      message: `查询失败: ${err.message}`,
+      message: `Query failed: ${err.message}`,
     });
   }
 });

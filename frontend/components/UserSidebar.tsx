@@ -31,7 +31,7 @@ export default function UserSidebar() {
     {
       group: t("sidebarAccount"),
       items: [
-        { href: "/dashboard",   label: "概览",              icon: "dashboard" },
+        { href: "/dashboard",   label: "Overview",          icon: "dashboard" },
         { href: "/keys",        label: t("sidebarApiKeys"), icon: "key"       },
         { href: "/billing",     label: t("sidebarCredits"), icon: "credit"    },
         { href: "/playground",  label: t("navPlayground"),  icon: "play"      },

@@ -1,9 +1,9 @@
 /**
  * Rate Limiter Service
  *
- * 支持两种模式：
- * 1. Redis 模式（生产环境推荐）- 分布式、持久化
- * 2. 内存模式（开发环境）- 单进程、快速
+ * Two modes:
+ * 1. Redis mode (recommended for production) - distributed, persistent
+ * 2. In-memory mode (development) - single process, fast
  *
  * Two-layer rate limiting:
  * 1. Provider-level: RPM/TPM per provider per model
@@ -13,13 +13,13 @@
 import { adjustTPMUsageRedis, checkRateLimitRedis, checkTPMLimitRedis, getRedis } from "./redis";
 
 // ============================================================
-// 配置
+// Configuration
 // ============================================================
 
 const USE_REDIS = process.env.REDIS_HOST && process.env.REDIS_HOST !== "";
 
 // ============================================================
-// 内存模式（备用）
+// In-memory mode (fallback)
 // ============================================================
 
 interface WindowEntry {
@@ -147,16 +147,16 @@ class SlidingWindowLimiter {
   }
 }
 
-// 内存模式实例（备用）
+// In-memory instances (fallback)
 const memoryProviderLimiter = new SlidingWindowLimiter();
 const memoryConsumerLimiter = new SlidingWindowLimiter();
 
 // ============================================================
-// 统一接口
+// Unified API
 // ============================================================
 
 /**
- * 检查 RPM 限制（自动选择 Redis 或内存）
+ * Check RPM limit (auto-selects Redis or memory)
  */
 export async function checkRPM(
   key: string,
@@ -167,12 +167,12 @@ export async function checkRPM(
     try {
       return await checkRateLimitRedis(`rpm:${key}`, limit, windowMs);
     } catch {
-      // Redis 失败，降级到内存模式
-      console.warn("[RateLimiter] Redis 失败，降级到内存模式");
+      // Redis failed, falling back to memory mode
+      console.warn("[RateLimiter] Redis failed, falling back to memory mode");
     }
   }
 
-  // 内存模式与 Redis 保持同样语义：检查通过即占用一个请求槽。
+  // Memory mode keeps the same semantics as Redis: a passing check immediately reserves a request slot.
   const check = memoryConsumerLimiter.checkRPM(key, limit);
   if (!check.allowed) return check;
   memoryConsumerLimiter.recordRequest(key);
@@ -183,7 +183,7 @@ export async function checkRPM(
 }
 
 /**
- * 检查 TPM 限制
+ * Check TPM limit
  */
 export async function checkTPM(
   key: string,
@@ -195,16 +195,16 @@ export async function checkTPM(
     try {
       return await checkTPMLimitRedis(`tpm:${key}`, limit, estimatedTokens, windowMs);
     } catch {
-      console.warn("[RateLimiter] Redis 失败，降级到内存模式");
+      console.warn("[RateLimiter] Redis failed, falling back to memory mode");
     }
   }
 
-  // 内存模式
+  // Memory mode
   return memoryConsumerLimiter.checkTPM(key, limit, estimatedTokens);
 }
 
 /**
- * 记录请求（RPM）
+ * Record a request (RPM)
  */
 export async function recordRequestAsync(key: string): Promise<void> {
   if (USE_REDIS) {
@@ -215,16 +215,16 @@ export async function recordRequestAsync(key: string): Promise<void> {
       await client.expire(`rpm:${key}`, 61);
       return;
     } catch {
-      console.warn("[RateLimiter] Redis 失败，降级到内存模式");
+      console.warn("[RateLimiter] Redis failed, falling back to memory mode");
     }
   }
 
-  // 内存模式
+  // Memory mode
   memoryConsumerLimiter.recordRequest(key);
 }
 
 /**
- * 记录 Token 使用（TPM）
+ * Record token usage (TPM)
  */
 export async function recordTokensAsync(key: string, tokens: number): Promise<void> {
   if (USE_REDIS) {
@@ -234,17 +234,18 @@ export async function recordTokensAsync(key: string, tokens: number): Promise<vo
       await client.expire(`tpm:${key}`, 61);
       return;
     } catch {
-      console.warn("[RateLimiter] Redis 失败，降级到内存模式");
+      console.warn("[RateLimiter] Redis failed, falling back to memory mode");
     }
   }
 
-  // 内存模式
+  // Memory mode
   memoryConsumerLimiter.recordTokens(key, tokens);
 }
 
 /**
- * 结算 TPM 预占差额。checkTPM 已经预占 estimatedTokens；实际 usage 返回后，
- * 只补扣或返还差额，避免生产 Redis 模式下重复计数。
+ * Settle the TPM reservation difference. checkTPM has already reserved estimatedTokens;
+ * once actual usage is known, this only credits or debits the delta to avoid
+ * double counting in production Redis mode.
  */
 export async function reconcileTokensAsync(
   key: string,
@@ -260,7 +261,7 @@ export async function reconcileTokensAsync(
       await adjustTPMUsageRedis(`tpm:${key}`, delta, windowMs);
       return;
     } catch {
-      console.warn("[RateLimiter] Redis 失败，降级到内存模式");
+      console.warn("[RateLimiter] Redis failed, falling back to memory mode");
     }
   }
 
@@ -350,7 +351,7 @@ export async function getProviderUsageStatsAsync(providerId: string, modelId: st
       const tpmCount = parseInt(await client.get(`tpm:provider:${providerId}:${modelId}`) || "0");
       return { rpm: rpmCount, tpm: tpmCount };
     } catch {
-      // 降级到内存
+      // Fall back to memory
     }
   }
 
@@ -358,7 +359,7 @@ export async function getProviderUsageStatsAsync(providerId: string, modelId: st
 }
 
 // ============================================================
-// 同步接口兼容（保留原有接口）
+// Sync API compatibility (kept for backward compatibility)
 // ============================================================
 
 export const providerLimiter = memoryProviderLimiter;
@@ -430,11 +431,11 @@ export function getProviderUsageStats(providerId: string, modelId: string) {
 }
 
 // ============================================================
-// 导出
+// Exports
 // ============================================================
 
 export default {
-  // 异步接口（推荐）
+  // Async API (recommended)
   checkRPM,
   checkTPM,
   checkProviderLimitsAsync,
@@ -442,7 +443,7 @@ export default {
   reconcileTokensAsync,
   recordRequestFullAsync,
   getProviderUsageStatsAsync,
-  // 同步接口（兼容）
+  // Sync API (compatibility)
   providerLimiter,
   consumerLimiter,
   checkProviderLimits,

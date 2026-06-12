@@ -11,13 +11,13 @@ export type PixVerseRuntimeChannel = {
 
 const DEFAULT_CHANNELS = {
   bailian: {
-    name: "百炼渠道",
+    name: "Bailian Channel",
     adapter: "dashscope" as const,
     api_base_url: "https://dashscope.aliyuncs.com/api/v1",
     api_key: process.env.DASHSCOPE_API_KEY || "",
   },
   official: {
-    name: "拍我官方",
+    name: "PixVerse Official",
     adapter: "pixverse" as const,
     api_base_url: "https://app-api.pixverse.ai/openapi/v2",
     api_key: process.env.PIXVERSE_API_KEY || "",

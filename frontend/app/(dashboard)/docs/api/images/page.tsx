@@ -7,12 +7,12 @@ import Link from "next/link";
 const API_BASE = "https://nexusflow.hk";
 
 const requestParams = [
-  { name: "model", type: "string", required: true, desc: "固定值：wan2.6-t2i" },
-  { name: "prompt", type: "string", required: true, desc: "图像描述文本，支持中英文。描述越详细，生成效果越好。不超过 2500 个中文字符。" },
-  { name: "size", type: "string", required: false, desc: "图像尺寸。可选值：1024x1024（默认）、768x1024、1024x768、720x1280、1280x720。" },
-  { name: "n", type: "integer", required: false, desc: "生成图像数量，范围 1-4，默认 1。" },
-  { name: "negative_prompt", type: "string", required: false, desc: "负面提示词，描述不希望出现在图像中的元素。" },
-  { name: "seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]，固定 seed 可提升可复现性。" },
+  { name: "model", type: "string", required: true, desc: "Fixed value: wan2.6-t2i" },
+  { name: "prompt", type: "string", required: true, desc: "Image description text. Supports English and Chinese. The more detailed the description, the better the result. Up to 2500 Chinese characters." },
+  { name: "size", type: "string", required: false, desc: "Image dimensions. Allowed values: 1024x1024 (default), 768x1024, 1024x768, 720x1280, 1280x720." },
+  { name: "n", type: "integer", required: false, desc: "Number of images to generate, range 1-4. Default 1." },
+  { name: "negative_prompt", type: "string", required: false, desc: "Negative prompt describing elements you do not want to appear in the image." },
+  { name: "seed", type: "integer", required: false, desc: "Random seed in [0, 2147483647]. A fixed seed improves reproducibility." },
 ];
 
 const curlExample = `curl -X POST '${API_BASE}/v1/tasks' \\
@@ -20,12 +20,12 @@ const curlExample = `curl -X POST '${API_BASE}/v1/tasks' \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "wan2.6-t2i",
-    "prompt": "一只可爱的橘猫在阳光下打盹，水彩画风格，温暖色调",
+    "prompt": "A cute orange cat napping in the sunshine, watercolor style, warm tones",
     "size": "1024x1024",
     "n": 1
   }'
 
-# 响应直接返回生成结果（无需轮询）：
+# The response returns the result directly (no polling required):
 # {
 #   "id": "4b0a0920-...",
 #   "object": "task",
@@ -54,18 +54,18 @@ response = requests.post(
     },
     json={
         "model": "wan2.6-t2i",
-        "prompt": "一只可爱的橘猫在阳光下打盹，水彩画风格，温暖色调",
+        "prompt": "A cute orange cat napping in the sunshine, watercolor style, warm tones",
         "size": "1024x1024",
         "n": 1,
     },
 ).json()
 
-# wan2.6-t2i 为同步接口，直接返回结果，无需轮询
+# wan2.6-t2i is a synchronous endpoint and returns results directly; no polling required
 if response["status"] == "succeeded":
     image_url = response["output"]["image_url"]
-    print(f"生成完成！图片URL: {image_url}")
+    print(f"Generated! Image URL: {image_url}")
 else:
-    print(f"生成失败: {response.get('error')}")`;
+    print(f"Generation failed: {response.get('error')}")`;
 
 export default function ImagesApiPage() {
   const [codeLang, setCodeLang] = useState<"curl" | "python">("curl");
@@ -79,19 +79,19 @@ export default function ImagesApiPage() {
           background: "#eff6ff", color: "#1d4ed8", fontSize: 11, fontWeight: 700,
           letterSpacing: "0.5px", marginBottom: 12,
         }}>
-          万相 2.6 / Alibaba
+          Wanxiang 2.6 / Alibaba
         </span>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
-          图像生成 API
+          Image Generation API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          万相 2.6 文生图模型，输入文本描述即可生成高质量图像。API 为<strong>同步接口</strong>，提交请求后直接返回生成结果，无需轮询。通常耗时 8-15 秒。
+          The Wanxiang 2.6 text-to-image model produces high-quality images from a text description. The API is <strong>synchronous</strong>—submit a request and the generated result is returned directly with no polling required. Typical latency is 8-15 seconds.
         </p>
       </div>
 
       {/* HTTP Flow */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>接口信息</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Endpoint</h2>
         <div style={{
           padding: 18, border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg-elevated)",
         }}>
@@ -103,7 +103,7 @@ export default function ImagesApiPage() {
             <code style={{ fontSize: 13 }}>{API_BASE}/v1/tasks</code>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            同步调用 - 请求完成后直接返回图片 URL，无需额外查询。响应中 <code>status</code> 直接为 <code>&quot;succeeded&quot;</code>。
+            Synchronous call — the image URL is returned directly when the request completes; no follow-up query needed. The response <code>status</code> is set to <code>&quot;succeeded&quot;</code> right away.
           </div>
         </div>
         <div style={{ marginTop: 12, padding: 16, border: "1px solid var(--border)", borderRadius: 10, background: "var(--bg)" }}>
@@ -115,23 +115,23 @@ export default function ImagesApiPage() {
             <code style={{ fontSize: 13 }}>{API_BASE}/v1/images/generations</code>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            也支持 OpenAI 风格图像生成入口，适合复用 OpenAI SDK 的 <code>images.generate</code> 调用；新接入建议优先使用统一任务接口 <code>/v1/tasks</code>。
+            We also expose an OpenAI-style image generation endpoint, suitable for reusing the OpenAI SDK's <code>images.generate</code> call. New integrations should prefer the unified task endpoint <code>/v1/tasks</code>.
           </div>
         </div>
       </section>
 
       {/* Supported models */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>支持的模型</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Supported Models</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型 ID</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>名称</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>支持尺寸</th>
-                <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>调用方式</th>
-                <th style={{ padding: "12px 16px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>价格</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Model ID</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Name</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Supported Sizes</th>
+                <th style={{ padding: "12px 16px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Mode</th>
+                <th style={{ padding: "12px 16px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Price</th>
               </tr>
             </thead>
             <tbody>
@@ -139,12 +139,12 @@ export default function ImagesApiPage() {
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
                   <code style={{ fontSize: 13, fontWeight: 600 }}>wan2.6-t2i</code>
                 </td>
-                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>万相 2.6 文生图</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>Wanxiang 2.6 text-to-image</td>
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontSize: 13, color: "var(--text-secondary)" }}>1024x1024, 768x1024, 1024x768, 720x1280, 1280x720</td>
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
-                  <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: "#dcfce7", color: "#16a34a" }}>同步</span>
+                  <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: "#dcfce7", color: "#16a34a" }}>Sync</span>
                 </td>
-                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", textAlign: "right", color: "var(--accent)", fontWeight: 600 }}>¥0.20 / 张</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", textAlign: "right", color: "var(--accent)", fontWeight: 600 }}>$0.20 / image</td>
               </tr>
             </tbody>
           </table>
@@ -157,27 +157,27 @@ export default function ImagesApiPage() {
           padding: 16, background: "#f0fdf4", border: "1px solid #86efac",
           borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#166534",
         }}>
-          <strong>同步接口说明：</strong>
+          <strong>Synchronous endpoint notes:</strong>
           <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
-            <li>wan2.6-t2i 为同步接口，提交请求后<strong>直接返回生成结果</strong>，无需轮询。</li>
-            <li>请求耗时通常 8-15 秒，请确保客户端超时设置足够（建议 &gt; 30 秒）。</li>
-            <li>图片 URL 有效期 24 小时，获取后请立即下载保存。</li>
-            <li>按生成图片数量计费（如 n=4 则 ¥0.80），仅对成功任务计费。</li>
+            <li>wan2.6-t2i is a synchronous endpoint and <strong>returns the generated result directly</strong> on submission—no polling needed.</li>
+            <li>Requests typically take 8-15 seconds; ensure your client timeout is generous (recommended &gt; 30 seconds).</li>
+            <li>Image URLs are valid for 24 hours; download and persist them immediately.</li>
+            <li>Billing is per generated image (e.g. n=4 costs $0.80). Only successful tasks are charged.</li>
           </ul>
         </div>
       </section>
 
       {/* Request params table */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>请求参数</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Request Parameters</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>参数</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>必选</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Parameter</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>Required</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -200,7 +200,7 @@ export default function ImagesApiPage() {
 
       {/* Code examples */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>完整调用示例</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Full Example</h2>
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
           {(["curl", "python"] as const).map(lang => (
             <button
@@ -225,9 +225,9 @@ export default function ImagesApiPage() {
 
       {/* Response */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>响应示例</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Response Examples</h2>
 
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>成功响应</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>Success</h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
           <DocsCodeBlock code={`{
   "id": "4b0a0920-ce86-4fbe-81cc-55e3b89a6ed1",
@@ -247,7 +247,7 @@ export default function ImagesApiPage() {
 }`} />
         </div>
 
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>失败响应</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>Failure</h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
           <DocsCodeBlock code={`{
   "error": {
@@ -259,24 +259,24 @@ export default function ImagesApiPage() {
         </div>
 
         {/* Response fields */}
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>响应字段</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>Response Fields</h3>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>字段</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Field</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
               {[
-                ["id", "string", "任务 ID。"],
-                ["status", "string", "同步接口直接返回 \"succeeded\" 或通过 error 对象返回失败信息。"],
-                ["output.image_url", "string", "生成的图片 URL（首张）。PNG 格式，链接有效期 24 小时。"],
-                ["output.images", "array", "所有生成图片的 URL 数组（n > 1 时返回多张）。"],
-                ["created_at", "string", "任务创建时间（ISO 8601 格式）。"],
-                ["completed_at", "string", "任务完成时间。"],
+                ["id", "string", "Task ID."],
+                ["status", "string", "The synchronous endpoint returns \"succeeded\" directly, or surfaces failure information via the error object."],
+                ["output.image_url", "string", "URL of the first generated image. PNG format; valid for 24 hours."],
+                ["output.images", "array", "Array of all generated image URLs (multiple URLs when n > 1)."],
+                ["created_at", "string", "Task creation time (ISO 8601)."],
+                ["completed_at", "string", "Task completion time."],
               ].map(([field, type, desc], i) => (
                 <tr key={field} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{field}</code></td>
@@ -291,21 +291,21 @@ export default function ImagesApiPage() {
 
       {/* Pricing */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>计费说明</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Pricing</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>单价</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Model</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Unit Price</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Notes</th>
               </tr>
             </thead>
             <tbody>
               <tr style={{ background: "var(--bg)" }}>
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>wan2.6-t2i</td>
-                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--accent)", fontWeight: 600 }}>¥0.20 / 张</td>
-                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>按生成图片数量计费（如 n=4 则 ¥0.80）。仅对成功任务计费，失败任务不扣费。</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--accent)", fontWeight: 600 }}>$0.20 / image</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>Charged per generated image (e.g. n=4 costs $0.80). Only successful tasks are billed; failed tasks are free.</td>
               </tr>
             </tbody>
           </table>
@@ -315,9 +315,9 @@ export default function ImagesApiPage() {
       {/* Links */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         {[
-          { href: "/docs/api/videos", label: "视频生成 API", desc: "查看文生视频接口文档" },
-          { href: "/docs/api/tasks", label: "异步任务 API", desc: "查看通用异步任务接口文档" },
-          { href: "/pricing", label: "完整定价", desc: "查看所有模型定价" },
+          { href: "/docs/api/videos", label: "Video Generation API", desc: "Text-to-video API documentation" },
+          { href: "/docs/api/tasks", label: "Async Tasks API", desc: "General async tasks API documentation" },
+          { href: "/pricing", label: "Full Pricing", desc: "View pricing for all models" },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

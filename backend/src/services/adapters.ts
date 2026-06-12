@@ -42,19 +42,19 @@ export interface TaskResult {
 
 export function detectModelType(category: string): ModelType {
   switch (category) {
-    case "大语言模型":
-    case "推理模型":
-    case "多模态模型":
-    case "编程模型":
-    case "专业模型":
+    case "Large Language Model":
+    case "Reasoning Model":
+    case "Multimodal":
+    case "Coding Model":
+    case "Specialized":
       return "chat";
-    case "向量模型":
+    case "Embedding":
       return "embedding";
-    case "图像生成":
+    case "Image Generation":
       return "image";
-    case "视频生成":
+    case "Video Generation":
       return "video";
-    case "语音模型":
+    case "Audio":
       return "audio";
     default:
       return "unknown";

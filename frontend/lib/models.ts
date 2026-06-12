@@ -32,14 +32,14 @@ export function formatContextLength(contextLength?: number) {
 
 export function formatModelPrice(model: ModelSummary) {
   if (model.pricingType === "per-second") {
-    return `from ¥${formatCompactPrice(model.promptPrice || 0)}/s`;
+    return `from $${formatCompactPrice(model.promptPrice || 0)}/s`;
   }
   if (model.pricingType === "per-image") {
-    return `¥${formatCompactPrice(model.promptPrice || 0)}/image`;
+    return `$${formatCompactPrice(model.promptPrice || 0)}/image`;
   }
   const input = formatCompactPrice(model.promptPrice || 0);
   const output = formatCompactPrice(model.completionPrice || 0);
-  return `In ¥${input} · Out ¥${output}/M`;
+  return `In $${input} · Out $${output}/M`;
 }
 
 export function getRecommendedModels(models: ModelSummary[], limit = 6) {
@@ -76,7 +76,7 @@ export function pickDefaultPlaygroundModel(models: ModelSummary[], requestedMode
     "qwen3-max",
     "qwen-plus",
   ].filter(Boolean);
-  const chatModels = models.filter((model) => ["大语言模型", "推理模型", "编程模型", "多模态模型"].includes(model.category));
+  const chatModels = models.filter((model) => ["Large Language Model", "Reasoning Model", "Coding Model", "Multimodal"].includes(model.category));
   const preferred = preferredIds.find((id) => chatModels.some((model) => model.id === id));
   return preferred || chatModels[0]?.id || models[0]?.id || "";
 }

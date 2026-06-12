@@ -114,23 +114,23 @@ router.get("/overview", async (_req: Request, res: Response) => {
     if (card.health === "down") {
       rows.push({
         level: "critical",
-        title: `${card.providerName} 已熔断`,
-        detail: "至少一个模型路由处于 down，流量需要切走。",
+        title: `${card.providerName} circuit broken`,
+        detail: "At least one model route is down; traffic needs to be diverted.",
         providerId: card.providerId,
       });
     } else if (card.health === "degraded") {
       rows.push({
         level: "warning",
-        title: `${card.providerName} 处于降级`,
-        detail: "连续失败累积，建议关注错误率和延迟。",
+        title: `${card.providerName} is degraded`,
+        detail: "Consecutive failures accumulating; review error rate and latency.",
         providerId: card.providerId,
       });
     }
     if (card.capacityHitRate >= 80) {
       rows.push({
         level: "warning",
-        title: `${card.providerName} 容量接近打满`,
-        detail: `当前容量命中率 ${card.capacityHitRate}% ，建议扩容或调权重。`,
+        title: `${card.providerName} capacity near limit`,
+        detail: `Current capacity hit rate ${card.capacityHitRate}%; consider scaling up or adjusting weights.`,
         providerId: card.providerId,
       });
     }
@@ -169,7 +169,7 @@ router.get("/provider/:providerId", async (req: Request, res: Response) => {
   ]);
   const provider = providers.find((item) => item.id === providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "渠道不存在" });
+    res.status(404).json({ success: false, message: "Channel not found" });
     return;
   }
 

@@ -55,7 +55,7 @@ export function BalanceWarning({ balance, threshold = 10, onRecharge }: BalanceW
           fontWeight: 600,
           color: isCritical ? "#ef4444" : "#f97316",
         }}>
-          {isCritical ? "余额已耗尽" : "余额不足"}
+          {isCritical ? "Balance depleted" : "Low balance"}
         </div>
         <div style={{
           fontSize: 12,
@@ -63,8 +63,8 @@ export function BalanceWarning({ balance, threshold = 10, onRecharge }: BalanceW
           marginTop: 2,
         }}>
           {isCritical
-            ? "API 调用将被拒绝，请立即充值以继续使用服务"
-            : `当前余额 ¥${numericBalance.toFixed(2)}，建议充值以保证服务正常使用`}
+            ? "API calls will be rejected. Please top up immediately to keep using the service."
+            : `Current balance $${numericBalance.toFixed(2)}. Top up to keep your service running smoothly.`}
         </div>
       </div>
 
@@ -79,7 +79,7 @@ export function BalanceWarning({ balance, threshold = 10, onRecharge }: BalanceW
             background: isCritical ? "#ef4444" : undefined,
           }}
         >
-          立即充值
+          Top up now
         </button>
       )}
     </div>

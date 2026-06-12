@@ -127,7 +127,7 @@ export async function ensureProvider(data: {
       contact_name, contact_email, contact_phone, status, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      RETURNING *`,
-    [data.id, data.name, data.slug, data.description || "", null, data.website || null, data.api_base_url, encryptProviderSecret(data.api_key || ""), data.contact_name || "平台运营", data.contact_email || "ops@nexusflow.ai", data.contact_phone || null, normalizeStatusForStorage(data.status || "enabled"), now, now]
+    [data.id, data.name, data.slug, data.description || "", null, data.website || null, data.api_base_url, encryptProviderSecret(data.api_key || ""), data.contact_name || "Platform Ops", data.contact_email || "ops@nexusflow.ai", data.contact_phone || null, normalizeStatusForStorage(data.status || "enabled"), now, now]
   );
   return parseProviderRow(row);
 }
@@ -245,7 +245,7 @@ export async function createModel(providerId: string, data: {
       is_featured, is_new, status, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      RETURNING *`,
-    [id, providerId, data.model_id, data.name, data.description || "", data.category || "大语言模型", data.context_length || 4096, data.max_output || 4096, data.prompt_price || 0, data.completion_price || 0, JSON.stringify(data.tags || []), JSON.stringify(data.supported || ["文本"]), false, true, "draft", now, now]
+    [id, providerId, data.model_id, data.name, data.description || "", data.category || "Large Language Model", data.context_length || 4096, data.max_output || 4096, data.prompt_price || 0, data.completion_price || 0, JSON.stringify(data.tags || []), JSON.stringify(data.supported || ["Text"]), false, true, "draft", now, now]
   );
   return parseModelRow(row);
 }
@@ -362,7 +362,7 @@ function parseModelRow(row: any): ProviderModel {
     ...row,
     status: normalizeStatus(row.status),
     tags: typeof row.tags === "string" ? JSON.parse(row.tags || "[]") : row.tags || [],
-    supported: typeof row.supported === "string" ? JSON.parse(row.supported || '["文本"]') : row.supported || ["文本"],
+    supported: typeof row.supported === "string" ? JSON.parse(row.supported || '["Text"]') : row.supported || ["Text"],
     is_featured: !!row.is_featured,
     is_new: !!row.is_new,
   };

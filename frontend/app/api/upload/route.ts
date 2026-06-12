@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "上传失败";
+    const message = error instanceof Error ? error.message : "Upload failed";
     return NextResponse.json(
       { success: false, message },
       { status: 502 }

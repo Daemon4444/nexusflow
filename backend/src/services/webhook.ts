@@ -1,10 +1,10 @@
 /**
  * Webhook Service
  *
- * 实现：
- * - 异步任务完成通知
- * - 用户配置回调地址
- * - 重试机制
+ * Implements:
+ * - Async task completion notifications
+ * - User-configured callback URLs
+ * - Retry mechanism
  */
 
 import dotenv from "dotenv";
@@ -16,7 +16,7 @@ const WEBHOOK_TIMEOUT = parseInt(process.env.WEBHOOK_TIMEOUT || "5000");
 const WEBHOOK_RETRY_COUNT = parseInt(process.env.WEBHOOK_RETRY_COUNT || "3");
 
 // ============================================================
-// Webhook 发送
+// Webhook delivery
 // ============================================================
 
 interface WebhookPayload {
@@ -41,7 +41,7 @@ interface WebhookResult {
 }
 
 /**
- * 发送 Webhook 通知
+ * Send a webhook notification
  */
 export async function sendWebhook(
   webhookId: string,
@@ -59,13 +59,13 @@ export async function sendWebhook(
     "X-Quadrant-Delivery": webhookId,
   };
 
-  // 如果有密钥，添加签名
+  // Add signature if a secret is configured
   if (secret) {
     const signature = generateSignature(payload, secret);
     headers["X-Quadrant-Signature"] = signature;
   }
 
-  // 重试发送
+  // Retry sending
   while (attempts < WEBHOOK_RETRY_COUNT) {
     attempts++;
 
@@ -80,7 +80,7 @@ export async function sendWebhook(
       lastStatusCode = response.status;
 
       if (response.ok) {
-        // 发送成功
+        // Sent successfully
         return {
           success: true,
           webhookId,
@@ -90,11 +90,11 @@ export async function sendWebhook(
         };
       }
 
-      // 非 2xx 状态码
+      // Non-2xx status code
       const body = await response.text();
       lastError = `HTTP ${response.status}: ${body.slice(0, 200)}`;
 
-      // 对于 4xx 错误，不再重试（客户端错误）
+      // Do not retry 4xx (client errors)
       if (response.status >= 400 && response.status < 500) {
         break;
       }
@@ -102,14 +102,14 @@ export async function sendWebhook(
     } catch (err: any) {
       lastError = err.message;
 
-      // 网络错误，等待后重试
+      // Network error, wait and retry
       if (attempts < WEBHOOK_RETRY_COUNT) {
-        await sleep(1000 * attempts); // 递增延迟
+        await sleep(1000 * attempts); // increasing delay
       }
     }
   }
 
-  // 所有重试都失败
+  // All retries failed
   return {
     success: false,
     webhookId,
@@ -121,7 +121,7 @@ export async function sendWebhook(
 }
 
 /**
- * 批量发送 Webhook（通知所有订阅的用户）
+ * Send webhooks to all subscribed users in a batch
  */
 export async function notifyTaskCompletion(params: {
   taskId: string;
@@ -134,14 +134,14 @@ export async function notifyTaskCompletion(params: {
 }): Promise<WebhookResult[]> {
   const results: WebhookResult[] = [];
 
-  // 获取用户的所有 Webhook 配置
+  // Fetch all webhook configurations for the user
   const webhooks = await getWebhooksByUser(params.userId);
 
   if (webhooks.length === 0) {
-    return results; // 用户没有配置 Webhook
+    return results; // user has no webhook configured
   }
 
-  // 构造 payload
+  // Build payload
   const payload: WebhookPayload = {
     event: params.status === "succeeded" ? "task.completed" : "task.failed",
     taskId: params.taskId,
@@ -154,9 +154,9 @@ export async function notifyTaskCompletion(params: {
     timestamp: Date.now(),
   };
 
-  // 发送所有 Webhook
+  // Deliver all webhooks
   for (const webhook of webhooks) {
-    // 检查事件是否匹配
+    // Check if the event matches
     if (!webhook.events.includes(payload.event)) {
       continue;
     }
@@ -170,7 +170,7 @@ export async function notifyTaskCompletion(params: {
 
     results.push(result);
 
-    // 记录发送结果
+    // Record the delivery result
     await logWebhookDelivery(webhook.id, payload.event, result);
   }
 
@@ -178,13 +178,13 @@ export async function notifyTaskCompletion(params: {
 }
 
 // ============================================================
-// 签名生成
+// Signature generation
 // ============================================================
 
 import { createHmac } from "crypto";
 
 /**
- * 生成 Webhook 签名（防止伪造请求）
+ * Generate a webhook signature (prevents request forgery)
  */
 function generateSignature(payload: WebhookPayload, secret: string): string {
   const data = JSON.stringify(payload);
@@ -194,7 +194,7 @@ function generateSignature(payload: WebhookPayload, secret: string): string {
 }
 
 /**
- * 验证 Webhook 签名（接收端使用）
+ * Verify a webhook signature (used by receivers)
  */
 export function verifySignature(
   payload: WebhookPayload,
@@ -206,7 +206,7 @@ export function verifySignature(
 }
 
 // ============================================================
-// 发送记录
+// Delivery records
 // ============================================================
 
 interface DeliveryLog {
@@ -222,7 +222,7 @@ interface DeliveryLog {
   createdAt: Date;
 }
 
-// 发送记录存储（内存，生产环境应存数据库）
+// Delivery log storage (in-memory; production should persist to DB)
 const DELIVERY_LOGS: DeliveryLog[] = [];
 const MAX_LOGS = 1000;
 
@@ -246,14 +246,14 @@ async function logWebhookDelivery(
 
   DELIVERY_LOGS.push(log);
 
-  // 限制日志数量
+  // Cap log count
   if (DELIVERY_LOGS.length > MAX_LOGS) {
     DELIVERY_LOGS.shift();
   }
 }
 
 /**
- * 获取 Webhook 发送记录
+ * Get webhook delivery records
  */
 export function getDeliveryLogs(webhookId?: string, limit: number = 50): DeliveryLog[] {
   let logs = DELIVERY_LOGS;
@@ -266,11 +266,11 @@ export function getDeliveryLogs(webhookId?: string, limit: number = 50): Deliver
 }
 
 // ============================================================
-// Webhook 管理 API
+// Webhook management API
 // ============================================================
 
 /**
- * 创建 Webhook 配置（简化版，实际应由 API 路由调用）
+ * Create webhook configuration (simplified; route handlers should call the real implementation)
  */
 export async function createWebhookConfig(
   userId: string,
@@ -280,14 +280,13 @@ export async function createWebhookConfig(
 ): Promise<{ id: string; url: string }> {
   const id = `wh-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  // 这里应该调用 pg.ts 的 createWebhook
-  // 实际实现时由路由处理
+  // In real use, call pg.ts createWebhook from the route handler.
 
   return { id, url };
 }
 
 // ============================================================
-// 辅助函数
+// Helpers
 // ============================================================
 
 function sleep(ms: number): Promise<void> {
@@ -295,7 +294,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 // ============================================================
-// 导出
+// Exports
 // ============================================================
 
 export default {

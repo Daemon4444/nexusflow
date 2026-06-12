@@ -11,13 +11,13 @@ function parseEnvList(value?: string): string[] {
 export async function getSessionUser(req: Request, res: Response) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return null;
   }
 
   const session = await validateSession(auth.slice(7).trim());
   if (!session) {
-    res.status(401).json({ success: false, message: "登录已过期" });
+    res.status(401).json({ success: false, message: "Session expired" });
     return null;
   }
 
@@ -37,7 +37,7 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
   if (!session) return;
 
   if (!isAdminSession(session)) {
-    res.status(403).json({ success: false, message: "需要管理员权限" });
+    res.status(403).json({ success: false, message: "Admin permission required" });
     return;
   }
 

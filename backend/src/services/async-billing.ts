@@ -31,7 +31,7 @@ function hasAudio(params: AsyncCostParams): boolean {
   if (typeof params.audio_setting === "boolean") return params.audio_setting;
   if (params.audio_setting && typeof params.audio_setting === "object") return true;
   const raw = String(params.audio_setting || "").toLowerCase();
-  return raw === "true" || raw === "audio" || raw === "with_audio" || raw === "有声";
+  return raw === "true" || raw === "audio" || raw === "with_audio";
 }
 
 function billingDescription(task: AsyncTask, model: AIModel): { description: string; refId?: string } {
@@ -74,12 +74,12 @@ function getVideoUnitPrice(modelId: string, params: AsyncCostParams): number {
 }
 
 export function estimateAsyncCost(model: AIModel, params: AsyncCostParams): number {
-  if (model.category === "图像生成") {
+  if (model.category === "Image Generation") {
     const count = Math.max(1, Math.min(Number(params.n) || 1, 10));
     return money(count * model.promptPrice);
   }
 
-  if (model.category === "视频生成") {
+  if (model.category === "Video Generation") {
     const duration = Math.max(1, Number(params.duration) || 5);
     const unitPrice = getVideoUnitPrice(model.id, params) || model.promptPrice;
     return money(duration * unitPrice);

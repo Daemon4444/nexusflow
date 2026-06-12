@@ -9,28 +9,28 @@ const API_BASE = "https://nexusflow.hk";
 type TabKey = "image" | "video";
 
 const tabs: { key: TabKey; label: string; model: string; type: string }[] = [
-  { key: "image", label: "图像生成", model: "wan2.6-t2i", type: "image" },
-  { key: "video", label: "视频生成", model: "happyhorse-1.0-t2v", type: "video" },
+  { key: "image", label: "Image Generation", model: "wan2.6-t2i", type: "image" },
+  { key: "video", label: "Video Generation", model: "happyhorse-1.0-t2v", type: "video" },
 ];
 
 const requestParams: Record<TabKey, { name: string; type: string; required: boolean; desc: string }[]> = {
   image: [
-    { name: "model", type: "string", required: true, desc: "模型 ID，例如 wan2.6-t2i。完整列表见模型文档。" },
-    { name: "prompt", type: "string", required: true, desc: "文本提示词，描述期望生成的图像内容。" },
-    { name: "negative_prompt", type: "string", required: false, desc: "负面提示词，描述不希望出现的内容。" },
-    { name: "size", type: "string", required: false, desc: "输出图像尺寸，如 1024x1024（默认）、720x1280、1280x720 等。" },
-    { name: "n", type: "integer", required: false, desc: "生成图片数量，默认 1，最多 4。" },
-    { name: "seed", type: "integer", required: false, desc: "随机种子，固定 seed 可提升可复现性。" },
+    { name: "model", type: "string", required: true, desc: "Model ID, e.g. wan2.6-t2i. See model docs for the full list." },
+    { name: "prompt", type: "string", required: true, desc: "Text prompt describing the desired image." },
+    { name: "negative_prompt", type: "string", required: false, desc: "Negative prompt describing content you do not want to appear." },
+    { name: "size", type: "string", required: false, desc: "Output image dimensions, e.g. 1024x1024 (default), 720x1280, 1280x720." },
+    { name: "n", type: "integer", required: false, desc: "Number of images to generate, default 1, max 4." },
+    { name: "seed", type: "integer", required: false, desc: "Random seed; a fixed seed improves reproducibility." },
   ],
   video: [
-    { name: "model", type: "string", required: true, desc: "模型 ID，例如 happyhorse-1.0-t2v。完整列表见模型文档。" },
-    { name: "prompt", type: "string", required: true, desc: "文本提示词，描述期望生成的视频内容。支持中英文。" },
-    { name: "resolution", type: "string", required: false, desc: "分辨率档位：720P（默认）或 1080P。影响计费。" },
-    { name: "ratio", type: "string", required: false, desc: "宽高比，如 16:9（默认）、9:16、1:1、4:3、3:4。" },
-    { name: "duration", type: "integer", required: false, desc: "视频时长（秒），不同模型取值范围不同，默认 5。" },
-    { name: "img_url", type: "string", required: false, desc: "首帧参考图 URL（图生视频模型必填）。" },
-    { name: "watermark", type: "boolean", required: false, desc: "是否添加水印，默认 true。" },
-    { name: "seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]。" },
+    { name: "model", type: "string", required: true, desc: "Model ID, e.g. happyhorse-1.0-t2v. See model docs for the full list." },
+    { name: "prompt", type: "string", required: true, desc: "Text prompt describing the desired video. Supports English and Chinese." },
+    { name: "resolution", type: "string", required: false, desc: "Resolution tier: 720P (default) or 1080P. Affects pricing." },
+    { name: "ratio", type: "string", required: false, desc: "Aspect ratio, e.g. 16:9 (default), 9:16, 1:1, 4:3, 3:4." },
+    { name: "duration", type: "integer", required: false, desc: "Video duration in seconds; range varies by model. Default 5." },
+    { name: "img_url", type: "string", required: false, desc: "URL of the first-frame reference image (required for image-to-video models)." },
+    { name: "watermark", type: "boolean", required: false, desc: "Whether to add a watermark, default true." },
+    { name: "seed", type: "integer", required: false, desc: "Random seed in [0, 2147483647]." },
   ],
 };
 
@@ -40,7 +40,7 @@ const curlExamples: Record<TabKey, string> = {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "wan2.6-t2i",
-    "prompt": "一只橘色的猫站在月球表面，背景是地球，赛博朋克风格，4K 超高清",
+    "prompt": "An orange cat standing on the surface of the moon with Earth in the background, cyberpunk style, 4K ultra HD",
     "size": "1024x1024",
     "n": 1
   }'`,
@@ -49,7 +49,7 @@ const curlExamples: Record<TabKey, string> = {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "happyhorse-1.0-t2v",
-    "prompt": "一座由硬纸板和瓶盖搭建的微型城市，在夜晚焕发出生机。一列硬纸板火车缓缓驶过。",
+    "prompt": "A miniature city built from cardboard and bottle caps comes to life at night. A cardboard train slowly passes through.",
     "resolution": "1080P",
     "ratio": "16:9",
     "duration": 5
@@ -62,7 +62,7 @@ const pythonExamples: Record<TabKey, string> = {
 API_KEY = "sk-air-your-key"
 BASE = "${API_BASE}"
 
-# wan2.6-t2i 为同步接口，直接返回结果
+# wan2.6-t2i is a synchronous endpoint and returns the result directly
 response = requests.post(
     f"{BASE}/v1/tasks",
     headers={
@@ -71,24 +71,24 @@ response = requests.post(
     },
     json={
         "model": "wan2.6-t2i",
-        "prompt": "一只橘色的猫站在月球表面，背景是地球，赛博朋克风格，4K 超高清",
+        "prompt": "An orange cat standing on the surface of the moon with Earth in the background, cyberpunk style, 4K ultra HD",
         "size": "1024x1024",
         "n": 1,
     },
 ).json()
 
-# 同步返回，无需轮询
+# Synchronous response, no polling required
 if response["status"] == "succeeded":
     image_url = response["output"]["image_url"]
-    print(f"生成完成！图像URL: {image_url}")
+    print(f"Generation complete! Image URL: {image_url}")
 else:
-    print(f"生成失败: {response.get('error')}")`,
+    print(f"Generation failed: {response.get('error')}")`,
   video: `import requests, time
 
 API_KEY = "sk-air-your-key"
 BASE = "${API_BASE}"
 
-# 步骤1：创建视频生成任务
+# Step 1: Create a video generation task
 response = requests.post(
     f"{BASE}/v1/tasks",
     headers={
@@ -97,7 +97,7 @@ response = requests.post(
     },
     json={
         "model": "happyhorse-1.0-t2v",
-        "prompt": "一座由硬纸板和瓶盖搭建的微型城市，在夜晚焕发出生机。",
+        "prompt": "A miniature city built from cardboard and bottle caps comes to life at night.",
         "resolution": "1080P",
         "ratio": "16:9",
         "duration": 5,
@@ -105,23 +105,23 @@ response = requests.post(
 ).json()
 
 task_id = response["id"]
-print(f"任务已创建: {task_id}")  # → task_abc123xxx
+print(f"Task created: {task_id}")  # → task_abc123xxx
 
-# 步骤2：轮询查询结果（建议间隔 10-15 秒）
+# Step 2: Poll for the result (recommended interval: 10-15 seconds)
 while True:
     result = requests.get(
         f"{BASE}/v1/tasks/{task_id}",
         headers={"Authorization": f"Bearer {API_KEY}"},
     ).json()
 
-    print(f"状态: {result['status']}, 进度: {result.get('progress', 0)}%")
+    print(f"Status: {result['status']}, progress: {result.get('progress', 0)}%")
 
     if result["status"] == "succeeded":
         video_url = result["output"]["video_url"]
-        print(f"生成完成！视频URL: {video_url}")
+        print(f"Generation complete! Video URL: {video_url}")
         break
     elif result["status"] == "failed":
-        print(f"生成失败: {result.get('error')}")
+        print(f"Generation failed: {result.get('error')}")
         break
 
     time.sleep(10)`,
@@ -140,23 +140,23 @@ export default function TasksApiPage() {
           background: "#eff6ff", color: "#1d4ed8", fontSize: 11, fontWeight: 700,
           letterSpacing: "0.5px", marginBottom: 12,
         }}>
-          异步任务 / Async Tasks
+          Async Tasks
         </span>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
-          异步任务 API
+          Async Tasks API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          图像与视频生成统一走 <code>/v1/tasks</code> 接口。视频模型为异步调用（先创建任务获取 task_id，再轮询查询结果），图像模型（如 wan2.6-t2i）为同步调用，直接返回结果无需轮询。视频生成通常需要 1-5 分钟。
+          Image and video generation are unified under <code>/v1/tasks</code>. Video models are asynchronous (create the task to obtain task_id and then poll for the result), while image models (such as wan2.6-t2i) are synchronous and return the result directly without polling. Video generation typically takes 1-5 minutes.
         </p>
       </div>
 
       {/* HTTP Flow */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>HTTP 调用流程</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>HTTP Workflow</h2>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
           {[
-            { step: "1", title: "创建任务获取 task_id", method: "POST", endpoint: "/v1/tasks" },
-            { step: "2", title: "根据 task_id 轮询结果", method: "GET", endpoint: "/v1/tasks/{task_id}" },
+            { step: "1", title: "Create the task to obtain task_id", method: "POST", endpoint: "/v1/tasks" },
+            { step: "2", title: "Poll for the result by task_id", method: "GET", endpoint: "/v1/tasks/{task_id}" },
           ].map((s) => (
             <div key={s.step} style={{
               flex: 1, minWidth: 280, padding: 18, border: "1px solid var(--border)",
@@ -187,21 +187,21 @@ export default function TasksApiPage() {
           padding: 16, background: "#fffbeb", border: "1px solid #fcd34d",
           borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#92400e",
         }}>
-          <strong>注意：</strong>
+          <strong>Notes:</strong>
           <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
-            <li>创建成功后，使用返回的 <code>id</code>（即 task_id）查询结果。<strong>请勿重复创建任务</strong>，轮询获取即可。</li>
-            <li><strong>图像模型</strong>（如 wan2.6-t2i）为同步接口，创建请求直接返回结果，无需轮询。</li>
-            <li><strong>视频模型</strong>轮询建议间隔 <strong>10-15 秒</strong>。</li>
-            <li>task_id 查询有效期 <strong>24 小时</strong>，超时后无法查询。</li>
-            <li>输出文件 URL 有效期 24 小时，获取后请立即下载保存。</li>
-            <li>仅图像和视频模型支持 <code>/v1/tasks</code> 接口，聊天模型请使用 <code>/v1/chat/completions</code>。</li>
+            <li>After successful creation, query the result using the returned <code>id</code> (the task_id). <strong>Do not create duplicate tasks</strong>—just poll.</li>
+            <li><strong>Image models</strong> (such as wan2.6-t2i) are synchronous: the create request returns the result directly with no polling required.</li>
+            <li>For <strong>video models</strong>, recommended polling interval is <strong>10-15 seconds</strong>.</li>
+            <li>task_id queries are valid for <strong>24 hours</strong>; queries are unavailable after that.</li>
+            <li>Output file URLs are valid for 24 hours; download and persist them immediately after the task completes.</li>
+            <li>Only image and video models support <code>/v1/tasks</code>; chat models should use <code>/v1/chat/completions</code>.</li>
           </ul>
         </div>
       </section>
 
       {/* Step 1: Create task */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>步骤1：创建任务</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Step 1: Create the Task</h2>
         <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
           {tabs.map((tab) => (
             <button
@@ -225,22 +225,22 @@ export default function TasksApiPage() {
           padding: "10px 16px", background: "var(--bg-elevated)", borderRadius: 8,
           border: "1px solid var(--border)", marginBottom: 20, display: "flex", alignItems: "center", gap: 10,
         }}>
-          <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 600 }}>示例模型：</span>
+          <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 600 }}>Example model:</span>
           <code style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
             {tabs.find(t => t.key === activeTab)?.model}
           </code>
         </div>
 
         {/* Request params table */}
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>请求参数</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Request Parameters</h3>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", marginBottom: 24 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>参数</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>必选</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Parameter</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>Required</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -261,7 +261,7 @@ export default function TasksApiPage() {
         </div>
 
         {/* Code examples */}
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>请求示例</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Request Example</h3>
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
           {(["curl", "python"] as const).map(lang => (
             <button
@@ -275,7 +275,7 @@ export default function TasksApiPage() {
                 transition: "all 0.15s",
               }}
             >
-              {lang === "curl" ? "cURL" : "Python（完整流程）"}
+              {lang === "curl" ? "cURL" : "Python (full flow)"}
             </button>
           ))}
         </div>
@@ -286,9 +286,9 @@ export default function TasksApiPage() {
 
       {/* Step 1 Response */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>步骤1 响应：获取 task_id</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Step 1 Response: Receive task_id</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 14 }}>
-          创建成功后返回任务信息（HTTP 202），<code>id</code> 即为 task_id，用于后续轮询查询。
+          On successful creation, the response (HTTP 202) includes the task information; <code>id</code> is the task_id used for subsequent polling.
         </p>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
           <DocsCodeBlock code={`{
@@ -306,18 +306,18 @@ export default function TasksApiPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>字段</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Field</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
               {[
-                ["id", "任务 ID（task_id）。视频任务用于轮询查询结果，有效期 24 小时。"],
-                ["object", "固定值 \"task\"。"],
-                ["status", "视频模型初始状态为 running；图像模型（如 wan2.6-t2i）为同步接口，直接返回 succeeded。"],
-                ["model", "所使用的模型 ID。"],
-                ["type", "任务类型：\"image\"（图像生成）或 \"video\"（视频生成）。"],
-                ["created_at", "任务创建时间（ISO 8601 格式）。"],
+                ["id", "Task ID (task_id). For video tasks, used to poll for the result; valid for 24 hours."],
+                ["object", "Always \"task\"."],
+                ["status", "Initial status is running for video models; image models (e.g. wan2.6-t2i) are synchronous and return succeeded directly."],
+                ["model", "The model ID used."],
+                ["type", "Task type: \"image\" (image generation) or \"video\" (video generation)."],
+                ["created_at", "Task creation time (ISO 8601)."],
               ].map(([field, desc], i) => (
                 <tr key={field} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{field}</code></td>
@@ -331,7 +331,7 @@ export default function TasksApiPage() {
 
       {/* Step 2: Polling */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>步骤2：根据 task_id 轮询结果</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Step 2: Poll for the Result by task_id</h2>
 
         <div style={{
           padding: "10px 16px", background: "var(--bg-elevated)", borderRadius: 8,
@@ -344,14 +344,14 @@ export default function TasksApiPage() {
           <code style={{ fontSize: 13 }}>{API_BASE}/v1/tasks/{"{task_id}"}</code>
         </div>
 
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>查询请求</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>Query Request</h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
           <DocsCodeBlock code={`curl ${API_BASE}/v1/tasks/task_0385dc79-5ff8-4d82-xxxx \\
   -H "Authorization: Bearer $API_KEY"`} />
         </div>
 
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>
-          {activeTab === "image" ? "图像任务执行成功" : "视频任务执行成功"}
+          {activeTab === "image" ? "Image Task Succeeded" : "Video Task Succeeded"}
         </h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
           <DocsCodeBlock code={activeTab === "image" ? `{
@@ -381,7 +381,7 @@ export default function TasksApiPage() {
 }`} />
         </div>
 
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>任务执行失败</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>Task Failed</h3>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
           <DocsCodeBlock code={`{
   "id": "task_0385dc79-5ff8-4d82-xxxx",
@@ -396,28 +396,28 @@ export default function TasksApiPage() {
         </div>
 
         {/* Response fields */}
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>响应参数</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>Response Fields</h3>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>字段</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Field</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
               {[
-                ["id", "string", "任务 ID。"],
-                ["object", "string", "固定值 \"task\"。"],
-                ["status", "string", "任务状态：pending（排队中）→ running（处理中）→ succeeded（成功）/ failed（失败）。"],
-                ["model", "string", "所使用的模型 ID。"],
-                ["type", "string", "任务类型：\"image\" 或 \"video\"。"],
-                ["progress", "integer", "任务进度百分比 0-100。"],
-                ["output", "object", "生成结果（仅 succeeded 时返回）。图像任务包含 image_url，视频任务包含 video_url。链接有效期 24 小时。"],
-                ["error", "string", "失败原因（仅 failed 时返回）。"],
-                ["created_at", "string", "任务创建时间（ISO 8601 格式）。"],
-                ["completed_at", "string", "任务完成时间（仅终态时返回）。"],
+                ["id", "string", "Task ID."],
+                ["object", "string", "Always \"task\"."],
+                ["status", "string", "Task status: pending (queued) → running (in progress) → succeeded / failed."],
+                ["model", "string", "The model ID used."],
+                ["type", "string", "Task type: \"image\" or \"video\"."],
+                ["progress", "integer", "Task progress percentage 0-100."],
+                ["output", "object", "Generated result (returned only when succeeded). Image tasks include image_url; video tasks include video_url. Links are valid for 24 hours."],
+                ["error", "string", "Failure reason (returned only when failed)."],
+                ["created_at", "string", "Task creation time (ISO 8601)."],
+                ["completed_at", "string", "Task completion time (returned only in terminal state)."],
               ].map(([field, type, desc], i) => (
                 <tr key={field} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{field}</code></td>
@@ -432,7 +432,7 @@ export default function TasksApiPage() {
 
       {/* List tasks */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>查询任务列表</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>List Tasks</h2>
 
         <div style={{
           padding: "10px 16px", background: "var(--bg-elevated)", borderRadius: 8,
@@ -447,7 +447,7 @@ export default function TasksApiPage() {
         </div>
 
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 14 }}>
-          获取当前用户的近期任务列表。可通过 <code>limit</code> 参数控制返回数量（默认 20，最大 100）。
+          Retrieve recent tasks for the current user. Use the <code>limit</code> parameter to control the number returned (default 20, max 100).
         </p>
 
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 16 }}>
@@ -486,13 +486,13 @@ export default function TasksApiPage() {
 
       {/* Best practices */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>最佳实践</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Best Practices</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
           {[
-            { title: "轮询做退避", desc: "图像任务 5-10 秒轮询，视频任务 10-15 秒轮询，避免亚秒级轮询以减少不必要的请求。" },
-            { title: "拆分同步与异步", desc: "聊天请求走 /v1/chat/completions，图像/视频走 /v1/tasks，减少互相干扰。" },
-            { title: "及时下载结果", desc: "输出 URL 有效期 24 小时，任务完成后应立即下载保存文件。" },
-            { title: "处理失败重试", desc: "任务失败时根据 error 字段判断原因。参数错误需修正后重试，上游超时可直接重新创建任务。" },
+            { title: "Back off when polling", desc: "Poll image tasks every 5-10 seconds and video tasks every 10-15 seconds; avoid sub-second polling to reduce unnecessary requests." },
+            { title: "Separate sync and async paths", desc: "Send chat requests to /v1/chat/completions and image/video requests to /v1/tasks to reduce cross-traffic interference." },
+            { title: "Download results promptly", desc: "Output URLs are valid for 24 hours; download and persist files immediately after the task completes." },
+            { title: "Handle failure retries", desc: "On failure, inspect the error field. Parameter errors must be fixed before retrying; upstream timeouts can be retried by creating a new task." },
           ].map((item) => (
             <div key={item.title} style={{ padding: 18, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
@@ -505,9 +505,9 @@ export default function TasksApiPage() {
       {/* Links */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         {[
-          { href: "/docs/api/happyhorse", label: "HappyHorse API", desc: "查看 HappyHorse 视频生成专用文档" },
-          { href: "/docs/api/limits", label: "限流说明", desc: "查看高并发下的限制与优化建议" },
-          { href: "/pricing", label: "完整定价", desc: "查看所有模型定价" },
+          { href: "/docs/api/happyhorse", label: "HappyHorse API", desc: "HappyHorse video generation specific docs" },
+          { href: "/docs/api/limits", label: "Rate Limits", desc: "Limits and tuning for high-concurrency scenarios" },
+          { href: "/pricing", label: "Full Pricing", desc: "View pricing for all models" },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

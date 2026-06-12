@@ -1,11 +1,11 @@
 /**
  * Redis Service
  *
- * 用于：
- * - 速率限制存储（替代内存）
- * - 会话缓存
- * - 语义缓存（相似请求缓存返回）
- * - 任务状态缓存
+ * Used for:
+ * - Rate-limit storage (replacing in-memory)
+ * - Session caching
+ * - Semantic cache (cache responses for similar requests)
+ * - Task status caching
  */
 
 import Redis from "ioredis";
@@ -14,7 +14,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Redis 连接配置
+// Redis connection configuration
 const redisConfig = {
   host: process.env.REDIS_HOST || "localhost",
   port: parseInt(process.env.REDIS_PORT || "6379"),
@@ -25,7 +25,7 @@ const redisConfig = {
   lazyConnect: false,
 };
 
-// 创建 Redis 客户端
+// Create the Redis client
 let redis: Redis | null = null;
 
 export function getRedis(): Redis {
@@ -33,21 +33,21 @@ export function getRedis(): Redis {
     redis = new Redis(redisConfig);
 
     redis.on("connect", () => {
-      console.log("[Redis] 连接成功");
+      console.log("[Redis] connected");
     });
 
     redis.on("error", (err) => {
-      console.error("[Redis] 连接错误:", err.message);
+      console.error("[Redis] connection error:", err.message);
     });
 
     redis.on("close", () => {
-      console.log("[Redis] 连接关闭");
+      console.log("[Redis] connection closed");
     });
   }
   return redis;
 }
 
-// 关闭连接
+// Close connection
 export async function closeRedis(): Promise<void> {
   if (redis) {
     await redis.quit();
@@ -56,7 +56,7 @@ export async function closeRedis(): Promise<void> {
 }
 
 // ============================================================
-// 速率限制
+// Rate limiting
 // ============================================================
 
 interface RateLimitResult {
@@ -66,8 +66,8 @@ interface RateLimitResult {
 }
 
 /**
- * Redis 滑动窗口速率限制
- * 使用 ZSET 存储时间戳，精确控制请求速率
+ * Redis sliding-window rate limiter.
+ * Uses a ZSET to store timestamps for precise request rate control.
  */
 export async function checkRateLimitRedis(
   key: string,
@@ -122,8 +122,8 @@ export async function checkRateLimitRedis(
 }
 
 /**
- * 检查并预占 TPM (Token Per Minute) 限制。
- * 使用 Lua 保证在多实例并发下“读取当前值 + 判断 + 增量预占”是原子操作。
+ * Check and reserve TPM (Token Per Minute) quota.
+ * A Lua script ensures the "read current value + check + reservation" sequence is atomic across multiple instances.
  */
 export async function checkTPMLimitRedis(
   key: string,
@@ -168,7 +168,8 @@ export async function checkTPMLimitRedis(
 }
 
 /**
- * 调整已预占的 TPM token。实际消耗返回后，用 actual - reserved 做差额结算。
+ * Adjust an already-reserved TPM token amount.
+ * After the actual usage is known, settle the difference (actual - reserved).
  */
 export async function adjustTPMUsageRedis(
   key: string,
@@ -207,11 +208,11 @@ export async function adjustTPMUsageRedis(
 }
 
 // ============================================================
-// 会话缓存
+// Session caching
 // ============================================================
 
 /**
- * 缓存用户会话信息
+ * Cache user session info
  */
 export async function cacheSession(
   token: string,
@@ -223,7 +224,7 @@ export async function cacheSession(
 }
 
 /**
- * 获取缓存的会话
+ * Get a cached session
  */
 export async function getCachedSession(token: string): Promise<string | null> {
   const client = getRedis();
@@ -231,7 +232,7 @@ export async function getCachedSession(token: string): Promise<string | null> {
 }
 
 /**
- * 删除会话缓存
+ * Delete cached session
  */
 export async function deleteSession(token: string): Promise<void> {
   const client = getRedis();
@@ -239,11 +240,11 @@ export async function deleteSession(token: string): Promise<void> {
 }
 
 // ============================================================
-// 任务状态缓存
+// Task status caching
 // ============================================================
 
 /**
- * 缓存异步任务状态（减少数据库查询）
+ * Cache async task status (reduces database queries)
  */
 export async function cacheTaskStatus(
   taskId: string,
@@ -255,7 +256,7 @@ export async function cacheTaskStatus(
 }
 
 /**
- * 获取缓存的任务状态
+ * Get cached task status
  */
 export async function getCachedTaskStatus(taskId: string): Promise<any | null> {
   const client = getRedis();
@@ -264,11 +265,11 @@ export async function getCachedTaskStatus(taskId: string): Promise<any | null> {
 }
 
 // ============================================================
-// 健康状态缓存
+// Health status caching
 // ============================================================
 
 /**
- * 缓存供应商健康状态
+ * Cache provider health status
  */
 export async function cacheProviderHealth(
   providerId: string,
@@ -281,7 +282,7 @@ export async function cacheProviderHealth(
 }
 
 /**
- * 获取缓存的供应商健康状态
+ * Get cached provider health status
  */
 export async function getCachedProviderHealth(
   providerId: string,

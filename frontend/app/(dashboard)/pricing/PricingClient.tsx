@@ -59,7 +59,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
           letterSpacing: "-1.5px",
           margin: "0 0 16px",
         }}>
-          模型定价
+          Model pricing
         </h1>
         <p style={{
           fontSize: 17,
@@ -68,7 +68,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
           margin: "0 auto 32px",
           lineHeight: 1.6,
         }}>
-          按量计费，无最低消费。文本按百万token计费，视频按秒计费，图像按张计费。
+          Pay-as-you-go with no minimums. Text models are priced per million tokens, video per second, image per generation.
         </p>
 
         {/* Billing model highlights */}
@@ -217,7 +217,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                       }}>
                         {model.pricingTiers!.map((tier, idx) => (
                           <span key={idx} style={{ whiteSpace: "nowrap" }}>
-                            {tier.label}：¥{tier.price}{model.pricingType === "per-second" ? "/秒" : "/张"}
+                            {tier.label}: ${tier.price}{model.pricingType === "per-second" ? "/s" : "/img"}
                           </span>
                         ))}
                       </span>
@@ -229,7 +229,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                         color: "var(--text-primary)",
                         fontVariantNumeric: "tabular-nums",
                       }}>
-                        ¥{model.promptPrice}{model.pricingType === "per-second" ? "/秒" : "/张"}
+                        ${model.promptPrice}{model.pricingType === "per-second" ? "/s" : "/img"}
                       </span>
                     ) : hasTokenTiers ? (
                       <span style={{
@@ -245,7 +245,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                       }}>
                         {model.tokenPricingTiers!.map((tier) => (
                           <span key={tier.label} style={{ whiteSpace: "nowrap" }}>
-                            {tier.label}：入¥{tier.promptPrice}/出¥{tier.completionPrice}
+                            {tier.label}: in ${tier.promptPrice}/out ${tier.completionPrice}
                           </span>
                         ))}
                       </span>
@@ -263,11 +263,11 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                           <span style={{ fontWeight: 550, color: "var(--success)" }}>Free</span>
                         ) : (
                           <>
-                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>输入</span>
-                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>¥{model.promptPrice}</span>
+                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>Input</span>
+                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>${model.promptPrice}</span>
                             <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450, margin: "0 2px" }}>/</span>
-                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>输出</span>
-                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>¥{model.completionPrice}</span>
+                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>Output</span>
+                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>${model.completionPrice}</span>
                           </>
                         )}
                       </span>
@@ -352,10 +352,10 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
       }}>
         <strong style={{ color: "var(--text-primary)" }}>Pricing Notes:</strong>
         <ul style={{ margin: "12px 0 0", paddingLeft: 20 }}>
-          <li>All prices are in CNY (¥), per million tokens unless otherwise noted</li>
-          <li><strong>阶梯计费</strong>：通义千问、GLM 系列按单次请求输入 token 总量分档计费，长 prompt 自动适用更高档位价格</li>
-          <li><strong>上下文缓存</strong>：支持缓存的模型（Qwen、GLM、DeepSeek V3.2、Kimi、Claude），缓存命中按 0.1x 输入价计费，首次写入按 1.25x。详见 <a href="/docs/context-cache" style={{ color: "#1d4ed8" }}>缓存文档</a></li>
-          <li><strong>Claude 定价</strong>：基于 Anthropic 官方 USD 价格按 1 USD ≈ ¥6.8 折算，汇率变动时可能调整</li>
+          <li>All prices are in USD ($), per million tokens unless otherwise noted</li>
+          <li><strong>Tiered pricing</strong>: Tongyi Qianwen and GLM series price each request based on its input token count — longer prompts automatically use a higher tier</li>
+          <li><strong>Context cache</strong>: cache-enabled models (Qwen, GLM, DeepSeek V3.2, Kimi, Claude) bill cache hits at 0.1x the input rate and writes at 1.25x. See the <a href="/docs/context-cache" style={{ color: "#1d4ed8" }}>cache documentation</a> for details</li>
+          <li><strong>Claude pricing</strong>: based on Anthropic&apos;s official USD list; subject to change</li>
           <li>Video models: per-second billing based on resolution and audio options</li>
           <li>Image models: per-image billing</li>
           <li>Account balance can be recharged at any time, unused balance never expires</li>

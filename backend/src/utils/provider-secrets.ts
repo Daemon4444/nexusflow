@@ -24,14 +24,14 @@ export function decryptProviderSecret(secret: string): string {
   const key = getSecretKey();
   if (!secret || !secret.startsWith(PREFIX)) return secret;
   if (!key) {
-    console.error("[ProviderSecrets] ⚠️ PROVIDER_SECRET_KEY 未配置，无法解密 provider 密钥");
+    console.error("[ProviderSecrets] PROVIDER_SECRET_KEY is not configured; cannot decrypt provider secrets");
     return "";
   }
 
   const payload = secret.slice(PREFIX.length);
   const [ivRaw, tagRaw, encryptedRaw] = payload.split(":");
   if (!ivRaw || !tagRaw || !encryptedRaw) {
-    console.error("[ProviderSecrets] ⚠️ 加密数据格式异常");
+    console.error("[ProviderSecrets] encrypted payload format is invalid");
     return "";
   }
 
@@ -44,7 +44,7 @@ export function decryptProviderSecret(secret: string): string {
     ]);
     return decrypted.toString("utf8");
   } catch (err: any) {
-    console.error("[ProviderSecrets] ⚠️ 解密失败（PROVIDER_SECRET_KEY 可能已轮换）:", err.message);
+    console.error("[ProviderSecrets] decryption failed (PROVIDER_SECRET_KEY may have been rotated):", err.message);
     return "";
   }
 }

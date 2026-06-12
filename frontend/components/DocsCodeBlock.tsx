@@ -7,7 +7,7 @@ interface DocsCodeBlockProps {
   label?: string;
 }
 
-export default function DocsCodeBlock({ code, label = "复制" }: DocsCodeBlockProps) {
+export default function DocsCodeBlock({ code, label = "Copy" }: DocsCodeBlockProps) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -42,7 +42,7 @@ export default function DocsCodeBlock({ code, label = "复制" }: DocsCodeBlockP
           cursor: "pointer",
         }}
       >
-        {copied ? "已复制" : label}
+        {copied ? "Copied" : label}
       </button>
       <pre style={{
         margin: 0,

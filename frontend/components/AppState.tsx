@@ -8,7 +8,7 @@ interface AppStateProps {
   compact?: boolean;
 }
 
-export function LoadingState({ title = "正在加载", message = "正在获取最新数据...", compact = false }: AppStateProps) {
+export function LoadingState({ title = "Loading", message = "Fetching the latest data...", compact = false }: AppStateProps) {
   return (
     <div className="app-state" style={{ padding: compact ? 24 : 56 }}>
       <div className="spinner" style={{ width: 18, height: 18, margin: "0 auto 14px" }} />
@@ -19,9 +19,9 @@ export function LoadingState({ title = "正在加载", message = "正在获取�
 }
 
 export function ErrorState({
-  title = "加载失败",
-  message = "服务暂时不可用，请稍后重试。",
-  actionLabel = "重试",
+  title = "Failed to load",
+  message = "The service is temporarily unavailable. Please try again later.",
+  actionLabel = "Retry",
   onAction,
   compact = false,
 }: AppStateProps) {
@@ -40,8 +40,8 @@ export function ErrorState({
 }
 
 export function EmptyState({
-  title = "暂无数据",
-  message = "完成第一次调用后，这里会出现对应记录。",
+  title = "No data",
+  message = "Records will appear here once your first request runs.",
   actionLabel,
   onAction,
   compact = false,

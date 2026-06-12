@@ -1,10 +1,11 @@
 /**
  * Upstream Resolution
  *
- * 统一的上游解析入口：根据模型与可选的区域偏好，返回实际请求的
- * base_url 与 api_key。渠道配置（provider_channel_configs）存在且可用时
- * 优先生效，否则回退到 services/providers.ts 的静态配置 + 环境变量，
- * 保证存量部署行为不变。
+ * Unified upstream resolution: given a model and an optional region preference,
+ * return the actual base_url and api_key. When provider channel configuration
+ * (provider_channel_configs) is present and usable it takes precedence;
+ * otherwise the resolver falls back to the static configuration in
+ * services/providers.ts plus environment variables, preserving legacy behavior.
  */
 
 import { findProvider, getResolvedProviderApiKey } from "./providers";
@@ -23,12 +24,12 @@ export const REGION_HEADER = "x-nf-region";
 
 export interface ResolvedUpstream {
   providerId: string;
-  /** 命中的渠道 ID；null 表示走静态环境变量回退路径 */
+  /** Matched channel ID; null indicates the static-environment-variable fallback path */
   channelId: string | null;
   region: string;
-  /** OpenAI 兼容协议 base，如 https://dashscope.aliyuncs.com/compatible-mode/v1 */
+  /** OpenAI-compatible base, e.g. https://dashscope.aliyuncs.com/compatible-mode/v1 */
   baseUrl: string;
-  /** 原生协议 base（图像/视频 /api/v1 风格），由 baseUrl 去掉 compatible-mode 后缀得到 */
+  /** Native protocol base (image/video /api/v1 style), derived from baseUrl by stripping the compatible-mode suffix */
   nativeBaseUrl: string;
   apiKey: string;
 }
@@ -59,8 +60,9 @@ export async function resolveUpstream(
   const config = await getProviderChannelConfig(provider.id);
 
   if (config) {
-    // 渠道未单独配 key 时可回退 provider 级环境变量 key，但仅限默认区域：
-    // 实测（2026-06）国内 DASHSCOPE_API_KEY 调海外区域返回 401，海外渠道必须配独立 key
+    // Channels without an explicit key may fall back to the provider-level environment variable key,
+    // but only for the default region: in practice (2026-06) the domestic DASHSCOPE_API_KEY returns 401
+    // when used against overseas regions, so overseas channels must be configured with a dedicated key.
     const hasFallbackKey = !!getResolvedProviderApiKey(provider);
     let candidates = Object.entries(config.channels)
       .filter(([, channel]) => {
@@ -104,7 +106,7 @@ export async function resolveUpstream(
     }
   }
 
-  // 渠道配置缺失或全部不可用：显式要求非默认区域时不允许静默落回北京
+  // Channel config is missing or all channels are unusable: do not silently fall back to Beijing when an explicit non-default region was requested
   if (requestedRegion && requestedRegion !== DEFAULT_REGION) {
     return {
       ok: false,
@@ -139,9 +141,10 @@ export async function resolveUpstream(
 }
 
 /**
- * 预置 dashscope 四区域渠道。仅在配置不存在时写入。
- * 海外区域默认 disabled，且必须配置该区域专属的 API Key（实测国内 key 调海外返回 401）；
- * 新加坡/法兰克福还需补 workspace_id。北京渠道 key 留空时回退 DASHSCOPE_API_KEY。
+ * Pre-create the four DashScope region channels. Only writes if no configuration exists.
+ * Overseas regions are disabled by default and require their region-specific API keys (the domestic key
+ * returns 401 against overseas regions in practice); Singapore/Frankfurt also need workspace_id.
+ * The Beijing channel falls back to DASHSCOPE_API_KEY when its key is empty.
  */
 export async function ensureDashScopeChannelConfig(): Promise<void> {
   if (await getProviderChannelConfig("dashscope")) return;
@@ -150,7 +153,7 @@ export async function ensureDashScopeChannelConfig(): Promise<void> {
     active_channel: "cn-beijing",
     channels: {
       "cn-beijing": {
-        name: "华北2（北京）",
+        name: "North China 2 (Beijing)",
         adapter: "dashscope",
         region: "cn-beijing",
         api_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
@@ -159,7 +162,7 @@ export async function ensureDashScopeChannelConfig(): Promise<void> {
         priority: 100,
       },
       "ap-southeast-1": {
-        name: "新加坡",
+        name: "Singapore",
         adapter: "dashscope",
         region: "ap-southeast-1",
         api_base_url: `https://${WORKSPACE_ID_PLACEHOLDER}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1`,
@@ -170,7 +173,7 @@ export async function ensureDashScopeChannelConfig(): Promise<void> {
         model_allowlist: intlAllowlist,
       },
       "us-east-1": {
-        name: "美国（弗吉尼亚）",
+        name: "United States (Virginia)",
         adapter: "dashscope",
         region: "us-east-1",
         api_base_url: "https://dashscope-us.aliyuncs.com/compatible-mode/v1",
@@ -180,7 +183,7 @@ export async function ensureDashScopeChannelConfig(): Promise<void> {
         model_allowlist: intlAllowlist,
       },
       "eu-central-1": {
-        name: "德国（法兰克福）",
+        name: "Germany (Frankfurt)",
         adapter: "dashscope",
         region: "eu-central-1",
         api_base_url: `https://${WORKSPACE_ID_PLACEHOLDER}.eu-central-1.maas.aliyuncs.com/compatible-mode/v1`,

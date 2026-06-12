@@ -102,7 +102,7 @@ export async function approveRateLimitRequest(
   const qpm = overrides?.qpm ?? request.requested_qpm;
   const tpm = overrides?.tpm ?? request.requested_tpm;
   await reviewRateLimitRequest(requestId, "approved", {
-    adminReply: overrides?.reply || "已批准",
+    adminReply: overrides?.reply || "Approved",
     reviewedBy: reviewer,
   });
   await setUserRateLimit(request.user_id, model, qpm, tpm, "admin");
@@ -113,7 +113,7 @@ export async function rejectRateLimitRequest(requestId: string, reviewer: string
   const request = await getRateLimitRequestById(requestId);
   if (!request || request.status !== "pending") return null;
   await reviewRateLimitRequest(requestId, "rejected", {
-    adminReply: reply || "已拒绝",
+    adminReply: reply || "Rejected",
     reviewedBy: reviewer,
   });
   return getRateLimitRequestById(requestId);

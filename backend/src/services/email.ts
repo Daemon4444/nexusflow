@@ -1,36 +1,36 @@
 /**
- * 邮箱验证码服务 —— Nodemailer SMTP + Redis 存储
+ * Email verification code service - Nodemailer SMTP + Redis storage
  *
- * ====== 环境变量配置（.env） ======
+ * ====== Environment variables (.env) ======
  *
- * SMTP_HOST=smtp.qq.com          # SMTP 服务器
- * SMTP_PORT=465                   # 端口（SSL: 465）
- * SMTP_USER=your@qq.com          # 发件邮箱
- * SMTP_PASS=abcdefghijklmnop     # 授权码
- * SMTP_FROM=Nexusflow <your@qq.com>  # 发件人显示名
+ * SMTP_HOST=smtp.qq.com          # SMTP server
+ * SMTP_PORT=465                   # Port (SSL: 465)
+ * SMTP_USER=your@qq.com          # Sender mailbox
+ * SMTP_PASS=abcdefghijklmnop     # Authorization code
+ * SMTP_FROM=Nexusflow <your@qq.com>  # Sender display name
  *
- * ====== Redis 存储 ======
+ * ====== Redis storage ======
  *
- * 验证码优先存储在 Redis（支持分布式），Redis 不可用时降级到内存
+ * Codes are stored in Redis preferentially (distributed-friendly); when Redis is unavailable, fall back to memory.
  *
- * ====== 未配置 SMTP 时的行为 ======
+ * ====== Behavior when SMTP is not configured ======
  *
- * 未设置 SMTP 环境变量时自动进入测试模式：
- *   - 控制台打印验证码
+ * Without SMTP environment variables, the service automatically enters test mode:
+ *   - Prints the verification code to the console
  */
 
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import { getRedis } from "./redis";
 
-// ============ 配置 ============
+// ============ Configuration ============
 
-const CODE_EXPIRY_SEC = 300;           // 5 分钟（秒）
-const CODE_EXPIRY_MS = 5 * 60 * 1000;  // 5 分钟（毫秒）
-const SEND_INTERVAL_MS = 60 * 1000;    // 60 秒发送间隔
-const MAX_ATTEMPTS = 5;                 // 最大验证尝试次数
+const CODE_EXPIRY_SEC = 300;           // 5 minutes (seconds)
+const CODE_EXPIRY_MS = 5 * 60 * 1000;  // 5 minutes (milliseconds)
+const SEND_INTERVAL_MS = 60 * 1000;    // 60 seconds send interval
+const MAX_ATTEMPTS = 5;                 // Maximum verification attempts
 
-// ============ 内存存储（Redis 不可用时的 fallback） ============
+// ============ In-memory storage (fallback when Redis is unavailable) ============
 
 interface CodeEntry {
   code: string;
@@ -41,7 +41,7 @@ interface CodeEntry {
 const memoryCodeStore = new Map<string, CodeEntry>();
 const memorySendLimitStore = new Map<string, number>();
 
-// ============ Redis 检测 ============
+// ============ Redis detection ============
 
 function useRedis(): boolean {
   return !!process.env.REDIS_HOST && process.env.REDIS_HOST !== "";
@@ -55,7 +55,7 @@ async function redisSetCode(email: string, code: string): Promise<void> {
     const data = JSON.stringify({ code, attempts: 0 });
     await client.set(key, data, "EX", CODE_EXPIRY_SEC);
   } catch {
-    console.warn("[EMAIL] Redis 存储失败，降级到内存");
+    console.warn("[EMAIL] Redis set failed, falling back to memory");
   }
 }
 
@@ -69,7 +69,7 @@ async function redisGetCode(email: string): Promise<{ code: string; attempts: nu
       return JSON.parse(data);
     }
   } catch {
-    console.warn("[EMAIL] Redis 读取失败，降级到内存");
+    console.warn("[EMAIL] Redis get failed, falling back to memory");
   }
   return null;
 }
@@ -121,7 +121,7 @@ async function redisGetSendLimit(email: string): Promise<number | null> {
   return null;
 }
 
-// ============ SMTP 客户端 ============
+// ============ SMTP client ============
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -153,12 +153,12 @@ function getTransporter(): nodemailer.Transporter {
   return transporter;
 }
 
-/** 生成 6 位随机验证码 */
+/** Generate a 6-digit random verification code */
 function generateCode(): string {
   return crypto.randomInt(100000, 999999).toString();
 }
 
-/** 发送验证码邮件 */
+/** Send verification code email */
 async function sendCodeEmail(email: string, code: string): Promise<boolean> {
   try {
     const transport = getTransporter();
@@ -167,7 +167,7 @@ async function sendCodeEmail(email: string, code: string): Promise<boolean> {
     await transport.sendMail({
       from,
       to: email,
-      subject: `Nexusflow 验证码: ${code}`,
+      subject: `Your NexusFlow verification code: ${code}`,
       headers: {
         "X-AliDM-Mail-Settings": JSON.stringify({
           OpenTracking: { Enable: false },
@@ -177,41 +177,41 @@ async function sendCodeEmail(email: string, code: string): Promise<boolean> {
       html: `
         <div style="max-width:420px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;">
           <div style="padding:32px 24px;background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;">
-            <h2 style="margin:0 0 16px;font-size:20px;color:#111;">Nexusflow 验证码</h2>
+            <h2 style="margin:0 0 16px;font-size:20px;color:#111;">NexusFlow verification code</h2>
             <p style="margin:0 0 20px;font-size:14px;color:#666;line-height:1.6;">
-              您正在登录 Nexusflow，验证码如下：
+              You are signing in to NexusFlow. Your verification code is:
             </p>
             <div style="background:#111;color:#fff;font-size:28px;letter-spacing:8px;text-align:center;padding:16px;border-radius:8px;font-weight:700;">
               ${code}
             </div>
             <p style="margin:20px 0 0;font-size:12px;color:#999;line-height:1.6;">
-              验证码 5 分钟内有效，请勿泄露给他人。<br/>
-              如非本人操作，请忽略此邮件。
+              This code is valid for 5 minutes. Do not share it.<br/>
+              If this wasn't you, please ignore this email.
             </p>
           </div>
         </div>
       `,
     });
 
-    console.log(`[EMAIL] 验证码已发送至 ${email}`);
+    console.log(`[EMAIL] Verification code sent to ${email}`);
     return true;
   } catch (error: any) {
-    console.error("[EMAIL] 发送失败:", error.message);
+    console.error("[EMAIL] Send failed:", error.message);
     return false;
   }
 }
 
-// ============ 对外接口 ============
+// ============ Public API ============
 
-/** 发送邮箱验证码 */
+/** Send email verification code */
 export async function sendEmailCode(email: string): Promise<{ success: boolean; message: string }> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { success: false, message: "邮箱格式不正确" };
+    return { success: false, message: "Invalid email format" };
   }
 
   const key = email.toLowerCase();
 
-  // 发送频率限制（优先 Redis）
+  // Send-rate limiting (Redis preferred)
   let lastSent: number | null = null;
   if (useRedis()) {
     lastSent = await redisGetSendLimit(key);
@@ -222,27 +222,27 @@ export async function sendEmailCode(email: string): Promise<{ success: boolean; 
 
   if (lastSent && Date.now() - lastSent < SEND_INTERVAL_MS) {
     const remaining = Math.ceil((SEND_INTERVAL_MS - (Date.now() - lastSent)) / 1000);
-    return { success: false, message: `请${remaining}秒后重试` };
+    return { success: false, message: `Please retry in ${remaining} seconds` };
   }
 
   const code = generateCode();
   const isReal = isSmtpConfigured();
 
   if (!isReal && isProduction()) {
-    console.error("[EMAIL] SMTP 未配置，生产环境拒绝发送验证码");
-    return { success: false, message: "验证码服务暂不可用，请稍后重试" };
+    console.error("[EMAIL] SMTP not configured; refusing to send code in production");
+    return { success: false, message: "Verification service is unavailable, please retry later" };
   }
 
   if (isReal) {
     const sent = await sendCodeEmail(email, code);
     if (!sent) {
-      return { success: false, message: "邮件发送失败，请稍后重试" };
+      return { success: false, message: "Failed to send email, please retry later" };
     }
   } else {
-    console.log(`[EMAIL-TEST] 邮箱: ${email}, 验证码: ${code} (测试模式)`);
+    console.log(`[EMAIL-TEST] email: ${email}, code: ${code} (test mode)`);
   }
 
-  // 存储验证码（优先 Redis）
+  // Store the code (Redis preferred)
   if (useRedis()) {
     await redisSetCode(key, code);
     await redisSetSendLimit(key);
@@ -257,15 +257,15 @@ export async function sendEmailCode(email: string): Promise<{ success: boolean; 
 
   return {
     success: true,
-    message: isReal ? "验证码已发送到您的邮箱" : "验证码已发送（测试模式，请查看服务器日志）",
+    message: isReal ? "Verification code has been sent to your email" : "Verification code sent (test mode, see server logs)",
   };
 }
 
-/** 验证邮箱验证码 */
+/** Verify email verification code */
 export async function verifyEmailCode(email: string, code: string): Promise<boolean> {
   const key = email.toLowerCase();
 
-  // 优先从 Redis 获取
+  // Prefer Redis
   if (useRedis()) {
     const stored = await redisGetCode(key);
     if (!stored) return false;
@@ -284,7 +284,7 @@ export async function verifyEmailCode(email: string, code: string): Promise<bool
     return false;
   }
 
-  // 内存 fallback
+  // Memory fallback
   const stored = memoryCodeStore.get(key);
   if (!stored) return false;
 
@@ -308,7 +308,7 @@ export async function verifyEmailCode(email: string, code: string): Promise<bool
   return false;
 }
 
-// 内存定期清理（仅当 Redis 不可用时）
+// Periodic memory cleanup (only when Redis is unavailable)
 if (!useRedis()) {
   setInterval(() => {
     const now = Date.now();

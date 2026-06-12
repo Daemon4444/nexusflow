@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="en">
       <body className="antialiased">
         <a href="#main-content" className="skip-link">Skip to content</a>
         <script
@@ -50,7 +50,7 @@ export default function RootLayout({
             "offers": {
               "@type": "Offer",
               "price": "0",
-              "priceCurrency": "CNY",
+              "priceCurrency": "USD",
               "description": "Pay-as-you-go pricing with no minimum spend"
             }
           }) }}

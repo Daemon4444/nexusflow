@@ -4,29 +4,29 @@ const claudeModels = [
   {
     id: "claude-opus-4-7",
     name: "Claude Opus 4.7",
-    desc: "最强通用 Claude，适合复杂推理、Agentic Coding 和大型上下文任务。",
+    desc: "The strongest general-purpose Claude—built for complex reasoning, agentic coding, and large-context tasks.",
     context: "1M",
     output: "128K",
     usd: "$5 / $25",
-    cny: "约 ¥34 / ¥170",
+    cny: "≈ $34 / $170",
   },
   {
     id: "claude-sonnet-4-6",
     name: "Claude Sonnet 4.6",
-    desc: "速度与智能均衡的生产主力，适合代码、工具调用和多轮对话。",
+    desc: "A balanced production workhorse—great for code, tool use, and multi-turn conversations.",
     context: "1M",
     output: "64K",
     usd: "$3 / $15",
-    cny: "约 ¥20.4 / ¥102",
+    cny: "≈ $20.4 / $102",
   },
   {
     id: "claude-haiku-4-5",
     name: "Claude Haiku 4.5",
-    desc: "高速低成本 Claude，适合低延迟分类、抽取、批量处理和轻量对话。",
+    desc: "Fast and economical Claude—ideal for low-latency classification, extraction, batch processing, and lightweight chat.",
     context: "200K",
     output: "64K",
     usd: "$1 / $5",
-    cny: "约 ¥6.8 / ¥34",
+    cny: "≈ $6.8 / $34",
   },
 ];
 
@@ -35,14 +35,14 @@ export default function ClaudeModelsPage() {
     <div style={{ padding: "48px 64px", maxWidth: 1040 }}>
       <div style={{ marginBottom: 36 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#b45309", marginBottom: 10 }}>
-          Anthropic 官方渠道
+          Anthropic Official Channel
         </div>
         <h1 style={{ fontSize: 30, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 12px" }}>
-          Claude 模型
+          Claude Models
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 760, margin: 0 }}>
-          NexusFlow 已加入 Claude 官方 Messages API 路由。Claude 模型通过 <code>/v1/messages</code> 调用，需要后端配置 <code>ANTHROPIC_API_KEY</code>。
-          下方 USD 为 Anthropic 官方公开价格，人民币为当前项目计费字段按 <code>1 USD≈¥6.8</code> 折算。
+          NexusFlow now routes to the official Anthropic Messages API. Claude models are called via <code>/v1/messages</code> and require <code>ANTHROPIC_API_KEY</code> on the backend.
+          The USD figures below are Anthropic&apos;s official public prices; the secondary column converts current billing fields at <code>1 USD ≈ $6.8</code>.
         </p>
       </div>
 
@@ -51,12 +51,12 @@ export default function ClaudeModelsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>模型</th>
-                <th style={{ padding: "12px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>场景</th>
-                <th style={{ padding: "12px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>上下文</th>
-                <th style={{ padding: "12px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>最大输出</th>
-                <th style={{ padding: "12px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>官方 USD / MTok</th>
-                <th style={{ padding: "12px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>NexusFlow 计费</th>
+                <th style={{ padding: "12px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Model</th>
+                <th style={{ padding: "12px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Use cases</th>
+                <th style={{ padding: "12px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>Context</th>
+                <th style={{ padding: "12px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>Max output</th>
+                <th style={{ padding: "12px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>Official USD / MTok</th>
+                <th style={{ padding: "12px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>NexusFlow billing</th>
               </tr>
             </thead>
             <tbody>
@@ -81,18 +81,18 @@ export default function ClaudeModelsPage() {
       </section>
 
       <section style={{ padding: 18, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-elevated)", marginBottom: 32 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>计费口径</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>Billing Notes</div>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.8, margin: 0 }}>
-          基础输入和输出 token 价格按 Anthropic 官方 Model pricing 表。Prompt cache 写入按 1.25x 输入价，cache hit 按 0.1x 输入价；Batch、data residency、server-side tools 等额外价格暂未在公共计费 UI 单独展开。
+          Base input and output token prices follow Anthropic&apos;s official model pricing table. Prompt-cache writes are charged at 1.25× the input rate; cache hits at 0.1× the input rate. Additional charges for batch processing, data residency, server-side tools, etc. are not yet broken out in the public billing UI.
         </p>
       </section>
 
       <section>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[
-            { href: "/docs/api/claude", label: "Claude API", desc: "查看 /v1/messages 调用方式" },
-            { href: "/models", label: "模型目录", desc: "查看所有可用模型" },
-            { href: "/pricing", label: "完整定价", desc: "按供应商浏览价格" },
+            { href: "/docs/api/claude", label: "Claude API", desc: "How to call /v1/messages" },
+            { href: "/models", label: "Model Catalog", desc: "Browse all available models" },
+            { href: "/pricing", label: "Full Pricing", desc: "Browse pricing by provider" },
           ].map((link) => (
             <Link key={link.href} href={link.href} style={{
               padding: 16,

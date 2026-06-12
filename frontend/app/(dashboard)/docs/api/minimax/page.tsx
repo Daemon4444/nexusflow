@@ -7,8 +7,8 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
-  { id: "MiniMax-M2.5", context: "131K", input: 2.1, output: 8.4, desc: "M2.5 增强版，推理编程" },
-  { id: "MiniMax-M2.1", context: "131K", input: 2.1, output: 8.4, desc: "M2.1 创意写作对话" },
+  { id: "MiniMax-M2.5", context: "131K", input: 2.1, output: 8.4, desc: "M2.5 enhanced, reasoning and coding" },
+  { id: "MiniMax-M2.1", context: "131K", input: 2.1, output: 8.4, desc: "M2.1 creative writing and chat" },
 ];
 
 const curlExample = `curl ${API_BASE}/v1/chat/completions \\
@@ -17,7 +17,7 @@ const curlExample = `curl ${API_BASE}/v1/chat/completions \\
   -d '{
     "model": "MiniMax-M2.5",
     "messages": [
-      {"role": "user", "content": "写一个关于时间旅行者的短篇科幻故事开头"}
+      {"role": "user", "content": "Write the opening of a short sci-fi story about a time traveler"}
     ],
     "stream": true
   }'`;
@@ -32,7 +32,7 @@ client = OpenAI(
 response = client.chat.completions.create(
     model="MiniMax-M2.5",
     messages=[
-        {"role": "user", "content": "写一个关于时间旅行者的短篇科幻故事开头"}
+        {"role": "user", "content": "Write the opening of a short sci-fi story about a time traveler"}
     ],
     stream=True,
 )
@@ -54,10 +54,10 @@ export default function MiniMaxApiPage() {
           MiniMax
         </span>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
-          MiniMax 系列模型 API
+          MiniMax Series API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          MiniMax 系列模型，在创意写作和多轮对话方面表现突出。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Gemini-compatible 协议调用。
+          MiniMax-series models, with strong creative writing and multi-turn dialog capabilities. Examples below default to OpenAI Chat Completions; the same model IDs can also be invoked via Anthropic Messages or Gemini-compatible protocols depending on per-model support.
         </p>
       </div>
 
@@ -70,23 +70,23 @@ export default function MiniMaxApiPage() {
           <code style={{ fontSize: 14 }}>{API_BASE}/v1/chat/completions</code>
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
-          这是默认示例端点。多协议调用方式见 <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>多协议支持</Link>、
-          <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> 和
-          <Link href="/docs/api/gemini" style={{ color: "var(--accent)" }}> Gemini-compatible</Link>。
+          This is the default example endpoint. For multi-protocol calling, see <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>Multi-protocol Support</Link>,
+          <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> and
+          <Link href="/docs/api/gemini" style={{ color: "var(--accent)" }}> Gemini-compatible</Link>.
         </p>
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>模型列表</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Models</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型 ID</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>上下文</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输入/百万</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>输出/百万</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Model ID</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Context</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Input / 1M</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Output / 1M</th>
               </tr>
             </thead>
             <tbody>
@@ -95,8 +95,8 @@ export default function MiniMaxApiPage() {
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{m.id}</code></td>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{m.desc}</td>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.context}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>¥{m.input}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>¥{m.output}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>${m.input}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>${m.output}</td>
                 </tr>
               ))}
             </tbody>
@@ -105,7 +105,7 @@ export default function MiniMaxApiPage() {
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>请求示例</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Request Example</h2>
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
           {(["curl", "python"] as const).map(lang => (
             <button key={lang} onClick={() => setCodeLang(lang)} style={{
@@ -125,9 +125,9 @@ export default function MiniMaxApiPage() {
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         {[
-          { href: "/docs/api/chat", label: "Chat Completions", desc: "查看完整对话接口文档" },
-          { href: "/docs/quickstart", label: "快速开始", desc: "5 分钟接入指南" },
-          { href: "/pricing", label: "完整定价", desc: "查看所有模型价格" },
+          { href: "/docs/api/chat", label: "Chat Completions", desc: "Full chat API documentation" },
+          { href: "/docs/quickstart", label: "Quick Start", desc: "5-minute integration guide" },
+          { href: "/pricing", label: "Full Pricing", desc: "View pricing for all models" },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

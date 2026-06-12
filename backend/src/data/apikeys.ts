@@ -75,8 +75,8 @@ export async function seedApiKeysIfNeeded(): Promise<void> {
   const row = await db.queryOne<{ cnt: string | number }>("SELECT COUNT(*) as cnt FROM api_keys");
   const count = Number(row?.cnt || 0);
   if (count === 0 && process.env.ENABLE_SEED_API_KEYS === "true" && process.env.NODE_ENV !== "production") {
-    await createApiKey("默认密钥", 60);
-    await createApiKey("测试环境密钥", 30);
-    console.log("[DB] 已创建默认密钥");
+    await createApiKey("Default key", 60);
+    await createApiKey("Test environment key", 30);
+    console.log("[DB] default API keys created");
   }
 }

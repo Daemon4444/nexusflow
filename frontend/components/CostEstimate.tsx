@@ -20,17 +20,17 @@ interface CostEstimateProps {
   estimatedOutputTokens?: number;
 }
 
-// Rough token estimation: ~4 chars per token for Chinese, ~1 token per word for English
+// Rough token estimation: ~4 chars per token for CJK, ~1 token per word for English
 function estimateTokens(text: string): number {
   if (!text) return 0;
 
-  // Count Chinese characters
+  // Count CJK characters (Chinese, Japanese, Korean ranges)
   const chineseChars = text.match(/[一-鿿]/g)?.length || 0;
 
   // Count words (English and other)
   const words = text.split(/\s+/).filter(w => w.length > 0).length;
 
-  // Estimate: Chinese ~1.5 tokens per char, English ~1 token per word
+  // Estimate: CJK ~1.5 tokens per char, English ~1 token per word
   return Math.ceil(chineseChars * 1.5 + words);
 }
 
@@ -68,10 +68,10 @@ export default function CostEstimate({
 
   // Format cost with appropriate precision
   const formatCost = (cost: number) => {
-    if (cost < 0.0001) return "¥0";
-    if (cost < 0.01) return `¥${cost.toFixed(4)}`;
-    if (cost < 1) return `¥${cost.toFixed(3)}`;
-    return `¥${cost.toFixed(2)}`;
+    if (cost < 0.0001) return "$0";
+    if (cost < 0.01) return `$${cost.toFixed(4)}`;
+    if (cost < 1) return `$${cost.toFixed(3)}`;
+    return `$${cost.toFixed(2)}`;
   };
 
   return (
@@ -97,7 +97,7 @@ export default function CostEstimate({
           fontWeight: 600,
           color: "var(--text-secondary)",
         }}>
-          费用预估
+          Cost estimate
         </span>
       </div>
 
@@ -112,7 +112,7 @@ export default function CostEstimate({
             color: "var(--text-tertiary)",
             marginBottom: 2,
           }}>
-            输入 Tokens
+            Input tokens
           </div>
           <div style={{
             fontSize: 14,
@@ -130,7 +130,7 @@ export default function CostEstimate({
               color: "var(--text-tertiary)",
               marginBottom: 2,
             }}>
-              计价阶梯
+              Pricing tier
             </div>
             <div style={{
               fontSize: 13,
@@ -149,7 +149,7 @@ export default function CostEstimate({
             color: "var(--text-tertiary)",
             marginBottom: 2,
           }}>
-            预估输出
+            Estimated output
           </div>
           <div style={{
             fontSize: 14,
@@ -167,7 +167,7 @@ export default function CostEstimate({
             color: "var(--text-tertiary)",
             marginBottom: 2,
           }}>
-            预估费用
+            Estimated cost
           </div>
           <div style={{
             fontSize: 14,
@@ -190,7 +190,7 @@ export default function CostEstimate({
           color: "var(--success)",
           fontWeight: 600,
         }}>
-          ✓ 此模型免费使用
+          ✓ Free to use
         </div>
       )}
     </div>

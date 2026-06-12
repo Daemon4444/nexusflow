@@ -83,7 +83,7 @@ function hasAny(value: string[], needles: string[]): boolean {
 }
 
 function isQwenChatModel(model: AIModel): boolean {
-  return detectModelType(model.category) === "chat" && (model.id.startsWith("qwen") || model.provider === "通义千问");
+  return detectModelType(model.category) === "chat" && (model.id.startsWith("qwen") || model.provider === "Qwen");
 }
 
 function getThinkingMode(model: AIModel): { mode: ThinkingMode; defaultValue: boolean | null } {
@@ -96,10 +96,10 @@ function getThinkingMode(model: AIModel): { mode: ThinkingMode; defaultValue: bo
   if (MIXED_THINKING_DEFAULT_OFF.has(model.id)) {
     return { mode: "mixed", defaultValue: false };
   }
-  if (model.tags.includes("思考模式") || model.supported.includes("思考模式")) {
+  if (model.tags.includes("Thinking") || model.supported.includes("Thinking")) {
     return { mode: "mixed", defaultValue: null };
   }
-  if (model.tags.includes("思考链") || model.supported.includes("思考链")) {
+  if (model.tags.includes("Chain-of-Thought") || model.supported.includes("Chain-of-Thought")) {
     return { mode: "always", defaultValue: true };
   }
   return { mode: "none", defaultValue: null };
@@ -111,24 +111,24 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
   const thinking = getThinkingMode(model);
   const supportsVision =
     modelType === "chat" &&
-    (model.category === "多模态模型" || hasAny(text, ["图像", "视觉", "多模态", "OCR"]));
+    (model.category === "Multimodal" || hasAny(text, ["Image", "Vision", "Multimodal", "OCR"]));
   const supportsVideoInput =
     modelType === "chat" &&
-    hasAny(text, ["视频输入", "全能"]);
+    hasAny(text, ["Video Input", "Omni"]);
   const supportsAudioInput =
     modelType === "chat" &&
-    hasAny(text, ["音频输入", "全能"]);
+    hasAny(text, ["Audio Input", "Omni"]);
   const supportsAudioOutput =
     modelType === "chat" &&
-    hasAny(text, ["音频输出", "全能"]);
+    hasAny(text, ["Audio Output", "Omni"]);
   const supportsTools =
     modelType === "chat" &&
-    (hasAny(text, ["函数调用", "工具调用"]) || model.provider === "DeepSeek" || model.provider === "GLM" || model.provider === "Anthropic");
+    (hasAny(text, ["Function Calling", "Tool Calling"]) || model.provider === "DeepSeek" || model.provider === "GLM" || model.provider === "Anthropic");
   const supportsThinkingBudget =
     thinking.mode !== "none" &&
     THINKING_BUDGET_PREFIXES.some((prefix) => model.id.startsWith(prefix));
   const isQwenChat = isQwenChatModel(model);
-  const isGLM = model.provider === "GLM" || model.provider === "智谱AI";
+  const isGLM = model.provider === "GLM" || model.provider === "Zhipu AI";
   const isDeepSeek = model.provider === "DeepSeek";
   const isMiniMax = model.provider === "MiniMax";
   const supportsSearch =

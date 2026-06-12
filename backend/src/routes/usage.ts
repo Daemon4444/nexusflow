@@ -31,7 +31,7 @@ async function shouldUseGlobalScope(req: Request) {
 router.get("/", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   const limit = Math.min(Number(req.query.limit) || 100, 1000);
@@ -45,7 +45,7 @@ router.get("/", async (req: Request, res: Response) => {
 router.get("/overview", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   res.json({ success: true, data: await getOverview((await shouldUseGlobalScope(req)) ? undefined : userId) });
@@ -54,7 +54,7 @@ router.get("/overview", async (req: Request, res: Response) => {
 router.get("/daily", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   res.json({ success: true, data: await getDaily((await shouldUseGlobalScope(req)) ? undefined : userId) });
@@ -63,7 +63,7 @@ router.get("/daily", async (req: Request, res: Response) => {
 router.get("/by-model", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   res.json({ success: true, data: await getByModel((await shouldUseGlobalScope(req)) ? undefined : userId) });
@@ -83,7 +83,7 @@ function findMatchingDiscount(modelId: string, discounts: UserModelDiscount[]): 
 router.get("/recent", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   const limit = Math.min(Number(req.query.limit) || 50, 200);
@@ -102,12 +102,12 @@ router.get("/recent", async (req: Request, res: Response) => {
   res.json({ success: true, data: enriched });
 });
 
-// ========== 性能监控端点 ==========
+// ========== Performance monitoring endpoints ==========
 
 router.get("/monitor/overview", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   res.json({ success: true, data: await getPerformanceOverview((await shouldUseGlobalScope(req)) ? undefined : userId) });
@@ -116,7 +116,7 @@ router.get("/monitor/overview", async (req: Request, res: Response) => {
 router.get("/monitor/hourly", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   res.json({ success: true, data: await getPerformanceHourly((await shouldUseGlobalScope(req)) ? undefined : userId) });
@@ -125,7 +125,7 @@ router.get("/monitor/hourly", async (req: Request, res: Response) => {
 router.get("/monitor/by-model", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   res.json({ success: true, data: await getPerformanceByModel((await shouldUseGlobalScope(req)) ? undefined : userId) });
@@ -134,18 +134,18 @@ router.get("/monitor/by-model", async (req: Request, res: Response) => {
 router.get("/monitor/recent", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   const limit = Math.min(Number(req.query.limit) || 50, 200);
   res.json({ success: true, data: await getRecentPerformance(limit, (await shouldUseGlobalScope(req)) ? undefined : userId) });
 });
 
-// ========== 日志查询端点 ==========
+// ========== Log query endpoints ==========
 
 router.get("/logs/search", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
-  if (!userId) { res.status(401).json({ success: false, message: "未登录" }); return; }
+  if (!userId) { res.status(401).json({ success: false, message: "Not logged in" }); return; }
 
   const { log_id, model, from, to } = req.query;
   const maxLimit = Math.min(Number(req.query.limit) || 50, 200);
@@ -177,7 +177,7 @@ router.get("/logs/search", async (req: Request, res: Response) => {
 
 router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
-  if (!userId) { res.status(401).json({ success: false, message: "未登录" }); return; }
+  if (!userId) { res.status(401).json({ success: false, message: "Not logged in" }); return; }
 
   const { logId } = req.params;
   const { db } = await import("../db/client");
@@ -187,14 +187,14 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
     [logId, userId]
   );
   if (!row) {
-    res.json({ success: false, message: "日志不存在或无权限查看" });
+    res.json({ success: false, message: "Log not found or no permission to view" });
     return;
   }
 
   const { getSlsClient } = await import("../services/sls");
   const slsClient = getSlsClient();
   if (!slsClient) {
-    res.json({ success: false, message: "SLS 未配置" });
+    res.json({ success: false, message: "SLS is not configured" });
     return;
   }
 
@@ -211,10 +211,10 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
         request: entry.request || null,
         response: entry.response || null,
       } : null,
-      note: entry ? undefined : "日志可能仍在索引中（SLS 延迟 1-2 分钟），请稍后重试",
+      note: entry ? undefined : "The log may still be indexing (SLS delay 1-2 minutes), please retry shortly",
     });
   } catch (err: any) {
-    res.json({ success: false, message: "SLS 查询失败: " + err.message });
+    res.json({ success: false, message: "SLS query failed: " + err.message });
   }
 });
 

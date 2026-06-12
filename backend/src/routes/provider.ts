@@ -44,13 +44,13 @@ function maskSecret(secret: string): string {
 async function ensureInternalProviders(): Promise<void> {
   const dashscope = await ensureProvider({
     id: "dashscope",
-    name: "阿里云百炼",
+    name: "Aliyun Bailian",
     slug: "dashscope",
-    description: "百炼 OpenAI 兼容模式渠道，当前默认承载通义千问、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse 等模型。",
+    description: "Bailian OpenAI-compatible channel, currently the default carrier for Qwen, DeepSeek, GLM, Kimi, MiniMax, PixVerse, HappyHorse and other models.",
     website: "https://help.aliyun.com/zh/model-studio/",
     api_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     api_key: process.env.DASHSCOPE_API_KEY || "",
-    contact_name: "平台运营",
+    contact_name: "Platform Ops",
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
   });
@@ -58,35 +58,35 @@ async function ensureInternalProviders(): Promise<void> {
     id: "anthropic",
     name: "Anthropic Claude",
     slug: "anthropic",
-    description: "Anthropic Messages API 官方渠道，承载 Claude 系列模型。",
+    description: "Official Anthropic Messages API channel, carrying the Claude family of models.",
     website: "https://docs.anthropic.com/",
     api_base_url: "https://api.anthropic.com",
     api_key: process.env.ANTHROPIC_API_KEY || "",
-    contact_name: "平台运营",
+    contact_name: "Platform Ops",
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
   });
   await ensureProvider({
     id: "pixverse",
-    name: "PixVerse 双通道",
+    name: "PixVerse Dual Channel",
     slug: "pixverse",
-    description: "PixVerse 视频模型渠道，可在百炼和拍我官方之间切换。",
+    description: "PixVerse video model channel, switchable between Bailian and the PixVerse official channel.",
     website: "https://pixverse.ai/",
     api_base_url: "https://dashscope.aliyuncs.com/api/v1",
     api_key: process.env.DASHSCOPE_API_KEY || "",
-    contact_name: "平台运营",
+    contact_name: "Platform Ops",
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
   });
   await ensureProvider({
     id: "volcengine-ark",
-    name: "火山方舟",
+    name: "Volcengine Ark",
     slug: "volcengine-ark",
-    description: "火山引擎方舟 OpenAI 兼容渠道，可在模型管理中按模型添加路由。",
+    description: "Volcengine Ark OpenAI-compatible channel; routes can be added per-model in model management.",
     website: "https://www.volcengine.com/product/ark",
     api_base_url: "https://ark.cn-beijing.volces.com/api/v3",
     api_key: process.env.ARK_API_KEY || "",
-    contact_name: "平台运营",
+    contact_name: "Platform Ops",
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
   });
@@ -94,7 +94,7 @@ async function ensureInternalProviders(): Promise<void> {
   for (const model of staticModels) {
     const targetProvider = model.id.startsWith("claude-") ? anthropic : dashscope;
     if (await getCapacity(targetProvider.id, model.id)) continue;
-    const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
+    const isTaskModel = model.category === "Image Generation" || model.category === "Video Generation" || model.category === "Audio";
     await upsertCapacity(targetProvider.id, model.id, {
       rpm_limit: 1000,
       tpm_limit: isTaskModel ? 0 : 1000000,
@@ -128,13 +128,13 @@ async function ensurePixVerseChannelConfig(): Promise<ProviderChannelConfig> {
     active_channel: "bailian",
     channels: {
       bailian: {
-        name: "百炼渠道",
+        name: "Bailian Channel",
         adapter: "dashscope",
         api_base_url: "https://dashscope.aliyuncs.com/api/v1",
         api_key: process.env.DASHSCOPE_API_KEY || "",
       },
       official: {
-        name: "拍我官方",
+        name: "PixVerse Official",
         adapter: "pixverse",
         api_base_url: "https://app-api.pixverse.ai/openapi/v2",
         api_key: process.env.PIXVERSE_API_KEY || "",
@@ -153,14 +153,14 @@ async function getProviderChannelSummary(providerId: string) {
       name: channel.name,
       adapter: channel.adapter,
       apiBaseUrl: channel.api_base_url,
-      apiKeyMasked: channel.api_key ? maskSecret(channel.api_key) : "未配置",
+      apiKeyMasked: channel.api_key ? maskSecret(channel.api_key) : "Not configured",
       region: channel.region || null,
       workspaceId: channel.workspace_id || null,
       enabled: channel.enabled !== false,
       priority: channel.priority ?? 0,
       modelAllowlist: channel.model_allowlist || null,
       usable: isChannelUsable(channel, {
-        // 环境变量 key 回退仅对默认区域有效（国内 key 实测无法调海外区域）
+        // Environment-variable key fallback only applies to the default region (a domestic key cannot reach overseas regions in practice)
         hasFallbackKey: (!channel.region || channel.region === "cn-beijing")
           && !!(channel.adapter === "pixverse" ? process.env.PIXVERSE_API_KEY : process.env.DASHSCOPE_API_KEY),
       }),
@@ -240,7 +240,7 @@ async function getProviderCard(provider: Provider) {
     description: provider.description,
     website: provider.website,
     apiBaseUrl: provider.api_base_url,
-    apiKeyMasked: provider.api_key ? maskSecret(provider.api_key) : "未配置",
+    apiKeyMasked: provider.api_key ? maskSecret(provider.api_key) : "Not configured",
     contactName: provider.contact_name,
     contactEmail: provider.contact_email,
     contactPhone: provider.contact_phone,
@@ -255,31 +255,31 @@ async function getProviderCard(provider: Provider) {
   };
 }
 
-// ========== 渠道录入（当前仍保留该入口，但更适合内部使用） ==========
+// ========== Channel onboarding (entrypoint kept for backwards compatibility, prefer admin tools) ==========
 
-// POST /api/provider/register — 创建渠道配置
+// POST /api/provider/register - create channel configuration
 router.post("/register", (_req: Request, res: Response) => {
   res.status(403).json({
     success: false,
-    message: "当前部署已关闭公开渠道注册，请使用管理员后台维护内部渠道",
+    message: "Public channel registration is disabled in this deployment. Please use the admin console to manage internal channels.",
   });
 });
 
-// GET /api/provider/status/:email — 查询渠道状态
+// GET /api/provider/status/:email - query channel status
 router.get("/status/:email", (_req: Request, res: Response) => {
   res.status(403).json({
     success: false,
-    message: "当前部署已关闭公开渠道状态查询，请使用管理员后台查看内部渠道",
+    message: "Public channel status lookup is disabled in this deployment. Please use the admin console to inspect internal channels.",
   });
 });
 
-// ========== 管理员接口 / 内部渠道管理 ==========
-// 注意：/admin/* 路由必须在 /:providerId/* 路由之前注册，
-// 否则 Express 会把 "admin" 当作 providerId 参数匹配。
+// ========== Admin endpoints / internal channel management ==========
+// Note: /admin/* routes must be registered before /:providerId/* routes,
+// otherwise Express will treat "admin" as the providerId parameter.
 
 router.use("/admin", requireAdmin);
 
-// GET /api/provider/admin/providers — 获取所有供应商
+// GET /api/provider/admin/providers - list all providers
 router.get("/admin/providers", async (_req: Request, res: Response) => {
   await ensureInternalProviders();
   const providers = await Promise.all((await getAllProviders()).map(getProviderCard));
@@ -289,7 +289,7 @@ router.get("/admin/providers", async (_req: Request, res: Response) => {
   });
 });
 
-// GET /api/provider/admin/operations — 供应商运营工作台
+// GET /api/provider/admin/operations - provider operations workbench
 router.get("/admin/operations", async (_req: Request, res: Response) => {
   await ensureInternalProviders();
   let [providers, capacity, health, activeCosts, routePolicies, routeAudits] = await Promise.all([
@@ -312,7 +312,7 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       promptCost: defaults.promptCost,
       completionCost: defaults.completionCost,
       fixedCost: 0,
-      notes: "系统按零售价 72% 自动生成的基准成本，可在后台创建新版本覆盖。",
+      notes: "System-generated baseline cost at 72% of retail price. Override by creating a new version in the admin console.",
     });
   }
   activeCosts = await getActiveCostVersions();
@@ -359,7 +359,7 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       slug: provider.slug,
       status: provider.status,
       apiBaseUrl: provider.api_base_url,
-      apiKeyMasked: provider.api_key ? maskSecret(provider.api_key) : "未配置",
+      apiKeyMasked: provider.api_key ? maskSecret(provider.api_key) : "Not configured",
       modelCount: providerCapacity.length,
       enabledRoutes: totals.enabledRoutes,
       health: healthState,
@@ -382,10 +382,10 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
     const currentHealth = (routeHealth?.status || "healthy") as HealthState;
     const cost = costByRoute.get(`${item.provider_id}:${item.model_id}`);
     const priceUnit = catalog?.pricingType === "per-image"
-      ? "元/张"
+      ? "USD/image"
       : catalog?.pricingType === "per-second"
-        ? "元/秒"
-        : "元/百万tokens";
+        ? "USD/second"
+        : "USD/million tokens";
     const recommendedProviderId = getRecommendedProviderId(item.model_id);
 
     return {
@@ -395,7 +395,7 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       modelId: item.model_id,
       modelName: catalog?.name || item.model_name || item.model_id,
       modelProvider: catalog?.provider || "",
-      category: catalog?.category || "未分类",
+      category: catalog?.category || "Uncategorized",
       enabled: item.is_enabled,
       recommendedProviderId,
       recommended: item.provider_id === recommendedProviderId,
@@ -441,9 +441,9 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         level: "warning",
         scope: "provider",
         providerId: provider.id,
-        title: `${provider.name} 未启用`,
-        detail: "供应商处于草稿或停用状态，不会成为稳定承载渠道。",
-        action: "确认合同、密钥和健康检查后再启用。",
+        title: `${provider.name} is not enabled`,
+        detail: "Provider is in draft or disabled status and will not serve as a stable channel.",
+        action: "Confirm contract, credentials and health checks before enabling.",
       });
     }
     if (provider.missingApiKey) {
@@ -451,9 +451,9 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         level: "critical",
         scope: "provider",
         providerId: provider.id,
-        title: `${provider.name} 缺少 API Key`,
-        detail: "后台已建档，但真实调用会因为上游密钥缺失失败。",
-        action: "在渠道控制台补齐密钥或设置对应环境变量。",
+        title: `${provider.name} is missing an API key`,
+        detail: "The provider is registered but actual calls will fail because the upstream key is missing.",
+        action: "Add the API key in the channel console or set the corresponding environment variable.",
       });
     }
     if (provider.saturationRatio >= 0.8) {
@@ -461,9 +461,9 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         level: "warning",
         scope: "provider",
         providerId: provider.id,
-        title: `${provider.name} 容量接近上限`,
-        detail: `当前容量命中率 ${Math.round(provider.saturationRatio * 100)}%。`,
-        action: "提升上游限额、降低权重或增加同模型备用供应商。",
+        title: `${provider.name} capacity is near the limit`,
+        detail: `Current saturation is ${Math.round(provider.saturationRatio * 100)}%.`,
+        action: "Increase the upstream quota, lower the weight, or add backup providers for the same models.",
       });
     }
   }
@@ -476,9 +476,9 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         level: "critical",
         scope: "model",
         modelId: model.id,
-        title: `${model.name} 没有可用路由`,
-        detail: "模型已在目录中展示，但没有启用的上游承载。",
-        action: "为该模型添加至少一个启用的供应商路由。",
+        title: `${model.name} has no usable route`,
+        detail: "The model is exposed in the catalog but has no enabled upstream carrier.",
+        action: "Add at least one enabled provider route for this model.",
       });
     }
     const recommendedProviderId = getRecommendedProviderId(model.id);
@@ -487,9 +487,9 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         level: "warning",
         scope: "model",
         modelId: model.id,
-        title: `${model.name} 存在非 Anthropic 路由`,
-        detail: "Claude 模型需要走 Anthropic Messages API，OpenAI 兼容渠道不能承载该协议。",
-        action: "保留 Anthropic 路由，停用或删除其它供应商上的 Claude 路由。",
+        title: `${model.name} has non-Anthropic routes`,
+        detail: "Claude models must go through the Anthropic Messages API; OpenAI-compatible channels cannot carry this protocol.",
+        action: "Keep the Anthropic route, then disable or delete Claude routes on other providers.",
       });
     }
   }
@@ -501,9 +501,9 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         scope: "route",
         providerId: route.providerId,
         modelId: route.modelId,
-        title: `${route.providerName} / ${route.modelName} ${route.health === "down" ? "不可用" : "降级"}`,
-        detail: route.lastError || `连续失败 ${route.consecutiveFailures} 次，平均延迟 ${route.avgLatencyMs}ms。`,
-        action: "检查上游状态、密钥余额、限流和模型名称映射。",
+        title: `${route.providerName} / ${route.modelName} ${route.health === "down" ? "unavailable" : "degraded"}`,
+        detail: route.lastError || `${route.consecutiveFailures} consecutive failures, average latency ${route.avgLatencyMs}ms.`,
+        action: "Check upstream status, key balance, rate limits, and model name mapping.",
       });
     }
     if (route.saturationRatio >= 0.8) {
@@ -512,9 +512,9 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         scope: "route",
         providerId: route.providerId,
         modelId: route.modelId,
-        title: `${route.providerName} / ${route.modelName} 路由容量偏高`,
-        detail: `当前命中率 ${Math.round(route.saturationRatio * 100)}%。`,
-        action: "调低该路由权重或增加同模型备用渠道。",
+        title: `${route.providerName} / ${route.modelName} route capacity is high`,
+        detail: `Current saturation is ${Math.round(route.saturationRatio * 100)}%.`,
+        action: "Lower the route weight or add a backup channel for the same model.",
       });
     }
   }
@@ -551,11 +551,11 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
   });
 });
 
-// POST /api/provider/admin/providers — 创建内部渠道
+// POST /api/provider/admin/providers - create internal channel
 router.post("/admin/providers", async (req: Request, res: Response) => {
   const { name, description, website, api_base_url, api_key, contact_name, contact_email, contact_phone } = req.body || {};
   if (!name || !api_base_url) {
-    res.status(400).json({ success: false, message: "请填写渠道名称和 API Base URL" });
+    res.status(400).json({ success: false, message: "Please provide channel name and API Base URL" });
     return;
   }
 
@@ -565,7 +565,7 @@ router.post("/admin/providers", async (req: Request, res: Response) => {
     website,
     api_base_url,
     api_key: api_key || "",
-    contact_name: contact_name || "平台运营",
+    contact_name: contact_name || "Platform Ops",
     contact_email: contact_email || "ops@nexusflow.ai",
     contact_phone,
   });
@@ -575,23 +575,23 @@ router.post("/admin/providers", async (req: Request, res: Response) => {
   res.json({
     success: true,
     data: created ? await getProviderCard(created) : null,
-    message: "渠道已创建",
+    message: "Channel created",
   });
 });
 
-// GET /api/provider/admin/costs — 当前生效的供应商成本价版本
+// GET /api/provider/admin/costs - currently effective provider cost versions
 router.get("/admin/costs", async (_req: Request, res: Response) => {
   const costs = await getActiveCostVersions();
   res.json({ success: true, data: costs });
 });
 
-// POST /api/provider/admin/providers/:id/costs/:modelId — 创建新的成本价版本
+// POST /api/provider/admin/providers/:id/costs/:modelId - create a new cost version
 router.post("/admin/providers/:id/costs/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.id as string;
   const modelId = req.params.modelId as string;
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
   const catalog = staticModels.find((model) => model.id === modelId);
@@ -619,23 +619,23 @@ router.post("/admin/providers/:id/costs/:modelId", async (req: Request, res: Res
     action: "cost_version_created",
     afterConfig: cost,
     actorId: (req as any).admin?.id || null,
-    reason: notes || "更新供应商成本价版本",
+    reason: notes || "Update provider cost version",
   });
-  res.json({ success: true, data: cost, message: "成本价版本已创建" });
+  res.json({ success: true, data: cost, message: "Cost version created" });
 });
 
-// GET /api/provider/admin/route-audits — 路由变更审计
+// GET /api/provider/admin/route-audits - route change audit log
 router.get("/admin/route-audits", async (req: Request, res: Response) => {
   const limit = Math.min(100, Math.max(1, Number(req.query.limit || 30)));
   res.json({ success: true, data: await getRouteAudits(limit) });
 });
 
-// GET /api/provider/admin/route-policies — 客户/模型路由策略覆盖
+// GET /api/provider/admin/route-policies - customer/model route policy overrides
 router.get("/admin/route-policies", async (_req: Request, res: Response) => {
   res.json({ success: true, data: await getRoutePolicies() });
 });
 
-// POST /api/provider/admin/route-policies — 创建路由策略覆盖
+// POST /api/provider/admin/route-policies - create route policy override
 router.post("/admin/route-policies", async (req: Request, res: Response) => {
   const {
     user_id, model_id = "*", strategy = "weighted", pinned_provider_id,
@@ -663,16 +663,16 @@ router.post("/admin/route-policies", async (req: Request, res: Response) => {
     action: "route_policy_created",
     afterConfig: policy,
     actorId: (req as any).admin?.id || null,
-    reason: notes || "创建客户/模型路由策略",
+    reason: notes || "Create customer/model route policy",
   }).catch(() => undefined);
-  res.json({ success: true, data: policy, message: "路由策略已创建" });
+  res.json({ success: true, data: policy, message: "Route policy created" });
 });
 
-// PUT /api/provider/admin/route-policies/:id — 更新路由策略覆盖
+// PUT /api/provider/admin/route-policies/:id - update route policy override
 router.put("/admin/route-policies/:id", async (req: Request, res: Response) => {
   const existing = (await getRoutePolicies()).find((item) => item.id === (req.params.id as string));
   if (!existing) {
-    res.status(404).json({ success: false, message: "路由策略不存在" });
+    res.status(404).json({ success: false, message: "Route policy not found" });
     return;
   }
   const policy = await upsertRoutePolicy({
@@ -698,17 +698,17 @@ router.put("/admin/route-policies/:id", async (req: Request, res: Response) => {
     beforeConfig: existing,
     afterConfig: policy,
     actorId: (req as any).admin?.id || null,
-    reason: policy.notes || "更新客户/模型路由策略",
+    reason: policy.notes || "Update customer/model route policy",
   }).catch(() => undefined);
-  res.json({ success: true, data: policy, message: "路由策略已更新" });
+  res.json({ success: true, data: policy, message: "Route policy updated" });
 });
 
-// DELETE /api/provider/admin/route-policies/:id — 删除路由策略覆盖
+// DELETE /api/provider/admin/route-policies/:id - delete route policy override
 router.delete("/admin/route-policies/:id", async (req: Request, res: Response) => {
   const existing = (await getRoutePolicies()).find((item) => item.id === (req.params.id as string));
   const success = await deleteRoutePolicy(req.params.id as string);
   if (!success) {
-    res.status(404).json({ success: false, message: "路由策略不存在" });
+    res.status(404).json({ success: false, message: "Route policy not found" });
     return;
   }
   if (existing) {
@@ -718,18 +718,18 @@ router.delete("/admin/route-policies/:id", async (req: Request, res: Response) =
       action: "route_policy_deleted",
       beforeConfig: existing,
       actorId: (req as any).admin?.id || null,
-      reason: "删除客户/模型路由策略",
+      reason: "Delete customer/model route policy",
     }).catch(() => undefined);
   }
-  res.json({ success: true, message: "路由策略已删除" });
+  res.json({ success: true, message: "Route policy deleted" });
 });
 
-// GET /api/provider/admin/providers/:id — 获取渠道详情
+// GET /api/provider/admin/providers/:id - get channel details
 router.get("/admin/providers/:id", async (req: Request, res: Response) => {
   await ensureInternalProviders();
   const provider = await getProviderById(req.params.id as string);
   if (!provider) {
-    res.status(404).json({ success: false, message: "渠道不存在" });
+    res.status(404).json({ success: false, message: "Channel not found" });
     return;
   }
 
@@ -769,12 +769,12 @@ router.get("/admin/providers/:id", async (req: Request, res: Response) => {
   });
 });
 
-// PUT /api/provider/admin/providers/:id — 更新渠道配置
+// PUT /api/provider/admin/providers/:id - update channel configuration
 router.put("/admin/providers/:id", async (req: Request, res: Response) => {
   const providerId = req.params.id as string;
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "渠道不存在" });
+    res.status(404).json({ success: false, message: "Channel not found" });
     return;
   }
 
@@ -796,7 +796,7 @@ router.put("/admin/providers/:id", async (req: Request, res: Response) => {
   });
 
   if (!success) {
-    res.status(500).json({ success: false, message: "更新渠道失败" });
+    res.status(500).json({ success: false, message: "Failed to update channel" });
     return;
   }
 
@@ -815,11 +815,11 @@ router.put("/admin/providers/:id", async (req: Request, res: Response) => {
       contactPhone: contact_phone ?? updated.contact_phone,
       status: updated.status,
     },
-    message: "渠道配置已更新",
+    message: "Channel configuration updated",
   });
 });
 
-// GET /api/provider/admin/providers/draft — 获取待配置渠道
+// GET /api/provider/admin/providers/draft - list channels pending configuration
 router.get("/admin/providers/draft", async (_req: Request, res: Response) => {
   const providers = await getProvidersByStatus("draft");
   res.json({
@@ -838,28 +838,28 @@ router.get("/admin/providers/draft", async (_req: Request, res: Response) => {
   });
 });
 
-// POST /api/provider/admin/providers/:id/enable — 启用渠道
+// POST /api/provider/admin/providers/:id/enable - enable channel
 router.post("/admin/providers/:id/enable", async (req: Request, res: Response) => {
   const success = await updateProviderStatus(req.params.id as string, "enabled");
   if (!success) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
-  res.json({ success: true, message: "渠道已启用" });
+  res.json({ success: true, message: "Channel enabled" });
 });
 
-// POST /api/provider/admin/providers/:id/disable — 停用渠道
+// POST /api/provider/admin/providers/:id/disable - disable channel
 router.post("/admin/providers/:id/disable", async (req: Request, res: Response) => {
   const { reason } = req.body;
   const success = await updateProviderStatus(req.params.id as string, "disabled", reason);
   if (!success) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
-  res.json({ success: true, message: "渠道已停用" });
+  res.json({ success: true, message: "Channel disabled" });
 });
 
-// GET /api/provider/admin/models — 获取所有模型
+// GET /api/provider/admin/models - list all models
 router.get("/admin/models", async (_req: Request, res: Response) => {
   await ensureInternalProviders();
   const providers = await getAllProviders();
@@ -902,7 +902,7 @@ router.get("/admin/models", async (_req: Request, res: Response) => {
   });
 });
 
-// GET /api/provider/admin/models/draft — 获取草稿模型
+// GET /api/provider/admin/models/draft - list draft models
 router.get("/admin/models/draft", async (_req: Request, res: Response) => {
   const models = await getModelsByStatus("draft");
   res.json({
@@ -922,27 +922,27 @@ router.get("/admin/models/draft", async (_req: Request, res: Response) => {
   });
 });
 
-// POST /api/provider/admin/models/:id/enable — 启用模型
+// POST /api/provider/admin/models/:id/enable - enable model
 router.post("/admin/models/:id/enable", async (req: Request, res: Response) => {
   const success = await updateModelStatus(req.params.id as string, "enabled");
   if (!success) {
-    res.status(404).json({ success: false, message: "模型不存在" });
+    res.status(404).json({ success: false, message: "Model not found" });
     return;
   }
-  res.json({ success: true, message: "模型已启用" });
+  res.json({ success: true, message: "Model enabled" });
 });
 
-// POST /api/provider/admin/models/:id/disable — 停用模型
+// POST /api/provider/admin/models/:id/disable - disable model
 router.post("/admin/models/:id/disable", async (req: Request, res: Response) => {
   const success = await updateModelStatus(req.params.id as string, "disabled");
   if (!success) {
-    res.status(404).json({ success: false, message: "模型不存在" });
+    res.status(404).json({ success: false, message: "Model not found" });
     return;
   }
-  res.json({ success: true, message: "模型已停用" });
+  res.json({ success: true, message: "Model disabled" });
 });
 
-// GET /api/provider/admin/stats — 统计数据
+// GET /api/provider/admin/stats - statistics
 router.get("/admin/stats", async (_req: Request, res: Response) => {
   await ensureInternalProviders();
   const providerStats = await getProviderStats();
@@ -958,9 +958,9 @@ router.get("/admin/stats", async (_req: Request, res: Response) => {
   });
 });
 
-// ========== 容量配置管理 ==========
+// ========== Capacity configuration management ==========
 
-// GET /api/provider/admin/capacity — 获取所有容量配置
+// GET /api/provider/admin/capacity - get all capacity configurations
 router.get("/admin/capacity", async (_req: Request, res: Response) => {
   const capacity = await getAllCapacity();
   res.json({
@@ -984,13 +984,13 @@ router.get("/admin/capacity", async (_req: Request, res: Response) => {
   });
 });
 
-// GET /api/provider/:providerId/capacity — 获取供应商的容量配置
+// GET /api/provider/:providerId/capacity - get capacity configurations for a provider
 router.get("/:providerId/capacity", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
 
@@ -1011,7 +1011,7 @@ router.get("/:providerId/capacity", async (req: Request, res: Response) => {
   });
 });
 
-// PUT /api/provider/:providerId/capacity/:modelId — 设置/更新容量配置
+// PUT /api/provider/:providerId/capacity/:modelId - set/update capacity configuration
 router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const modelId = req.params.modelId as string;
@@ -1019,7 +1019,7 @@ router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response)
   await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
 
@@ -1042,7 +1042,7 @@ router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response)
     beforeConfig: beforeCapacity || null,
     afterConfig: capacity,
     actorId: (req as any).admin?.id || null,
-    reason: req.body.reason || "后台更新容量与路由策略",
+    reason: req.body.reason || "Update capacity and route policy via admin",
   });
 
   res.json({
@@ -1058,24 +1058,24 @@ router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response)
       weight: capacity.weight,
       isEnabled: capacity.is_enabled,
     },
-    message: "容量配置已更新",
+    message: "Capacity configuration updated",
   });
 });
 
-// DELETE /api/provider/:providerId/capacity/:modelId — 删除容量配置
+// DELETE /api/provider/:providerId/capacity/:modelId - delete capacity configuration
 router.delete("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
   const modelId = req.params.modelId as string;
   const beforeCapacity = await getCapacity(providerId, modelId);
   const success = await deleteCapacity(providerId, modelId);
   if (!success) {
-    res.status(404).json({ success: false, message: "配置不存在" });
+    res.status(404).json({ success: false, message: "Configuration not found" });
     return;
   }
   await recordRouteAudit({
@@ -1084,14 +1084,14 @@ router.delete("/:providerId/capacity/:modelId", async (req: Request, res: Respon
     action: "capacity_deleted",
     beforeConfig: beforeCapacity || null,
     actorId: (req as any).admin?.id || null,
-    reason: "后台删除容量与路由策略",
+    reason: "Delete capacity and route policy via admin",
   });
-  res.json({ success: true, message: "配置已删除" });
+  res.json({ success: true, message: "Configuration deleted" });
 });
 
-// ========== 健康监控 ==========
+// ========== Health monitoring ==========
 
-// GET /api/provider/admin/health — 获取所有供应商健康状态
+// GET /api/provider/admin/health - get health for all providers
 router.get("/admin/health", async (_req: Request, res: Response) => {
   const health = await getAllHealthRecords();
   res.json({
@@ -1109,7 +1109,7 @@ router.get("/admin/health", async (_req: Request, res: Response) => {
   });
 });
 
-// GET /api/provider/admin/usage/:providerId/:modelId — 获取实时使用量
+// GET /api/provider/admin/usage/:providerId/:modelId - get realtime usage
 router.get("/admin/usage/:providerId/:modelId", (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const modelId = req.params.modelId as string;
@@ -1125,29 +1125,29 @@ router.get("/admin/usage/:providerId/:modelId", (req: Request, res: Response) =>
   });
 });
 
-// ========== 渠道管理模型（/:providerId 路由放在 /admin 之后） ==========
+// ========== Channel management for models (the /:providerId routes are placed after /admin) ==========
 
 router.use("/:providerId", requireAdmin);
 
-// POST /api/provider/:providerId/switch-channel — 切换供应商活跃子渠道
+// POST /api/provider/:providerId/switch-channel - switch the active sub-channel of a provider
 router.post("/:providerId/switch-channel", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
 
   const { channel } = req.body || {};
   if (!channel || typeof channel !== "string") {
-    res.status(400).json({ success: false, message: "请提供要切换的渠道" });
+    res.status(400).json({ success: false, message: "Please specify the channel to switch to" });
     return;
   }
 
   const updated = await switchProviderChannel(providerId, channel);
   if (!updated) {
-    res.status(400).json({ success: false, message: "渠道不存在或未配置" });
+    res.status(400).json({ success: false, message: "Channel does not exist or is not configured" });
     return;
   }
 
@@ -1159,18 +1159,18 @@ router.post("/:providerId/switch-channel", async (req: Request, res: Response) =
       channelName: selected.name,
       adapter: selected.adapter,
     },
-    message: `已切换到${selected.name}`,
+    message: `Switched to ${selected.name}`,
   });
 });
 
-// PUT /api/provider/:providerId/channels/:channelId — 新增或更新子渠道（区域）配置
+// PUT /api/provider/:providerId/channels/:channelId - create or update sub-channel (region) configuration
 router.put("/:providerId/channels/:channelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const channelId = req.params.channelId as string;
   await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
 
@@ -1197,16 +1197,16 @@ router.put("/:providerId/channels/:channelId", async (req: Request, res: Respons
   res.json({
     success: true,
     data: await getProviderChannelSummary(providerId),
-    message: `渠道 ${channelId} 已更新`,
+    message: `Channel ${channelId} updated`,
   });
 });
 
-// GET /api/provider/:providerId/models — 获取供应商的模型列表
+// GET /api/provider/:providerId/models - get models for a provider
 router.get("/:providerId/models", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
 
@@ -1231,16 +1231,16 @@ router.get("/:providerId/models", async (req: Request, res: Response) => {
   });
 });
 
-// POST /api/provider/:providerId/models — 添加模型
+// POST /api/provider/:providerId/models - add model
 router.post("/:providerId/models", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
   if (provider.status === "disabled") {
-    res.status(403).json({ success: false, message: "渠道已停用，无法继续维护模型" });
+    res.status(403).json({ success: false, message: "Channel is disabled, cannot continue managing models" });
     return;
   }
 
@@ -1251,7 +1251,7 @@ router.post("/:providerId/models", async (req: Request, res: Response) => {
   } = req.body;
 
   if (!model_id || !name) {
-    res.status(400).json({ success: false, message: "请填写模型ID和名称" });
+    res.status(400).json({ success: false, message: "Please provide model ID and name" });
     return;
   }
 
@@ -1262,7 +1262,7 @@ router.post("/:providerId/models", async (req: Request, res: Response) => {
   });
 
   if (!model) {
-    res.status(400).json({ success: false, message: "模型ID已存在" });
+    res.status(400).json({ success: false, message: "Model ID already exists" });
     return;
   }
 
@@ -1274,47 +1274,47 @@ router.post("/:providerId/models", async (req: Request, res: Response) => {
       name: model.name,
       status: model.status,
     },
-    message: "模型已创建",
+    message: "Model created",
   });
 });
 
-// PUT /api/provider/:providerId/models/:modelId — 更新模型
+// PUT /api/provider/:providerId/models/:modelId - update model
 router.put("/:providerId/models/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const provider = await getProviderById(providerId);
   if (!provider) {
-    res.status(404).json({ success: false, message: "供应商不存在" });
+    res.status(404).json({ success: false, message: "Provider not found" });
     return;
   }
   const model = (await getModelsByProvider(providerId)).find((item) => item.id === (req.params.modelId as string));
   if (!model) {
-    res.status(404).json({ success: false, message: "模型不存在或不属于该供应商" });
+    res.status(404).json({ success: false, message: "Model not found or does not belong to this provider" });
     return;
   }
 
   const success = await updateModel(req.params.modelId as string, req.body);
   if (!success) {
-    res.status(404).json({ success: false, message: "模型不存在" });
+    res.status(404).json({ success: false, message: "Model not found" });
     return;
   }
 
-  res.json({ success: true, message: "模型已更新" });
+  res.json({ success: true, message: "Model updated" });
 });
 
-// DELETE /api/provider/:providerId/models/:modelId — 删除模型
+// DELETE /api/provider/:providerId/models/:modelId - delete model
 router.delete("/:providerId/models/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const model = (await getModelsByProvider(providerId)).find((item) => item.id === (req.params.modelId as string));
   if (!model) {
-    res.status(404).json({ success: false, message: "模型不存在或不属于该供应商" });
+    res.status(404).json({ success: false, message: "Model not found or does not belong to this provider" });
     return;
   }
   const success = await deleteModel(req.params.modelId as string);
   if (!success) {
-    res.status(404).json({ success: false, message: "模型不存在" });
+    res.status(404).json({ success: false, message: "Model not found" });
     return;
   }
-  res.json({ success: true, message: "模型已删除" });
+  res.json({ success: true, message: "Model deleted" });
 });
 
 export default router;

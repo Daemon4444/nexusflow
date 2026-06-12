@@ -6,32 +6,32 @@ export default function ApiKeysDocPage() {
   return (
     <div style={{ padding: "48px 64px", maxWidth: 920 }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8, fontWeight: 500 }}>认证</div>
+        <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8, fontWeight: 500 }}>Authentication</div>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px", marginBottom: 8 }}>
-          API 密钥
+          API Keys
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", margin: 0, lineHeight: 1.7, maxWidth: 640 }}>
-          创建和管理你的 API 密钥
+          Create and manage your API keys.
         </p>
       </div>
 
       <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>创建密钥</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Create a Key</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          登录后，前往 <Link href="/keys" style={{ color: "var(--accent)" }}>API 密钥</Link> 页面，点击「创建密钥」生成一个新的 API Key。
+          After signing in, head to the <Link href="/keys" style={{ color: "var(--accent)" }}>API Keys</Link> page and click &quot;Create key&quot; to generate a new API key.
         </p>
         <div style={{ padding: 16, borderRadius: 10, background: "var(--accent-bg)", border: "1px solid var(--accent-border)" }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginBottom: 6 }}>注意</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginBottom: 6 }}>Heads up</div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-            密钥创建后请立即复制保存。出于安全考虑，密钥值在创建后不会再次完整显示。如果遗失，需删除后重新创建。
+            Copy and store the key as soon as it&apos;s created. For security reasons, the full key value is not shown again. If you lose it, delete the key and create a new one.
           </div>
         </div>
       </section>
 
       <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>密钥格式</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Key Format</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          nexusflow 的 API Key 统一使用 <code style={{ fontFamily: "var(--font-mono)", color: "var(--accent)" }}>sk-air-</code> 前缀，后接随机字符串。
+          nexusflow API keys use the <code style={{ fontFamily: "var(--font-mono)", color: "var(--accent)" }}>sk-air-</code> prefix followed by a random string.
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 16 }}>
           <code style={{ fontSize: 13, color: "#e5e5e5", fontFamily: "var(--font-mono)" }}>sk-air-a1b2c3d4e5f6g7h8i9j0...</code>
@@ -39,17 +39,17 @@ export default function ApiKeysDocPage() {
       </section>
 
       <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>鉴权方式</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Authentication Methods</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          所有协议都可以通过各自原生的请求头传递 API Key（SDK 会自动处理）。此外，Anthropic 协议也支持通过通用的 <code style={{ fontFamily: "var(--font-mono)" }}>Authorization: Bearer</code> 请求头传递。
+          Each protocol can pass the API key via its native header (SDKs handle this automatically). The Anthropic protocol additionally accepts a generic <code style={{ fontFamily: "var(--font-mono)" }}>Authorization: Bearer</code> header.
         </p>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>协议</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>原生请求头</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>通用请求头</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Protocol</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Native header</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Generic header</th>
               </tr>
             </thead>
             <tbody>
@@ -67,18 +67,18 @@ export default function ApiKeysDocPage() {
           </table>
         </div>
         <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 12, lineHeight: 1.7 }}>
-          使用官方 SDK 时无需关心请求头细节，SDK 会自动处理。通用请求头主要方便你使用 cURL 或自定义 HTTP 客户端时统一鉴权方式。
+          When using the official SDKs you don&apos;t need to worry about header details—the SDK handles them. The generic header is mainly there to give cURL or custom HTTP clients a unified auth approach.
         </p>
       </section>
 
       <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>最佳实践</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Best Practices</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           {[
-            { title: "按项目隔离", desc: "为不同项目创建独立的 Key，便于管理和追踪用量。" },
-            { title: "定期轮换", desc: "定期删除旧 Key 并创建新 Key，降低泄露风险。" },
-            { title: "环境变量存储", desc: "不要在代码中硬编码 Key，使用环境变量或密钥管理服务。" },
-            { title: "泄露处理", desc: "如果 Key 泄露，立即在密钥管理页面删除该 Key 并创建新的。" },
+            { title: "Isolate by Project", desc: "Create a separate key per project so you can manage and track usage cleanly." },
+            { title: "Rotate Regularly", desc: "Periodically delete old keys and create new ones to reduce exposure risk." },
+            { title: "Use Environment Variables", desc: "Don't hard-code keys in source. Use environment variables or a secret manager." },
+            { title: "Handle Leaks", desc: "If a key leaks, delete it from the management page immediately and create a new one." },
           ].map((item) => (
             <div key={item.title} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
@@ -89,11 +89,11 @@ export default function ApiKeysDocPage() {
       </section>
 
       <section>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>相关文档</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Related Docs</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
-            { href: "/docs/quickstart", label: "快速开始", desc: "三步上手调用大模型" },
-            { href: "/docs/multi-protocol", label: "多协议支持", desc: "了解各协议的鉴权方式" },
+            { href: "/docs/quickstart", label: "Quick Start", desc: "Three steps to your first model call" },
+            { href: "/docs/multi-protocol", label: "Multi-Protocol Support", desc: "Learn each protocol's auth method" },
           ].map((link) => (
             <Link key={link.href} href={link.href} style={{ padding: "14px 18px", border: "1px solid var(--border)", borderRadius: 8, textDecoration: "none", background: "var(--bg)" }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{link.label}</div>

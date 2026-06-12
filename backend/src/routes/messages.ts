@@ -24,7 +24,7 @@ import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
 const router = Router();
 
-const UPSTREAM_TIMEOUT = 600000; // 10分钟
+const UPSTREAM_TIMEOUT = 600000; // 10 minutes
 
 /** Extract API key from x-api-key header or Authorization Bearer */
 function extractAnthropicToken(req: Request): string | null {

@@ -13,7 +13,7 @@ client = OpenAI(
     base_url="${API_BASE}/v1",
 )
 
-# 基本对话
+# Basic chat
 response = client.chat.completions.create(
     model="qwen3-max",
     messages=[{"role": "user", "content": "Hello!"}]
@@ -110,12 +110,12 @@ response = client.models.generate_content(
 print(response.text)`;
 
 const protocolBoundaryRows = [
-  { name: "OpenAI Chat Completions", endpoint: "/v1/chat/completions", status: "已开放", note: "文本、推理、多模态、编程模型的默认推荐入口。" },
-  { name: "Anthropic Messages", endpoint: "/v1/messages", status: "已开放", note: "兼容 Anthropic SDK 和 Messages 请求/流式事件格式。" },
-  { name: "Gemini-compatible GenerateContent", endpoint: "/v1beta/models/{model}:generateContent", status: "已开放", note: "兼容 Google GenAI / Gemini GenerateContent 请求格式。" },
-  { name: "OpenAI Image Generations", endpoint: "/v1/images/generations", status: "已开放", note: "图像生成的同步兼容入口；复杂图像/视频任务也可用 /v1/tasks。" },
-  { name: "OpenAI Embeddings", endpoint: "/v1/embeddings", status: "已开放", note: "文本向量模型入口。" },
-  { name: "NexusFlow Tasks", endpoint: "/v1/tasks", status: "已开放", note: "图像和视频异步任务统一入口。" },
+  { name: "OpenAI Chat Completions", endpoint: "/v1/chat/completions", status: "Available", note: "Recommended default entry point for text, reasoning, multimodal, and coding models." },
+  { name: "Anthropic Messages", endpoint: "/v1/messages", status: "Available", note: "Compatible with the Anthropic SDK and the Messages request / streaming-event format." },
+  { name: "Gemini-compatible GenerateContent", endpoint: "/v1beta/models/{model}:generateContent", status: "Available", note: "Compatible with Google GenAI / Gemini GenerateContent request formats." },
+  { name: "OpenAI Image Generations", endpoint: "/v1/images/generations", status: "Available", note: "Synchronous compatibility entry for image generation; complex image / video tasks can use /v1/tasks." },
+  { name: "OpenAI Embeddings", endpoint: "/v1/embeddings", status: "Available", note: "Entry point for text embedding models." },
+  { name: "NexusFlow Tasks", endpoint: "/v1/tasks", status: "Available", note: "Unified entry for image and video async tasks." },
 ];
 
 export default function MultiProtocolPage() {
@@ -125,42 +125,42 @@ export default function MultiProtocolPage() {
   return (
     <div style={{ padding: "48px 64px", maxWidth: 920 }}>
       <div style={{ marginBottom: 32 }}>
-        <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8, fontWeight: 500 }}>功能</div>
+        <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8, fontWeight: 500 }}>Feature</div>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px", marginBottom: 8 }}>
-          多协议支持
+          Multi-Protocol Support
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", margin: 0, lineHeight: 1.7, maxWidth: 640 }}>
-          使用熟悉的 SDK 直接接入同一网关，统一鉴权、统一计费、统一监控
+          Use familiar SDKs against a single gateway with shared auth, billing, and monitoring.
         </p>
       </div>
 
       <section style={{ marginBottom: 40 }}>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>
-          nexusflow 当前对外统一提供三类 public protocol：OpenAI、Anthropic Messages 和 Gemini-compatible GenerateContent。
-          这些协议在平台内通过兼容层接到同一套模型路由、计费和监控链路上，目标是让你可以继续使用熟悉的 SDK，同时不把供应商差异泄漏到业务侧。
-          Gemini-compatible 表示请求/响应格式兼容，不代表平台托管 Google 原生 Gemini 模型。
+          nexusflow exposes three public protocols today: OpenAI, Anthropic Messages, and Gemini-compatible GenerateContent.
+          Internally, all three are wired through a compatibility layer onto the same model routing, billing, and monitoring pipeline. The goal is to let you keep using familiar SDKs without leaking provider differences into your application.
+          Note that &quot;Gemini-compatible&quot; refers to the request / response format only—the platform does not host Google&apos;s native Gemini models.
         </p>
       </section>
 
       <section style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>支持的协议</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Supported Protocols</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>协议</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>端点前缀</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>对应 SDK</th>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>主要用途</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Protocol</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Endpoint prefix</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Matching SDK</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Primary use</th>
               </tr>
             </thead>
             <tbody>
               {[
-                { proto: "OpenAI Chat Completions", endpoint: "/v1/chat/completions", sdk: "OpenAI SDK", usage: "文本对话、工具调用" },
-                { proto: "OpenAI Image Generations", endpoint: "/v1/images/generations", sdk: "OpenAI SDK", usage: "图像生成" },
-                { proto: "OpenAI Embeddings", endpoint: "/v1/embeddings", sdk: "OpenAI SDK", usage: "文本向量化" },
-                { proto: "Anthropic Messages", endpoint: "/v1/messages", sdk: "Anthropic SDK", usage: "文本对话、工具调用" },
-                { proto: "Gemini-compatible GenerateContent", endpoint: "/v1beta/models/{model}:generateContent", sdk: "Google GenAI SDK / HTTP", usage: "文本对话格式兼容" },
+                { proto: "OpenAI Chat Completions", endpoint: "/v1/chat/completions", sdk: "OpenAI SDK", usage: "Text chat and tool calls" },
+                { proto: "OpenAI Image Generations", endpoint: "/v1/images/generations", sdk: "OpenAI SDK", usage: "Image generation" },
+                { proto: "OpenAI Embeddings", endpoint: "/v1/embeddings", sdk: "OpenAI SDK", usage: "Text embeddings" },
+                { proto: "Anthropic Messages", endpoint: "/v1/messages", sdk: "Anthropic SDK", usage: "Text chat and tool calls" },
+                { proto: "Gemini-compatible GenerateContent", endpoint: "/v1beta/models/{model}:generateContent", sdk: "Google GenAI SDK / HTTP", usage: "Text chat format compatibility" },
               ].map((row, idx) => (
                 <tr key={row.proto} style={{ background: idx % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{row.proto}</td>
@@ -173,23 +173,23 @@ export default function MultiProtocolPage() {
           </table>
         </div>
         <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 12 }}>
-          不是所有模型都支持所有协议。模型详情页会直接展示该模型当前可用的 <code style={{ fontFamily: "var(--font-mono)" }}>supported_protocols</code>。
+          Not every model supports every protocol. The model detail page shows the model&apos;s current <code style={{ fontFamily: "var(--font-mono)" }}>supported_protocols</code>.
         </p>
       </section>
 
       <section style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>协议边界</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Protocol Scope</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          NexusFlow 当前 public API 只列出可直接调用的兼容入口。模型详情页会展示每个模型实际开放的 supported_protocols。
+          The NexusFlow public API only lists compatibility entry points that can be called directly. The model detail page shows the actual supported_protocols enabled for each model.
         </p>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "11px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>协议 / 接口</th>
-                <th style={{ padding: "11px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>端点</th>
-                <th style={{ padding: "11px 14px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>当前状态</th>
-                <th style={{ padding: "11px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "11px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Protocol / Endpoint</th>
+                <th style={{ padding: "11px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Path</th>
+                <th style={{ padding: "11px 14px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>Status</th>
+                <th style={{ padding: "11px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -202,8 +202,8 @@ export default function MultiProtocolPage() {
                   <td style={{ padding: "11px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
                     <span style={{
                       display: "inline-block", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-                      background: row.status === "已开放" ? "#dcfce7" : "#f3f4f6",
-                      color: row.status === "已开放" ? "#166534" : "#6b7280",
+                      background: row.status === "Available" ? "#dcfce7" : "#f3f4f6",
+                      color: row.status === "Available" ? "#166534" : "#6b7280",
                     }}>
                       {row.status}
                     </span>
@@ -215,20 +215,20 @@ export default function MultiProtocolPage() {
           </table>
         </div>
         <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 12 }}>
-          参考：<a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>阿里云百炼 Qwen API Reference</a>。
+          Reference: <a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>Alibaba Cloud Bailian Qwen API Reference</a>.
         </p>
       </section>
 
       {/* OpenAI Protocol */}
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          OpenAI 协议
+          OpenAI Protocol
         </h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          这是最通用的协议，大多数模型都支持。兼容 OpenAI Chat Completions API 规范。
+          The most universal protocol—supported by most models. Compatible with the OpenAI Chat Completions API spec.
         </p>
 
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>基本配置</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Basic Setup</h3>
         <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
           {["python", "nodejs"].map((l) => (
             <button key={l} onClick={() => setOpenaiLang(l)} style={{
@@ -244,22 +244,22 @@ export default function MultiProtocolPage() {
           <DocsCodeBlock code={openaiLang === "python" ? openaiPython : openaiNode} />
         </div>
 
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>流式输出</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Streaming</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 24 }}>
           <DocsCodeBlock code={openaiStream} />
         </div>
 
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>图像生成</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Image Generation</h3>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
-          支持 <code style={{ fontFamily: "var(--font-mono)" }}>openai:image-generations</code> 协议的模型可以通过 OpenAI SDK 生成图像。
+          Models that support the <code style={{ fontFamily: "var(--font-mono)" }}>openai:image-generations</code> protocol can generate images via the OpenAI SDK.
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 24 }}>
           <DocsCodeBlock code={openaiImage} />
         </div>
 
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>文本向量化</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Text Embeddings</h3>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
-          支持 <code style={{ fontFamily: "var(--font-mono)" }}>openai:embeddings</code> 协议的模型可以将文本转为向量表示，用于语义搜索、聚类、RAG 等场景。
+          Models that support the <code style={{ fontFamily: "var(--font-mono)" }}>openai:embeddings</code> protocol can convert text into vector representations for semantic search, clustering, RAG, and more.
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
           <DocsCodeBlock code={openaiEmbedding} />
@@ -269,13 +269,13 @@ export default function MultiProtocolPage() {
       {/* Anthropic Protocol */}
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          Anthropic 协议
+          Anthropic Protocol
         </h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          提供 Anthropic Messages 兼容入口，便于使用 Anthropic SDK 直接接入 nexusflow 的统一模型网关。
+          A compatibility entry for the Anthropic Messages API—use the Anthropic SDK to integrate with the unified nexusflow gateway directly.
         </p>
 
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>基本配置</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Basic Setup</h3>
         <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
           {["python", "nodejs"].map((l) => (
             <button key={l} onClick={() => setAnthropicLang(l)} style={{
@@ -291,7 +291,7 @@ export default function MultiProtocolPage() {
           <DocsCodeBlock code={anthropicLang === "python" ? anthropicPython : anthropicNode} />
         </div>
 
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>流式输出</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Streaming</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
           <DocsCodeBlock code={anthropicStream} />
         </div>
@@ -299,13 +299,13 @@ export default function MultiProtocolPage() {
 
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          Gemini-compatible 协议
+          Gemini-Compatible Protocol
         </h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          提供 Google GenAI 风格的 <code style={{ fontFamily: "var(--font-mono)" }}>/v1beta/models/{"{model}"}:generateContent</code> 兼容入口，
-          适合需要沿用 Gemini SDK 的场景。路径中的 <code style={{ fontFamily: "var(--font-mono)" }}>model</code> 是 NexusFlow 模型 ID，
-          例如 <code style={{ fontFamily: "var(--font-mono)" }}>qwen-turbo</code>，不是 Google 原生 Gemini 模型名。
-          当前以 <code style={{ fontFamily: "var(--font-mono)" }}>generateContent</code> 与 <code style={{ fontFamily: "var(--font-mono)" }}>streamGenerateContent</code> 为主。
+          A Google GenAI-style <code style={{ fontFamily: "var(--font-mono)" }}>/v1beta/models/{"{model}"}:generateContent</code> compatibility entry,
+          ideal when you want to keep using the Gemini SDK. The <code style={{ fontFamily: "var(--font-mono)" }}>model</code> in the path is a NexusFlow model ID
+          (for example <code style={{ fontFamily: "var(--font-mono)" }}>qwen-turbo</code>), not a native Google Gemini model name.
+          Currently focused on <code style={{ fontFamily: "var(--font-mono)" }}>generateContent</code> and <code style={{ fontFamily: "var(--font-mono)" }}>streamGenerateContent</code>.
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
           <DocsCodeBlock code={geminiPython} />
@@ -313,13 +313,13 @@ export default function MultiProtocolPage() {
       </section>
 
       <section style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>协议选择建议</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Protocol Selection Tips</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
           {[
-            "如果你使用的是 DeepSeek、Qwen、GLM 等国产模型，推荐使用 OpenAI 协议，兼容性最好。",
-            "如果你已经在用 Anthropic SDK，可以优先使用 /v1/messages，减少 SDK 迁移成本。",
-            "如果你的应用已经基于 Google GenAI SDK，可以使用 /v1beta/models/{model}:generateContent，但 model 仍然填写 NexusFlow 模型 ID。",
-            "在模型详情页查看 supported_protocols，确认该模型当前开放了哪些协议。",
+            "If you're using DeepSeek, Qwen, GLM, or other Chinese models, the OpenAI protocol is recommended for best compatibility.",
+            "If you're already on the Anthropic SDK, prefer /v1/messages to minimize SDK migration cost.",
+            "If your app already uses the Google GenAI SDK, you can use /v1beta/models/{model}:generateContent—but the model field still takes a NexusFlow model ID.",
+            "Check supported_protocols on the model detail page to see which protocols are currently enabled for that model.",
           ].map((text, i) => (
             <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", borderRadius: 8, background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
               <span style={{ color: "var(--accent)", fontWeight: 600, fontSize: 14 }}>{i + 1}.</span>
@@ -330,13 +330,13 @@ export default function MultiProtocolPage() {
       </section>
 
       <section>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>相关文档</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Related Docs</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
-            { href: "/docs/quickstart", label: "快速开始", desc: "快速上手调用模型" },
-            { href: "/docs/api-keys", label: "API 密钥", desc: "创建和管理密钥" },
-            { href: "/docs/models", label: "模型列表", desc: "查看模型支持的协议" },
-            { href: "/docs/provider-routing", label: "供应商路由", desc: "了解智能路由机制" },
+            { href: "/docs/quickstart", label: "Quick Start", desc: "Get up and running fast" },
+            { href: "/docs/api-keys", label: "API Keys", desc: "Create and manage keys" },
+            { href: "/docs/models", label: "Model Catalog", desc: "See which protocols each model supports" },
+            { href: "/docs/provider-routing", label: "Provider Routing", desc: "How smart routing works" },
           ].map((link) => (
             <Link key={link.href} href={link.href} style={{ padding: "14px 18px", border: "1px solid var(--border)", borderRadius: 8, textDecoration: "none", background: "var(--bg)" }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{link.label}</div>

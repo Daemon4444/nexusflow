@@ -11,11 +11,11 @@ type ScenarioKey = "basic" | "stream" | "multiTurn" | "tools" | "vision";
 type LangKey = "curl" | "python" | "nodejs";
 
 const scenarioTabs: { key: ScenarioKey; label: string }[] = [
-  { key: "basic", label: "基础对话" },
-  { key: "stream", label: "流式输出" },
-  { key: "multiTurn", label: "多轮对话" },
-  { key: "tools", label: "工具调用" },
-  { key: "vision", label: "视觉理解" },
+  { key: "basic", label: "Basic Chat" },
+  { key: "stream", label: "Streaming" },
+  { key: "multiTurn", label: "Multi-turn" },
+  { key: "tools", label: "Tool Calling" },
+  { key: "vision", label: "Vision" },
 ];
 
 const langTabs: { key: LangKey; label: string }[] = [
@@ -26,56 +26,56 @@ const langTabs: { key: LangKey; label: string }[] = [
 
 /* ── Request headers ── */
 const requestHeaders = [
-  { name: "Authorization", value: "Bearer <API_KEY>", required: true, desc: "API 密钥。在控制台创建后以 sk-air- 开头。" },
-  { name: "Content-Type", value: "application/json", required: true, desc: "请求体格式，固定为 JSON。" },
+  { name: "Authorization", value: "Bearer <API_KEY>", required: true, desc: "API key. Created in the console; starts with sk-air-." },
+  { name: "Content-Type", value: "application/json", required: true, desc: "Request body format. Always JSON." },
 ];
 
 /* ── Request parameters ── */
 const requestParams: { name: string; type: string; required: boolean; default?: string; desc: string; link?: string }[] = [
-  { name: "model", type: "string", required: true, desc: "模型 ID。例如 qwen3.5-plus、deepseek-v4-flash 等。", link: "/docs/models" },
-  { name: "messages", type: "array", required: true, desc: "对话消息数组。每条消息包含 role（system / user / assistant / tool）和 content 字段。content 可以是字符串或内容数组；多模态内容是否可用取决于模型能力。" },
-  { name: "stream", type: "boolean", required: false, default: "false", desc: "是否启用流式输出。启用后以 SSE（Server-Sent Events）格式逐 token 返回。" },
-  { name: "temperature", type: "number", required: false, default: "1.0", desc: "采样温度，范围 [0, 2)。值越高输出越随机，值越低越确定。建议与 top_p 二选一调节。" },
-  { name: "top_p", type: "number", required: false, default: "1.0", desc: "核采样概率阈值，范围 (0, 1]。模型仅从累计概率达到 top_p 的 token 集合中采样。" },
-  { name: "max_tokens", type: "integer", required: false, desc: "生成的最大 token 数。不同模型有不同上限，未设置时使用模型默认值。" },
-  { name: "tools", type: "array", required: false, desc: "可用工具/函数定义列表，用于 Function Calling。每个工具包含 type 和 function 字段。" },
-  { name: "tool_choice", type: "string | object", required: false, default: '"auto"', desc: '工具调用策略。稳定支持 "auto"、"none"，或 {"type":"function","function":{"name":"..."}} 指定函数。思考模式模型不建议强制指定工具。' },
-  { name: "stop", type: "string | string[]", required: false, desc: "停止词或停止词数组（最多 4 个）。模型生成到停止词时立即结束输出。" },
-  { name: "frequency_penalty", type: "number", required: false, default: "0", desc: "频率惩罚，范围 [-2.0, 2.0]。正值根据 token 在已生成文本中出现的频率进行惩罚，降低重复。" },
-  { name: "presence_penalty", type: "number", required: false, default: "0", desc: "存在惩罚，范围 [-2.0, 2.0]。正值根据 token 是否已出现过进行惩罚，提升话题多样性。" },
-  { name: "enable_thinking", type: "boolean", required: false, desc: "是否开启思考模式。仅混合思考模型支持 true/false 开关；仅思考模型即使传 false 也会继续思考。" },
-  { name: "stream_options", type: "object", required: false, desc: '流式请求附加选项。设置 {"include_usage": true} 可在最后一个 SSE chunk 中返回 token 用量。' },
-  { name: "response_format", type: "object", required: false, desc: '响应格式控制。支持 {"type":"text"}（默认）和 {"type":"json_object"}（JSON 模式）。' },
+  { name: "model", type: "string", required: true, desc: "Model ID, e.g. qwen3.5-plus, deepseek-v4-flash, etc.", link: "/docs/models" },
+  { name: "messages", type: "array", required: true, desc: "Conversation message array. Each message has a role (system / user / assistant / tool) and a content field. content can be a string or an array of content parts; multimodal content availability depends on model capability." },
+  { name: "stream", type: "boolean", required: false, default: "false", desc: "Whether to enable streaming output. When enabled, responses are returned token-by-token as Server-Sent Events (SSE)." },
+  { name: "temperature", type: "number", required: false, default: "1.0", desc: "Sampling temperature in [0, 2). Higher values produce more random output, lower values are more deterministic. Adjust either temperature or top_p, not both." },
+  { name: "top_p", type: "number", required: false, default: "1.0", desc: "Nucleus sampling probability threshold in (0, 1]. The model samples only from the smallest set of tokens whose cumulative probability reaches top_p." },
+  { name: "max_tokens", type: "integer", required: false, desc: "Maximum number of tokens to generate. Each model has its own upper bound; defaults to the model's setting if unspecified." },
+  { name: "tools", type: "array", required: false, desc: "List of tool/function definitions for function calling. Each tool has type and function fields." },
+  { name: "tool_choice", type: "string | object", required: false, default: '"auto"', desc: 'Tool calling strategy. Stably supports "auto", "none", or {"type":"function","function":{"name":"..."}} to specify a function. Forcing a tool call is not recommended for thinking-mode models.' },
+  { name: "stop", type: "string | string[]", required: false, desc: "Stop word or array of stop words (up to 4). Generation ends as soon as a stop word is produced." },
+  { name: "frequency_penalty", type: "number", required: false, default: "0", desc: "Frequency penalty in [-2.0, 2.0]. Positive values penalize tokens based on their frequency in the generated text so far, reducing repetition." },
+  { name: "presence_penalty", type: "number", required: false, default: "0", desc: "Presence penalty in [-2.0, 2.0]. Positive values penalize tokens based on whether they have already appeared, increasing topic diversity." },
+  { name: "enable_thinking", type: "boolean", required: false, desc: "Whether to enable thinking mode. Only mixed-thinking models support the true/false toggle; reasoning-only models continue thinking even if false is passed." },
+  { name: "stream_options", type: "object", required: false, desc: 'Additional options for streaming requests. Set {"include_usage": true} to return token usage in the final SSE chunk.' },
+  { name: "response_format", type: "object", required: false, desc: 'Response format control. Supports {"type":"text"} (default) and {"type":"json_object"} (JSON mode).' },
 ];
 
 /* ── Response fields ── */
 const responseFields: { name: string; type: string; desc: string }[] = [
-  { name: "id", type: "string", desc: "本次请求的唯一标识符，如 chatcmpl-abc123xyz789。" },
-  { name: "object", type: "string", desc: '固定为 "chat.completion"。' },
-  { name: "created", type: "integer", desc: "创建时间，Unix 时间戳（秒）。" },
-  { name: "model", type: "string", desc: "实际使用的模型名称。" },
-  { name: "choices", type: "array", desc: "生成结果数组（通常包含 1 个元素）。" },
-  { name: "choices[].index", type: "integer", desc: "结果在数组中的索引位置。" },
-  { name: "choices[].message.role", type: "string", desc: '消息角色，固定为 "assistant"。' },
-  { name: "choices[].message.content", type: "string | null", desc: "生成的文本内容。当模型调用工具时可能为 null。" },
-  { name: "choices[].message.reasoning_content", type: "string", desc: "推理模型（如 QwQ）返回的思维链内容。非推理模型不返回此字段。" },
-  { name: "choices[].message.tool_calls", type: "array", desc: "工具调用请求数组。仅在模型决定调用工具时返回。" },
-  { name: "choices[].finish_reason", type: "string", desc: '停止原因：stop（自然结束）、length（达到 max_tokens）、tool_calls（调用工具）。' },
-  { name: "usage.prompt_tokens", type: "integer", desc: "输入消耗的 token 数。" },
-  { name: "usage.completion_tokens", type: "integer", desc: "输出消耗的 token 数。" },
-  { name: "usage.total_tokens", type: "integer", desc: "总 token 消耗（prompt_tokens + completion_tokens）。" },
+  { name: "id", type: "string", desc: "Unique identifier for this request, e.g. chatcmpl-abc123xyz789." },
+  { name: "object", type: "string", desc: 'Always "chat.completion".' },
+  { name: "created", type: "integer", desc: "Creation time, Unix timestamp in seconds." },
+  { name: "model", type: "string", desc: "Name of the model actually used." },
+  { name: "choices", type: "array", desc: "Array of completion results (typically contains 1 element)." },
+  { name: "choices[].index", type: "integer", desc: "Index position of the result in the array." },
+  { name: "choices[].message.role", type: "string", desc: 'Message role, always "assistant".' },
+  { name: "choices[].message.content", type: "string | null", desc: "Generated text content. May be null when the model invokes a tool." },
+  { name: "choices[].message.reasoning_content", type: "string", desc: "Chain-of-thought content returned by reasoning models (e.g. QwQ). Not returned by non-reasoning models." },
+  { name: "choices[].message.tool_calls", type: "array", desc: "Tool call requests array. Returned only when the model decides to invoke a tool." },
+  { name: "choices[].finish_reason", type: "string", desc: 'Stop reason: stop (natural end), length (max_tokens reached), tool_calls (tool invoked).' },
+  { name: "usage.prompt_tokens", type: "integer", desc: "Number of input tokens consumed." },
+  { name: "usage.completion_tokens", type: "integer", desc: "Number of output tokens consumed." },
+  { name: "usage.total_tokens", type: "integer", desc: "Total token consumption (prompt_tokens + completion_tokens)." },
 ];
 
 /* ── Stream chunk fields ── */
 const streamFields: { name: string; type: string; desc: string }[] = [
-  { name: "id", type: "string", desc: "与完整响应相同的请求 ID。" },
-  { name: "object", type: "string", desc: '固定为 "chat.completion.chunk"。' },
-  { name: "choices[].delta.role", type: "string", desc: '仅在首个 chunk 中出现，值为 "assistant"。' },
-  { name: "choices[].delta.content", type: "string", desc: "本次 chunk 的增量文本内容。" },
-  { name: "choices[].delta.reasoning_content", type: "string", desc: "本次 chunk 的增量思维链内容（推理模型）。" },
-  { name: "choices[].delta.tool_calls", type: "array", desc: "工具调用的增量数据（流式 Function Calling）。" },
-  { name: "choices[].finish_reason", type: "string | null", desc: "仅在最后一个 chunk 中非 null，表示停止原因。" },
-  { name: "usage", type: "object", desc: '仅当 stream_options.include_usage 为 true 时，在最终 chunk 中返回 token 用量。' },
+  { name: "id", type: "string", desc: "Same request ID as the full response." },
+  { name: "object", type: "string", desc: 'Always "chat.completion.chunk".' },
+  { name: "choices[].delta.role", type: "string", desc: 'Only appears in the first chunk; value is "assistant".' },
+  { name: "choices[].delta.content", type: "string", desc: "Incremental text content for this chunk." },
+  { name: "choices[].delta.reasoning_content", type: "string", desc: "Incremental chain-of-thought content for this chunk (reasoning models)." },
+  { name: "choices[].delta.tool_calls", type: "array", desc: "Incremental tool call data (streaming function calling)." },
+  { name: "choices[].finish_reason", type: "string | null", desc: "Non-null only in the last chunk, indicating the stop reason." },
+  { name: "usage", type: "object", desc: 'Returned in the final chunk only when stream_options.include_usage is true, containing token usage.' },
 ];
 
 /* ── Code examples ── */
@@ -87,8 +87,8 @@ const codeExamples: Record<ScenarioKey, Record<LangKey, string>> = {
   -d '{
     "model": "qwen3.5-plus",
     "messages": [
-      {"role": "system", "content": "你是一个有帮助的助手。"},
-      {"role": "user", "content": "什么是机器学习？"}
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "What is machine learning?"}
     ],
     "temperature": 0.7,
     "max_tokens": 1000
@@ -103,8 +103,8 @@ client = OpenAI(
 response = client.chat.completions.create(
     model="qwen3.5-plus",
     messages=[
-        {"role": "system", "content": "你是一个有帮助的助手。"},
-        {"role": "user", "content": "什么是机器学习？"}
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "What is machine learning?"}
     ],
     temperature=0.7,
     max_tokens=1000
@@ -121,8 +121,8 @@ const client = new OpenAI({
 const response = await client.chat.completions.create({
   model: "qwen3.5-plus",
   messages: [
-    { role: "system", content: "你是一个有帮助的助手。" },
-    { role: "user", content: "什么是机器学习？" }
+    { role: "system", content: "You are a helpful assistant." },
+    { role: "user", content: "What is machine learning?" }
   ],
   temperature: 0.7,
   max_tokens: 1000,
@@ -137,7 +137,7 @@ console.log(response.choices[0].message.content);`,
   -d '{
     "model": "qwen3.5-plus",
     "messages": [
-      {"role": "user", "content": "写一首关于春天的诗"}
+      {"role": "user", "content": "Write a poem about spring"}
     ],
     "stream": true,
     "stream_options": {
@@ -145,8 +145,8 @@ console.log(response.choices[0].message.content);`,
     }
   }'
 
-# 流式返回格式：
-# data: {"id":"...","choices":[{"delta":{"content":"春"},...}]}
+# Streaming response format:
+# data: {"id":"...","choices":[{"delta":{"content":"Spring"},...}]}
 # data: [DONE]`,
     python: `from openai import OpenAI
 
@@ -157,7 +157,7 @@ client = OpenAI(
 
 stream = client.chat.completions.create(
     model="qwen3.5-plus",
-    messages=[{"role": "user", "content": "写一首关于春天的诗"}],
+    messages=[{"role": "user", "content": "Write a poem about spring"}],
     stream=True,
     stream_options={"include_usage": True},
 )
@@ -174,7 +174,7 @@ const client = new OpenAI({
 
 const stream = await client.chat.completions.create({
   model: "qwen3.5-plus",
-  messages: [{ role: "user", content: "写一首关于春天的诗" }],
+  messages: [{ role: "user", content: "Write a poem about spring" }],
   stream: true,
   stream_options: { include_usage: true },
 });
@@ -193,10 +193,10 @@ for await (const chunk of stream) {
   -d '{
     "model": "qwen3.5-plus",
     "messages": [
-      {"role": "system", "content": "你是一个编程助手。"},
-      {"role": "user", "content": "Python 中如何读取 JSON 文件？"},
-      {"role": "assistant", "content": "在 Python 中读取 JSON..."},
-      {"role": "user", "content": "如何处理中文编码问题？"}
+      {"role": "system", "content": "You are a programming assistant."},
+      {"role": "user", "content": "How do I read a JSON file in Python?"},
+      {"role": "assistant", "content": "To read JSON in Python..."},
+      {"role": "user", "content": "How do I handle Unicode encoding issues?"}
     ]
   }'`,
     python: `from openai import OpenAI
@@ -207,11 +207,11 @@ client = OpenAI(
 )
 
 conversation = [
-    {"role": "system", "content": "你是一个编程助手。"},
-    {"role": "user", "content": "Python 中如何读取 JSON 文件？"},
+    {"role": "system", "content": "You are a programming assistant."},
+    {"role": "user", "content": "How do I read a JSON file in Python?"},
 ]
 
-# 第一轮
+# First turn
 response1 = client.chat.completions.create(
     model="qwen3.5-plus",
     messages=conversation,
@@ -219,8 +219,8 @@ response1 = client.chat.completions.create(
 assistant_msg = response1.choices[0].message.content
 conversation.append({"role": "assistant", "content": assistant_msg})
 
-# 第二轮：追问
-conversation.append({"role": "user", "content": "如何处理中文编码问题？"})
+# Second turn: follow-up
+conversation.append({"role": "user", "content": "How do I handle Unicode encoding issues?"})
 response2 = client.chat.completions.create(
     model="qwen3.5-plus",
     messages=conversation,
@@ -234,8 +234,8 @@ const client = new OpenAI({
 });
 
 const conversation = [
-  { role: "system", content: "你是一个编程助手。" },
-  { role: "user", content: "Python 中如何读取 JSON 文件？" },
+  { role: "system", content: "You are a programming assistant." },
+  { role: "user", content: "How do I read a JSON file in Python?" },
 ];
 
 const response1 = await client.chat.completions.create({
@@ -247,7 +247,7 @@ conversation.push({
   content: response1.choices[0].message.content,
 });
 
-conversation.push({ role: "user", content: "如何处理中文编码问题？" });
+conversation.push({ role: "user", content: "How do I handle Unicode encoding issues?" });
 const response2 = await client.chat.completions.create({
   model: "qwen3.5-plus",
   messages: conversation,
@@ -261,13 +261,13 @@ console.log(response2.choices[0].message.content);`,
   -d '{
     "model": "qwen3.5-plus",
     "messages": [
-      {"role": "user", "content": "北京今天天气怎么样？"}
+      {"role": "user", "content": "What is the weather in Beijing today?"}
     ],
     "tools": [{
       "type": "function",
       "function": {
         "name": "get_weather",
-        "description": "获取指定城市的天气信息",
+        "description": "Get weather information for the specified city",
         "parameters": {
           "type": "object",
           "properties": {
@@ -292,11 +292,11 @@ tools = [
         "type": "function",
         "function": {
             "name": "get_weather",
-            "description": "获取指定城市的天气信息",
+            "description": "Get weather information for the specified city",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "city": {"type": "string", "description": "城市名称"},
+                    "city": {"type": "string", "description": "City name"},
                     "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]}
                 },
                 "required": ["city"]
@@ -307,15 +307,15 @@ tools = [
 
 response = client.chat.completions.create(
     model="qwen3.5-plus",
-    messages=[{"role": "user", "content": "北京今天天气怎么样？"}],
+    messages=[{"role": "user", "content": "What is the weather in Beijing today?"}],
     tools=tools,
     tool_choice="auto",
 )
 
 if response.choices[0].message.tool_calls:
     call = response.choices[0].message.tool_calls[0]
-    print(f"调用函数: {call.function.name}")
-    print(f"参数: {call.function.arguments}")`,
+    print(f"Function called: {call.function.name}")
+    print(f"Arguments: {call.function.arguments}")`,
     nodejs: `import OpenAI from "openai";
 
 const client = new OpenAI({
@@ -325,12 +325,12 @@ const client = new OpenAI({
 
 const response = await client.chat.completions.create({
   model: "qwen3.5-plus",
-  messages: [{ role: "user", content: "北京今天天气怎么样？" }],
+  messages: [{ role: "user", content: "What is the weather in Beijing today?" }],
   tools: [{
     type: "function",
     function: {
       name: "get_weather",
-      description: "获取指定城市的天气信息",
+      description: "Get weather information for the specified city",
       parameters: {
         type: "object",
         properties: {
@@ -346,8 +346,8 @@ const response = await client.chat.completions.create({
 
 const toolCall = response.choices[0].message.tool_calls?.[0];
 if (toolCall) {
-  console.log("调用函数:", toolCall.function.name);
-  console.log("参数:", toolCall.function.arguments);
+  console.log("Function called:", toolCall.function.name);
+  console.log("Arguments:", toolCall.function.arguments);
 }`,
   },
   vision: {
@@ -359,7 +359,7 @@ if (toolCall) {
     "messages": [{
       "role": "user",
       "content": [
-        {"type": "text", "text": "描述一下这张图片的内容"},
+        {"type": "text", "text": "Describe what is in this image"},
         {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}}
       ]
     }],
@@ -378,7 +378,7 @@ response = client.chat.completions.create(
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": "描述一下这张图片的内容"},
+                {"type": "text", "text": "Describe what is in this image"},
                 {
                     "type": "image_url",
                     "image_url": {
@@ -404,7 +404,7 @@ const response = await client.chat.completions.create({
   messages: [{
     role: "user",
     content: [
-      { type: "text", text: "描述一下这张图片的内容" },
+      { type: "text", text: "Describe what is in this image" },
       { type: "image_url", image_url: { url: "https://example.com/image.jpg" } }
     ]
   }],
@@ -452,13 +452,13 @@ export default function ChatCompletionsApiPage() {
           Chat Completions API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          创建对话补全响应。接口完全兼容 OpenAI Chat Completions 格式，可直接使用 OpenAI 官方 SDK（Python / Node.js）接入，只需修改 <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>base_url</code> 和 <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>api_key</code>。支持流式输出、多轮对话、Function Calling、视觉理解等能力。
+          Create chat completion responses. The endpoint is fully compatible with the OpenAI Chat Completions format and works with the official OpenAI SDKs (Python / Node.js)—just change the <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>base_url</code> and <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>api_key</code>. Supports streaming, multi-turn dialog, function calling, vision understanding and more.
         </p>
       </div>
 
       {/* ───────── Endpoint ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>请求端点</h2>
+        <h2 style={sectionHeading}>Endpoint</h2>
         <div style={{
           padding: "10px 16px", background: "var(--bg-elevated)", borderRadius: 8,
           border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10,
@@ -473,15 +473,15 @@ export default function ChatCompletionsApiPage() {
 
       {/* ───────── Request Headers ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>请求头</h2>
+        <h2 style={sectionHeading}>Request Headers</h2>
         <div style={tableWrapper}>
           <table style={table}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
                 <th style={th}>Header</th>
-                <th style={{ ...th, width: 220 }}>值</th>
-                <th style={{ ...th, width: 50, textAlign: "center" }}>必选</th>
-                <th style={th}>说明</th>
+                <th style={{ ...th, width: 220 }}>Value</th>
+                <th style={{ ...th, width: 50, textAlign: "center" }}>Required</th>
+                <th style={th}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -502,15 +502,15 @@ export default function ChatCompletionsApiPage() {
 
       {/* ───────── Request Parameters ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>请求参数</h2>
+        <h2 style={sectionHeading}>Request Parameters</h2>
         <div style={tableWrapper}>
           <table style={table}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={th}>参数</th>
-                <th style={{ ...th, width: 100 }}>类型</th>
-                <th style={{ ...th, width: 50, textAlign: "center" }}>必选</th>
-                <th style={th}>说明</th>
+                <th style={th}>Parameter</th>
+                <th style={{ ...th, width: 100 }}>Type</th>
+                <th style={{ ...th, width: 50, textAlign: "center" }}>Required</th>
+                <th style={th}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -529,11 +529,11 @@ export default function ChatCompletionsApiPage() {
                     {p.desc}
                     {p.default && (
                       <span style={{ color: "var(--text-tertiary)", marginLeft: 6 }}>
-                        默认：<code style={{ fontSize: 12 }}>{p.default}</code>
+                        Default: <code style={{ fontSize: 12 }}>{p.default}</code>
                       </span>
                     )}
                     {p.link && (
-                      <Link href={p.link} style={{ marginLeft: 6, color: "var(--accent)", fontSize: 12 }}>查看列表 →</Link>
+                      <Link href={p.link} style={{ marginLeft: 6, color: "var(--accent)", fontSize: 12 }}>View list →</Link>
                     )}
                   </td>
                 </tr>
@@ -545,7 +545,7 @@ export default function ChatCompletionsApiPage() {
 
       {/* ───────── Code Examples ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>代码示例</h2>
+        <h2 style={sectionHeading}>Code Examples</h2>
 
         {/* Scenario tabs */}
         <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
@@ -593,13 +593,13 @@ export default function ChatCompletionsApiPage() {
 
       {/* ───────── Response Format ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>响应格式（非流式）</h2>
+        <h2 style={sectionHeading}>Response Format (non-streaming)</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 14 }}>
-          非流式请求返回完整的 JSON 对象，<code>object</code> 字段值为 <code>&quot;chat.completion&quot;</code>。
+          Non-streaming requests return a complete JSON object whose <code>object</code> field is <code>&quot;chat.completion&quot;</code>.
         </p>
 
         {/* JSON example */}
-        <h3 style={subHeading}>响应示例</h3>
+        <h3 style={subHeading}>Response Example</h3>
         <div style={{ ...codeBlock, marginBottom: 20 }}>
           <DocsCodeBlock code={`{
   "id": "chatcmpl-abc123xyz789",
@@ -611,7 +611,7 @@ export default function ChatCompletionsApiPage() {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "机器学习是人工智能的一个分支..."
+        "content": "Machine learning is a branch of artificial intelligence..."
       },
       "finish_reason": "stop"
     }
@@ -625,14 +625,14 @@ export default function ChatCompletionsApiPage() {
         </div>
 
         {/* Fields table */}
-        <h3 style={subHeading}>响应字段</h3>
+        <h3 style={subHeading}>Response Fields</h3>
         <div style={tableWrapper}>
           <table style={table}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={th}>字段</th>
-                <th style={{ ...th, width: 100 }}>类型</th>
-                <th style={th}>说明</th>
+                <th style={th}>Field</th>
+                <th style={{ ...th, width: 100 }}>Type</th>
+                <th style={th}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -650,19 +650,19 @@ export default function ChatCompletionsApiPage() {
 
       {/* ───────── Stream Response Format ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>流式响应格式（SSE）</h2>
+        <h2 style={sectionHeading}>Streaming Response Format (SSE)</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 14 }}>
-          当 <code>stream: true</code> 时，响应以 <strong>Server-Sent Events (SSE)</strong> 格式逐步返回。每条事件以 <code>data: </code> 开头，最后以 <code>data: [DONE]</code> 标记结束。每个 chunk 的 <code>object</code> 字段值为 <code>&quot;chat.completion.chunk&quot;</code>。
+          When <code>stream: true</code>, the response is returned incrementally as <strong>Server-Sent Events (SSE)</strong>. Each event starts with <code>data: </code> and the stream ends with <code>data: [DONE]</code>. Each chunk's <code>object</code> field is <code>&quot;chat.completion.chunk&quot;</code>.
         </p>
 
         {/* SSE format example */}
-        <h3 style={subHeading}>SSE 数据格式</h3>
+        <h3 style={subHeading}>SSE Data Format</h3>
         <div style={{ ...codeBlock, marginBottom: 20 }}>
           <DocsCodeBlock code={`data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
 
-data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{"content":"机器"},"finish_reason":null}]}
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{"content":"Machine"},"finish_reason":null}]}
 
-data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{"content":"学习"},"finish_reason":null}]}
+data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{"content":" learning"},"finish_reason":null}]}
 
 data: {"id":"chatcmpl-abc123","object":"chat.completion.chunk","created":1709123456,"model":"qwen3.5-plus","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":28,"completion_tokens":256,"total_tokens":284}}
 
@@ -670,14 +670,14 @@ data: [DONE]`} />
         </div>
 
         {/* Stream chunk fields table */}
-        <h3 style={subHeading}>Chunk 字段说明</h3>
+        <h3 style={subHeading}>Chunk Fields</h3>
         <div style={tableWrapper}>
           <table style={table}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={th}>字段</th>
-                <th style={{ ...th, width: 100 }}>类型</th>
-                <th style={th}>说明</th>
+                <th style={th}>Field</th>
+                <th style={{ ...th, width: 100 }}>Type</th>
+                <th style={th}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -697,43 +697,43 @@ data: [DONE]`} />
           marginTop: 16, padding: 14, background: "#eff6ff", border: "1px solid #bfdbfe",
           borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#1e40af",
         }}>
-          <strong>提示：</strong>使用 OpenAI SDK 时无需手动解析 SSE，SDK 会自动处理流式响应并提供迭代器接口。仅在使用 cURL 或原生 HTTP 客户端时需要自行解析 SSE 数据。
+          <strong>Tip:</strong> When using the OpenAI SDK you don't need to parse SSE manually—the SDK handles streaming responses and exposes an iterator. Manual SSE parsing is only required when using cURL or a raw HTTP client.
         </div>
       </section>
 
       {/* ───────── Notes ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>与百炼官方 Chat API 的关系</h2>
+        <h2 style={sectionHeading}>Relationship with the Bailian Chat API</h2>
         <div style={{
           padding: 16, background: "#f8fafc", border: "1px solid var(--border)",
           borderRadius: 8, fontSize: 13, lineHeight: 1.8, color: "var(--text-secondary)",
         }}>
-          NexusFlow 的 <code>/v1/chat/completions</code> 与阿里云百炼 OpenAI 兼容端点完全协议透传：
-          请求体原样转发上游，响应原样回传。<code>tools</code>、<code>tool_choice</code>、<code>response_format</code>、
-          <code>enable_thinking</code>、<code>thinking_budget</code>、<code>enable_search</code>、<code>search_options</code>、
-          <code>seed</code>、<code>top_k</code>、<code>logprobs</code>、<code>stream_options</code> 等百炼扩展字段都可直接使用，
-          具体支持范围以模型为准。官方参考：
-          {" "}<a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "#1d4ed8" }}>千问 API 参考</a>。
+          NexusFlow's <code>/v1/chat/completions</code> is a fully transparent passthrough of the Alibaba Cloud Bailian OpenAI-compatible endpoint:
+          the request body is forwarded as-is upstream and the response is returned as-is. Bailian extension fields such as <code>tools</code>, <code>tool_choice</code>, <code>response_format</code>,
+          <code>enable_thinking</code>, <code>thinking_budget</code>, <code>enable_search</code>, <code>search_options</code>,
+          <code>seed</code>, <code>top_k</code>, <code>logprobs</code>, <code>stream_options</code> and others can be used directly,
+          subject to per-model support. Official reference:
+          {" "}<a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "#1d4ed8" }}>Qwen API Reference</a>.
         </div>
       </section>
 
       {/* ───────── Pricing Info ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>计费说明</h2>
+        <h2 style={sectionHeading}>Pricing</h2>
 
         <div style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>阶梯计费</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>Tiered Pricing</h3>
           <p style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 12 }}>
-            百炼系列模型（通义千问、GLM 等）采用<strong>按请求输入 token 数分阶梯计费</strong>。单次请求的 prompt token 总量决定该请求适用的价格档位，输入和输出分别按对应档位的单价计费。
+            Bailian-series models (Qwen, GLM, etc.) use <strong>tiered pricing based on the input token count of each request</strong>. The total prompt token count of a single request determines its pricing tier; input and output are billed at that tier's respective unit prices.
           </p>
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", fontSize: 13, marginBottom: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", padding: "10px 14px", background: "var(--bg-elevated)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
-              <span>示例：qwen3-max</span><span>输入 Token 范围</span><span>输入价格 (¥/M)</span><span>输出价格 (¥/M)</span>
+              <span>Example: qwen3-max</span><span>Input Token Range</span><span>Input Price ($/M)</span><span>Output Price ($/M)</span>
             </div>
             {[
-              ["第一阶", "0 ~ 32K", "2.5", "10"],
-              ["第二阶", "32K ~ 128K", "4", "16"],
-              ["第三阶", "128K ~ 256K", "7", "28"],
+              ["Tier 1", "0 ~ 32K", "2.5", "10"],
+              ["Tier 2", "32K ~ 128K", "4", "16"],
+              ["Tier 3", "128K ~ 256K", "7", "28"],
             ].map(([tier, range, inp, out], i) => (
               <div key={tier} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", padding: "10px 14px", borderBottom: i < 2 ? "1px solid var(--border)" : "none", background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                 <span style={{ fontWeight: 500 }}>{tier}</span><span>{range}</span><span style={{ color: "var(--success)" }}>{inp}</span><span style={{ color: "var(--success)" }}>{out}</span>
@@ -741,23 +741,23 @@ data: [DONE]`} />
             ))}
           </div>
           <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
-            例如：一次请求含 50K 输入 token + 2K 输出 token，则输入按 ¥4/M 计费、输出按 ¥16/M 计费（落入第二阶）。完整阶梯价格见 <Link href="/pricing" style={{ color: "#1d4ed8" }}>定价页</Link>。
+            For example: a request with 50K input tokens + 2K output tokens is billed at $4/M for input and $16/M for output (Tier 2). See the full tier pricing on the <Link href="/pricing" style={{ color: "#1d4ed8" }}>Pricing page</Link>.
           </p>
         </div>
 
         <div>
-          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>上下文缓存（Prompt Caching）</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>Prompt Caching</h3>
           <p style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 12 }}>
-            通过 <code>/v1/messages</code>（Anthropic 协议）调用时支持上下文缓存。对重复的 system prompt 或长文档，DashScope 会自动缓存 prompt 前缀，后续请求命中缓存部分享受折扣：
+            Calls via <code>/v1/messages</code> (Anthropic protocol) support prompt caching. For repeated system prompts or long documents, DashScope automatically caches the prompt prefix, and subsequent requests benefit from a discount on cache hits:
           </p>
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", fontSize: 13 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 14px", background: "var(--bg-elevated)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
-              <span>Token 类型</span><span>计费倍率</span><span>说明</span>
+              <span>Token Type</span><span>Billing Multiplier</span><span>Description</span>
             </div>
             {[
-              ["cache_creation_input_tokens", "1.25x 输入价", "首次写入缓存，略高于常规输入"],
-              ["cache_read_input_tokens", "0.1x 输入价", "命中缓存，享 90% 折扣"],
-              ["input_tokens（非缓存部分）", "1x 输入价", "正常计费"],
+              ["cache_creation_input_tokens", "1.25x input price", "First write to cache, slightly above regular input"],
+              ["cache_read_input_tokens", "0.1x input price", "Cache hit, 90% discount"],
+              ["input_tokens (non-cache)", "1x input price", "Standard pricing"],
             ].map(([type, rate, desc], i) => (
               <div key={type} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 14px", borderBottom: i < 2 ? "1px solid var(--border)" : "none", background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                 <code style={{ fontSize: 11, wordBreak: "break-all" }}>{type}</code><span style={{ color: "var(--success)", fontWeight: 500 }}>{rate}</span><span style={{ color: "var(--text-tertiary)" }}>{desc}</span>
@@ -765,26 +765,26 @@ data: [DONE]`} />
             ))}
           </div>
           <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6, marginTop: 10 }}>
-            <code>/v1/chat/completions</code> 支持通过 <code>enable_context_caching: true</code> 参数启用显式缓存（百炼系列模型）。<code>/v1/messages</code>（Anthropic 协议）支持 <code>cache_control</code> 内容块注解。两种协议均自动享受隐式缓存折扣。
+            <code>/v1/chat/completions</code> supports explicit caching via the <code>enable_context_caching: true</code> parameter (Bailian-series models). <code>/v1/messages</code> (Anthropic protocol) supports <code>cache_control</code> content-block annotations. Both protocols automatically benefit from implicit cache discounts.
           </p>
         </div>
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>注意事项</h2>
+        <h2 style={sectionHeading}>Notes</h2>
         <div style={{
           padding: 16, background: "#fffbeb", border: "1px solid #fcd34d",
           borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#92400e",
         }}>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
-            <li>不同模型的 <code>max_tokens</code> 上限不同，请参考 <Link href="/docs/models" style={{ color: "#1d4ed8" }}>模型列表</Link> 了解各模型限制。</li>
-            <li><code>temperature</code> 和 <code>top_p</code> 建议只调节其中一个，同时设置可能产生不可预期的结果。</li>
-            <li>流式输出时，只有最后一个 chunk 的 <code>finish_reason</code> 为非 null 值，代表生成结束。</li>
-            <li>图像理解功能建议使用 Qwen-VL 系列等多模态模型。<code>content</code> 需传入数组格式包含 <code>image_url</code> 类型。</li>
-            <li>Function Calling 推荐使用 Qwen、DeepSeek、GLM 等支持工具调用的模型系列。</li>
-            <li>思考模式（<code>enable_thinking</code>）必须按模型 ID 使用；支持矩阵见 <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>参数矩阵</Link>。</li>
-            <li>请求体与上游百炼协议透传，文档之外的百炼扩展字段（如 <code>thinking_budget</code>、<code>enable_search</code>、<code>search_options</code>）可直接使用，具体支持以模型为准。</li>
-            <li>完整参数说明与模型兼容矩阵见 <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>参数矩阵</Link>。</li>
+            <li>The <code>max_tokens</code> upper bound varies by model. See the <Link href="/docs/models" style={{ color: "#1d4ed8" }}>Models list</Link> for per-model limits.</li>
+            <li>It is recommended to tune only one of <code>temperature</code> and <code>top_p</code>; setting both can produce unexpected results.</li>
+            <li>In streaming mode, only the last chunk has a non-null <code>finish_reason</code>, which marks the end of generation.</li>
+            <li>For image understanding, use multimodal models such as the Qwen-VL series. <code>content</code> must be passed as an array containing an <code>image_url</code> entry.</li>
+            <li>For function calling, use models that support tools, such as Qwen, DeepSeek and GLM.</li>
+            <li>Thinking mode (<code>enable_thinking</code>) must be used per model ID. See the support matrix on the <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>Parameters Matrix</Link>.</li>
+            <li>The request body is passed through to the upstream Bailian protocol; Bailian extension fields not documented here (such as <code>thinking_budget</code>, <code>enable_search</code>, <code>search_options</code>) can be used directly, subject to per-model support.</li>
+            <li>See the <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>Parameters Matrix</Link> for full parameter descriptions and per-model compatibility.</li>
           </ul>
         </div>
       </section>
@@ -792,9 +792,9 @@ data: [DONE]`} />
       {/* ───────── Related Links ───────── */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         {[
-          { href: "/docs/models", label: "模型列表", desc: "查看所有可用模型与能力" },
-          { href: "/docs/api/errors", label: "错误码", desc: "错误码说明与排查指南" },
-          { href: "/docs/api/limits", label: "限流说明", desc: "请求频率限制与配额" },
+          { href: "/docs/models", label: "Models", desc: "View all available models and capabilities" },
+          { href: "/docs/api/errors", label: "Error Codes", desc: "Error code reference and troubleshooting" },
+          { href: "/docs/api/limits", label: "Rate Limits", desc: "Request rate limits and quotas" },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={{
             padding: 16, borderRadius: 10, border: "1px solid var(--border)",

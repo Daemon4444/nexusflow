@@ -20,83 +20,83 @@ interface ErrorSolution {
 const errorSolutions: Record<string, ErrorSolution> = {
   // Authentication errors
   "invalid_api_key": {
-    title: "API Key 无效",
-    description: "请检查你的 API Key 是否正确复制，或创建一个新的密钥。",
-    action: { label: "管理密钥", href: "/keys" },
+    title: "Invalid API key",
+    description: "Please check that your API key was copied correctly, or create a new one.",
+    action: { label: "Manage keys", href: "/keys" },
   },
   "unauthorized": {
-    title: "未授权访问",
-    description: "请确保请求头中包含正确的 Authorization: Bearer YOUR_API_KEY",
-    action: { label: "查看文档", href: "/docs/quickstart" },
+    title: "Unauthorized",
+    description: "Make sure your request includes the header Authorization: Bearer YOUR_API_KEY",
+    action: { label: "View docs", href: "/docs/quickstart" },
   },
 
   // Billing errors
   "insufficient_balance": {
-    title: "余额不足",
-    description: "你的账户余额已耗尽，请充值后继续使用。",
-    action: { label: "立即充值", href: "/billing" },
+    title: "Insufficient balance",
+    description: "Your account balance is empty. Top up to continue using the service.",
+    action: { label: "Top up now", href: "/billing" },
   },
   "billing_error": {
-    title: "账户余额不足",
-    description: "API 调用需要消耗余额，请充值以保证服务正常使用。",
-    action: { label: "充值", href: "/billing" },
+    title: "Insufficient balance",
+    description: "API calls consume your balance — please top up to keep the service running.",
+    action: { label: "Top up", href: "/billing" },
   },
 
   // Rate limit errors
   "rate_limit_exceeded": {
-    title: "请求过于频繁",
-    description: "你已超过速率限制，请等待片刻后重试，或申请更高的限制。",
-    action: { label: "申请提高限制", href: "/rate-limits" },
+    title: "Too many requests",
+    description: "You have exceeded the rate limit. Please retry shortly, or apply for a higher limit.",
+    action: { label: "Apply for higher limits", href: "/rate-limits" },
   },
   "429": {
-    title: "触发速率限制",
-    description: "请求速度过快，请稍后重试。可在响应头中查看 Retry-After 时间。",
+    title: "Rate limit hit",
+    description: "Requests are too frequent. Please retry shortly. Check the Retry-After response header for the wait time.",
   },
 
   // Model errors
   "model_not_found": {
-    title: "模型不存在",
-    description: "请检查模型 ID 是否正确，或查看可用的模型列表。",
-    action: { label: "查看模型", href: "/models" },
+    title: "Model not found",
+    description: "Please verify the model ID, or browse the list of available models.",
+    action: { label: "View models", href: "/models" },
   },
   "unsupported_model": {
-    title: "模型不支持此操作",
-    description: "该模型不支持当前请求类型，请选择合适的模型。",
-    action: { label: "选择模型", href: "/models" },
+    title: "Model does not support this operation",
+    description: "This model does not support the current request type. Pick a model that does.",
+    action: { label: "Choose a model", href: "/models" },
   },
   "provider_not_found": {
-    title: "未找到供应商",
-    description: "该模型暂时不可用，请选择其他模型或稍后重试。",
-    action: { label: "查看可用模型", href: "/models" },
+    title: "Provider not found",
+    description: "The model is temporarily unavailable. Try a different model or retry later.",
+    action: { label: "View available models", href: "/models" },
   },
   "provider_not_configured": {
-    title: "供应商配置错误",
-    description: "系统配置问题，请联系管理员或稍后重试。",
+    title: "Provider misconfigured",
+    description: "There is a configuration issue. Please contact the administrator or retry later.",
   },
 
   // Network errors
   "upstream_error": {
-    title: "上游服务异常",
-    description: "AI 模型供应商暂时响应异常，系统正在自动切换备用供应商。",
+    title: "Upstream service error",
+    description: "The AI provider is responding abnormally. The system is automatically failing over to a backup provider.",
   },
   "network_error": {
-    title: "网络连接错误",
-    description: "请检查网络连接，确认后端服务是否正常运行。",
+    title: "Network error",
+    description: "Please check your network connection and confirm that the backend service is running.",
   },
   "timeout": {
-    title: "请求超时",
-    description: "模型响应时间过长，请尝试使用更短的输入或选择更快的模型。",
+    title: "Request timed out",
+    description: "The model took too long to respond. Try a shorter input or pick a faster model.",
   },
 
   // Request errors
   "invalid_request": {
-    title: "请求参数错误",
-    description: "请检查请求参数格式，确保 messages 数组不为空。",
+    title: "Invalid request parameters",
+    description: "Please check the request format — make sure the messages array is not empty.",
   },
   "context_length_exceeded": {
-    title: "超出上下文长度",
-    description: "输入内容过长，请减少输入或选择支持更长上下文的模型。",
-    action: { label: "选择长上下文模型", href: "/models" },
+    title: "Context length exceeded",
+    description: "The input is too long. Reduce it or pick a model with a longer context window.",
+    action: { label: "Pick a long-context model", href: "/models" },
   },
 };
 

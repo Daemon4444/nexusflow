@@ -47,39 +47,42 @@ app.use(cors({
   origin: [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:19999",
+    "http://127.0.0.1:19999",
+    "http://47.85.190.59",
     "https://nexusflow.hk",
     "http://nexusflow.hk",
   ],
   credentials: true,
 }));
-app.use(express.json({ limit: "1mb" })); // 限制请求体大小，防止内存溢出
-app.use(express.urlencoded({ extended: false })); // 支付宝回调等表单请求
+app.use(express.json({ limit: "1mb" })); // Limit body size to prevent OOM
+app.use(express.urlencoded({ extended: false })); // Form requests, e.g. Alipay callbacks
 
-// Anthropic Messages 兼容 API（/v1/messages）— 必须在 /v1 之前挂载
+// Anthropic Messages-compatible API (/v1/messages) - must be mounted before /v1
 app.use("/v1/messages", messagesRouter);
 
-// OpenAI Audio API（/v1/audio/speech, /v1/audio/transcriptions）— 必须在 /v1 之前挂载
+// OpenAI Audio API (/v1/audio/speech, /v1/audio/transcriptions) - must be mounted before /v1
 app.use("/v1/audio", audioRouter);
 
-// OpenAI 兼容 API（/v1/chat/completions, /v1/models）
+// OpenAI-compatible API (/v1/chat/completions, /v1/models)
 app.use("/v1", v1Router);
 
 // Gemini-compatible Public API. Anthropic Messages is mounted above as the single /v1/messages implementation.
 app.use("/", protocolRouter);
 
-// PixVerse 视频生成 API（/v1/video/text, /v1/video/image, /v1/video/status/:id）
+// PixVerse video generation API (/v1/video/text, /v1/video/image, /v1/video/status/:id)
 app.use("/v1/video", pixverseRouter);
 
-// 阿里云百炼兼容路径 — 视频生成
+// Aliyun Bailian-compatible path - video generation
 app.use("/v1/services/aigc/video-generation", pixverseRouter);
 
 // OpenAI-style video generation alias for NexusFlow async video tasks.
 app.use("/v1/videos", videoRouter);
 
-// 异步任务 API（/v1/tasks）
+// Async tasks API (/v1/tasks)
 app.use("/v1/tasks", tasksRouter);
 
-// 管理面板 API
+// Admin panel API
 app.use("/api/auth", authRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api/billing", discountsRouter);
@@ -106,10 +109,10 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// 404 处理
+// 404 handler
 app.use(notFoundHandler);
 
-// 统一错误处理
+// Unified error handler
 app.use(errorHandler);
 
 async function start() {
@@ -118,15 +121,15 @@ async function start() {
     await seedApiKeysIfNeeded();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[Quadrant API] 数据库维护任务跳过: ${message}`);
+    console.warn(`[Quadrant API] Database maintenance task skipped: ${message}`);
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Quadrant API] 服务已启动: http://0.0.0.0:${PORT}`);
+    console.log(`[Quadrant API] Service started: http://0.0.0.0:${PORT}`);
   });
 }
 
 start().catch((error) => {
-  console.error("[Quadrant API] 启动失败:", error);
+  console.error("[Quadrant API] Failed to start:", error);
   process.exit(1);
 });

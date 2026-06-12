@@ -10,65 +10,65 @@ type ModelTabKey = "llm" | "reasoning" | "vision" | "coding";
 type CodeTabKey = "basic" | "reasoning" | "vision" | "coding";
 
 const modelTabs: { key: ModelTabKey; label: string }[] = [
-  { key: "llm", label: "大语言" },
-  { key: "reasoning", label: "推理" },
-  { key: "vision", label: "视觉" },
-  { key: "coding", label: "编程" },
+  { key: "llm", label: "Language" },
+  { key: "reasoning", label: "Reasoning" },
+  { key: "vision", label: "Vision" },
+  { key: "coding", label: "Coding" },
 ];
 
 const codeTabs: { key: CodeTabKey; label: string }[] = [
-  { key: "basic", label: "基础对话" },
-  { key: "reasoning", label: "推理模式" },
-  { key: "vision", label: "视觉理解" },
-  { key: "coding", label: "编程" },
+  { key: "basic", label: "Basic Chat" },
+  { key: "reasoning", label: "Reasoning Mode" },
+  { key: "vision", label: "Vision" },
+  { key: "coding", label: "Coding" },
 ];
 
 const qwenProtocols = [
   {
     protocol: "OpenAI Chat Completions",
     endpoint: "/v1/chat/completions",
-    status: "已开放",
-    usage: "默认示例入口，支持 OpenAI SDK、流式输出、工具调用、视觉输入和推理字段。",
+    status: "Available",
+    usage: "Default example endpoint, supports the OpenAI SDK, streaming, tool calling, vision input and reasoning fields.",
   },
   {
     protocol: "Anthropic Messages",
     endpoint: "/v1/messages",
-    status: "已开放",
-    usage: "适合复用 Anthropic SDK 或 Messages 格式；model 仍填写 NexusFlow 的 Qwen 模型 ID。",
+    status: "Available",
+    usage: "Suitable for reusing the Anthropic SDK or Messages format; model still uses the NexusFlow Qwen model ID.",
   },
   {
     protocol: "Gemini-compatible GenerateContent",
     endpoint: "/v1beta/models/{model}:generateContent",
-    status: "已开放",
-    usage: "适合已有 Google GenAI / Gemini HTTP 调用迁移；路径里的 model 是 NexusFlow 模型 ID。",
+    status: "Available",
+    usage: "Suitable for migrating existing Google GenAI / Gemini HTTP calls; the model in the path is a NexusFlow model ID.",
   },
 ];
 
 const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string; output: string }[]> = {
   llm: [
-    { id: "qwen3.7-max", ctx: "1M", input: "¥12/M", output: "¥36/M" },
-    { id: "qwen3-max", ctx: "262K", input: "¥2.5/M", output: "¥10/M" },
-    { id: "qwen3.6-max-preview", ctx: "262K", input: "¥9/M", output: "¥54/M" },
-    { id: "qwen3.6-plus", ctx: "1M", input: "¥2/M", output: "¥12/M" },
-    { id: "qwen3.6-flash", ctx: "1M", input: "¥1.2/M", output: "¥7.2/M" },
-    { id: "qwen3.5-plus", ctx: "1M", input: "¥0.8/M", output: "¥4.8/M" },
-    { id: "qwen3.5-flash", ctx: "1M", input: "¥0.2/M", output: "¥2/M" },
-    { id: "qwen-plus", ctx: "1M", input: "¥0.8/M", output: "¥2/M" },
-    { id: "qwen-turbo", ctx: "1M", input: "¥0.3/M", output: "¥0.6/M" },
+    { id: "qwen3.7-max", ctx: "1M", input: "$12/M", output: "$36/M" },
+    { id: "qwen3-max", ctx: "262K", input: "$2.5/M", output: "$10/M" },
+    { id: "qwen3.6-max-preview", ctx: "262K", input: "$9/M", output: "$54/M" },
+    { id: "qwen3.6-plus", ctx: "1M", input: "$2/M", output: "$12/M" },
+    { id: "qwen3.6-flash", ctx: "1M", input: "$1.2/M", output: "$7.2/M" },
+    { id: "qwen3.5-plus", ctx: "1M", input: "$0.8/M", output: "$4.8/M" },
+    { id: "qwen3.5-flash", ctx: "1M", input: "$0.2/M", output: "$2/M" },
+    { id: "qwen-plus", ctx: "1M", input: "$0.8/M", output: "$2/M" },
+    { id: "qwen-turbo", ctx: "1M", input: "$0.3/M", output: "$0.6/M" },
   ],
   reasoning: [
-    { id: "qwq-plus", ctx: "131K", input: "¥1.6/M", output: "¥4/M" },
-    { id: "qwen-math-plus", ctx: "4K", input: "¥4/M", output: "¥12/M" },
+    { id: "qwq-plus", ctx: "131K", input: "$1.6/M", output: "$4/M" },
+    { id: "qwen-math-plus", ctx: "4K", input: "$4/M", output: "$12/M" },
   ],
   vision: [
-    { id: "qwen-vl-max", ctx: "131K", input: "¥1.6/M", output: "¥4/M" },
-    { id: "qwen-vl-plus", ctx: "131K", input: "¥0.8/M", output: "¥2/M" },
-    { id: "qwen3-vl-plus", ctx: "262K", input: "¥1/M", output: "¥10/M" },
-    { id: "qwen3-vl-flash", ctx: "262K", input: "¥0.15/M", output: "¥1.5/M" },
+    { id: "qwen-vl-max", ctx: "131K", input: "$1.6/M", output: "$4/M" },
+    { id: "qwen-vl-plus", ctx: "131K", input: "$0.8/M", output: "$2/M" },
+    { id: "qwen3-vl-plus", ctx: "262K", input: "$1/M", output: "$10/M" },
+    { id: "qwen3-vl-flash", ctx: "262K", input: "$0.15/M", output: "$1.5/M" },
   ],
   coding: [
-    { id: "qwen3-coder-plus", ctx: "1M", input: "¥4/M", output: "¥16/M" },
-    { id: "qwen3-coder-flash", ctx: "1M", input: "¥1/M", output: "¥4/M" },
+    { id: "qwen3-coder-plus", ctx: "1M", input: "$4/M", output: "$16/M" },
+    { id: "qwen3-coder-flash", ctx: "1M", input: "$1/M", output: "$4/M" },
   ],
 };
 
@@ -79,8 +79,8 @@ const curlExamples: Record<CodeTabKey, string> = {
   -d '{
     "model": "qwen3-max",
     "messages": [
-      {"role": "system", "content": "你是一个有帮助的助手。"},
-      {"role": "user", "content": "简要介绍一下量子计算的基本原理"}
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "Briefly introduce the basic principles of quantum computing"}
     ],
     "temperature": 0.7,
     "max_tokens": 2000
@@ -91,7 +91,7 @@ const curlExamples: Record<CodeTabKey, string> = {
   -d '{
     "model": "qwq-plus",
     "messages": [
-      {"role": "user", "content": "一个水池有两个进水管和一个出水管。进水管A每小时注入3吨水，进水管B每小时注入2吨水，出水管每小时排出1.5吨水。水池容量为50吨，问多久能注满？"}
+      {"role": "user", "content": "A pool has two inlet pipes and one outlet pipe. Inlet A pumps 3 tons of water per hour, inlet B pumps 2 tons per hour, and the outlet drains 1.5 tons per hour. The pool capacity is 50 tons. How long will it take to fill the pool?"}
     ],
     "enable_thinking": true,
     "max_tokens": 4000
@@ -105,7 +105,7 @@ const curlExamples: Record<CodeTabKey, string> = {
       {
         "role": "user",
         "content": [
-          {"type": "text", "text": "描述这张图片的内容，并识别其中的文字"},
+          {"type": "text", "text": "Describe what is in this image and recognize any text"},
           {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}}
         ]
       }
@@ -118,8 +118,8 @@ const curlExamples: Record<CodeTabKey, string> = {
   -d '{
     "model": "qwen3-coder-plus",
     "messages": [
-      {"role": "system", "content": "你是一个资深软件工程师，擅长编写高质量代码。"},
-      {"role": "user", "content": "用 TypeScript 实现一个支持过期时间的 LRU 缓存类"}
+      {"role": "system", "content": "You are a senior software engineer who excels at writing high-quality code."},
+      {"role": "user", "content": "Implement an LRU cache class with TTL support in TypeScript"}
     ],
     "temperature": 0.3,
     "max_tokens": 4000
@@ -137,8 +137,8 @@ client = OpenAI(
 response = client.chat.completions.create(
     model="qwen3-max",
     messages=[
-        {"role": "system", "content": "你是一个有帮助的助手。"},
-        {"role": "user", "content": "简要介绍一下量子计算的基本原理"},
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Briefly introduce the basic principles of quantum computing"},
     ],
     temperature=0.7,
     max_tokens=2000,
@@ -152,11 +152,11 @@ client = OpenAI(
     base_url="${API_BASE}/v1",
 )
 
-# 推理模型支持 enable_thinking 参数，开启后返回思考过程
+# Reasoning models support enable_thinking; when enabled, the response includes the thinking process
 response = client.chat.completions.create(
     model="qwq-plus",
     messages=[
-        {"role": "user", "content": "一个水池有两个进水管和一个出水管。进水管A每小时注入3吨水，进水管B每小时注入2吨水，出水管每小时排出1.5吨水。水池容量为50吨，问多久能注满？"},
+        {"role": "user", "content": "A pool has two inlet pipes and one outlet pipe. Inlet A pumps 3 tons of water per hour, inlet B pumps 2 tons per hour, and the outlet drains 1.5 tons per hour. The pool capacity is 50 tons. How long will it take to fill the pool?"},
     ],
     extra_body={"enable_thinking": True},
     max_tokens=4000,
@@ -176,7 +176,7 @@ response = client.chat.completions.create(
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": "描述这张图片的内容，并识别其中的文字"},
+                {"type": "text", "text": "Describe what is in this image and recognize any text"},
                 {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}},
             ],
         }
@@ -195,8 +195,8 @@ client = OpenAI(
 response = client.chat.completions.create(
     model="qwen3-coder-plus",
     messages=[
-        {"role": "system", "content": "你是一个资深软件工程师，擅长编写高质量代码。"},
-        {"role": "user", "content": "用 TypeScript 实现一个支持过期时间的 LRU 缓存类"},
+        {"role": "system", "content": "You are a senior software engineer who excels at writing high-quality code."},
+        {"role": "user", "content": "Implement an LRU cache class with TTL support in TypeScript"},
     ],
     temperature=0.3,
     max_tokens=4000,
@@ -215,7 +215,7 @@ const protocolCurlExamples = [
   -d '{
     "model": "qwen3.5-flash",
     "messages": [
-      {"role": "user", "content": "只回复 OK"}
+      {"role": "user", "content": "Reply with only OK"}
     ],
     "max_tokens": 8
   }'`,
@@ -231,7 +231,7 @@ const protocolCurlExamples = [
     "model": "qwen3.5-flash",
     "max_tokens": 8,
     "messages": [
-      {"role": "user", "content": "只回复 OK"}
+      {"role": "user", "content": "Reply with only OK"}
     ]
   }'`,
   },
@@ -245,7 +245,7 @@ const protocolCurlExamples = [
     "contents": [
       {
         "role": "user",
-        "parts": [{"text": "只回复 OK"}]
+        "parts": [{"text": "Reply with only OK"}]
       }
     ],
     "generationConfig": {
@@ -269,27 +269,27 @@ export default function QwenDocsPage() {
           background: "#ede9fe", color: "#6d28d9", fontSize: 11, fontWeight: 700,
           letterSpacing: "0.5px", marginBottom: 12,
         }}>
-          通义千问 / Qwen
+          Qwen
         </span>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
-          Qwen 系列模型 API
+          Qwen Series API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          Qwen 文本、推理、视觉理解和编程模型可通过 NexusFlow 的三类公共兼容协议调用：OpenAI Chat Completions、Anthropic Messages、Gemini-compatible GenerateContent。下方请求示例默认使用 OpenAI Chat，因为它覆盖能力最完整、迁移成本最低。
+          Qwen text, reasoning, vision and coding models can all be called through NexusFlow's three public-compatible protocols: OpenAI Chat Completions, Anthropic Messages, and Gemini-compatible GenerateContent. Examples below default to OpenAI Chat because it covers the broadest capability surface and has the lowest migration cost.
         </p>
       </div>
 
       {/* Protocols */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>协议与端点</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Protocols &amp; Endpoints</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>协议</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>端点</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>状态</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Protocol</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Endpoint</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Status</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -302,8 +302,8 @@ export default function QwenDocsPage() {
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
                     <span style={{
                       display: "inline-block", padding: "2px 8px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-                      background: row.status === "已开放" ? "#dcfce7" : "#f3f4f6",
-                      color: row.status === "已开放" ? "#166534" : "#6b7280",
+                      background: row.status === "Available" ? "#dcfce7" : "#f3f4f6",
+                      color: row.status === "Available" ? "#166534" : "#6b7280",
                     }}>
                       {row.status}
                     </span>
@@ -315,17 +315,17 @@ export default function QwenDocsPage() {
           </table>
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
-          百炼官方 API 参考见{" "}
+          See the official Bailian API reference at{" "}
           <a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
-            阿里云 Qwen API Reference
+            Alibaba Cloud Qwen API Reference
           </a>
-          。本页只展示当前 NexusFlow 公共网关已开放、可直接调用的协议。
+          . This page only shows protocols currently available and directly callable via the NexusFlow public gateway.
         </p>
       </section>
 
       {/* Models Table */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>可用模型</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Available Models</h2>
         <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
           {modelTabs.map((tab) => (
             <button
@@ -347,10 +347,10 @@ export default function QwenDocsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型 ID</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>上下文</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>首阶输入 (¥/1M tokens)</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>首阶输出 (¥/1M tokens)</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Model ID</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Context</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Tier-1 Input ($/1M tokens)</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Tier-1 Output ($/1M tokens)</th>
               </tr>
             </thead>
             <tbody>
@@ -368,13 +368,13 @@ export default function QwenDocsPage() {
           </table>
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
-          价格为每 100 万 tokens 的人民币价格。同一模型 ID 可按上方已开放协议调用；不同协议共享同一套余额、计费和监控。
+          Prices are per 1M tokens. The same model ID can be called via any of the protocols above; balance, billing and monitoring are shared across protocols.
         </p>
       </section>
 
       {/* Code Examples */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>请求示例</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Request Examples</h2>
 
         {/* Code scenario tabs */}
         <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
@@ -420,9 +420,9 @@ export default function QwenDocsPage() {
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>三协议 cURL 示例</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Three-protocol cURL Examples</h2>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: -6, marginBottom: 16 }}>
-          Qwen 文本类模型在 NexusFlow 中共享同一套模型 ID、API Key、余额、用量和扣费记录。下面三个示例均可直接请求公开网关。
+          Qwen text models in NexusFlow share the same model IDs, API keys, balance, usage and billing records. The three examples below can all be called directly against the public gateway.
         </p>
         <div style={{ display: "grid", gap: 14 }}>
           {protocolCurlExamples.map((example) => (
@@ -441,7 +441,7 @@ export default function QwenDocsPage() {
 
       {/* Response Example */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>响应示例</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Response Example</h2>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
           <DocsCodeBlock code={`{
   "id": "chatcmpl-abc123",
@@ -452,7 +452,7 @@ export default function QwenDocsPage() {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "量子计算是一种利用量子力学原理进行信息处理的计算方式..."
+        "content": "Quantum computing is a way of processing information that leverages the principles of quantum mechanics..."
       },
       "finish_reason": "stop"
     }
@@ -468,23 +468,23 @@ export default function QwenDocsPage() {
 
       {/* Special Parameters */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>特殊参数</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Special Parameters</h2>
 
         <div style={{
           padding: 16, background: "#eff6ff", border: "1px solid #93c5fd",
           borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: "#1e40af", marginBottom: 20,
         }}>
-          <strong>思考模式参数</strong> — <code>enable_thinking</code> 只对支持思考开关的模型有意义；仅思考模型无法关闭，数学专用模型不要默认传该参数。
+          <strong>Thinking-mode parameter</strong> — <code>enable_thinking</code> only matters for models that support a thinking toggle; reasoning-only models cannot disable it, and math-specific models should not pass this parameter by default.
         </div>
 
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>参数</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 80 }}>适用模型</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Parameter</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 80 }}>Applicable Models</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -493,9 +493,9 @@ export default function QwenDocsPage() {
                   <code style={{ fontSize: 12 }}>enable_thinking</code>
                 </td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-tertiary)", fontSize: 12 }}>boolean</td>
-                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center", color: "var(--text-secondary)" }}>见下表</td>
+                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center", color: "var(--text-secondary)" }}>See table below</td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                  混合思考模型传 true 会返回 reasoning_content，传 false 可降低延迟和输出 token；仅思考模型会继续返回 reasoning_content。
+                  For mixed-thinking models, true returns reasoning_content; false reduces latency and output tokens. Reasoning-only models will continue to return reasoning_content regardless.
                 </td>
               </tr>
             </tbody>
@@ -506,17 +506,17 @@ export default function QwenDocsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>模型</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>线上实测行为</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>建议</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Model</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Observed Behavior</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>Recommendation</th>
               </tr>
             </thead>
             <tbody>
               {[
-                ["qwen3.5-flash", "true 返回 reasoning_content；false 不返回", "低成本场景显式传 false"],
-                ["qwen3-max", "true 返回 reasoning_content；false 不返回", "复杂任务传 true，普通对话传 false"],
-                ["qwq-plus", "true/false 都返回 reasoning_content", "按仅思考模型使用，不要指望 false 关闭"],
-                ["qwen-math-plus", "true/false 均未返回 reasoning_content", "不要默认传 enable_thinking"],
+                ["qwen3.5-flash", "true returns reasoning_content; false does not", "For low-cost scenarios, pass false explicitly"],
+                ["qwen3-max", "true returns reasoning_content; false does not", "Use true for complex tasks, false for general chat"],
+                ["qwq-plus", "Both true/false return reasoning_content", "Use as a reasoning-only model; do not expect false to disable it"],
+                ["qwen-math-plus", "Neither true nor false returns reasoning_content", "Do not pass enable_thinking by default"],
               ].map((row) => (
                 <tr key={row[0]} style={{ background: "var(--bg)" }}>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code>{row[0]}</code></td>
@@ -529,7 +529,7 @@ export default function QwenDocsPage() {
         </div>
 
         <div style={{ marginTop: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>启用思考模式的响应示例</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>Response example with thinking mode enabled</h3>
           <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
             <DocsCodeBlock code={`{
   "id": "chatcmpl-thinking-xyz",
@@ -540,8 +540,8 @@ export default function QwenDocsPage() {
       "index": 0,
       "message": {
         "role": "assistant",
-        "content": "水池注满需要约 14.29 小时。",
-        "reasoning_content": "让我分析这道题：\\n进水速率 = 3 + 2 = 5 吨/小时\\n出水速率 = 1.5 吨/小时\\n净进水速率 = 5 - 1.5 = 3.5 吨/小时\\n注满时间 = 50 / 3.5 ≈ 14.29 小时"
+        "content": "It takes about 14.29 hours to fill the pool.",
+        "reasoning_content": "Let me analyze this problem:\\nInflow rate = 3 + 2 = 5 tons/hour\\nOutflow rate = 1.5 tons/hour\\nNet inflow rate = 5 - 1.5 = 3.5 tons/hour\\nTime to fill = 50 / 3.5 ≈ 14.29 hours"
       },
       "finish_reason": "stop"
     }
@@ -559,9 +559,9 @@ export default function QwenDocsPage() {
       {/* Related Links */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         {[
-          { href: "/docs/quickstart", label: "快速开始", desc: "5 分钟完成首次 API 调用" },
-          { href: "/docs/multi-protocol", label: "多协议接入", desc: "查看 OpenAI / Anthropic / Gemini 兼容说明" },
-          { href: "/docs/api/chat", label: "Chat Completions", desc: "查看默认对话接口文档" },
+          { href: "/docs/quickstart", label: "Quick Start", desc: "Make your first API call in 5 minutes" },
+          { href: "/docs/multi-protocol", label: "Multi-protocol Integration", desc: "OpenAI / Anthropic / Gemini compatibility" },
+          { href: "/docs/api/chat", label: "Chat Completions", desc: "Default chat API documentation" },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

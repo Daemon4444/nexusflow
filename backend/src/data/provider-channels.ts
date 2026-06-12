@@ -8,15 +8,15 @@ export interface ProviderChannel {
   adapter: ProviderChannelAdapter;
   api_base_url: string;
   api_key: string;
-  /** 上游区域标识，如 cn-beijing / ap-southeast-1 / us-east-1 / eu-central-1 */
+  /** Upstream region identifier, e.g. cn-beijing / ap-southeast-1 / us-east-1 / eu-central-1 */
   region?: string;
-  /** 百炼新加坡、法兰克福区域 URL 含 {WorkspaceId} 占位符时必填 */
+  /** Required when the Bailian Singapore/Frankfurt region URL contains the {WorkspaceId} placeholder */
   workspace_id?: string;
-  /** 默认 true；disabled 渠道不参与路由 */
+  /** Defaults to true; disabled channels do not participate in routing */
   enabled?: boolean;
-  /** 同模型多渠道可用时按 priority 降序选择，默认 0 */
+  /** When multiple channels can serve the same model, picked by priority descending; default 0 */
   priority?: number;
-  /** 该渠道可服务的模型 ID 前缀/精确匹配；不填表示跟随全局目录 */
+  /** Model ID prefix/exact-match list this channel can serve; empty means follow the global catalog */
   model_allowlist?: string[];
 }
 
@@ -27,16 +27,16 @@ export interface ProviderChannelConfig {
 
 export const WORKSPACE_ID_PLACEHOLDER = "{WorkspaceId}";
 
-/** 替换 base_url 中的 {WorkspaceId} 占位符，得到可直接请求的 URL */
+/** Replace the {WorkspaceId} placeholder in base_url to obtain a directly-callable URL */
 export function resolveChannelBaseUrl(channel: ProviderChannel): string {
   if (!channel.api_base_url.includes(WORKSPACE_ID_PLACEHOLDER)) return channel.api_base_url;
   return channel.api_base_url.split(WORKSPACE_ID_PLACEHOLDER).join(channel.workspace_id || "");
 }
 
 /**
- * 渠道是否可参与路由：启用、占位符已被 workspace_id 填充，且有 key 可用。
- * 渠道自身未填 key 时，若 provider 级别有回退 key（如环境变量 DASHSCOPE_API_KEY
- * 跨区域通用）也视为可用。
+ * Whether a channel is eligible for routing: enabled, the placeholder has been filled with workspace_id,
+ * and a key is available. When the channel itself has no key but a provider-level fallback key is available
+ * (e.g. the DASHSCOPE_API_KEY environment variable shared across regions), the channel is also considered usable.
  */
 export function isChannelUsable(channel: ProviderChannel, options: { hasFallbackKey?: boolean } = {}): boolean {
   if (channel.enabled === false) return false;
@@ -91,7 +91,7 @@ export async function switchProviderChannel(providerId: string, channel: string)
   return upsertProviderChannelConfig(providerId, { ...config, active_channel: channel });
 }
 
-/** 新增或更新单个渠道；传入的字段与现有渠道合并，api_key 留空表示保持原值 */
+/** Add or update a single channel; provided fields are merged with existing values, an empty api_key keeps the previous value */
 export async function upsertProviderChannel(
   providerId: string,
   channelId: string,

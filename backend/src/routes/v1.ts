@@ -27,8 +27,8 @@ import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
 const router = Router();
 
-// 上游请求超时时间（毫秒）
-const UPSTREAM_TIMEOUT = 600000; // 10分钟
+// Upstream request timeout (milliseconds)
+const UPSTREAM_TIMEOUT = 600000; // 10 minutes
 
 /** Extract Bearer token from Authorization header */
 function extractToken(req: Request): string | null {

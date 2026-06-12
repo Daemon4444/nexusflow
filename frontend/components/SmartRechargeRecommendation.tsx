@@ -24,7 +24,7 @@ function calculateRecommendation(stats: UsageStats): RechargeRecommendation[] {
   if (avgDaily === 0) {
     recommendations.push({
       amount: 50,
-      reason: "新用户推荐",
+      reason: "Recommended for new users",
       daysCovered: 30, // Assume light usage
     });
     return recommendations;
@@ -38,7 +38,7 @@ function calculateRecommendation(stats: UsageStats): RechargeRecommendation[] {
   if (weekAmount >= 10) {
     recommendations.push({
       amount: weekAmount,
-      reason: `覆盖 7 天使用`,
+      reason: `Covers 7 days of usage`,
       daysCovered: 7,
     });
   }
@@ -48,7 +48,7 @@ function calculateRecommendation(stats: UsageStats): RechargeRecommendation[] {
   if (monthAmount >= 50) {
     recommendations.push({
       amount: Math.min(monthAmount, 1000),
-      reason: `覆盖 30 天使用`,
+      reason: `Covers 30 days of usage`,
       daysCovered: 30,
     });
   }
@@ -58,7 +58,7 @@ function calculateRecommendation(stats: UsageStats): RechargeRecommendation[] {
   if (quarterAmount >= 200 && quarterAmount <= 1000) {
     recommendations.push({
       amount: quarterAmount,
-      reason: `覆盖 90 天使用，减少充值次数`,
+      reason: `Covers 90 days, fewer top-ups`,
       daysCovered: 90,
     });
   }
@@ -67,7 +67,7 @@ function calculateRecommendation(stats: UsageStats): RechargeRecommendation[] {
   if (daysRemaining < 3) {
     recommendations.unshift({
       amount: Math.max(Math.ceil(avgDaily * 7), 50),
-      reason: `余额仅剩 ${Math.floor(daysRemaining)} 天，建议立即充值`,
+      reason: `Only ${Math.floor(daysRemaining)} days left — top up now`,
       daysCovered: 7,
     });
   }
@@ -79,7 +79,7 @@ function calculateRecommendation(stats: UsageStats): RechargeRecommendation[] {
       if (!recommendations.find(r => r.amount === p)) {
         recommendations.push({
           amount: p,
-          reason: `常用量`,
+          reason: `Common amount`,
           daysCovered: Math.floor(p / avgDaily),
         });
       }
@@ -124,13 +124,13 @@ export default function SmartRecharge({ stats, onSelect, selectedAmount }: Smart
           fontWeight: 600,
           color: "var(--text-primary)",
         }}>
-          智能推荐
+          Smart suggestions
         </span>
         <span style={{
           fontSize: 11,
           color: "var(--text-tertiary)",
         }}>
-          根据你的使用习惯推荐
+          Based on your usage patterns
         </span>
       </div>
 
@@ -162,7 +162,7 @@ export default function SmartRecharge({ stats, onSelect, selectedAmount }: Smart
                 color: isSelected ? "var(--accent)" : "var(--text-primary)",
                 marginBottom: 4,
               }}>
-                ¥{rec.amount}
+                ${rec.amount}
               </div>
               <div style={{
                 fontSize: 10,
@@ -178,7 +178,7 @@ export default function SmartRecharge({ stats, onSelect, selectedAmount }: Smart
                   marginTop: 4,
                   fontWeight: 500,
                 }}>
-                  ~{rec.daysCovered}天
+                  ~{rec.daysCovered} days
                 </div>
               )}
             </button>

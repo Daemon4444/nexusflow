@@ -53,10 +53,10 @@ export default function KeysPage() {
       if (res.success) {
         setKeys(res.data);
       } else {
-        setError(res.message || "API Key 加载失败");
+        setError(res.message || "Failed to load API keys");
       }
     } catch {
-      setError("无法连接 Key 服务，请稍后重试");
+      setError("Cannot reach the API key service. Please try again later.");
     } finally {
       setDataLoading(false);
     }
@@ -78,10 +78,10 @@ export default function KeysPage() {
         setError("");
         await loadKeys();
       } else {
-        setError(res.message || "创建 API Key 失败");
+        setError(res.message || "Failed to create API key");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "创建 API Key 失败");
+      setError(e instanceof Error ? e.message : "Failed to create API key");
     }
   }
 
@@ -95,10 +95,10 @@ export default function KeysPage() {
         setDeleteTarget(null);
         await loadKeys();
       } else {
-        setError(res.message || "删除 API Key 失败");
+        setError(res.message || "Failed to delete API key");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "删除 API Key 失败");
+      setError(e instanceof Error ? e.message : "Failed to delete API key");
     }
   }
 
@@ -205,7 +205,7 @@ export default function KeysPage() {
       {createdKey && (
         <div className="usr-section animate-fadeIn" style={{ marginBottom: 20, borderColor: "rgba(16,185,129,0.3)" }}>
           <div className="usr-section-header">
-            <h3>API Key 已创建</h3>
+            <h3>API key created</h3>
             <button
               onClick={() => setCreatedKey(null)}
               style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 18, lineHeight: 1 }}
@@ -215,7 +215,7 @@ export default function KeysPage() {
           </div>
           <div className="usr-section-body">
             <p style={{ margin: "0 0 10px", fontSize: 13, color: "var(--text-secondary)" }}>
-              请立即复制保存。出于安全原因，关闭后将只显示脱敏 Key。
+              Copy and save it now. For security, the masked value is the only thing visible after this dialog closes.
             </p>
             <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 14px", background: "#1c1917", borderRadius: 8, border: "1px solid #30363d" }}>
               <code style={{ flex: 1, fontSize: 12.5, color: "#e7e5e4", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
@@ -227,12 +227,12 @@ export default function KeysPage() {
             </div>
             <div className="key-next-call">
               <div className="key-next-call-head">
-                <strong>下一步：复制请求并完成第一次调用</strong>
-                <span>默认模型 {exampleModel}</span>
+                <strong>Next: copy the request and make your first call</strong>
+                <span>Default model {exampleModel}</span>
               </div>
               <pre>{getCurlExample(createdKey.key, exampleModel)}</pre>
               <details>
-                <summary>JavaScript 示例</summary>
+                <summary>JavaScript example</summary>
                 <pre>{getJavascriptExample(createdKey.key, exampleModel)}</pre>
               </details>
             </div>
@@ -244,7 +244,7 @@ export default function KeysPage() {
       {dataLoading ? (
         <LoadingState title={t("loading")} compact />
       ) : error ? (
-        <ErrorState title="API Key 加载失败" message={error} onAction={loadKeys} compact />
+        <ErrorState title="Failed to load API keys" message={error} onAction={loadKeys} compact />
       ) : keys.length === 0 ? (
         <div className="usr-section" style={{ textAlign: "center", padding: 60 }}>
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ marginBottom: 12 }}>
@@ -302,7 +302,7 @@ export default function KeysPage() {
                 }}>
                   {maskApiKey(key.key)}
                 </code>
-                <span style={{ flexShrink: 0, fontSize: 12, color: "#a8a29e" }}>仅创建时可复制完整 Key</span>
+                <span style={{ flexShrink: 0, fontSize: 12, color: "#a8a29e" }}>Full key visible only at creation time</span>
               </div>
             </div>
           ))}
@@ -313,8 +313,8 @@ export default function KeysPage() {
         <div className="usr-section">
           <div className="usr-section-header">
             <div>
-              <h3>调用示例</h3>
-              <p>Key 只在创建时完整显示；这里使用占位符展示生产请求结构。</p>
+              <h3>Code examples</h3>
+              <p>The full key is only shown at creation; this snippet uses a placeholder for production-ready code.</p>
             </div>
             <span className="badge badge-info">{firstRun.completedSteps}/3</span>
           </div>
@@ -322,7 +322,7 @@ export default function KeysPage() {
             <div className="key-next-call" style={{ marginTop: 0 }}>
               <pre>{getCurlExample("sk-air-...", exampleModel)}</pre>
               <details>
-                <summary>JavaScript 示例</summary>
+                <summary>JavaScript example</summary>
                 <pre>{getJavascriptExample("sk-air-...", exampleModel)}</pre>
               </details>
             </div>
@@ -344,11 +344,11 @@ export default function KeysPage() {
       {deleteTarget && (
         <div className="modal-backdrop" role="presentation">
           <div className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-key-title">
-            <h3 id="delete-key-title">删除 API Key</h3>
-            <p>确定删除「{deleteTarget.name}」吗？删除后使用这个 Key 的请求会立即失败。</p>
+            <h3 id="delete-key-title">Delete API key</h3>
+            <p>Delete &quot;{deleteTarget.name}&quot;? Requests using this key will fail immediately after deletion.</p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-              <button className="btn-secondary" onClick={() => setDeleteTarget(null)}>取消</button>
-              <button className="btn-danger" onClick={() => deleteKey(deleteTarget.id)}>删除</button>
+              <button className="btn-secondary" onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button className="btn-danger" onClick={() => deleteKey(deleteTarget.id)}>Delete</button>
             </div>
           </div>
         </div>

@@ -83,7 +83,7 @@ export async function calculateOpenAiCacheAwareCost(params: {
 export function buildApiDescription(modelId: string, totalTokens: number, cachedTokens: number, stream?: boolean): string {
   const suffix = stream ? ", stream" : "";
   if (cachedTokens > 0) {
-    return `API 调用: ${modelId} (${totalTokens} tokens, ${cachedTokens} 缓存${suffix})`;
+    return `API call: ${modelId} (${totalTokens} tokens, ${cachedTokens} cached${suffix})`;
   }
-  return `API 调用: ${modelId} (${totalTokens} tokens${suffix})`;
+  return `API call: ${modelId} (${totalTokens} tokens${suffix})`;
 }

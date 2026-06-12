@@ -111,7 +111,7 @@ export async function recharge(userId: string, amount: number, description?: str
   const normalizedAmount = roundBalance(amount);
   const txId = uuidv4();
   const now = new Date().toISOString();
-  const text = description || `充值 ¥${amount.toFixed(2)}`;
+  const text = description || `Recharge $${amount.toFixed(2)}`;
 
   return db.transaction(async (client) => {
     const user = await client.queryOne<{ balance: number }>("SELECT balance FROM users WHERE id = ? FOR UPDATE", [userId]);
@@ -170,7 +170,7 @@ export async function adminAdjustBalance(params: {
   const delta = roundBalance(params.amountDelta);
   const txId = uuidv4();
   const now = new Date().toISOString();
-  const description = params.description.trim() || `管理员调账 ${delta > 0 ? "+" : ""}${delta.toFixed(6)}`;
+  const description = params.description.trim() || `Admin balance adjustment ${delta > 0 ? "+" : ""}${delta.toFixed(6)}`;
 
   return db.transaction(async (client) => {
     const user = await client.queryOne<{ balance: number }>("SELECT balance FROM users WHERE id = ? FOR UPDATE", [params.userId]);

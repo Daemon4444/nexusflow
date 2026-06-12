@@ -22,7 +22,7 @@ const router = Router();
 
 router.use(requireAdmin);
 
-// ========== 监控大盘 ==========
+// ========== Monitoring dashboard ==========
 
 router.get("/dashboard", async (req: Request, res: Response) => {
   try {
@@ -156,7 +156,7 @@ router.get("/users/:id/detail", async (req: Request, res: Response) => {
   const userId = String(req.params.id);
   const user = await getUserById(userId);
   if (!user) {
-    res.status(404).json({ success: false, message: "用户不存在" });
+    res.status(404).json({ success: false, message: "User not found" });
     return;
   }
 
@@ -190,7 +190,7 @@ router.get("/users/:id/billing-export.csv", async (req: Request, res: Response) 
   const userId = String(req.params.id);
   const user = await getUserById(userId);
   if (!user) {
-    res.status(404).json({ success: false, message: "用户不存在" });
+    res.status(404).json({ success: false, message: "User not found" });
     return;
   }
 
@@ -248,11 +248,11 @@ router.post("/users/:id/balance-adjust", async (req: Request, res: Response) => 
   const amountDelta = Number(req.body?.amountDelta ?? req.body?.amount_delta);
   const description = String(req.body?.description || "").trim();
   if (!Number.isFinite(amountDelta) || amountDelta === 0) {
-    res.status(400).json({ success: false, message: "amountDelta 必须是非 0 数字" });
+    res.status(400).json({ success: false, message: "amountDelta must be a non-zero number" });
     return;
   }
   if (Math.abs(amountDelta) > 100000) {
-    res.status(400).json({ success: false, message: "单次调账金额不能超过 100000 元" });
+    res.status(400).json({ success: false, message: "A single adjustment cannot exceed $100000" });
     return;
   }
 
@@ -263,13 +263,13 @@ router.post("/users/:id/balance-adjust", async (req: Request, res: Response) => 
     actorId: session?.id || null,
   });
   if (!tx) {
-    res.status(400).json({ success: false, message: "调账失败，请确认用户存在且扣减后余额不为负" });
+    res.status(400).json({ success: false, message: "Adjustment failed. Please confirm the user exists and the resulting balance is not negative." });
     return;
   }
-  res.json({ success: true, data: tx, message: "余额已调整" });
+  res.json({ success: true, data: tx, message: "Balance adjusted" });
 });
 
-// ========== 日志查询端点（Admin 全局可见） ==========
+// ========== Log query endpoints (admin can see all) ==========
 
 router.get("/logs/search", async (req: Request, res: Response) => {
   try {
@@ -313,7 +313,7 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
   try {
     const { logId } = req.params;
 
-    // Admin 可查任意日志，不检查 user_id
+    // Admin can view any log; do not check user_id
     const row = await db.queryOne<{ user_id: string; created_at: string; user_email: string; user_nickname: string }>(
       `SELECT ul.user_id, ul.created_at, u.email as user_email, u.nickname as user_nickname
        FROM usage_logs ul
@@ -322,13 +322,13 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
       [logId]
     );
     if (!row) {
-      res.json({ success: false, message: "日志不存在" });
+      res.json({ success: false, message: "Log not found" });
       return;
     }
 
     const slsClient = getSlsClient();
     if (!slsClient) {
-      res.json({ success: false, message: "SLS 未配置" });
+      res.json({ success: false, message: "SLS is not configured" });
       return;
     }
 
@@ -351,7 +351,7 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
         user_nickname: row.user_nickname,
       } : null,
       user: { email: row.user_email, nickname: row.user_nickname },
-      note: entry ? undefined : "日志可能仍在索引中（SLS 延迟 1-2 分钟），请稍后重试",
+      note: entry ? undefined : "The log may still be indexing (SLS delay 1-2 minutes), please retry shortly",
     });
   } catch (err: any) {
     res.json({ success: false, message: sanitizeError(err) });

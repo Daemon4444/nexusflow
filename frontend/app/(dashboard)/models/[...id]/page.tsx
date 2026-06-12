@@ -67,11 +67,11 @@ interface ProtocolExample {
 function getProtocolExamples(model: AIModel): ProtocolExample[] {
   const protocols = model.supportedProtocols || model.supported_protocols || [];
   const examples: ProtocolExample[] = [];
-  const isImageModel = model.category === "图像生成";
-  const isVideoModel = model.category === "视频生成";
-  const isEmbeddingModel = model.category === "向量模型";
+  const isImageModel = model.category === "Image Generation";
+  const isVideoModel = model.category === "Video Generation";
+  const isEmbeddingModel = model.category === "Embedding" || model.category === "Embedding Model";
   const isAsyncModel = isImageModel || isVideoModel;
-  const supportsTools = model.supported.some((item) => item.includes("工具"));
+  const supportsTools = model.supported.some((item) => item.toLowerCase().includes("tool") || item.toLowerCase().includes("function"));
   const allowedParameters = model.allowed_parameters || [];
 
   for (const protocol of protocols) {
@@ -100,13 +100,13 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model.id}",
-    "messages": [{"role": "user", "content": "你好！"}],
+    "messages": [{"role": "user", "content": "Hello!"}],
     "stream": true,
     "stream_options": {"include_usage": true},
     "temperature": 0.7,
     "max_tokens": 512
   }'`,
-        note: "支持流式输出和常用采样参数。",
+        note: "Supports streaming and common sampling parameters.",
       });
     }
 
@@ -124,9 +124,9 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
     "model": "${model.id}",
     "max_tokens": 512,
     "stream": true,
-    "messages": [{"role": "user", "content": "你好！"}]
+    "messages": [{"role": "user", "content": "Hello!"}]
   }'`,
-        note: "适合复用 Anthropic SDK。",
+        note: "Drop-in for the Anthropic SDK.",
       });
     }
 
@@ -142,7 +142,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
     "contents": [
       {
         "role": "user",
-        "parts": [{"text": "你好！"}]
+        "parts": [{"text": "Hello!"}]
       }
     ],
     "generationConfig": {
@@ -150,7 +150,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
       "maxOutputTokens": 512
     }
   }'`,
-        note: "流式输出使用 :streamGenerateContent?alt=sse。",
+        note: "Streaming uses :streamGenerateContent?alt=sse.",
       });
     }
   }
@@ -166,9 +166,9 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model.id}",
-    "input": ["第一段文本", "第二段文本"]
+    "input": ["First text segment", "Second text segment"]
   }'`,
-      note: "支持单条和批量向量化。",
+      note: "Supports both single and batch embedding.",
     });
   }
 
@@ -183,10 +183,10 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model.id}",
-    "prompt": "一匹高速奔跑的机械马，金属线条充满速度感",
+    "prompt": "A high-speed mechanical horse running, metallic lines bursting with motion",
     "size": "1024x1024"
   }'`,
-      note: "同步出图模型可直接用这套协议。",
+      note: "Use this protocol for synchronous image models.",
     });
   }
 
@@ -201,12 +201,12 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model.id}",
-    "prompt": "${isVideoModel ? "生成一段未来城市中穿梭的短视频" : "生成一张质感强烈的产品海报"}"${isVideoModel ? `,
+    "prompt": "${isVideoModel ? "A short video weaving through a futuristic city" : "A bold, textured product poster"}"${isVideoModel ? `,
     "duration": 5,
     "aspect_ratio": "16:9"` : `,
     "size": "1024x1024"`}
   }'`,
-      note: "返回 task_id 后轮询 GET /v1/tasks/:id 获取结果。",
+      note: "Returns a task_id; poll GET /v1/tasks/:id for the final output.",
     });
   }
 
@@ -237,7 +237,7 @@ export default function ModelDetailPage() {
   if (loading) {
     return (
       <div style={{ padding: "60px 40px", textAlign: "center", color: "var(--text-secondary)" }}>
-        加载中...
+        Loading...
       </div>
     );
   }
@@ -245,9 +245,9 @@ export default function ModelDetailPage() {
   if (!model) {
     return (
       <div style={{ padding: "60px 40px", textAlign: "center" }}>
-        <h2 style={{ color: "var(--text-primary)", marginBottom: 12 }}>模型不存在</h2>
+        <h2 style={{ color: "var(--text-primary)", marginBottom: 12 }}>Model not found</h2>
         <Link href="/models" className="btn-primary">
-          返回模型列表
+          Back to models
         </Link>
       </div>
     );
@@ -268,7 +268,7 @@ export default function ModelDetailPage() {
         }}
       >
         <Link href="/models" style={{ color: "var(--text-primary)", textDecoration: "none", fontWeight: 500 }}>
-          模型列表
+          Models
         </Link>
         <span>/</span>
         <span>{model.name}</span>
@@ -279,12 +279,12 @@ export default function ModelDetailPage() {
           <h1 style={{ fontSize: 32, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.5px" }}>
             {model.name}
           </h1>
-          {model.isNew && <span className="tag tag-new">新</span>}
-          {model.isFeatured && <span className="tag tag-featured">推荐</span>}
+          {model.isNew && <span className="tag tag-new">New</span>}
+          {model.isFeatured && <span className="tag tag-featured">Featured</span>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>
-            供应商: <span style={{ color: "var(--text-primary)" }}>{model.provider}</span>
+            Provider: <span style={{ color: "var(--text-primary)" }}>{model.provider}</span>
           </span>
           <span
             style={{
@@ -304,7 +304,7 @@ export default function ModelDetailPage() {
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>
-          模型描述
+          Description
         </h3>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>
           {model.description}
@@ -329,7 +329,7 @@ export default function ModelDetailPage() {
               >
                 <div className="stat-card">
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                    上下文窗口
+                    Context window
                   </div>
                   <div className="stat-value" style={{ color: "#2563eb" }}>
                     {formatTokens(model.contextLength)}
@@ -338,26 +338,26 @@ export default function ModelDetailPage() {
                 </div>
                 <div className="stat-card">
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                    起步价格
+                    Starting price
                   </div>
                   <div className="stat-value" style={{ color: "#10b981" }}>
-                    ¥{model.promptPrice}
+                    ${model.promptPrice}
                   </div>
-                  <div className="stat-label">{model.pricingType === "per-second" ? "/ 秒" : "/ 张"}</div>
+                  <div className="stat-label">{model.pricingType === "per-second" ? "/ second" : "/ image"}</div>
                 </div>
                 <div className="stat-card">
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                    计费方式
+                    Billing
                   </div>
                   <div className="stat-value" style={{ color: "#0f766e", fontSize: 18 }}>
-                    {model.pricingType === "per-second" ? "按秒计费" : "按张计费"}
+                    {model.pricingType === "per-second" ? "Per second" : "Per image"}
                   </div>
                 </div>
               </div>
               {hasTiers && (
                 <div className="card" style={{ marginBottom: 20 }}>
                   <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
-                    分辨率定价
+                    Resolution-based pricing
                   </h3>
                   <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
                     <div style={{
@@ -371,8 +371,8 @@ export default function ModelDetailPage() {
                       color: "var(--text-tertiary)",
                       textTransform: "uppercase",
                     }}>
-                      <span>规格</span>
-                      <span style={{ textAlign: "right" }}>价格</span>
+                      <span>Spec</span>
+                      <span style={{ textAlign: "right" }}>Price</span>
                     </div>
                     {model.pricingTiers!.map((tier, i) => (
                       <div key={i} style={{
@@ -384,7 +384,7 @@ export default function ModelDetailPage() {
                       }}>
                         <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{tier.label}</span>
                         <span style={{ textAlign: "right", fontWeight: 600, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>
-                          ¥{tier.price}{model.pricingType === "per-second" ? " / 秒" : " / 张"}
+                          ${tier.price}{model.pricingType === "per-second" ? " / second" : " / image"}
                         </span>
                       </div>
                     ))}
@@ -407,7 +407,7 @@ export default function ModelDetailPage() {
             >
               <div className="stat-card">
                 <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                  上下文窗口
+                  Context window
                 </div>
                 <div className="stat-value" style={{ color: "#2563eb" }}>
                   {formatTokens(model.contextLength)}
@@ -416,7 +416,7 @@ export default function ModelDetailPage() {
               </div>
               <div className="stat-card">
                 <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                  最大输出
+                  Max output
                 </div>
                 <div className="stat-value" style={{ color: "#2563eb" }}>
                   {formatTokens(model.maxOutput)}
@@ -425,27 +425,27 @@ export default function ModelDetailPage() {
               </div>
               <div className="stat-card">
                 <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                  首阶输入
+                  Tier 1 input
                 </div>
                 <div className="stat-value" style={{ color: "#10b981" }}>
-                  ¥{model.promptPrice}
+                  ${model.promptPrice}
                 </div>
-                <div className="stat-label">/ 百万 tokens</div>
+                <div className="stat-label">/ million tokens</div>
               </div>
               <div className="stat-card">
                 <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 6, textTransform: "uppercase" }}>
-                  首阶输出
+                  Tier 1 output
                 </div>
                 <div className="stat-value" style={{ color: "#0f766e" }}>
-                  ¥{model.completionPrice}
+                  ${model.completionPrice}
                 </div>
-                <div className="stat-label">/ 百万 tokens</div>
+                <div className="stat-label">/ million tokens</div>
               </div>
             </div>
             {hasTokenTiers && (
               <div className="card" style={{ marginBottom: 20 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
-                  阶梯定价
+                  Tiered pricing
                 </h3>
                 <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
                   <div style={{
@@ -459,9 +459,9 @@ export default function ModelDetailPage() {
                     color: "var(--text-tertiary)",
                     textTransform: "uppercase",
                   }}>
-                    <span>单次请求输入 Token</span>
-                    <span style={{ textAlign: "right" }}>输入/百万</span>
-                    <span style={{ textAlign: "right" }}>输出/百万</span>
+                    <span>Input tokens per request</span>
+                    <span style={{ textAlign: "right" }}>Input / M</span>
+                    <span style={{ textAlign: "right" }}>Output / M</span>
                   </div>
                   {model.tokenPricingTiers!.map((tier, i) => (
                     <div key={tier.label} style={{
@@ -472,8 +472,8 @@ export default function ModelDetailPage() {
                       fontSize: 14,
                     }}>
                       <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{tier.label}</span>
-                      <span style={{ textAlign: "right", fontWeight: 600, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>¥{tier.promptPrice}</span>
-                      <span style={{ textAlign: "right", fontWeight: 600, color: "#0f766e", fontVariantNumeric: "tabular-nums" }}>¥{tier.completionPrice}</span>
+                      <span style={{ textAlign: "right", fontWeight: 600, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>${tier.promptPrice}</span>
+                      <span style={{ textAlign: "right", fontWeight: 600, color: "#0f766e", fontVariantNumeric: "tabular-nums" }}>${tier.completionPrice}</span>
                     </div>
                   ))}
                 </div>
@@ -486,7 +486,7 @@ export default function ModelDetailPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
         <div className="card">
           <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
-            标签
+            Tags
           </h3>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {model.tags.map((tag) => (
@@ -498,7 +498,7 @@ export default function ModelDetailPage() {
         </div>
         <div className="card">
           <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
-            支持能力
+            Capabilities
           </h3>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {model.supported.map((s) => (
@@ -523,7 +523,7 @@ export default function ModelDetailPage() {
       {(model.supportedProtocols || model.supported_protocols)?.length ? (
         <div className="card" style={{ marginBottom: 20 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
-            支持协议
+            Supported protocols
           </h3>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {(model.supportedProtocols || model.supported_protocols || []).map((protocol) => (
@@ -550,17 +550,17 @@ export default function ModelDetailPage() {
       {(model.capabilities || (model.allowed_parameters?.length || 0) > 0) ? (
         <div className="card" style={{ marginBottom: 20 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
-            能力与参数边界
+            Capabilities & parameter limits
           </h3>
           {model.capabilities ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
               {[
-                ["类型", model.capabilities.model_type],
-                ["思考模式", model.capabilities.thinking_mode === "mixed" ? `可开关${model.capabilities.thinking_default === null ? "" : `，默认${model.capabilities.thinking_default ? "开启" : "关闭"}`}` : model.capabilities.thinking_mode === "always" ? "仅思考，不能关闭" : "无"],
-                ["工具调用", model.capabilities.supports_tools ? "支持" : "未声明"],
-                ["视觉输入", model.capabilities.supports_vision ? "支持" : "未声明"],
-                ["视频输入", model.capabilities.supports_video_input ? "支持" : "未声明"],
-                ["搜索参数", model.capabilities.supports_search ? "支持" : "当前未开放"],
+                ["Type", model.capabilities.model_type],
+                ["Thinking mode", model.capabilities.thinking_mode === "mixed" ? `Toggleable${model.capabilities.thinking_default === null ? "" : `, default ${model.capabilities.thinking_default ? "on" : "off"}`}` : model.capabilities.thinking_mode === "always" ? "Thinking only, cannot disable" : "None"],
+                ["Tool calling", model.capabilities.supports_tools ? "Supported" : "Not declared"],
+                ["Vision input", model.capabilities.supports_vision ? "Supported" : "Not declared"],
+                ["Video input", model.capabilities.supports_video_input ? "Supported" : "Not declared"],
+                ["Search params", model.capabilities.supports_search ? "Supported" : "Not exposed"],
               ].map(([label, value]) => (
                 <div key={label} style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div>
@@ -572,7 +572,7 @@ export default function ModelDetailPage() {
           {(model.allowed_parameters?.length || 0) > 0 ? (
             <>
               <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8 }}>
-                当前 NexusFlow public chat 入口会透传的参数：
+                Parameters forwarded by the NexusFlow public chat endpoint:
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {model.allowed_parameters!.map((param) => (
@@ -588,7 +588,7 @@ export default function ModelDetailPage() {
 
       <div className="card">
         <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>
-          API 调用示例
+          API examples
         </h3>
         <div style={{ display: "grid", gap: 16 }}>
           {protocolExamples.map((example) => (
@@ -630,7 +630,7 @@ export default function ModelDetailPage() {
         </div>
         <div style={{ marginTop: 12 }}>
           <Link href="/playground" className="btn-primary" style={{ fontSize: 13, padding: "8px 16px" }}>
-            在 Playground 中试用
+            Try in Playground
           </Link>
         </div>
       </div>

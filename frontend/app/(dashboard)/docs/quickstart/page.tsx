@@ -17,8 +17,8 @@ client = OpenAI(
 response = client.chat.completions.create(
     model="qwen3.5-plus",
     messages=[
-        {"role": "system", "content": "你是一个有帮助的助手。"},
-        {"role": "user", "content": "你好，请介绍一下你自己。"}
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Hello, please introduce yourself."}
     ],
     temperature=0.7,
     max_tokens=1000
@@ -35,8 +35,8 @@ const client = new OpenAI({
 const response = await client.chat.completions.create({
   model: "qwen3.5-plus",
   messages: [
-    { role: "system", content: "你是一个有帮助的助手。" },
-    { role: "user", content: "你好，请介绍一下你自己。" }
+    { role: "system", content: "You are a helpful assistant." },
+    { role: "user", content: "Hello, please introduce yourself." }
   ],
   temperature: 0.7,
   max_tokens: 1000,
@@ -49,8 +49,8 @@ console.log(response.choices[0].message.content);`,
   -d '{
     "model": "qwen3.5-plus",
     "messages": [
-      {"role": "system", "content": "你是一个有帮助的助手。"},
-      {"role": "user", "content": "你好，请介绍一下你自己。"}
+      {"role": "system", "content": "You are a helpful assistant."},
+      {"role": "user", "content": "Hello, please introduce yourself."}
     ],
     "temperature": 0.7,
     "max_tokens": 1000
@@ -62,12 +62,12 @@ const asyncTaskExample = `curl -X POST ${API_BASE}/v1/tasks \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "happyhorse-1.0-t2v",
-    "prompt": "黄昏城市海岸线，镜头缓慢推进，电影感自然光",
+    "prompt": "Coastal cityscape at dusk, slow camera dolly-in, cinematic natural light",
     "duration": 10,
     "resolution": "720P"
   }'
 
-# 轮询任务状态
+# Poll the task status
 curl ${API_BASE}/v1/tasks/task_xxx \\
   -H "Authorization: Bearer sk-air-your-key"`;
 
@@ -76,19 +76,19 @@ const protocols = [
     title: "OpenAI-compatible",
     endpoint: `${API_BASE}/v1/chat/completions`,
     href: "/docs/api/chat",
-    desc: "默认推荐。适合 OpenAI SDK、Chat Completions、工具调用和流式输出。",
+    desc: "Recommended default. Works with the OpenAI SDK, Chat Completions, tool calls, and streaming.",
   },
   {
     title: "Anthropic Messages",
     endpoint: `${API_BASE}/v1/messages`,
     href: "/docs/api/anthropic",
-    desc: "适合已有 Anthropic SDK、Messages 请求格式或 Claude Code 风格客户端。",
+    desc: "Ideal if you already use the Anthropic SDK, the Messages format, or Claude Code-style clients.",
   },
   {
     title: "Gemini-compatible",
     endpoint: `${API_BASE}/v1beta/models/{model}:generateContent`,
     href: "/docs/api/gemini",
-    desc: "适合沿用 Gemini GenerateContent 请求格式。模型名填写 NexusFlow 模型 ID。",
+    desc: "Ideal for keeping the Gemini GenerateContent format. The model field takes a NexusFlow model ID.",
   },
 ];
 
@@ -99,19 +99,19 @@ export default function QuickstartPage() {
     <div style={{ padding: "48px 64px", maxWidth: 920 }}>
       <div style={{ marginBottom: 32 }}>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.5px", marginBottom: 8 }}>
-          快速开始
+          Quick Start
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", margin: 0, lineHeight: 1.7 }}>
-          从第一个请求开始，选择 OpenAI、Anthropic Messages 或 Gemini-compatible 协议，并理解什么时候切换到异步任务模式。
+          From your first request—pick the OpenAI, Anthropic Messages, or Gemini-compatible protocol—and learn when to switch to async tasks.
         </p>
       </div>
 
       <section style={{ marginBottom: 40 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
           {[
-            { title: "三协议同步", desc: "OpenAI、Anthropic、Gemini 兼容入口共用同一套模型。" },
-            { title: "异步任务", desc: "图像和视频统一走 `/v1/tasks` 提交与轮询。" },
-            { title: "生产流量", desc: "上线前同时看限流说明、错误码和监控页。" },
+            { title: "Three Sync Protocols", desc: "OpenAI, Anthropic, and Gemini compatibility share the same model lineup." },
+            { title: "Async Tasks", desc: "Submit and poll image and video jobs through `/v1/tasks`." },
+            { title: "Production Traffic", desc: "Check the rate-limit, error-code, and monitoring pages before you ship." },
           ].map((item) => (
             <div key={item.title} style={{ padding: 18, borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg)" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.title}</div>
@@ -123,7 +123,7 @@ export default function QuickstartPage() {
 
       <section style={{ marginBottom: 40 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          选择兼容协议
+          Pick a Compatibility Protocol
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
           {protocols.map((protocol) => (
@@ -138,22 +138,22 @@ export default function QuickstartPage() {
 
       <section style={{ marginBottom: 40 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          前提条件
+          Prerequisites
         </h2>
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "var(--text-secondary)", lineHeight: 2.2 }}>
-          <li>已 <Link href="/login" style={{ color: "var(--accent)" }}>注册并登录</Link> nexusflow 平台</li>
-          <li>已在 <Link href="/keys" style={{ color: "var(--accent)" }}>API 密钥</Link> 页面创建至少一个 API Key</li>
-          <li>已在 <Link href="/billing" style={{ color: "var(--accent)" }}>账单管理</Link> 页面充值余额</li>
+          <li>You have <Link href="/login" style={{ color: "var(--accent)" }}>signed up and logged in</Link> to nexusflow</li>
+          <li>You have created at least one API key on the <Link href="/keys" style={{ color: "var(--accent)" }}>API Keys</Link> page</li>
+          <li>You have topped up your balance on the <Link href="/billing" style={{ color: "var(--accent)" }}>Billing</Link> page</li>
         </ul>
       </section>
 
       <section style={{ marginBottom: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--text-primary)", color: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>1</div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>安装 SDK</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Install the SDK</h2>
         </div>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.7 }}>
-          默认使用 OpenAI SDK。已有 Anthropic 或 Gemini 客户端时，可直接查看对应兼容协议文档。
+          We use the OpenAI SDK by default. If you already use an Anthropic or Gemini client, jump straight to the matching protocol docs.
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
@@ -170,10 +170,10 @@ export default function QuickstartPage() {
       <section style={{ marginBottom: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--text-primary)", color: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>2</div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>配置 API</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Configure the API</h2>
         </div>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.7 }}>
-          将 base_url 指向 nexusflow，使用统一 API Key 即可访问所有模型。
+          Point your base_url at nexusflow and use a single API key for all models.
         </p>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -186,11 +186,11 @@ export default function QuickstartPage() {
                 <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-primary)", background: "var(--bg-elevated)" }}>API Key</td>
                 <td style={{ padding: "12px 16px" }}>
                   <code style={{ color: "var(--accent)", fontFamily: "'JetBrains Mono', monospace" }}>sk-air-xxxxxxxx</code>
-                  <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-tertiary)" }}>(<Link href="/keys" style={{ color: "var(--accent)" }}>获取密钥</Link>)</span>
+                  <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-tertiary)" }}>(<Link href="/keys" style={{ color: "var(--accent)" }}>Get a key</Link>)</span>
                 </td>
               </tr>
               <tr>
-                <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-primary)", background: "var(--bg-elevated)" }}>认证方式</td>
+                <td style={{ padding: "12px 16px", fontWeight: 600, color: "var(--text-primary)", background: "var(--bg-elevated)" }}>Auth method</td>
                 <td style={{ padding: "12px 16px" }}><code style={{ color: "var(--accent)", fontFamily: "'JetBrains Mono', monospace" }}>Authorization: Bearer {"{API_KEY}"}</code></td>
               </tr>
             </tbody>
@@ -201,10 +201,10 @@ export default function QuickstartPage() {
       <section style={{ marginBottom: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--text-primary)", color: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>3</div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>发起对话请求</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Make a Chat Request</h2>
         </div>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.7 }}>
-          文本和推理模型优先走同步接口。以下示例使用 Qwen3.5 Plus。
+          Prefer the synchronous endpoint for text and reasoning models. The example below uses Qwen3.5 Plus.
         </p>
         <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
           {(["python", "nodejs", "curl"] as const).map((l) => (
@@ -234,10 +234,10 @@ export default function QuickstartPage() {
       <section style={{ marginBottom: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--text-primary)", color: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>4</div>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>接入异步任务</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", margin: 0 }}>Add Async Tasks</h2>
         </div>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.7 }}>
-          当你开始接入图像或视频生成时，推荐统一使用 <code>/v1/tasks</code>。这套链路更适合高时延模型、后台批量任务和高并发排队。
+          Once you start integrating image or video generation, prefer <code>/v1/tasks</code>. It&apos;s a better fit for high-latency models, batch jobs, and queued high-concurrency workloads.
         </p>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
           <DocsCodeBlock code={asyncTaskExample} />
@@ -246,14 +246,14 @@ export default function QuickstartPage() {
 
       <section style={{ marginBottom: 40 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          高并发接入建议
+          High-Concurrency Tips
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
           {[
-            "把聊天请求和多媒体任务拆到不同队列，避免互相争抢吞吐。",
-            "同一个 API Key 可用于 OpenAI、Anthropic Messages、Gemini-compatible 三类协议。",
-            "任务轮询建议 3-5 秒一次，并使用指数退避处理失败重试。",
-            "压测前先确认限流页中的 RPM / TPM 与并发策略。",
+            "Split chat traffic and media tasks into different queues so they don't compete for throughput.",
+            "The same API key works across all three protocols: OpenAI, Anthropic Messages, and Gemini-compatible.",
+            "Poll tasks every 3–5 seconds, and use exponential backoff on retry.",
+            "Before load testing, check the rate-limit page for RPM / TPM and concurrency policy.",
           ].map((text) => (
             <div key={text} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>
               {text}
@@ -264,34 +264,34 @@ export default function QuickstartPage() {
 
       <section style={{ marginBottom: 40 }}>
         <div style={{ padding: 20, background: "var(--accent-bg)", border: "1px solid var(--accent-border)", borderRadius: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)", marginBottom: 8 }}>提示</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--accent)", marginBottom: 8 }}>Tips</div>
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.9 }}>
-            <li>将 <code>model</code> 参数替换为其他模型 ID 即可切换模型</li>
-            <li>所有模型共用同一个 API Key，无需分别申请</li>
-            <li>OpenAI、Anthropic Messages、Gemini-compatible 三种协议共用同一套余额与用量记录</li>
-            <li>支持流式输出，设置 <code>stream: true</code> 即可</li>
-            <li>图像与视频建议通过 <code>/v1/tasks</code> 接入，避免同步阻塞</li>
+            <li>Switch models by changing the <code>model</code> parameter to a different model ID</li>
+            <li>All models share a single API key—no separate sign-ups needed</li>
+            <li>OpenAI, Anthropic Messages, and Gemini-compatible share the same balance and usage records</li>
+            <li>Streaming is supported—just set <code>stream: true</code></li>
+            <li>For images and video, prefer <code>/v1/tasks</code> to avoid blocking sync calls</li>
           </ul>
         </div>
       </section>
 
       <section style={{ marginBottom: 36, padding: 16, background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 8 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>💡 省钱提示：上下文缓存</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>💡 Save money: context cache</div>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0 }}>
-          对于重复的 system prompt 或长文档上下文，可启用 <code>enable_context_caching: true</code>（OpenAI 协议）或 <code>cache_control</code> 注解（Anthropic 协议），缓存命中部分仅按 10% 输入价计费。详见 <Link href="/docs/api/chat" style={{ color: "#1d4ed8" }}>计费说明</Link>。
+          For repeated system prompts or long document context, enable <code>enable_context_caching: true</code> (OpenAI protocol) or <code>cache_control</code> annotations (Anthropic protocol). Cache hits are billed at just 10% of input price. See the <Link href="/docs/api/chat" style={{ color: "#1d4ed8" }}>billing notes</Link>.
         </p>
       </section>
 
       <section>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          下一步
+          Next Steps
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
-            { href: "/docs/models", label: "浏览模型", desc: "查看全部 45+ 可用模型" },
-            { href: "/docs/multi-protocol", label: "三协议接入", desc: "OpenAI / Anthropic / Gemini 兼容说明" },
-            { href: "/docs/api/tasks", label: "异步任务", desc: "图像 / 视频统一任务接口" },
-            { href: "/docs/api/limits", label: "限流与并发", desc: "查看高并发下的限制与优化建议" },
+            { href: "/docs/models", label: "Browse Models", desc: "See all 45+ available models" },
+            { href: "/docs/multi-protocol", label: "Three-Protocol Access", desc: "OpenAI / Anthropic / Gemini compatibility notes" },
+            { href: "/docs/api/tasks", label: "Async Tasks", desc: "Unified API for image and video tasks" },
+            { href: "/docs/api/limits", label: "Rate Limits & Concurrency", desc: "Limits and tuning tips at high scale" },
           ].map((link) => (
             <Link key={link.href} href={link.href} style={{ padding: "16px 20px", border: "1px solid var(--border)", borderRadius: 8, textDecoration: "none", background: "var(--bg)", transition: "all 0.15s" }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{link.label}</div>

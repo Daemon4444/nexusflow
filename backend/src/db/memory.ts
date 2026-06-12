@@ -9,7 +9,7 @@ let adapter: PgAdapter | null = null;
 
 function stripUnsupportedMigrationBlocks(sql: string): string {
   return sql
-    .replace(/-- 创建更新时间触发器函数[\s\S]*$/m, "")
+    .replace(/-- Create updated-at trigger function[\s\S]*$/m, "")
     .replace(/CREATE INDEX IF NOT EXISTS idx_[^\n]+ ON [^(]+\([^;]+;/g, (statement) => statement);
 }
 
@@ -30,7 +30,7 @@ function seedSql() {
 
   return `
     INSERT INTO users (id, phone, email, nickname, balance, password_hash, created_at, updated_at)
-    VALUES ('${userId}', NULL, 'local-test@nexusflow.test', '本地测试用户', 25.75, NULL, '${iso(14)}', '${iso(0)}');
+    VALUES ('${userId}', NULL, 'local-test@nexusflow.test', 'Local test user', 25.75, NULL, '${iso(14)}', '${iso(0)}');
 
     INSERT INTO sessions (id, user_id, token, created_at, expires_at)
     VALUES ('local-session-1', '${userId}', '${sessionToken}', '${iso(0)}', '${iso(-7)}');
@@ -40,9 +40,9 @@ function seedSql() {
 
     INSERT INTO transactions (id, user_id, type, amount, balance_after, description, ref_id, created_at)
     VALUES
-      ('tx-local-1', '${userId}', 'recharge', 30, 30, '测试充值 ¥30.00', NULL, '${iso(12)}'),
-      ('tx-local-2', '${userId}', 'consumption', 1.75, 28.25, 'qwen3.5-flash 调用', 'usage-local-1', '${iso(2)}'),
-      ('tx-local-3', '${userId}', 'consumption', 2.5, 25.75, 'deepseek-v3.2 调用', 'usage-local-2', '${iso(1)}');
+      ('tx-local-1', '${userId}', 'recharge', 30, 30, 'Test recharge $30.00', NULL, '${iso(12)}'),
+      ('tx-local-2', '${userId}', 'consumption', 1.75, 28.25, 'qwen3.5-flash invocation', 'usage-local-1', '${iso(2)}'),
+      ('tx-local-3', '${userId}', 'consumption', 2.5, 25.75, 'deepseek-v3.2 invocation', 'usage-local-2', '${iso(1)}');
 
     INSERT INTO usage_logs (api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, created_at)
     VALUES
@@ -57,11 +57,11 @@ function seedSql() {
 
     INSERT INTO rate_limit_requests (id, user_id, model, requested_qpm, requested_tpm, reason, status, admin_reply, reviewed_by, reviewed_at, created_at, updated_at)
     VALUES
-      ('rlr-local-1', '${userId}', 'deepseek-v3.2', 300, 500000, '本地测试：高峰期需要更高吞吐。', 'pending', NULL, NULL, NULL, '${iso(1)}', '${iso(1)}');
+      ('rlr-local-1', '${userId}', 'deepseek-v3.2', 300, 500000, 'Local test: peak hours need higher throughput.', 'pending', NULL, NULL, NULL, '${iso(1)}', '${iso(1)}');
 
     INSERT INTO tickets (id, user_id, type, subject, description, model, requested_qpm, requested_tpm, status, admin_reply, resolved_at, created_at, updated_at)
     VALUES
-      ('ticket-local-1', '${userId}', 'support', '本地测试工单', '这是用于本地端到端测试的工单描述，长度超过二十个字符。', NULL, NULL, NULL, 'open', NULL, NULL, '${iso(1)}', '${iso(1)}');
+      ('ticket-local-1', '${userId}', 'support', 'Local test ticket', 'This is a local end-to-end test ticket description, with more than twenty characters.', NULL, NULL, NULL, 'open', NULL, NULL, '${iso(1)}', '${iso(1)}');
   `;
 }
 

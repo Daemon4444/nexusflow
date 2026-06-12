@@ -17,26 +17,26 @@ export default function OnboardingGuide({ hasApiKey, apiKey, onClose }: Onboardi
 
   const steps = [
     {
-      title: "欢迎使用 NexusFlow",
-      description: "一站式 AI 模型聚合平台，让你轻松调用 40+ 模型",
+      title: "Welcome to NexusFlow",
+      description: "One platform for 40+ AI models — call them through a single API.",
       icon: "🎉",
       action: null,
     },
     {
-      title: "获取你的 API Key",
-      description: "API Key 是调用模型的凭证，复制后即可开始使用",
+      title: "Get your API key",
+      description: "The API key authenticates your model calls. Copy it once and you're ready to go.",
       icon: "🔑",
       action: hasApiKey ? "copy" : "create",
     },
     {
-      title: "选择一个模型",
-      description: "从聊天、推理、编程、图像到视频，满足各种场景需求",
+      title: "Pick a model",
+      description: "From chat to reasoning, coding, image and video — choose what fits your scenario.",
       icon: "🧠",
       action: "models",
     },
     {
-      title: "开始第一次调用",
-      description: "在 Playground 中测试模型，或复制代码到你的应用",
+      title: "Make your first call",
+      description: "Test in Playground or paste the example into your app to call the API for real.",
       icon: "🚀",
       action: "playground",
     },
@@ -133,7 +133,7 @@ export default function OnboardingGuide({ hasApiKey, apiKey, onClose }: Onboardi
               marginBottom: 8,
               fontWeight: 600,
             }}>
-              你的 API Key
+              Your API key
             </div>
             <div style={{
               display: "flex",
@@ -158,7 +158,7 @@ export default function OnboardingGuide({ hasApiKey, apiKey, onClose }: Onboardi
                 className={copied ? "btn-success" : "btn-secondary"}
                 style={{ padding: "8px 14px", fontSize: 13 }}
               >
-                {copied ? "已复制 ✓" : "复制"}
+                {copied ? "Copied ✓" : "Copy"}
               </button>
             </div>
           </div>
@@ -197,10 +197,10 @@ export default function OnboardingGuide({ hasApiKey, apiKey, onClose }: Onboardi
               onClick={handleAction}
               style={{ padding: "10px 24px", fontSize: 14 }}
             >
-              {currentStep.action === "copy" && (copied ? "已复制" : "复制 Key")}
-              {currentStep.action === "create" && "创建 Key"}
-              {currentStep.action === "models" && "浏览模型"}
-              {currentStep.action === "playground" && "开始测试"}
+              {currentStep.action === "copy" && (copied ? "Copied" : "Copy key")}
+              {currentStep.action === "create" && "Create key"}
+              {currentStep.action === "models" && "Browse models"}
+              {currentStep.action === "playground" && "Start testing"}
             </button>
           )}
           <button
@@ -208,7 +208,7 @@ export default function OnboardingGuide({ hasApiKey, apiKey, onClose }: Onboardi
             onClick={handleNext}
             style={{ padding: "10px 24px", fontSize: 14 }}
           >
-            {step === steps.length - 1 ? "完成" : "下一步"}
+            {step === steps.length - 1 ? "Done" : "Next"}
           </button>
         </div>
 
@@ -228,7 +228,7 @@ export default function OnboardingGuide({ hasApiKey, apiKey, onClose }: Onboardi
               padding: 4,
             }}
           >
-            跳过引导
+            Skip onboarding
           </button>
         </div>
       </div>

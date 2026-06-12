@@ -100,26 +100,26 @@ const handleGenerate = async (req: Request, res: Response) => {
   } = req.body;
 
   if (!modelId) {
-    res.status(400).json({ success: false, message: "请提供模型ID" });
+    res.status(400).json({ success: false, message: "Please provide a model ID" });
     return;
   }
 
   // HappyHorse video-edit doesn't strictly require prompt at creation
   const isHappyHorse = modelId.startsWith("happyhorse-");
   if (!isHappyHorse && !prompt) {
-    res.status(400).json({ success: false, message: "请提供提示词" });
+    res.status(400).json({ success: false, message: "Please provide a prompt" });
     return;
   }
 
   const caller = await authenticateCaller(req);
   if (!caller) {
-    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
+    res.status(401).json({ success: false, message: "Please log in or provide a valid API key" });
     return;
   }
 
   const model = models.find((m) => m.id === modelId);
-  if (!model || model.category !== "视频生成") {
-    res.status(404).json({ success: false, message: "视频生成模型不存在" });
+  if (!model || model.category !== "Video Generation") {
+    res.status(404).json({ success: false, message: "Video generation model not found" });
     return;
   }
 
@@ -127,21 +127,21 @@ const handleGenerate = async (req: Request, res: Response) => {
     const userLimits = await getEffectiveRateLimit(caller.userId, modelId);
     const rpmCheck = await checkRPM(`user:${caller.userId}:${modelId}`, userLimits.qpm);
     if (!rpmCheck.allowed) {
-      res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${userLimits.qpm}/min，请 ${Math.ceil(rpmCheck.resetMs / 1000)} 秒后重试` });
+      res.status(429).json({ success: false, message: `Model QPM limit hit: ${userLimits.qpm}/min, please retry in ${Math.ceil(rpmCheck.resetMs / 1000)} seconds` });
       return;
     }
   }
 
   const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { duration, quality, resolution, audio, audio_setting });
   if (!(await hasEnoughBalance(caller.userId, estimatedCost))) {
-    res.status(402).json({ success: false, message: "余额不足，请先充值" });
+    res.status(402).json({ success: false, message: "Insufficient balance, please recharge" });
     return;
   }
 
   // Select provider via scheduler
   const selected = await selectProvider(modelId, { userId: caller.userId });
   if (!selected) {
-    res.status(503).json({ success: false, message: "当前无可用渠道" });
+    res.status(503).json({ success: false, message: "No available channel" });
     return;
   }
   const apiKey = selected.apiKey;
@@ -150,7 +150,7 @@ const handleGenerate = async (req: Request, res: Response) => {
   if ((modelId.includes("-i2v") || modelId.includes("-r2v")) && !img_url && !img_urls?.length) {
     res.status(400).json({
       success: false,
-      message: `${modelId} 需要传入 img_url 或 img_urls`,
+      message: `${modelId} requires img_url or img_urls`,
     });
     return;
   }
@@ -158,7 +158,7 @@ const handleGenerate = async (req: Request, res: Response) => {
   if (modelId === "happyhorse-1.0-video-edit" && !video_url) {
     res.status(400).json({
       success: false,
-      message: `${modelId} 需要传入 video_url`,
+      message: `${modelId} requires video_url`,
     });
     return;
   }
@@ -239,12 +239,12 @@ const handleGenerate = async (req: Request, res: Response) => {
     // Handle official PixVerse API response
     if (isPixVerseOfficial) {
       if (data.ErrCode !== 0) {
-        recordFailure(selected.providerId, modelId, data.ErrMsg || "视频生成失败");
-        await failTask(task.id, data.ErrMsg || "视频生成失败");
+        recordFailure(selected.providerId, modelId, data.ErrMsg || "Video generation failed");
+        await failTask(task.id, data.ErrMsg || "Video generation failed");
         await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
         res.status(400).json({
           success: false,
-          message: data.ErrMsg || "视频生成失败",
+          message: data.ErrMsg || "Video generation failed",
         });
         return;
       }
@@ -300,7 +300,7 @@ const handleGenerate = async (req: Request, res: Response) => {
     await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
     res.status(500).json({
       success: false,
-      message: `请求失败: ${err.message}`,
+      message: `Request failed: ${err.message}`,
     });
   }
 };
@@ -317,7 +317,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
   
   if (task) {
     if (!(await canAccessTask(req, task.user_id, task.api_key_id))) {
-      res.status(403).json({ success: false, message: "无权查看该任务" });
+      res.status(403).json({ success: false, message: "Not authorized to view this task" });
       return;
     }
 
@@ -356,7 +356,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
       } else {
         const providerRecord = await getProviderById(task.provider);
         if (!providerRecord) {
-          res.status(500).json({ success: false, message: "渠道配置不存在" });
+          res.status(500).json({ success: false, message: "Channel configuration not found" });
           return;
         }
         pollApiKey = providerRecord.api_key;
@@ -407,7 +407,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
     } catch (err: any) {
       res.status(500).json({
         success: false,
-        message: `查询失败: ${err.message}`,
+        message: `Query failed: ${err.message}`,
       });
       return;
     }
@@ -415,7 +415,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
   // Fallback: treat taskId as direct PixVerse/DashScope task ID (legacy support)
   if (!(await authenticateCaller(req))) {
-    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
+    res.status(401).json({ success: false, message: "Please log in or provide a valid API key" });
     return;
   }
 
@@ -462,7 +462,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
   res.status(404).json({
     success: false,
-    message: "任务不存在",
+    message: "Task not found",
   });
 });
 

@@ -96,10 +96,10 @@ export default function BillingPage() {
         setFirstApiKey(kRes.data[0]);
       }
       if (!sRes.success && !tRes.success) {
-        setDataError(sRes.message || tRes.message || "账单数据加载失败");
+        setDataError(sRes.message || tRes.message || "Failed to load billing data");
       }
     } catch {
-      setDataError("无法连接账单服务，请稍后重试");
+      setDataError("Cannot reach the billing service. Please try again later.");
     } finally { setDataLoading(false); }
   }
 
@@ -123,12 +123,12 @@ export default function BillingPage() {
         if (res.data?.qrCode) {
           const orderNo = res.data.orderNo || res.data.orderId;
           if (orderNo) setPollOrderId(orderNo);
-          setRechargeMsg({ type: "success", text: "支付订单已创建，请在支付宝页面完成支付" });
+          setRechargeMsg({ type: "success", text: "Payment order created. Please complete payment on the Alipay page." });
         } else if (res.data?.paymentForm || res.data?.payUrl) {
           const orderNo = res.data.orderNo || res.data.orderId;
           const paymentForm = res.data.paymentForm || res.data.payUrl;
           if (orderNo) setPollOrderId(orderNo);
-          // 直接渲染表单并自动提交，解决手机端弹出窗口被阻止的问题
+          // Render the form and auto-submit to avoid mobile pop-up blockers
           setPaymentFormHtml(paymentForm);
           setRechargeMsg({ type: "success", text: t("payPageOpened") });
         } else {
@@ -143,11 +143,11 @@ export default function BillingPage() {
 
   async function handleExportCsv() {
     if (!exportStartDate || !exportEndDate) {
-      setExportError("请选择导出日期范围");
+      setExportError("Please choose an export date range");
       return;
     }
     if (exportStartDate > exportEndDate) {
-      setExportError("开始日期不能晚于结束日期");
+      setExportError("Start date cannot be after end date");
       return;
     }
 
@@ -160,7 +160,7 @@ export default function BillingPage() {
       });
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(text || "账单导出失败");
+        throw new Error(text || "Failed to export billing CSV");
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -172,13 +172,13 @@ export default function BillingPage() {
       link.remove();
       URL.revokeObjectURL(url);
     } catch (error) {
-      setExportError(error instanceof Error ? error.message : "账单导出失败");
+      setExportError(error instanceof Error ? error.message : "Failed to export billing CSV");
     } finally {
       setExportingCsv(false);
     }
   }
 
-  // 支付跳转：后端返回 URL，直接跳转
+  // Alipay redirect: the backend returns a URL — go straight there
   useEffect(() => {
     if (!paymentFormHtml) return;
     window.location.href = paymentFormHtml;
@@ -217,7 +217,7 @@ export default function BillingPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <button className="btn-secondary" onClick={handleExportCsv} disabled={exportingCsv} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
-            {exportingCsv ? "导出中..." : "导出 CSV"}
+            {exportingCsv ? "Exporting..." : "Export CSV"}
           </button>
           <button className="btn-primary" onClick={() => setShowRecharge(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -247,20 +247,20 @@ export default function BillingPage() {
 
       <div className="usr-section" style={{ marginBottom: 20 }}>
         <div className="usr-section-header">
-          <h3>账单导出</h3>
-          <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>按用量明细展开模型、阶梯和单价</span>
+          <h3>Billing export</h3>
+          <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>Detailed CSV by model, tier and unit price</span>
         </div>
         <div className="usr-section-body" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
           <label style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>
-            开始日期
+            Start date
             <input className="input" type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} style={{ width: 160, fontSize: 13 }} />
           </label>
           <label style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>
-            结束日期
+            End date
             <input className="input" type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} style={{ width: 160, fontSize: 13 }} />
           </label>
           <button className="btn-secondary" onClick={handleExportCsv} disabled={exportingCsv} style={{ padding: "9px 18px", fontSize: 13 }}>
-            {exportingCsv ? "正在生成" : "下载账单 CSV"}
+            {exportingCsv ? "Generating" : "Download billing CSV"}
           </button>
           {exportError && (
             <span style={{ fontSize: 12, color: "var(--danger)", lineHeight: "34px" }}>{exportError}</span>
@@ -292,7 +292,7 @@ export default function BillingPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
                 {presetAmounts.map((a) => {
                   const selected = rechargeAmount === String(a);
-                  return (<button key={a} onClick={() => setRechargeAmount(String(a))} style={{ padding: "12px 0", borderRadius: 8, border: selected ? "2px solid #111" : "1px solid var(--border)", background: selected ? "rgba(0,0,0,0.03)" : "var(--bg-card)", cursor: "pointer", fontSize: 15, fontWeight: 700, color: selected ? "#111" : "var(--text-secondary)", transition: "all 0.15s", fontFamily: "inherit" }}>¥{a}</button>);
+                  return (<button key={a} onClick={() => setRechargeAmount(String(a))} style={{ padding: "12px 0", borderRadius: 8, border: selected ? "2px solid #111" : "1px solid var(--border)", background: selected ? "rgba(0,0,0,0.03)" : "var(--bg-card)", cursor: "pointer", fontSize: 15, fontWeight: 700, color: selected ? "#111" : "var(--text-secondary)", transition: "all 0.15s", fontFamily: "inherit" }}>${a}</button>);
                 })}
               </div>
             </div>
@@ -317,16 +317,16 @@ export default function BillingPage() {
             </div>
             {payMethod === "alipay" && paymentConfig && !paymentConfig.configured && (
               <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--warning-bg)", border: "1px solid var(--warning-border)", color: "var(--warning)" }}>
-                支付宝尚未完成配置，当前会进入模拟支付。请在后端 `.env` 填写：{missingConfigKeys.length > 0 ? missingConfigKeys.join(", ") : "ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY"}
+                Alipay is not yet configured — payments will use the simulator. Set the following keys in the backend `.env`: {missingConfigKeys.length > 0 ? missingConfigKeys.join(", ") : "ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY"}
               </div>
             )}
             {payMethod === "alipay" && (
               <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                💳 点击充值后将跳转到支付宝页面完成支付
+                After clicking Top up you will be redirected to the Alipay page to complete payment.
               </div>
             )}
             <button className="btn-primary" onClick={handleRecharge} disabled={recharging || !rechargeAmount || pollOrderId !== null} style={{ padding: "9px 24px", fontSize: 13 }}>
-              {recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} ¥${rechargeAmount || "0"}`}
+              {recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} $${rechargeAmount || "0"}`}
             </button>
             {rechargeMsg && (
               <div style={{ marginTop: 14, padding: "9px 12px", borderRadius: 7, fontSize: 12.5, background: rechargeMsg.type === "success" ? "var(--success-bg)" : "var(--danger-bg)", border: `1px solid ${rechargeMsg.type === "success" ? "var(--success-border)" : "var(--danger-border)"}`, color: rechargeMsg.type === "success" ? "var(--success)" : "var(--danger)" }}>
@@ -343,7 +343,7 @@ export default function BillingPage() {
       {dataLoading ? (
         <LoadingState title={t("loading")} />
       ) : dataError ? (
-        <ErrorState title="账单加载失败" message={dataError} onAction={loadData} />
+        <ErrorState title="Failed to load billing" message={dataError} onAction={loadData} />
       ) : (
         <div className="usr-section">
           <div className="usr-section-header">
@@ -373,7 +373,7 @@ export default function BillingPage() {
                       <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                         <span style={{ color: "var(--text-tertiary)", textDecoration: "line-through", fontSize: 10.5, fontWeight: 400 }}>{formatCnyPrecise(Number(tx.amount) + tx.discountAmountCny)}</span>
                         <span style={{ fontSize: 9.5, fontWeight: 600, padding: "1px 4px", borderRadius: 3, background: "#fef3c7", color: "#b45309" }}>
-                          {Math.round(tx.discountRate * 10)}折
+                          {Math.round((1 - tx.discountRate) * 100)}% off
                         </span>
                       </span>
                     )}
@@ -394,19 +394,19 @@ export default function BillingPage() {
           )}
         </div>
       )}
-      {/* 支付宝表单自动提交容器 */}
+      {/* Alipay form auto-submit container */}
       {paymentFormHtml && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 9999, background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           <div style={{ textAlign: "center", padding: 40, color: "#666" }}>
-            <div style={{ marginBottom: 16 }}>正在跳转到支付宝...</div>
+            <div style={{ marginBottom: 16 }}>Redirecting to Alipay...</div>
             <a
               href={paymentFormHtml}
               style={{ display: "inline-block", padding: "10px 24px", fontSize: 14, background: "#1677ff", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", textDecoration: "none" }}
             >
-              如未自动跳转，点此手动前往
+              If the page does not redirect, click here
             </a>
             <div style={{ marginTop: 12 }}>
-              <button onClick={() => setPaymentFormHtml("")} style={{ fontSize: 12, color: "#999", background: "none", border: "none", cursor: "pointer" }}>取消</button>
+              <button onClick={() => setPaymentFormHtml("")} style={{ fontSize: 12, color: "#999", background: "none", border: "none", cursor: "pointer" }}>Cancel</button>
             </div>
           </div>
         </div>

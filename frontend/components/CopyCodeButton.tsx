@@ -8,7 +8,7 @@ interface CopyCodeButtonProps {
   className?: string;
 }
 
-export function CopyCodeButton({ text, label = "复制", className = "btn-secondary" }: CopyCodeButtonProps) {
+export function CopyCodeButton({ text, label = "Copy", className = "btn-secondary" }: CopyCodeButtonProps) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
@@ -23,7 +23,7 @@ export function CopyCodeButton({ text, label = "复制", className = "btn-second
       onClick={copy}
       style={{ padding: "5px 12px", fontSize: 12 }}
     >
-      {copied ? "已复制 ✓" : label}
+      {copied ? "Copied ✓" : label}
     </button>
   );
 }
@@ -43,7 +43,7 @@ export function CodeExamples({ model, apiKey = "YOUR_API_KEY", baseUrl = "https:
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model}",
-    "messages": [{"role": "user", "content": "你好！"}],
+    "messages": [{"role": "user", "content": "Hello!"}],
     "stream": true
   }'`,
     python: `import openai
@@ -55,7 +55,7 @@ client = openai.OpenAI(
 
 response = client.chat.completions.create(
     model="${model}",
-    messages=[{"role": "user", "content": "你好！"}],
+    messages=[{"role": "user", "content": "Hello!"}],
     stream=True
 )
 
@@ -69,7 +69,7 @@ for chunk in response:
   },
   body: JSON.stringify({
     model: "${model}",
-    messages: [{ role: "user", content: "你好！" }],
+    messages: [{ role: "user", content: "Hello!" }],
     stream: true,
   }),
 });
