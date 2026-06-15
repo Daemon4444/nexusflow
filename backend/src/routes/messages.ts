@@ -136,11 +136,11 @@ function convertToOpenAI(body: any): any {
   }
 
   // Auto-enable context caching when cache_control annotations are present
-  const hasCacheControl = (body.system || []).some?.((b: any) => b.cache_control)
+  const hasCacheAnnotation = (body.system || []).some?.((b: any) => b.cache_control)
     || (body.messages || []).some((m: any) =>
       Array.isArray(m.content) && m.content.some((b: any) => b.cache_control)
     );
-  if (hasCacheControl) {
+  if (hasCacheAnnotation) {
     result.enable_context_caching = true;
   }
 
@@ -194,13 +194,14 @@ function convertToAnthropic(openaiData: any, model: string): any {
   const details = usage.prompt_tokens_details || {};
   const cacheReadTokens = details.cached_tokens || 0;
   const cacheCreationTokens = details.cache_creation_input_tokens || 0;
+  const totalPromptTokens = usage.prompt_tokens || 0;
 
   const usageOut: any = {
-    input_tokens: usage.prompt_tokens || 0,
+    input_tokens: Math.max(0, totalPromptTokens - cacheReadTokens - cacheCreationTokens),
     output_tokens: usage.completion_tokens || 0,
+    cache_read_input_tokens: cacheReadTokens,
+    cache_creation_input_tokens: cacheCreationTokens,
   };
-  if (cacheReadTokens > 0) usageOut.cache_read_input_tokens = cacheReadTokens;
-  if (cacheCreationTokens > 0) usageOut.cache_creation_input_tokens = cacheCreationTokens;
 
   return {
     id: `msg_${openaiData.id || Date.now()}`,
@@ -652,7 +653,7 @@ router.post("/", async (req: Request, res: Response) => {
           model: modelId,
           stop_reason: null,
           stop_sequence: null,
-          usage: { input_tokens: 0, output_tokens: 0 },
+          usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
         },
       };
       res.write(`event: message_start\ndata: ${JSON.stringify(messageStartEvent)}\n\n`);
@@ -779,7 +780,7 @@ router.post("/", async (req: Request, res: Response) => {
           stop_sequence: null,
         },
         usage: {
-          input_tokens: inputTokens,
+          input_tokens: Math.max(0, inputTokens - cachedTokens - cacheCreationTokens),
           output_tokens: outputTokens,
           cache_read_input_tokens: cachedTokens,
           cache_creation_input_tokens: cacheCreationTokens,

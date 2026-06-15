@@ -18,6 +18,19 @@ const qwenModels = [
     isFeatured: true,
   },
   {
+    id: "qwen3.7-plus",
+    name: "Qwen3.7 Plus",
+    desc: "Qwen3.7 系列高性价比 Plus 模型，在强文本能力基础上全面升级视觉-语言能力，可读取屏幕并操作 GUI、基于视觉参考生成代码，保持完整的编码、工具使用与生产力工作流智能体能力。百万级上下文。",
+    ctx: "1,000,000",
+    maxOutput: "65,536",
+    inputPrice: "¥2",
+    outputPrice: "¥8",
+    tags: ["高性价比", "最新", "多模态", "智能体"],
+    features: ["图像理解", "函数调用", "思考模式", "联网搜索", "百万上下文"],
+    isNew: true,
+    isFeatured: true,
+  },
+  {
     id: "qwen3.6-max-preview",
     name: "Qwen3.6 Max Preview",
     desc: "Qwen3.6 系列最强预览模型，适合复杂推理、多步骤代码生成和工具型任务。",
@@ -69,6 +82,32 @@ const qwenModels = [
     isNew: false,
     isFeatured: false,
   },
+  {
+    id: "qwen3.5-omni-plus",
+    name: "Qwen3.5 Omni Plus",
+    desc: "旗舰全模态模型，支持文本、图片、音频、视频任意组合输入，可输出文本与语音。113种输入语言，55种音色，支持联网搜索和声音复刻。",
+    ctx: "262,144",
+    maxOutput: "65,536",
+    inputPrice: "¥7",
+    outputPrice: "¥40",
+    tags: ["旗舰", "最新", "全模态"],
+    features: ["音频输入", "音频输出", "视频输入", "图像理解", "联网搜索"],
+    isNew: true,
+    isFeatured: true,
+  },
+  {
+    id: "qwen3.5-omni-flash",
+    name: "Qwen3.5 Omni Flash",
+    desc: "轻量全模态模型，支持文本、图片、音频、视频任意组合输入与文本+语音输出。高性价比全模态之选。",
+    ctx: "262,144",
+    maxOutput: "65,536",
+    inputPrice: "¥2.2",
+    outputPrice: "¥13.3",
+    tags: ["推荐", "最新", "全模态"],
+    features: ["音频输入", "音频输出", "视频输入", "图像理解", "联网搜索"],
+    isNew: true,
+    isFeatured: true,
+  },
 ];
 
 export default function QwenModelsPage() {
@@ -101,7 +140,7 @@ export default function QwenModelsPage() {
         </div>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 700 }}>
           通义千问是阿里云自研的大语言模型。当前这里优先展示 Qwen3.6 与 Qwen3.5 系列，
-          它们覆盖长文本、函数调用、代码生成和复杂推理等常见生产场景。文本类模型可通过 OpenAI Chat、Anthropic Messages 和 Gemini-compatible 三类公共协议接入。
+          它们覆盖长文本、函数调用、代码生成和复杂推理等常见生产场景。文本类模型可通过 OpenAI Chat、Anthropic Messages 和 Responses API 三类公共协议接入。
         </p>
       </div>
 
@@ -113,7 +152,7 @@ export default function QwenModelsPage() {
           {[
             { href: "/docs/api/chat", label: "OpenAI Chat", endpoint: "/v1/chat/completions" },
             { href: "/docs/api/anthropic", label: "Anthropic Messages", endpoint: "/v1/messages" },
-            { href: "/docs/api/gemini", label: "Gemini-compatible", endpoint: "/v1beta/models/{model}:generateContent" },
+            { href: "/docs/api/responses", label: "Responses API", endpoint: "/v1/responses" },
           ].map((item) => (
             <Link key={item.label} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{item.label}</div>

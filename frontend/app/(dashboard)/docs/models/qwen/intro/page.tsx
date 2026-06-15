@@ -62,7 +62,13 @@ const modelFamilies = [
     name: "多模态系列",
     badge: "视觉理解",
     desc: "同时理解文本和图像的多模态模型，支持图片分析、OCR、图表解读、视觉问答等场景。VL Plus 适合高精度任务，VL Flash 适合实时图像处理。",
-    models: ["Qwen3 VL Plus", "Qwen3 VL Flash", "Qwen3 Omni Flash"],
+    models: ["Qwen3.7 Plus", "Qwen3 VL Plus", "Qwen3 VL Flash"],
+  },
+  {
+    name: "全模态系列",
+    badge: "音视频理解",
+    desc: "支持文本、图片、音频、视频任意组合输入，可输出文本与语音。Omni Plus 为旗舰级全模态能力，Omni Flash 为高性价比之选，支持113种输入语言和55种音色。",
+    models: ["Qwen3.5 Omni Plus", "Qwen3.5 Omni Flash", "Qwen3 Omni Flash"],
   },
 ];
 
@@ -120,7 +126,7 @@ const techHighlights = [
   },
   {
     title: "多协议兼容接入",
-    desc: "通过 nexusflow 统一接入，Qwen 文本类模型支持 OpenAI Chat、Anthropic Messages 和 Gemini-compatible 三种公共协议。已有 OpenAI、Anthropic 或 Google GenAI 客户端都可以按对应协议迁移。",
+    desc: "通过 nexusflow 统一接入，Qwen 文本类模型支持 OpenAI Chat、Anthropic Messages 和 Responses API 三种公共协议。已有 OpenAI 或 Anthropic 客户端都可以按对应协议迁移。",
   },
 ];
 
@@ -163,7 +169,7 @@ export default function QwenIntroPage() {
             阿里巴巴自研的大语言模型家族。从百万上下文旗舰到极速 Flash，从通用对话到代码专精，从纯文本到多模态——覆盖 AI 应用的全场景需求。
           </p>
           <p style={{ fontSize: 14, lineHeight: 1.7, margin: "0 0 28px", color: "rgba(148,163,184,0.7)", maxWidth: 600 }}>
-            中文能力业界领先，OpenAI / Anthropic / Gemini-compatible 三协议接入，从 ¥0.2/百万 Token 起步。
+            中文能力业界领先，OpenAI / Anthropic / Responses API 三协议接入，从 ¥0.2/百万 Token 起步。
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link href="/playground" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 12, background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", boxShadow: "0 4px 16px rgba(59,130,246,0.3)", transition: "all 0.2s" }}>

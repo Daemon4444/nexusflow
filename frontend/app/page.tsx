@@ -19,7 +19,7 @@ const fallbackModelRows = [
 const capabilities = [
   {
     title: "Unified API",
-    desc: "Use one OpenAI-compatible endpoint for chat, embeddings, image, video, Anthropic Messages and Gemini-compatible calls.",
+    desc: "Use one OpenAI-compatible endpoint for chat, embeddings, image, video, Anthropic Messages and Responses API calls.",
   },
   {
     title: "Billing Control",
@@ -49,6 +49,8 @@ const fallbackCarouselModels = [
   { name: "Qwen3.6 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥2 · Out ¥12", badge: "Popular", tone: "blue" },
   { name: "Qwen3.5 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.8 · Out ¥4.8", badge: "Balanced", tone: "blue" },
   { name: "Qwen3.5 Flash", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.2 · Out ¥2", badge: "Fast", tone: "teal" },
+  { name: "Qwen3.5 Omni Plus", provider: "Tongyi Qianwen", ctx: "262K omni", price: "In ¥7 · Out ¥40", badge: "Omni", tone: "violet" },
+  { name: "Qwen3.5 Omni Flash", provider: "Tongyi Qianwen", ctx: "262K omni", price: "In ¥2.2 · Out ¥13.3", badge: "Omni", tone: "violet" },
   { name: "Qwen VL Flash", provider: "Tongyi Qianwen", ctx: "262K vision", price: "In ¥0.15 · Out ¥1.5", badge: "Vision", tone: "violet" },
   { name: "Qwen Coder Flash", provider: "Tongyi Qianwen", ctx: "1M code", price: "In ¥1 · Out ¥4", badge: "Code", tone: "slate" },
   { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },

@@ -1,7 +1,7 @@
 # NexusFlow 全面优化 Spec
 
 ## Context
-NexusFlow（nexusflow.hk）是一个面向中国市场的 AI 模型聚合路由平台，用户通过一个 API Key 和一套计费体系访问 45+ 模型（Qwen、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse、Claude 等）。支持 OpenAI / Anthropic Messages / Gemini 三协议兼容。
+NexusFlow（nexusflow.hk）是一个面向中国市场的 AI 模型聚合路由平台，用户通过一个 API Key 和一套计费体系访问 45+ 模型（Qwen、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse、Claude 等）。支持 OpenAI Chat / Anthropic Messages / Responses API 三协议兼容。
 
 经过多轮迭代，核心 API 能力已 production-grade（PostgreSQL 事务计费、流式传输、折扣引擎、速率限制、支付宝集成、Admin 大盘）。前端功能全面（文档、Playground、定价、密钥、账单、Admin）。但在安全性、代码可维护性、用户体验和产品完整度上仍有明显短板。
 
@@ -356,7 +356,7 @@ process.on('SIGTERM', async () => {
 **vs OpenRouter 的优势：**
 - ✅ 中国供应商深度覆盖（DashScope 百炼聚合、HappyHorse、PixVerse、万相）
 - ✅ 视频生成模型（OpenRouter 无）
-- ✅ 三协议兼容（OpenRouter 仅 OpenAI）
+- ✅ 三协议兼容（OpenAI Chat / Anthropic Messages / Responses API；OpenRouter 仅 OpenAI）
 - ✅ 人民币定价 + 支付宝（中国用户体验更好）
 
 **vs OpenRouter 的差距（P1 可逐步补齐）：**

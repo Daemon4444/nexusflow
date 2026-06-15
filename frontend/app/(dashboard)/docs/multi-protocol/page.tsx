@@ -92,27 +92,62 @@ const anthropicStream = `with client.messages.stream(
     for text in stream.text_stream:
         print(text, end="")`;
 
-const geminiPython = `from google import genai
-from google.genai import types
+const responsesPython = `from openai import OpenAI
 
-client = genai.Client(
+client = OpenAI(
     api_key="sk-air-your-key",
-    http_options=types.HttpOptions(
-        api_version="v1beta",
-        base_url="${API_BASE}",
-    ),
+    base_url="${API_BASE}/v1",
 )
 
-response = client.models.generate_content(
-    model="qwen-turbo",
-    contents="Hello!",
+# 基本调用
+response = client.responses.create(
+    model="qwen3.7-plus",
+    input="你好！"
 )
-print(response.text)`;
+print(response.output_text)`;
+
+const responsesNode = `import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: "sk-air-your-key",
+  baseURL: "${API_BASE}/v1",
+});
+
+const response = await client.responses.create({
+  model: "qwen3.7-plus",
+  input: "你好！",
+});
+console.log(response.output_text);`;
+
+const responsesTools = `# 使用内置工具
+response = client.responses.create(
+    model="qwen3.7-plus",
+    input="帮我搜索今天的新闻",
+    tools=[
+        {"type": "web_search"},
+        {"type": "code_interpreter"},
+        {"type": "web_extractor"},
+    ],
+)
+print(response.output_text)`;
+
+const responsesMultiTurn = `# 多轮对话 — 通过 previous_response_id 关联上下文
+response1 = client.responses.create(
+    model="qwen3.7-plus",
+    input="我叫张三"
+)
+
+response2 = client.responses.create(
+    model="qwen3.7-plus",
+    input="你还记得我的名字吗？",
+    previous_response_id=response1.id
+)
+print(response2.output_text)`;
 
 const protocolBoundaryRows = [
   { name: "OpenAI Chat Completions", endpoint: "/v1/chat/completions", status: "已开放", note: "文本、推理、多模态、编程模型的默认推荐入口。" },
   { name: "Anthropic Messages", endpoint: "/v1/messages", status: "已开放", note: "兼容 Anthropic SDK 和 Messages 请求/流式事件格式。" },
-  { name: "Gemini-compatible GenerateContent", endpoint: "/v1beta/models/{model}:generateContent", status: "已开放", note: "兼容 Google GenAI / Gemini GenerateContent 请求格式。" },
+  { name: "Responses API", endpoint: "/v1/responses", status: "已开放", note: "内置联网搜索、代码解释器等工具，简化多轮对话上下文管理。" },
   { name: "OpenAI Image Generations", endpoint: "/v1/images/generations", status: "已开放", note: "图像生成的同步兼容入口；复杂图像/视频任务也可用 /v1/tasks。" },
   { name: "OpenAI Embeddings", endpoint: "/v1/embeddings", status: "已开放", note: "文本向量模型入口。" },
   { name: "NexusFlow Tasks", endpoint: "/v1/tasks", status: "已开放", note: "图像和视频异步任务统一入口。" },
@@ -121,6 +156,7 @@ const protocolBoundaryRows = [
 export default function MultiProtocolPage() {
   const [openaiLang, setOpenaiLang] = useState("python");
   const [anthropicLang, setAnthropicLang] = useState("python");
+  const [responsesLang, setResponsesLang] = useState("python");
 
   return (
     <div style={{ padding: "48px 64px", maxWidth: 920 }}>
@@ -136,9 +172,9 @@ export default function MultiProtocolPage() {
 
       <section style={{ marginBottom: 40 }}>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>
-          nexusflow 当前对外统一提供三类 public protocol：OpenAI、Anthropic Messages 和 Gemini-compatible GenerateContent。
+          nexusflow 当前对外统一提供三类 public protocol：OpenAI Chat Completions、Anthropic Messages 和 Responses API。
           这些协议在平台内通过兼容层接到同一套模型路由、计费和监控链路上，目标是让你可以继续使用熟悉的 SDK，同时不把供应商差异泄漏到业务侧。
-          Gemini-compatible 表示请求/响应格式兼容，不代表平台托管 Google 原生 Gemini 模型。
+          Responses API 提供内置工具（联网搜索、代码解释器等）和 previous_response_id 多轮上下文管理，适合复杂任务场景。
         </p>
       </section>
 
@@ -160,7 +196,7 @@ export default function MultiProtocolPage() {
                 { proto: "OpenAI Image Generations", endpoint: "/v1/images/generations", sdk: "OpenAI SDK", usage: "图像生成" },
                 { proto: "OpenAI Embeddings", endpoint: "/v1/embeddings", sdk: "OpenAI SDK", usage: "文本向量化" },
                 { proto: "Anthropic Messages", endpoint: "/v1/messages", sdk: "Anthropic SDK", usage: "文本对话、工具调用" },
-                { proto: "Gemini-compatible GenerateContent", endpoint: "/v1beta/models/{model}:generateContent", sdk: "Google GenAI SDK / HTTP", usage: "文本对话格式兼容" },
+                { proto: "Responses API", endpoint: "/v1/responses", sdk: "OpenAI SDK", usage: "内置工具、多轮上下文" },
               ].map((row, idx) => (
                 <tr key={row.proto} style={{ background: idx % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{row.proto}</td>
@@ -299,16 +335,38 @@ export default function MultiProtocolPage() {
 
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          Gemini-compatible 协议
+          Responses API
         </h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          提供 Google GenAI 风格的 <code style={{ fontFamily: "var(--font-mono)" }}>/v1beta/models/{"{model}"}:generateContent</code> 兼容入口，
-          适合需要沿用 Gemini SDK 的场景。路径中的 <code style={{ fontFamily: "var(--font-mono)" }}>model</code> 是 NexusFlow 模型 ID，
-          例如 <code style={{ fontFamily: "var(--font-mono)" }}>qwen-turbo</code>，不是 Google 原生 Gemini 模型名。
-          当前以 <code style={{ fontFamily: "var(--font-mono)" }}>generateContent</code> 与 <code style={{ fontFamily: "var(--font-mono)" }}>streamGenerateContent</code> 为主。
+          Responses API 相较于 Chat Completions 提供了更强大的能力：内置联网搜索、网页抓取、代码解释器等工具；
+          通过 <code style={{ fontFamily: "var(--font-mono)" }}>previous_response_id</code> 简化多轮对话上下文管理，无需手动构建完整消息历史。
+          使用 OpenAI SDK 的 <code style={{ fontFamily: "var(--font-mono)" }}>client.responses.create()</code> 即可调用。
         </p>
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>基本调用</h3>
+        <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+          {["python", "nodejs"].map((l) => (
+            <button key={l} onClick={() => setResponsesLang(l)} style={{
+              padding: "5px 14px", borderRadius: 4, border: "none", fontSize: 12, fontWeight: 500,
+              cursor: "pointer", background: responsesLang === l ? "#333" : "transparent",
+              color: responsesLang === l ? "#fff" : "var(--text-tertiary)",
+            }}>
+              {l === "python" ? "Python" : "Node.js"}
+            </button>
+          ))}
+        </div>
+        <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 24 }}>
+          <DocsCodeBlock code={responsesLang === "python" ? responsesPython : responsesNode} />
+        </div>
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>内置工具</h3>
+        <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 24 }}>
+          <DocsCodeBlock code={responsesTools} />
+        </div>
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>多轮对话</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
-          <DocsCodeBlock code={geminiPython} />
+          <DocsCodeBlock code={responsesMultiTurn} />
         </div>
       </section>
 
@@ -316,9 +374,9 @@ export default function MultiProtocolPage() {
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>协议选择建议</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
           {[
-            "如果你使用的是 DeepSeek、Qwen、GLM 等国产模型，推荐使用 OpenAI 协议，兼容性最好。",
+            "如果你使用的是 DeepSeek、Qwen、GLM 等国产模型，推荐使用 OpenAI Chat 协议，兼容性最好。",
             "如果你已经在用 Anthropic SDK，可以优先使用 /v1/messages，减少 SDK 迁移成本。",
-            "如果你的应用已经基于 Google GenAI SDK，可以使用 /v1beta/models/{model}:generateContent，但 model 仍然填写 NexusFlow 模型 ID。",
+            "如果你需要内置工具（联网搜索、代码解释器）或 previous_response_id 多轮上下文，使用 /v1/responses。",
             "在模型详情页查看 supported_protocols，确认该模型当前开放了哪些协议。",
           ].map((text, i) => (
             <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", borderRadius: 8, background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>

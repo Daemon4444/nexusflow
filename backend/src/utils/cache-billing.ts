@@ -56,18 +56,43 @@ export async function calculateOpenAiCacheAwareCost(params: {
   explicitCache: boolean;
 }): Promise<BillingResult> {
   const { promptTokens, completionTokens, cachedTokens, cacheCreationTokens } = getOpenAiPromptCacheUsage(params.usage);
-  const uncachedPromptTokens = Math.max(0, promptTokens - cachedTokens - cacheCreationTokens);
   const tier = getTokenPricingTier(params.model, promptTokens);
   const promptPrice = tier?.promptPrice ?? params.model.promptPrice;
   const completionPrice = tier?.completionPrice ?? params.model.completionPrice;
   const cacheReadMultiplier = params.explicitCache ? 0.1 : 0.2;
 
-  const listAmount = money(
-    (uncachedPromptTokens / 1_000_000) * promptPrice +
-    (cacheCreationTokens / 1_000_000) * promptPrice * 1.25 +
-    (cachedTokens / 1_000_000) * promptPrice * cacheReadMultiplier +
-    (completionTokens / 1_000_000) * completionPrice
-  );
+  // Modality split for omni models: DashScope returns audio/text token breakdown
+  // in *_tokens_details. When the model has audio prices and the request actually
+  // used audio tokens, bill audio separately; otherwise fall back to flat text rate.
+  const { audioInputPrice, audioOutputPrice } = params.model;
+  const promptDetails = params.usage?.prompt_tokens_details || {};
+  const completionDetails = params.usage?.completion_tokens_details || {};
+  const audioPromptTokens = (audioInputPrice && audioInputPrice > 0)
+    ? Math.min(toTokenCount(promptDetails.audio_tokens), promptTokens)
+    : 0;
+  const audioCompletionTokens = (audioOutputPrice && audioOutputPrice > 0)
+    ? Math.min(toTokenCount(completionDetails.audio_tokens), completionTokens)
+    : 0;
+
+  // Text/image/video input (non-audio) keeps the existing cache-aware text pricing.
+  const textPromptTokens = Math.max(0, promptTokens - audioPromptTokens);
+  const effCached = Math.min(cachedTokens, textPromptTokens);
+  const effCreation = Math.min(cacheCreationTokens, Math.max(0, textPromptTokens - effCached));
+  const uncachedTextPrompt = Math.max(0, textPromptTokens - effCached - effCreation);
+
+  const inputAmount =
+    (uncachedTextPrompt / 1_000_000) * promptPrice +
+    (effCreation / 1_000_000) * promptPrice * 1.25 +
+    (effCached / 1_000_000) * promptPrice * cacheReadMultiplier +
+    (audioPromptTokens / 1_000_000) * (audioInputPrice || 0);
+
+  // When audio is produced, official 百炼 pricing charges audio output and the
+  // text part of the mixed output is free; otherwise bill text output normally.
+  const outputAmount = audioCompletionTokens > 0
+    ? (audioCompletionTokens / 1_000_000) * (audioOutputPrice || 0)
+    : (completionTokens / 1_000_000) * completionPrice;
+
+  const listAmount = money(inputAmount + outputAmount);
 
   const discounted = await applyUserModelDiscount(params.userId, params.model.id, listAmount);
   return {

@@ -26,7 +26,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
 - **50+ 模型**: 涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成
 - **OpenAI 协议兼容**: 支持 OpenAI Chat Completions、Embeddings、Image Generations 协议
-- **多协议支持**: 同时支持 Anthropic Messages 和 Google Generate Content 协议
+- **多协议支持**: 同时支持 Anthropic Messages 和 OpenAI Responses API 协议
 - **统一计费**: 按 Token 或按生成数量计费，价格透明
 - **Playground 体验**: 提供可视化界面直接体验各模型能力
 
@@ -297,17 +297,17 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 
 ## 协议支持
 
-NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Messages、Gemini-compatible GenerateContent 和 NexusFlow Tasks。模型详情中的 `supported_protocols` 是用户可直接调用的协议来源。
+NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Messages、OpenAI Responses API 和 NexusFlow Tasks。模型详情中的 `supported_protocols` 是用户可直接调用的协议来源。
 
 ### 各类模型支持的协议
 
 | 模型类型 | 支持协议 |
 |----------|----------|
-| 大语言模型 | `openai/chat-completions`, `anthropic/messages`, `google/generate-content` |
-| 推理模型 | `openai/chat-completions`, `anthropic/messages`, `google/generate-content` |
-| 多模态模型 | `openai/chat-completions`, `anthropic/messages`, `google/generate-content` |
-| 编程模型 | `openai/chat-completions`, `anthropic/messages`, `google/generate-content` |
-| 专业模型 | `openai/chat-completions`, `anthropic/messages`, `google/generate-content` |
+| 大语言模型 | `openai/chat-completions`, `anthropic/messages`, `openai/responses` |
+| 推理模型 | `openai/chat-completions`, `anthropic/messages`, `openai/responses` |
+| 多模态模型 | `openai/chat-completions`, `anthropic/messages`, `openai/responses` |
+| 编程模型 | `openai/chat-completions`, `anthropic/messages`, `openai/responses` |
+| 专业模型 | `openai/chat-completions`, `anthropic/messages`, `openai/responses` |
 | 向量模型 | `openai/embeddings` |
 | 图像生成 | `openai/image-generations`, `nexusflow/tasks` |
 | 视频生成 | `nexusflow/tasks` |
@@ -330,6 +330,24 @@ Authorization: Bearer YOUR_API_KEY
   ]
 }
 ```
+
+### Responses API
+
+```
+POST /v1/responses
+Content-Type: application/json
+Authorization: Bearer YOUR_API_KEY
+
+{
+  "model": "qwen3-max",
+  "input": "搜索最新 LLM 新闻并总结",
+  "tools": [{"type": "web_search"}],
+  "previous_response_id": "resp_abc123",
+  "store": true
+}
+```
+
+支持的内置工具：`web_search`、`web_extractor`、`code_interpreter`、`web_search_image`、`image_search`、`file_search`、`mcp`。已存储响应可通过 `GET /v1/responses/:id`、`DELETE /v1/responses/:id`、`GET /v1/responses/:id/input_items` 进行管理。
 
 ### 向量 API
 

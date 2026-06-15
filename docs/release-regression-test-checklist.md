@@ -523,14 +523,18 @@ Verify:
 - Multimodal content is either supported or rejected cleanly.
 - Usage and billing are recorded.
 
-### 9.3 Gemini Compatible
+### 9.3 Responses API
 
 Verify:
 
-- `POST /v1beta/models/:model:generateContent`
-- Streaming variant if available.
-- Query-string API key and header-based auth behavior are correct.
-- Billing and usage are recorded consistently with the rest of the system.
+- `POST /v1/responses` (non-streaming and streaming variants).
+- Built-in tools work end-to-end: `web_search`, `web_extractor`, `code_interpreter`, `web_search_image`, `image_search`, `file_search`, `mcp`.
+- `previous_response_id` correctly chains a follow-up turn to a prior stored response.
+- `store: true` persists the response and `store: false` does not.
+- `GET /v1/responses/:id` returns the stored response when `store: true` was used.
+- `DELETE /v1/responses/:id` removes the stored response and subsequent reads return `404`.
+- `GET /v1/responses/:id/input_items` returns the original input items for a stored response.
+- Authentication and billing/usage are recorded consistently with the rest of the system.
 
 ## 10. Admin Operations And Provider Controls
 

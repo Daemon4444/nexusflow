@@ -7,9 +7,9 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
-  { id: "glm-5.1", context: "131K", input: 6, output: 24, desc: "GLM-5.1 增强版旗舰" },
-  { id: "glm-5", context: "131K", input: 4, output: 18, desc: "GLM-5 旗舰模型" },
-  { id: "glm-4.7", context: "131K", input: 3, output: 14, desc: "GLM-4.7 通用模型" },
+  { id: "glm-5.1", context: "198K", input: 6, output: 24, desc: "GLM-5.1 增强版旗舰" },
+  { id: "glm-5", context: "198K", input: 4, output: 18, desc: "GLM-5 旗舰模型" },
+  { id: "glm-4.7", context: "166K", input: 3, output: 14, desc: "GLM-4.7 通用模型" },
 ];
 
 const curlExample = `curl ${API_BASE}/v1/chat/completions \\
@@ -73,21 +73,14 @@ const protocolCurlExamples = [
   }'`,
   },
   {
-    title: "Gemini-compatible GenerateContent",
-    endpoint: "/v1beta/models/glm-5.1:generateContent",
-    code: `curl -X POST '${API_BASE}/v1beta/models/glm-5.1:generateContent' \\
-  -H "x-goog-api-key: $API_KEY" \\
+    title: "Responses API",
+    endpoint: "/v1/responses",
+    code: `curl ${API_BASE}/v1/responses \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "contents": [
-      {
-        "role": "user",
-        "parts": [{"text": "只回复 OK"}]
-      }
-    ],
-    "generationConfig": {
-      "maxOutputTokens": 8
-    }
+    "model": "glm-5.1",
+    "input": "只回复 OK"
   }'`,
   },
 ];
@@ -108,7 +101,7 @@ export default function GLMApiPage() {
           GLM 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          智谱 AI GLM 系列大模型，中文理解力强，综合能力优秀。GLM 文本类模型可通过 OpenAI Chat Completions、Anthropic Messages 和 Gemini-compatible GenerateContent 三类公共协议调用。
+          智谱 AI GLM 系列大模型，中文理解力强，综合能力优秀。GLM 文本类模型可通过 OpenAI Chat Completions、Anthropic Messages 和 Responses API 三类公共协议调用。
         </p>
       </div>
 
@@ -123,7 +116,7 @@ export default function GLMApiPage() {
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
           这是默认示例端点。多协议调用方式见 <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>多协议支持</Link>、
           <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> 和
-          <Link href="/docs/api/gemini" style={{ color: "var(--accent)" }}> Gemini-compatible</Link>。
+          <Link href="/docs/api/responses" style={{ color: "var(--accent)" }}> Responses API</Link>。
         </p>
       </section>
 

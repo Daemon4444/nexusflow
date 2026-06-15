@@ -6,21 +6,19 @@ import Link from "next/link";
 
 const API_BASE = "https://nexusflow.hk";
 
-type ModelTabKey = "llm" | "reasoning" | "vision" | "coding";
-type CodeTabKey = "basic" | "reasoning" | "vision" | "coding";
+type ModelTabKey = "llm" | "reasoning" | "vision";
+type CodeTabKey = "basic" | "reasoning" | "vision";
 
 const modelTabs: { key: ModelTabKey; label: string }[] = [
   { key: "llm", label: "大语言" },
   { key: "reasoning", label: "推理" },
   { key: "vision", label: "视觉" },
-  { key: "coding", label: "编程" },
 ];
 
 const codeTabs: { key: CodeTabKey; label: string }[] = [
   { key: "basic", label: "基础对话" },
   { key: "reasoning", label: "推理模式" },
   { key: "vision", label: "视觉理解" },
-  { key: "coding", label: "编程" },
 ];
 
 const qwenProtocols = [
@@ -37,18 +35,18 @@ const qwenProtocols = [
     usage: "适合复用 Anthropic SDK 或 Messages 格式；model 仍填写 NexusFlow 的 Qwen 模型 ID。",
   },
   {
-    protocol: "Gemini-compatible GenerateContent",
-    endpoint: "/v1beta/models/{model}:generateContent",
+    protocol: "Responses API",
+    endpoint: "/v1/responses",
     status: "已开放",
-    usage: "适合已有 Google GenAI / Gemini HTTP 调用迁移；路径里的 model 是 NexusFlow 模型 ID。",
+    usage: "内置联网搜索、代码解释器等工具，支持 previous_response_id 多轮上下文。",
   },
 ];
 
 const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string; output: string }[]> = {
   llm: [
     { id: "qwen3.7-max", ctx: "1M", input: "¥12/M", output: "¥36/M" },
-    { id: "qwen3-max", ctx: "262K", input: "¥2.5/M", output: "¥10/M" },
-    { id: "qwen3.6-max-preview", ctx: "262K", input: "¥9/M", output: "¥54/M" },
+    { id: "qwen3-max", ctx: "256K", input: "¥2.5/M", output: "¥10/M" },
+    { id: "qwen3.6-max-preview", ctx: "256K", input: "¥9/M", output: "¥54/M" },
     { id: "qwen3.6-plus", ctx: "1M", input: "¥2/M", output: "¥12/M" },
     { id: "qwen3.6-flash", ctx: "1M", input: "¥1.2/M", output: "¥7.2/M" },
     { id: "qwen3.5-plus", ctx: "1M", input: "¥0.8/M", output: "¥4.8/M" },
@@ -57,18 +55,18 @@ const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string;
     { id: "qwen-turbo", ctx: "1M", input: "¥0.3/M", output: "¥0.6/M" },
   ],
   reasoning: [
-    { id: "qwq-plus", ctx: "131K", input: "¥1.6/M", output: "¥4/M" },
+    { id: "qwq-plus", ctx: "128K", input: "¥1.6/M", output: "¥4/M" },
     { id: "qwen-math-plus", ctx: "4K", input: "¥4/M", output: "¥12/M" },
   ],
   vision: [
-    { id: "qwen-vl-max", ctx: "131K", input: "¥1.6/M", output: "¥4/M" },
-    { id: "qwen-vl-plus", ctx: "131K", input: "¥0.8/M", output: "¥2/M" },
-    { id: "qwen3-vl-plus", ctx: "262K", input: "¥1/M", output: "¥10/M" },
-    { id: "qwen3-vl-flash", ctx: "262K", input: "¥0.15/M", output: "¥1.5/M" },
-  ],
-  coding: [
-    { id: "qwen3-coder-plus", ctx: "1M", input: "¥4/M", output: "¥16/M" },
-    { id: "qwen3-coder-flash", ctx: "1M", input: "¥1/M", output: "¥4/M" },
+    { id: "qwen3.5-omni-plus", ctx: "256K", input: "¥7/M", output: "¥40/M" },
+    { id: "qwen3.5-omni-flash", ctx: "256K", input: "¥2.2/M", output: "¥13.3/M" },
+    { id: "qwen3-omni-flash", ctx: "64K", input: "¥1.8/M", output: "¥6.9/M" },
+    { id: "qwen3.7-plus", ctx: "1M", input: "¥2/M", output: "¥8/M" },
+    { id: "qwen-vl-max", ctx: "128K", input: "¥1.6/M", output: "¥4/M" },
+    { id: "qwen-vl-plus", ctx: "128K", input: "¥0.8/M", output: "¥2/M" },
+    { id: "qwen3-vl-plus", ctx: "256K", input: "¥1/M", output: "¥10/M" },
+    { id: "qwen3-vl-flash", ctx: "256K", input: "¥0.15/M", output: "¥1.5/M" },
   ],
 };
 
@@ -111,18 +109,6 @@ const curlExamples: Record<CodeTabKey, string> = {
       }
     ],
     "max_tokens": 1000
-  }'`,
-  coding: `curl -X POST '${API_BASE}/v1/chat/completions' \\
-  -H "Authorization: Bearer $API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "model": "qwen3-coder-plus",
-    "messages": [
-      {"role": "system", "content": "你是一个资深软件工程师，擅长编写高质量代码。"},
-      {"role": "user", "content": "用 TypeScript 实现一个支持过期时间的 LRU 缓存类"}
-    ],
-    "temperature": 0.3,
-    "max_tokens": 4000
   }'`,
 };
 
@@ -185,24 +171,6 @@ response = client.chat.completions.create(
 )
 
 print(response.choices[0].message.content)`,
-  coding: `from openai import OpenAI
-
-client = OpenAI(
-    api_key="sk-air-your-key",
-    base_url="${API_BASE}/v1",
-)
-
-response = client.chat.completions.create(
-    model="qwen3-coder-plus",
-    messages=[
-        {"role": "system", "content": "你是一个资深软件工程师，擅长编写高质量代码。"},
-        {"role": "user", "content": "用 TypeScript 实现一个支持过期时间的 LRU 缓存类"},
-    ],
-    temperature=0.3,
-    max_tokens=4000,
-)
-
-print(response.choices[0].message.content)`,
 };
 
 const protocolCurlExamples = [
@@ -236,21 +204,14 @@ const protocolCurlExamples = [
   }'`,
   },
   {
-    title: "Gemini-compatible GenerateContent",
-    endpoint: "/v1beta/models/qwen3.5-flash:generateContent",
-    code: `curl -X POST '${API_BASE}/v1beta/models/qwen3.5-flash:generateContent' \\
-  -H "x-goog-api-key: $API_KEY" \\
+    title: "Responses API",
+    endpoint: "/v1/responses",
+    code: `curl ${API_BASE}/v1/responses \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "contents": [
-      {
-        "role": "user",
-        "parts": [{"text": "只回复 OK"}]
-      }
-    ],
-    "generationConfig": {
-      "maxOutputTokens": 8
-    }
+    "model": "qwen3.5-flash",
+    "input": "只回复 OK"
   }'`,
   },
 ];
@@ -275,7 +236,7 @@ export default function QwenDocsPage() {
           Qwen 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          Qwen 文本、推理、视觉理解和编程模型可通过 NexusFlow 的三类公共兼容协议调用：OpenAI Chat Completions、Anthropic Messages、Gemini-compatible GenerateContent。下方请求示例默认使用 OpenAI Chat，因为它覆盖能力最完整、迁移成本最低。
+          Qwen 文本、推理、视觉理解和编程模型可通过 NexusFlow 的三类公共兼容协议调用：OpenAI Chat Completions、Anthropic Messages、Responses API。下方请求示例默认使用 OpenAI Chat，因为它覆盖能力最完整、迁移成本最低。
         </p>
       </div>
 
@@ -560,7 +521,7 @@ export default function QwenDocsPage() {
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         {[
           { href: "/docs/quickstart", label: "快速开始", desc: "5 分钟完成首次 API 调用" },
-          { href: "/docs/multi-protocol", label: "多协议接入", desc: "查看 OpenAI / Anthropic / Gemini 兼容说明" },
+          { href: "/docs/multi-protocol", label: "多协议接入", desc: "查看 OpenAI / Anthropic / Responses 兼容说明" },
           { href: "/docs/api/chat", label: "Chat Completions", desc: "查看默认对话接口文档" },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>

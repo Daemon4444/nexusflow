@@ -419,7 +419,7 @@ export default function VideosApiPage() {
   "type": "video",
   "progress": 100,
   "output": {
-    "video_url": "https://dashscope-result.oss-cn-beijing.aliyuncs.com/xxx.mp4"
+    "video_url": "https://nexusflow.hk/storage/xxx.mp4"
   },
   "created_at": "2026-06-01T10:00:00.000Z",
   "completed_at": "2026-06-01T10:02:36.000Z"

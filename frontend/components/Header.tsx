@@ -61,10 +61,17 @@ export default function Header() {
         WebkitBackdropFilter: "blur(20px) saturate(1.8)",
         borderBottom: "1px solid var(--border)",
       }}>
-        {/* Logo */}
-        <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none", marginRight: 32, flexShrink: 0 }}>
-          <NexusflowLogo size={15} color="var(--text-primary)" />
-        </Link>
+        {pathname === "/dashboard" && (
+          <div className="quiet-console-breadcrumb">
+            <span>Workspace</span><b>/</b><strong>Console</strong>
+          </div>
+        )}
+        {/* Logo — hidden in console pages where sidebar already shows branding */}
+        {!inConsole && (
+          <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none", marginRight: 32, flexShrink: 0 }}>
+            <NexusflowLogo size={15} color="var(--text-primary)" />
+          </Link>
+        )}
 
         {/* Main Nav - hidden on mobile */}
         <nav className="header-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -93,8 +100,15 @@ export default function Header() {
           })}
         </nav>
 
+        {pathname === "/dashboard" && (
+          <Link href="/models" className="quiet-console-search">
+            <span>⌕</span> Search models and docs...
+            <kbd>⌘ K</kbd>
+          </Link>
+        )}
+
         {/* Right Section */}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, flexShrink: 0, overflow: "hidden" }}>
           {/* Status indicator */}
           <Link href="/monitor" className="header-status" style={{ display: "flex", alignItems: "center", gap: 6, marginRight: 8, textDecoration: "none" }}>
             <div className="status-dot" />
@@ -222,7 +236,7 @@ export default function Header() {
                   }}>
                     {user.nickname.slice(0, 2)}
                   </div>
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)", maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {user.nickname}
                   </span>
                 </div>

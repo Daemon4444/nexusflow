@@ -20,7 +20,6 @@ const providers: ProviderItem[] = [
       { href: "/docs/api/qwen", label: "对话补全" },
       { href: "/docs/api/qwen?tab=reasoning", label: "推理模型" },
       { href: "/docs/api/qwen?tab=multimodal", label: "多模态" },
-      { href: "/docs/api/qwen?tab=coding", label: "编程模型" },
       { href: "/docs/api/embeddings", label: "文本向量" },
       { href: "/docs/api/images", label: "图像生成" },
       { href: "/docs/api/videos", label: "视频生成" },
@@ -85,15 +84,17 @@ const providers: ProviderItem[] = [
   },
 ];
 
-const apiRefLinks = [
+const apiProtocolLinks = [
   { href: "/docs/api/chat", label: "Chat Completions" },
-  { href: "/docs/context-cache", label: "上下文缓存" },
-  { href: "/docs/api/parameters", label: "参数详解" },
-  { href: "/docs/api/cache", label: "上下文缓存" },
-  { href: "/docs/api/embeddings", label: "Embeddings" },
-  { href: "/docs/api/tasks", label: "Async Tasks (图像/视频)" },
   { href: "/docs/api/anthropic", label: "Anthropic Messages" },
-  { href: "/docs/api/gemini", label: "Gemini GenerateContent" },
+  { href: "/docs/api/responses", label: "Responses API" },
+];
+
+const apiOtherLinks = [
+  { href: "/docs/api/parameters", label: "参数详解" },
+  { href: "/docs/api/embeddings", label: "Embeddings" },
+  { href: "/docs/context-cache", label: "上下文缓存" },
+  { href: "/docs/api/tasks", label: "异步任务 (图像/视频)" },
   { href: "/docs/api/errors", label: "错误码" },
   { href: "/docs/api/limits", label: "限流说明" },
 ];
@@ -155,7 +156,7 @@ function ProviderSection({
   // 只有一个子项时直接作为链接
   if (provider.children.length === 1) {
     const child = provider.children[0];
-    const isActive = fullUrl === child.href || pathname === child.href.split("?")[0];
+    const isActive = fullUrl === child.href;
     return (
       <Link
         href={child.href}
@@ -205,7 +206,7 @@ function ProviderSection({
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 1, paddingLeft: 16, marginTop: 2 }}>
           {provider.children.map((child) => {
-            const isActive = fullUrl === child.href || pathname === child.href.split("?")[0];
+            const isActive = fullUrl === child.href;
             return (
               <Link
                 key={child.href}
@@ -291,7 +292,10 @@ function DocsNav() {
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
             API 参考
           </div>
-          {apiRefLinks.map((item) => {
+          <div style={{ padding: "6px 10px 4px", fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", marginTop: 4 }}>
+            协议
+          </div>
+          {apiProtocolLinks.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -299,12 +303,39 @@ function DocsNav() {
                 href={item.href}
                 style={{
                   display: "block",
-                  padding: "8px 12px",
+                  padding: "6px 12px 6px 20px",
                   fontSize: 13,
                   color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
                   fontWeight: isActive ? 600 : 400,
                   textDecoration: "none",
                   borderRadius: 6,
+                  borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+                  background: isActive ? "var(--bg-elevated)" : "transparent",
+                  transition: "all 0.15s",
+                }}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+          <div style={{ padding: "10px 10px 4px", fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)" }}>
+            通用
+          </div>
+          {apiOtherLinks.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  display: "block",
+                  padding: "6px 12px 6px 20px",
+                  fontSize: 13,
+                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                  fontWeight: isActive ? 600 : 400,
+                  textDecoration: "none",
+                  borderRadius: 6,
+                  borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
                   background: isActive ? "var(--bg-elevated)" : "transparent",
                   transition: "all 0.15s",
                 }}

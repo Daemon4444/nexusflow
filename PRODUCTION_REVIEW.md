@@ -19,13 +19,13 @@ This document records the production review and live test findings for `nexusflo
 - `/api/models` returns `supported_protocols` for each model; chat-class Qwen, DeepSeek and GLM models expose:
   - `openai/chat-completions`
   - `anthropic/messages`
-  - `google/generate-content`
+  - `openai/responses`
 
 ### Live Protocol Test
 
 All tests used minimal prompts against production `https://nexusflow.hk` and returned HTTP 200:
 
-| Family | Model | OpenAI Chat | Anthropic Messages | Gemini-compatible |
+| Family | Model | OpenAI Chat | Anthropic Messages | Responses API |
 | --- | --- | --- | --- | --- |
 | Qwen | `qwen3.5-flash` | PASS | PASS | PASS |
 | DeepSeek | `deepseek-v4-flash` | PASS | PASS | PASS |
@@ -51,7 +51,7 @@ Observed caveat: even with `max_tokens` / `maxOutputTokens` set low, several mod
 ### Documentation Corrections
 
 - Removed public documentation rows that advertised routes not exposed by the NexusFlow public gateway.
-- Qwen API docs now list only the three currently open public text protocols and include cURL examples for OpenAI Chat, Anthropic Messages and Gemini-compatible GenerateContent.
+- Qwen API docs now list only the three currently open public text protocols and include cURL examples for OpenAI Chat, Anthropic Messages and the OpenAI Responses API (`POST /v1/responses` with built-in tools `web_search`/`web_extractor`/`code_interpreter`/`file_search`/`image_search`/`web_search_image`/`mcp`, `previous_response_id` multi-turn, and `store=true/false`).
 - DeepSeek and GLM API docs now explicitly include the same three protocol examples.
 - README, WIKI, wiki and MODELS docs now describe only callable public protocols and point users to `supported_protocols` as the source of truth.
 
@@ -60,12 +60,12 @@ Observed caveat: even with `max_tokens` / `maxOutputTokens` set low, several mod
 - Balance mutation uses transactions and `SELECT ... FOR UPDATE`, so the main consumption path is protected against concurrent double-spend races.
 - Money fields were migrated from `REAL` to `NUMERIC(18, 6)` in `002_money_numeric.sql`: `users.balance`, `transactions.amount`, `transactions.balance_after`, and `usage_logs.cost`. `tpot_ms` remains non-money telemetry.
 - API keys now validate through `key_hash`, and the stored `key` value is masked for newly created keys. The compatibility query still checks both `key_hash` and `key`; after confirming no legacy plaintext keys remain, remove the plaintext fallback and make `key_hash` required.
-- `backend/src/routes/messages.ts` and `backend/src/routes/protocols.ts` both contain Anthropic Messages handling, but `messages.ts` is mounted first and is the active production route for `/v1/messages`. This duplication is maintainability risk and should be consolidated.
+- The OpenAI Responses API is implemented in `backend/src/routes/responses.ts` (mounted at `/v1/responses`) and provides built-in tools (`web_search`, `web_extractor`, `code_interpreter`, `file_search`, `image_search`, `web_search_image`, `mcp`), `previous_response_id` multi-turn chaining, and response storage (`store=true/false`) with `GET /v1/responses/:id`, `DELETE /v1/responses/:id`, and `GET /v1/responses/:id/input_items` for retrieval.
 
 ## Scope
 
 - Live login with `2472843658@qq.com`
-- Session, account, billing, API key, model call, streaming, Anthropic-compatible API, Gemini-compatible API, upload, payment configuration, public pages, auth boundaries
+- Session, account, billing, API key, model call, streaming, Anthropic-compatible API, OpenAI Responses API, upload, payment configuration, public pages, auth boundaries
 - Static code review for payment, auth, API key handling, upload, model pricing, routing, and production hardening
 
 ## Confirmed Working
@@ -89,7 +89,7 @@ Observed caveat: even with `max_tokens` / `maxOutputTokens` set low, several mod
   - OpenAI non-streaming: 16 tokens, billed about `0.000005`
   - OpenAI streaming: 16 tokens, billed about `0.000005`
   - Anthropic `/v1/messages`: 16 tokens, billed about `0.000005`
-- Gemini `/v1beta/models/qwen-turbo:generateContent` returned a Next.js 404 before this patch series.
+- The Responses API is now exposed at `POST /v1/responses` (see `backend/src/routes/responses.ts`) with built-in tools, `previous_response_id` multi-turn, and `store=true/false` storage management.
 
 ## P0 Issues
 
@@ -150,7 +150,7 @@ Observed caveat: even with `max_tokens` / `maxOutputTokens` set low, several mod
 - Production email-code test mode is disabled when SMTP is missing.
 - API keys are hashed for validation and listed as masked values; the full key is only returned on creation.
 - Uploads now require a session token or API key.
-- Basic security headers and `/v1beta` proxying were added.
+- Basic security headers were added; the OpenAI Responses API was introduced at `/v1/responses` with built-in tools, multi-turn `previous_response_id`, and response storage.
 - Default rate limits were reduced to `60 QPM / 100,000 TPM`.
 - Ticket creation now requires a useful title and description.
 - Balance display now rounds main currency values to two decimals while preserving precise values in transaction detail views.

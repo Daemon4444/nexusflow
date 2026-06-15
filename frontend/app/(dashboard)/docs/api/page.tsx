@@ -58,19 +58,22 @@ const endpoints: ApiEndpoint[] = [
   },
   {
     method: "POST",
-    path: "/v1beta/models/{model}:generateContent",
-    desc: "Gemini GenerateContent 兼容接口，适合已有 Gemini SDK 迁移",
-    href: "/docs/api/gemini",
+    path: "/v1/responses",
+    desc: "Responses API，支持内置工具（联网搜索、代码解释器等）和多轮上下文管理",
+    href: "/docs/api/responses",
     params: [
-      { name: "model", type: "path string", required: true, desc: "NexusFlow 模型 ID，如 qwen3.6-plus" },
-      { name: "contents", type: "array", required: true, desc: "Gemini contents 消息数组" },
-      { name: "generationConfig", type: "object", required: false, desc: "生成参数，如 maxOutputTokens、temperature" },
+      { name: "model", type: "string", required: true, desc: "模型 ID，如 qwen3.7-plus" },
+      { name: "input", type: "string/array", required: true, desc: "纯文本或消息数组" },
+      { name: "stream", type: "boolean", required: false, desc: "是否开启流式输出" },
+      { name: "tools", type: "array", required: false, desc: "工具列表（web_search、code_interpreter 等）" },
+      { name: "previous_response_id", type: "string", required: false, desc: "上一轮响应 ID，用于多轮对话" },
     ],
-    example: `curl "https://nexusflow.hk/v1beta/models/qwen3.6-plus:generateContent?key=$API_KEY" \\
+    example: `curl https://nexusflow.hk/v1/responses \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "contents": [{"parts": [{"text": "你好！"}]}],
-    "generationConfig": {"maxOutputTokens": 1024}
+    "model": "qwen3.7-plus",
+    "input": "你好！"
   }'`,
   },
   {
@@ -133,20 +136,20 @@ const endpoints: ApiEndpoint[] = [
 ];
 
 const features = [
-  { title: "三协议兼容", desc: "OpenAI、Anthropic Messages、Gemini-compatible 共用一套 Key、计费和监控。" },
+  { title: "三协议兼容", desc: "OpenAI Chat、Anthropic Messages、Responses API 共用一套 Key、计费和监控。" },
   { title: "流式响应", desc: "聊天接口支持 SSE 流式输出，适合实时交互和低等待感体验。" },
   { title: "异步任务", desc: "图像与视频统一走任务接口，适合高时延和高并发场景。" },
   { title: "上线前校验", desc: "配合限流、错误码和监控页，帮助你在生产前识别流量风险。" },
 ];
 
 const protocolCards = [
-  { title: "OpenAI", href: "/docs/api/chat", endpoint: "/v1/chat/completions", desc: "默认推荐，兼容 OpenAI SDK。" },
+  { title: "OpenAI Chat", href: "/docs/api/chat", endpoint: "/v1/chat/completions", desc: "默认推荐，兼容 OpenAI SDK。" },
   { title: "Anthropic Messages", href: "/docs/api/anthropic", endpoint: "/v1/messages", desc: "复用 Anthropic SDK 和 Messages 格式。" },
-  { title: "Gemini-compatible", href: "/docs/api/gemini", endpoint: "/v1beta/models/{model}:generateContent", desc: "复用 Gemini GenerateContent 格式。" },
+  { title: "Responses API", href: "/docs/api/responses", endpoint: "/v1/responses", desc: "内置联网搜索、代码解释器，简化多轮上下文管理。" },
 ];
 
 const protocolBoundary = [
-  ["已开放", "OpenAI Chat / Anthropic Messages / Gemini-compatible", "文本、推理、视觉理解、编程和专业模型按 supported_protocols 调用。"],
+  ["已开放", "OpenAI Chat / Anthropic Messages / Responses API", "文本、推理、视觉理解、编程和专业模型按 supported_protocols 调用。"],
   ["已开放", "OpenAI Embeddings / Image Generations / NexusFlow Tasks", "向量、图像和视频模型按能力使用对应接口。"],
 ];
 
@@ -167,7 +170,7 @@ export default function ApiOverviewPage() {
         API 参考
       </h1>
       <p style={{ fontSize: 15, color: "#666", marginBottom: 40, lineHeight: 1.7 }}>
-        nexusflow 的接入逻辑分成三类兼容协议和一套异步任务接口。OpenAI、Anthropic Messages、Gemini-compatible 请求都会接入同一套模型路由、计费和监控链路。
+        nexusflow 的接入逻辑分成三类兼容协议和一套异步任务接口。OpenAI Chat、Anthropic Messages、Responses API 请求都会接入同一套模型路由、计费和监控链路。
       </p>
 
       <section style={{ marginBottom: 48 }}>
@@ -235,7 +238,7 @@ export default function ApiOverviewPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
           {[
             { title: "Chat", desc: "默认使用 `/v1/chat/completions`，兼容 OpenAI SDK。" },
-            { title: "Protocol", desc: "已有 Anthropic 或 Gemini 客户端时，直接使用对应兼容入口。" },
+            { title: "Protocol", desc: "已有 Anthropic 客户端或需要 Responses API 格式时，直接使用对应兼容入口。" },
             { title: "Tasks", desc: "图像、视频模型优先使用 `/v1/tasks` 与 `/v1/tasks/:id`；图像也支持 OpenAI 风格 `/v1/images/generations`。" },
           ].map((item) => (
             <div key={item.title} style={{ padding: 18, background: "#fafafa", borderRadius: 10, border: "1px solid #eee" }}>

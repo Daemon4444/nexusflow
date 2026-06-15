@@ -3,11 +3,23 @@ import { getAllowedChatParameters, getModelCapabilities } from "./model-capabili
 
 export function buildUpstreamChatRequest(model: AIModel, body: any, options: { forceStream?: boolean } = {}): any {
   const allowed = new Set(getAllowedChatParameters(model));
+  const capabilities = getModelCapabilities(model);
+
+  const wantsAudioOutput = Array.isArray(body.modalities) && body.modalities.includes("audio");
+  const forceStream = !!options.forceStream || wantsAudioOutput;
+
   const requestBody: any = {
     model: body.model,
     messages: body.messages,
-    stream: !!body.stream || !!options.forceStream,
+    stream: !!body.stream || forceStream,
   };
+
+  if (Array.isArray(body.modalities) && body.modalities.length > 0) {
+    requestBody.modalities = body.modalities;
+  }
+  if (body.audio && typeof body.audio === "object") {
+    requestBody.audio = body.audio;
+  }
 
   for (const key of [
     "temperature",
@@ -37,7 +49,6 @@ export function buildUpstreamChatRequest(model: AIModel, body: any, options: { f
     }
   }
 
-  const capabilities = getModelCapabilities(model);
   if (body.enable_thinking !== undefined) {
     if (capabilities.supports_enable_thinking) {
       requestBody.enable_thinking = body.enable_thinking;

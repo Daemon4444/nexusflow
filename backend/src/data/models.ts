@@ -18,6 +18,8 @@ export interface AIModel {
   contextLength: number;
   promptPrice: number;   // per 1M tokens (CNY) for text; base price for media
   completionPrice: number; // per 1M tokens (CNY) for text; 0 for media
+  audioInputPrice?: number;  // per 1M tokens (CNY) for audio input (omni models); falls back to promptPrice if unset
+  audioOutputPrice?: number; // per 1M tokens (CNY) for audio output (omni models); text output is free when audio is produced
   pricingType?: "token" | "per-image" | "per-second"; // default: "token"
   pricingTiers?: PricingTier[];  // resolution-based pricing for video/image
   tokenPricingTiers?: TokenPricingTier[]; // input-token-based tier pricing for text models
@@ -316,7 +318,7 @@ export const models: AIModel[] = [
     category: "推理模型",
     tags: ["推理", "数学", "逻辑", "思考链"],
     isFeatured: true,
-    maxOutput: 16384,
+    maxOutput: 8192,
     supported: ["文本", "思考链"]
   },
 
@@ -387,18 +389,52 @@ export const models: AIModel[] = [
   },
   // ========== 全能模型 ==========
   {
+    id: "qwen3.5-omni-plus",
+    name: "Qwen3.5 Omni Plus",
+    provider: "通义千问",
+    description: "通义千问3.5代旗舰全模态模型，支持文本、图片、音频、视频任意组合输入，可输出文本与语音。3小时音频/1小时视频输入，113种输入语言，55种音色，支持联网搜索和声音复刻。",
+    contextLength: 262144,
+    promptPrice: 7,
+    completionPrice: 40,
+    audioInputPrice: 53,
+    audioOutputPrice: 213,
+    category: "多模态模型",
+    tags: ["旗舰", "全能", "多模态", "音频输入", "音频输出", "视频输入", "联网搜索"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 65536,
+    supported: ["文本", "图像输入", "音频输入", "音频输出", "视频输入", "联网搜索"]
+  },
+  {
+    id: "qwen3.5-omni-flash",
+    name: "Qwen3.5 Omni Flash",
+    provider: "通义千问",
+    description: "通义千问3.5代轻量全模态模型，支持文本、图片、音频、视频任意组合输入与文本+语音输出。3小时音频/1小时视频输入，113种输入语言，55种音色，支持联网搜索。高性价比之选。",
+    contextLength: 262144,
+    promptPrice: 2.2,
+    completionPrice: 13.3,
+    audioInputPrice: 18,
+    audioOutputPrice: 72,
+    category: "多模态模型",
+    tags: ["高性价比", "全能", "多模态", "音频输入", "音频输出", "视频输入", "联网搜索"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 65536,
+    supported: ["文本", "图像输入", "音频输入", "音频输出", "视频输入", "联网搜索"]
+  },
+  {
     id: "qwen3-omni-flash",
     name: "Qwen3 Omni Flash",
     provider: "通义千问",
-    description: "通义千问3代全能模型，接收文本、图片、视频等多种模态输入，适合复杂多模态理解场景。",
+    description: "通义千问3代全能模型，支持文本、图片、音频、视频输入与文本+语音输出。支持思考模式（思考模式下仅文本输出）。适合短视频分析与成本敏感场景。",
     contextLength: 65536,
     promptPrice: 1.8,
     completionPrice: 6.9,
     category: "多模态模型",
-    tags: ["全能", "多模态", "视频输入"],
-    isNew: true,
-    maxOutput: 8192,
-    supported: ["文本", "图像输入", "视频输入"]
+    tags: ["全能", "多模态", "音频输入", "音频输出", "视频输入", "思考模式"],
+    isNew: false,
+    maxOutput: 16384,
+    supported: ["文本", "图像输入", "音频输入", "音频输出", "视频输入", "思考模式"]
   },
 
   // ========== 编程专用 ==========
@@ -840,13 +876,13 @@ export const models: AIModel[] = [
     name: "DeepSeek R1",
     provider: "DeepSeek",
     description: "深度求索推理模型，在数学、编程和逻辑推理方面有卓越表现，展示完整思考过程。",
-    contextLength: 65536,
+    contextLength: 131072,
     promptPrice: 4,
     completionPrice: 16,
     category: "推理模型",
     tags: ["推理", "数学", "编程", "思考链"],
     isFeatured: true,
-    maxOutput: 8192,
+    maxOutput: 16384,
     supported: ["文本", "思考链"]
   },
   {
@@ -854,7 +890,7 @@ export const models: AIModel[] = [
     name: "DeepSeek V3",
     provider: "DeepSeek",
     description: "深度求索V3通用大模型，671B参数MoE架构，中英双语能力优异。",
-    contextLength: 65536,
+    contextLength: 131072,
     promptPrice: 2,
     completionPrice: 8,
     category: "大语言模型",
@@ -913,7 +949,7 @@ export const models: AIModel[] = [
     name: "GLM 4.7",
     provider: "智谱AI",
     description: "智谱最新大模型GLM-4.7，综合能力提升显著，中文理解力强。",
-    contextLength: 131072,
+    contextLength: 169984,
     promptPrice: 3,
     completionPrice: 14,
     tokenPricingTiers: [
@@ -923,7 +959,7 @@ export const models: AIModel[] = [
     category: "大语言模型",
     tags: ["中文优化", "推理", "通用"],
     isNew: true,
-    maxOutput: 8192,
+    maxOutput: 16384,
     supported: ["文本", "函数调用"]
   },
   {
@@ -931,7 +967,7 @@ export const models: AIModel[] = [
     name: "GLM 5",
     provider: "智谱AI",
     description: "智谱AI GLM-5 旗舰大模型，综合能力全面提升，在推理、编程和长文本方面表现出色。",
-    contextLength: 131072,
+    contextLength: 202752,
     promptPrice: 4,
     completionPrice: 18,
     tokenPricingTiers: [
@@ -950,7 +986,7 @@ export const models: AIModel[] = [
     name: "GLM 5.1",
     provider: "智谱AI",
     description: "智谱AI GLM-5.1 增强版旗舰模型，在 GLM-5 基础上进一步优化，复杂推理和代码生成能力更强。",
-    contextLength: 131072,
+    contextLength: 202745,
     promptPrice: 6,
     completionPrice: 24,
     tokenPricingTiers: [
@@ -961,7 +997,7 @@ export const models: AIModel[] = [
     tags: ["旗舰", "推理", "编程", "增强"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 131072,
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
@@ -969,12 +1005,12 @@ export const models: AIModel[] = [
     name: "Kimi K2.5",
     provider: "月之暗面",
     description: "月之暗面Kimi K2.5模型，擅长长文本理解和多轮对话，中文能力出色。",
-    contextLength: 131072,
+    contextLength: 262144,
     promptPrice: 4,
     completionPrice: 21,
     category: "大语言模型",
     tags: ["长文本", "多轮对话", "中文优化"],
-    maxOutput: 8192,
+    maxOutput: 98304,
     supported: ["文本"]
   },
   {
@@ -989,7 +1025,7 @@ export const models: AIModel[] = [
     tags: ["旗舰", "长文本", "创意写作", "中文优化"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 98304,
     supported: ["文本", "函数调用"]
   },
   {
@@ -997,12 +1033,12 @@ export const models: AIModel[] = [
     name: "MiniMax M2.1",
     provider: "MiniMax",
     description: "MiniMax M2.1模型，在创意写作和多轮对话方面表现突出。",
-    contextLength: 131072,
+    contextLength: 204800,
     promptPrice: 2.1,
     completionPrice: 8.4,
     category: "大语言模型",
     tags: ["创意写作", "对话", "通用"],
-    maxOutput: 8192,
+    maxOutput: 32768,
     supported: ["文本"]
   },
   {
@@ -1010,13 +1046,13 @@ export const models: AIModel[] = [
     name: "MiniMax M2.5",
     provider: "MiniMax",
     description: "MiniMax M2.5 增强版，推理和编程能力提升，多轮对话更加稳定。",
-    contextLength: 131072,
+    contextLength: 196608,
     promptPrice: 2.1,
     completionPrice: 8.4,
     category: "大语言模型",
     tags: ["推理", "编程", "对话"],
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 32768,
     supported: ["文本", "函数调用"]
   },
   // ========== Qwen3 小模型 ==========

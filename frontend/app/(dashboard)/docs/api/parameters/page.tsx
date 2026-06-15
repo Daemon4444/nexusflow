@@ -71,22 +71,20 @@ const anthropicParams = [
   ["tool_choice", "tool_choice", "auto / none / any / tool 会转换为 OpenAI tool_choice。"],
 ];
 
-const geminiParams = [
-  ["contents", "messages", "消息数组。字符串 contents 也会被包装成 user 文本消息。"],
-  ["contents[].role", "messages[].role", "user 映射 user，model 映射 assistant。"],
-  ["contents[].parts[].text", "content text", "文本内容。"],
-  ["contents[].parts[].inlineData", "image_url data URL", "base64 图片内容，转换为 image_url。"],
-  ["contents[].parts[].fileData", "image_url", "文件 URL，转换为 image_url。"],
-  ["contents[].parts[].functionCall", "assistant.tool_calls", "模型函数调用。"],
-  ["contents[].parts[].functionResponse", "role=tool", "工具执行结果。"],
-  ["systemInstruction", "system message", "系统提示词，支持字符串或 parts。"],
-  ["generationConfig.temperature", "temperature", "采样温度。"],
-  ["generationConfig.topP", "top_p", "核采样。"],
-  ["generationConfig.maxOutputTokens", "max_tokens", "最大输出 token。"],
-  ["generationConfig.stopSequences", "stop", "停止序列数组。"],
-  ["tools[].functionDeclarations", "tools", "函数声明，转换为 OpenAI function tools。"],
-  ["toolConfig.functionCallingConfig.mode", "tool_choice", "AUTO / ANY / NONE 分别映射 auto / required / none；部分上游模型可能不接受 required。"],
-  ["streamGenerateContent", "stream=true", "流式接口。使用 ?alt=sse 时按 SSE 返回。"],
+const responsesParams = [
+  ["model", "model", "模型名称，如 qwen3.7-plus。"],
+  ["input", "messages", "纯文本或消息数组（支持 role: user/assistant/system/developer）。"],
+  ["instructions", "system message", "系统指令，插入上下文起始位置。"],
+  ["previous_response_id", "—", "上一轮响应 ID，用于多轮对话（有效期 7 天）。"],
+  ["stream", "stream", "是否开启流式输出。"],
+  ["store", "—", "是否存储响应（默认 true），false 则不能用 previous_response_id 引用。"],
+  ["tools", "tools", "工具列表：web_search、web_extractor、code_interpreter、function 等。"],
+  ["tool_choice", "tool_choice", "工具选择策略：auto / none / required。"],
+  ["temperature", "temperature", "采样温度。"],
+  ["top_p", "top_p", "核采样。"],
+  ["max_output_tokens", "max_tokens", "最大输出 token。"],
+  ["enable_thinking", "enable_thinking", "是否开启思考模式。"],
+  ["reasoning", "—", "思考强度控制，如 {effort: \"high\"}。"],
 ];
 
 const responseFields = [
@@ -132,7 +130,7 @@ export default function ApiParametersPage() {
           参数矩阵
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 760, margin: 0 }}>
-          这里按后端实际透传和协议转换逻辑列出参数。文本类模型支持 OpenAI、Anthropic、Gemini 三种协议；非文本模型按模型能力使用图像、音频、向量或异步任务接口。
+          这里按后端实际透传和协议转换逻辑列出参数。文本类模型支持 OpenAI、Anthropic、Responses 三种协议；非文本模型按模型能力使用图像、音频、向量或异步任务接口。
         </p>
       </div>
 
@@ -163,8 +161,8 @@ export default function ApiParametersPage() {
       </section>
 
       <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>Gemini GenerateContent 映射</h2>
-        <Matrix rows={geminiParams} columns={["300px", "220px", "1fr"]} />
+        <h2 style={{ fontSize: 20, color: "var(--text-primary)", marginBottom: 14 }}>Responses API 映射</h2>
+        <Matrix rows={responsesParams} columns={["300px", "220px", "1fr"]} />
       </section>
 
       <section style={{ marginBottom: 40 }}>
@@ -175,7 +173,7 @@ export default function ApiParametersPage() {
       <section style={{ padding: 18, border: "1px solid #bfdbfe", borderRadius: 8, background: "#eff6ff" }}>
         <div style={{ fontSize: 14, color: "#334155", lineHeight: 1.8 }}>
           生产建议：推理模型使用 <code>stream=true</code> 和 <code>stream_options.include_usage=true</code>；混合思考模型在低成本、低延迟场景显式传 <code>enable_thinking=false</code>。
-          更多例子见 <Link href="/docs/api/chat" style={{ color: "#1d4ed8" }}>对话补全 API</Link> 和 <Link href="/docs/api/gemini" style={{ color: "#1d4ed8" }}>Gemini 协议</Link>。
+          更多例子见 <Link href="/docs/api/chat" style={{ color: "#1d4ed8" }}>对话补全 API</Link> 和 <Link href="/docs/api/responses" style={{ color: "#1d4ed8" }}>Responses API</Link>。
         </div>
       </section>
     </div>

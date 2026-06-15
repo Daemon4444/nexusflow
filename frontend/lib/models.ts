@@ -26,7 +26,7 @@ export function formatContextLength(contextLength?: number) {
     const value = contextLength / 1_000_000;
     return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)}M`;
   }
-  if (contextLength >= 1000) return `${Math.round(contextLength / 1000)}K`;
+  if (contextLength >= 1024) return `${Math.round(contextLength / 1024)}K`;
   return contextLength.toLocaleString();
 }
 

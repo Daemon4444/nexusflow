@@ -20,7 +20,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/docs/api/parameters", priority: 0.6, changeFrequency: "monthly" as const },
     { path: "/docs/api/tasks", priority: 0.5, changeFrequency: "monthly" as const },
     { path: "/docs/api/anthropic", priority: 0.5, changeFrequency: "monthly" as const },
-    { path: "/docs/api/gemini", priority: 0.5, changeFrequency: "monthly" as const },
+    { path: "/docs/api/responses", priority: 0.5, changeFrequency: "monthly" as const },
     { path: "/docs/api/errors", priority: 0.4, changeFrequency: "monthly" as const },
     { path: "/docs/api/limits", priority: 0.4, changeFrequency: "monthly" as const },
     { path: "/docs/api/qwen", priority: 0.6, changeFrequency: "monthly" as const },

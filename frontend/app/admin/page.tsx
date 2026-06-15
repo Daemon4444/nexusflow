@@ -865,7 +865,7 @@ export default function AdminPage() {
         api_base_url: apiBaseUrl,
         api_key: apiKey,
         contact_name: "平台运营",
-        contact_email: "ops@nexusflow.ai",
+        contact_email: "ops@nexusflow.hk",
       }),
     });
     if (res.success) {

@@ -34,7 +34,7 @@ interface CodeExampleProps {
   baseUrl?: string;
 }
 
-export function CodeExamples({ model, apiKey = "YOUR_API_KEY", baseUrl = "https://api.nexusflow.ai" }: CodeExampleProps) {
+export function CodeExamples({ model, apiKey = "YOUR_API_KEY", baseUrl = "https://nexusflow.hk" }: CodeExampleProps) {
   const [activeTab, setActiveTab] = useState<"curl" | "python" | "javascript">("curl");
 
   const examples = {

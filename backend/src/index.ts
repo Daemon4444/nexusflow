@@ -9,6 +9,7 @@ import modelsRouter from "./routes/models";
 import keysRouter from "./routes/keys";
 import usageRouter from "./routes/usage";
 import v1Router from "./routes/v1";
+import responsesRouter from "./routes/responses";
 import messagesRouter from "./routes/messages";
 import pixverseRouter from "./routes/pixverse";
 import imageRouter from "./routes/image";
@@ -25,7 +26,6 @@ import tasksRouter from "./routes/tasks";
 import audioRouter from "./routes/audio";
 import rateLimitsRouter from "./routes/ratelimits";
 import ticketsRouter from "./routes/tickets";
-import protocolRouter from "./routes/protocols";
 import { errorHandler, notFoundHandler } from "./middleware/error";
 
 const app = express();
@@ -61,11 +61,11 @@ app.use("/v1/messages", messagesRouter);
 // OpenAI Audio API（/v1/audio/speech, /v1/audio/transcriptions）— 必须在 /v1 之前挂载
 app.use("/v1/audio", audioRouter);
 
+// OpenAI Responses API（/v1/responses）— 必须在 /v1 之前挂载
+app.use("/v1/responses", responsesRouter);
+
 // OpenAI 兼容 API（/v1/chat/completions, /v1/models）
 app.use("/v1", v1Router);
-
-// Gemini-compatible Public API. Anthropic Messages is mounted above as the single /v1/messages implementation.
-app.use("/", protocolRouter);
 
 // PixVerse 视频生成 API（/v1/video/text, /v1/video/image, /v1/video/status/:id）
 app.use("/v1/video", pixverseRouter);

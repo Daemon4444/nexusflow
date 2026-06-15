@@ -89,7 +89,7 @@ export default function DeepSeekModelsPage() {
         </div>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 700 }}>
           DeepSeek 是国内领先的开源大模型，以极高的性价比著称。
-          在代码生成、数学推理方面表现突出，是预算敏感场景的理想选择。文本类模型可通过 OpenAI Chat、Anthropic Messages 和 Gemini-compatible 三类公共协议接入。
+          在代码生成、数学推理方面表现突出，是预算敏感场景的理想选择。文本类模型可通过 OpenAI Chat、Anthropic Messages 和 Responses API 三类公共协议接入。
         </p>
       </div>
 
@@ -101,7 +101,7 @@ export default function DeepSeekModelsPage() {
           {[
             { href: "/docs/api/chat", label: "OpenAI Chat", endpoint: "/v1/chat/completions" },
             { href: "/docs/api/anthropic", label: "Anthropic Messages", endpoint: "/v1/messages" },
-            { href: "/docs/api/gemini", label: "Gemini-compatible", endpoint: "/v1beta/models/{model}:generateContent" },
+            { href: "/docs/api/responses", label: "Responses API", endpoint: "/v1/responses" },
           ].map((item) => (
             <Link key={item.label} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{item.label}</div>

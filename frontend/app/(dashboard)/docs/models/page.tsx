@@ -9,7 +9,7 @@ const modelCategories = [
     desc: "阿里云自研大模型，当前重点展示 Qwen3.6 与 Qwen3.5 系列，中文能力优秀，支持超长上下文",
     href: "/docs/models/qwen",
     introHref: "/docs/models/qwen/intro",
-    models: ["Qwen3.7 Max", "Qwen3.6 Max Preview", "Qwen3.6 Plus", "Qwen3.5 Plus", "Qwen3.5 Flash"],
+    models: ["Qwen3.7 Max", "Qwen3.6 Max Preview", "Qwen3.6 Plus", "Qwen3.5 Omni Plus", "Qwen3.5 Omni Flash", "Qwen3.5 Plus", "Qwen3.5 Flash"],
     color: "#7c3aed",
     tag: null,
   },
@@ -79,7 +79,7 @@ const modelCategories = [
     desc: "专业视频生成模型，支持文生视频、图生视频、首尾帧和参考生视频等多种能力",
     href: "/docs/models/pixverse",
     introHref: "/docs/models/pixverse/intro",
-    models: ["PixVerse V6", "PixVerse V4.5", "PixVerse V4"],
+    models: ["PixVerse V6"],
     color: "#06b6d4",
     tag: null,
   },
@@ -87,7 +87,7 @@ const modelCategories = [
 
 const pricingTable = [
   { model: "qwen3.7-max", ctx: "1M", input: "¥12", output: "¥36", category: "旗舰" },
-  { model: "qwen3.6-max-preview", ctx: "262K", input: "¥9", output: "¥54", category: "旗舰" },
+  { model: "qwen3.6-max-preview", ctx: "256K", input: "¥9", output: "¥54", category: "旗舰" },
   { model: "qwen3.6-plus", ctx: "1M", input: "¥2", output: "¥12", category: "均衡" },
   { model: "qwen3.5-plus", ctx: "1M", input: "¥0.8", output: "¥4.8", category: "均衡" },
   { model: "qwen3.5-flash", ctx: "1M", input: "¥0.2", output: "¥2", category: "极速" },
@@ -96,13 +96,13 @@ const pricingTable = [
   { model: "claude-haiku-4-5", ctx: "200K", input: "≈¥6.8", output: "≈¥34", category: "高速" },
   { model: "deepseek-v4-pro", ctx: "1M", input: "¥12", output: "¥24", category: "推理旗舰" },
   { model: "deepseek-v4-flash", ctx: "1M", input: "¥1", output: "¥2", category: "高速" },
-  { model: "deepseek-r1", ctx: "64K", input: "¥4", output: "¥16", category: "推理" },
-  { model: "deepseek-v3.2", ctx: "131K", input: "¥2", output: "¥3", category: "通用" },
-  { model: "glm-5.1", ctx: "131K", input: "¥5", output: "¥20", category: "旗舰" },
-  { model: "glm-5", ctx: "131K", input: "¥4", output: "¥18", category: "均衡" },
-  { model: "kimi-k2.6", ctx: "131K", input: "¥5", output: "¥27", category: "推理" },
-  { model: "kimi-k2.5", ctx: "131K", input: "¥4", output: "¥21", category: "均衡" },
-  { model: "MiniMax-M2.5", ctx: "1M", input: "¥1", output: "¥8", category: "均衡" },
+  { model: "deepseek-r1", ctx: "128K", input: "¥4", output: "¥16", category: "推理" },
+  { model: "deepseek-v3.2", ctx: "128K", input: "¥2", output: "¥3", category: "通用" },
+  { model: "glm-5.1", ctx: "198K", input: "¥6", output: "¥24", category: "旗舰" },
+  { model: "glm-5", ctx: "198K", input: "¥4", output: "¥18", category: "均衡" },
+  { model: "kimi-k2.6", ctx: "256K", input: "¥6.5", output: "¥27", category: "推理" },
+  { model: "kimi-k2.5", ctx: "256K", input: "¥4", output: "¥21", category: "均衡" },
+  { model: "MiniMax-M2.5", ctx: "192K", input: "¥2.1", output: "¥8.4", category: "均衡" },
 ];
 
 export default function ModelsOverviewPage() {
@@ -121,7 +121,7 @@ export default function ModelsOverviewPage() {
           模型总览
         </h1>
         <p style={{ fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.7 }}>
-          nexusflow 整合了业界领先的大语言模型，按模型能力提供 OpenAI、Anthropic Messages、Gemini-compatible、Embeddings、Image Generations 和 Tasks 等公共接口。选择最适合您需求的模型。
+          nexusflow 整合了业界领先的大语言模型，按模型能力提供 OpenAI、Anthropic Messages、Responses API、Embeddings、Image Generations 和 Tasks 等公共接口。选择最适合您需求的模型。
         </p>
       </div>
 
@@ -131,7 +131,7 @@ export default function ModelsOverviewPage() {
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[
-            { href: "/docs/multi-protocol", title: "文本类模型", desc: "OpenAI Chat、Anthropic Messages、Gemini-compatible" },
+            { href: "/docs/multi-protocol", title: "文本类模型", desc: "OpenAI Chat、Anthropic Messages、Responses API" },
             { href: "/docs/api/embeddings", title: "向量模型", desc: "OpenAI Embeddings" },
             { href: "/docs/api/async", title: "图像 / 视频", desc: "Image Generations 或 NexusFlow Tasks" },
           ].map((item) => (

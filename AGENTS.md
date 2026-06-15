@@ -174,7 +174,10 @@ nexusflow/
 | GET | `/v1/models` | 模型列表（OpenAI 格式） |
 | POST | `/v1/chat/completions` | 对话补全（支持 stream、tools、thinking、search） |
 | POST | `/v1/messages` | Anthropic Messages 兼容接口 |
-| POST | `/v1beta/models/:model:generateContent` | Gemini GenerateContent 兼容接口 |
+| POST | `/v1/responses` | OpenAI Responses API（含 web_search/web_extractor/code_interpreter/file_search/image_search/web_search_image/mcp 内置工具，支持 `previous_response_id` 多轮、`store=true/false` 响应存储） |
+| GET | `/v1/responses/:id` | 查询已存储响应 |
+| DELETE | `/v1/responses/:id` | 删除已存储响应 |
+| GET | `/v1/responses/:id/input_items` | 查询响应原始 input items |
 | POST | `/v1/embeddings` | 文本向量嵌入 |
 | POST | `/v1/images/generations` | 图像生成 |
 | POST | `/v1/tasks` | 提交异步任务（图片/视频） |
@@ -214,7 +217,7 @@ nexusflow/
 |------|----------|------|
 | `v1.ts` | `/v1` | 核心 OpenAI 兼容 API，含限流/计费/流式/tools/thinking |
 | `messages.ts` | `/v1/messages` | Anthropic Messages 格式转换（**必须在 v1 之前挂载**） |
-| `protocols.ts` | `/v1beta` | Gemini GenerateContent 格式转换代理 |
+| `responses.ts` | `/v1/responses` | OpenAI Responses API 实现（内置工具 web_search/web_extractor/code_interpreter/file_search/image_search/web_search_image/mcp、`previous_response_id` 多轮串联、响应存储 `store=true`、`GET /:id`、`DELETE /:id`、`GET /:id/input_items`） |
 | `auth.ts` | `/api/auth` | 邮箱验证码登录、密码登录、session 管理 |
 | `keys.ts` | `/api/keys` | API key CRUD（`sk-air-` 前缀，SHA-256 哈希） |
 | `models.ts` | `/api/models` | 模型列表/详情，支持 category/provider/search/sort 筛选 |
@@ -261,8 +264,7 @@ nexusflow/
 |------|------|
 | `model-capabilities.ts` | 模型能力矩阵（thinking 模式分类、tools/vision/search 支持、参数白名单） |
 | `chat-request.ts` | 构建上游请求体，按模型能力白名单过滤入参 |
-| `model-protocols.ts` | 返回每个模型支持的协议列表（OpenAI/Anthropic/Gemini/Embeddings/Image/Tasks） |
-| `public-protocols.ts` | Gemini API ↔ OpenAI 格式转换层（请求/响应/SSE 全链路） |
+| `model-protocols.ts` | 返回每个模型支持的协议列表（OpenAI Chat / Anthropic Messages / Responses API / Embeddings / Image / Tasks） |
 | `provider-secrets.ts` | AES-256-GCM 加密/解密 Provider API key |
 
 ---

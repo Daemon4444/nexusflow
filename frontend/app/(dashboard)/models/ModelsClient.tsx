@@ -43,7 +43,7 @@ const categoryColors: Record<string, string> = {
 const protocolStyles: Record<string, { label: string; color: string; bg: string; border: string }> = {
   "openai/chat-completions": { label: "OpenAI", color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
   "anthropic/messages": { label: "Anthropic", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-  "google/generate-content": { label: "Gemini", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
+  "openai/responses": { label: "Responses", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
   "openai/embeddings": { label: "Embedding", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
   "openai/image-generations": { label: "Image", color: "#be185d", bg: "#fdf2f8", border: "#fbcfe8" },
   "openai/audio-speech": { label: "TTS", color: "#7c2d12", bg: "#fff7ed", border: "#fed7aa" },
@@ -119,7 +119,7 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
 
   function formatTokens(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
-    if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
+    if (n >= 1024) return `${Math.round(n / 1024)}K`;
     return n.toString();
   }
 

@@ -115,7 +115,8 @@ nexusflow/
 | Models | `GET /v1/models` | 可用 | OpenAI 风格模型列表 |
 | Chat | `POST /v1/chat/completions` | 可用 | OpenAI Chat Completions |
 | Messages | `POST /v1/messages` | 可用 | Anthropic Messages 兼容层，不代表托管 Claude 原生模型 |
-| Gemini | `POST /v1beta/models/:model:generateContent` | 可用 | Gemini GenerateContent 兼容层 |
+| Responses | `POST /v1/responses` | 可用 | OpenAI Responses API，内置工具 web_search/web_extractor/code_interpreter/file_search/image_search/web_search_image/mcp，支持 `previous_response_id` 与 `store=true/false` |
+| Response retrieval | `GET /v1/responses/:id`, `DELETE /v1/responses/:id`, `GET /v1/responses/:id/input_items` | 可用 | 已存储响应的查询、删除与原始 input items 回放 |
 | Embeddings | `POST /v1/embeddings` | 可用 | OpenAI Embeddings |
 | Images | `POST /v1/images/generations` | 可用 | OpenAI Images 风格，当前接万相图像 |
 | Tasks | `POST /v1/tasks`, `GET /v1/tasks/:id` | 可用 | 图像/视频异步任务 |
@@ -522,14 +523,14 @@ Qoder CLI 的对话记录存储在以下位置：
 | --- | --- | --- |
 | OpenAI Chat Completions | `/v1/chat/completions` | 已真实调用通过 |
 | Anthropic Messages | `/v1/messages` | 已真实调用通过 |
-| Gemini GenerateContent | `/v1beta/models/:model:generateContent` | 已真实调用通过 |
+| OpenAI Responses API | `/v1/responses` | 已真实调用通过（支持 web_search/web_extractor/code_interpreter/file_search/image_search/web_search_image/mcp 内置工具、`previous_response_id` 多轮、`store=true/false` 响应存储） |
 
 已修复文档路由：
 
 - `/docs/api/openai` 现在 redirect 到 `/docs/api/chat`。
 - `/docs/api/anthropic` 现在 redirect 到 `/docs/api/claude`。
 - `/docs/api/claude` 实际是 Anthropic Messages 兼容协议文档，不代表托管 Claude 原生模型。
-- `/docs/multi-protocol` 已包含 OpenAI / Anthropic / Gemini 三协议说明。
+- `/docs/multi-protocol` 已包含 OpenAI Chat / Anthropic Messages / Responses API 三协议说明。
 
 踩坑：
 
@@ -550,7 +551,7 @@ Qoder CLI 的对话记录存储在以下位置：
 | --- | --- | --- | --- |
 | OpenAI | `/v1/chat/completions` | `qwen3.5-flash` | 200 |
 | Anthropic | `/v1/messages` | `qwen3.5-flash` | 200 |
-| Gemini | `/v1beta/models/qwen3.5-flash:generateContent` | `qwen3.5-flash` | 200 |
+| Responses | `/v1/responses` | `qwen3.5-flash` | 200 |
 
 账单结果：
 
@@ -565,7 +566,7 @@ Qoder CLI 的对话记录存储在以下位置：
 | Models | `/v1/models` | - | 200 |
 | Chat | `/v1/chat/completions` | `qwen3.5-flash` | 200 |
 | Anthropic Messages | `/v1/messages` | `qwen3.5-flash` | 200 |
-| Gemini GenerateContent | `/v1beta/models/qwen3.6-flash:generateContent` | `qwen3.6-flash` | 200 |
+| Responses API | `/v1/responses` | `qwen3.5-flash` | 200 |
 | Embeddings | `/v1/embeddings` | `text-embedding-v4` | 200 |
 | Images | `/v1/images/generations` | `wan2.6-t2i` | 200，真实返回图片 URL |
 | Video Task | `/v1/tasks` | `wan2.6-t2v` | 202，轮询后 `succeeded`，真实返回 mp4 URL |

@@ -7,8 +7,8 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
-  { id: "MiniMax-M2.5", context: "131K", input: 2.1, output: 8.4, desc: "M2.5 增强版，推理编程" },
-  { id: "MiniMax-M2.1", context: "131K", input: 2.1, output: 8.4, desc: "M2.1 创意写作对话" },
+  { id: "MiniMax-M2.5", context: "192K", input: 2.1, output: 8.4, desc: "M2.5 增强版，推理编程" },
+  { id: "MiniMax-M2.1", context: "200K", input: 2.1, output: 8.4, desc: "M2.1 创意写作对话" },
 ];
 
 const curlExample = `curl ${API_BASE}/v1/chat/completions \\
@@ -57,7 +57,7 @@ export default function MiniMaxApiPage() {
           MiniMax 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          MiniMax 系列模型，在创意写作和多轮对话方面表现突出。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Gemini-compatible 协议调用。
+          MiniMax 系列模型，在创意写作和多轮对话方面表现突出。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Responses API 协议调用。
         </p>
       </div>
 
@@ -72,7 +72,7 @@ export default function MiniMaxApiPage() {
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
           这是默认示例端点。多协议调用方式见 <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>多协议支持</Link>、
           <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> 和
-          <Link href="/docs/api/gemini" style={{ color: "var(--accent)" }}> Gemini-compatible</Link>。
+          <Link href="/docs/api/responses" style={{ color: "var(--accent)" }}> Responses API</Link>。
         </p>
       </section>
 

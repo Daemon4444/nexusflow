@@ -103,7 +103,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
           "response_format",
           ...(supportsTools ? ["tools", "tool_choice"] : []),
         ],
-        code: `curl https://api.nexusflow.ai/v1/chat/completions \\
+        code: `curl https://nexusflow.hk/v1/chat/completions \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -141,7 +141,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         endpoint: "/v1/messages",
         filename: "anthropic-messages.sh",
         params: ["model", "messages", "system", "max_tokens", "stream", "temperature", "top_p", "stop_sequences", "tools", "tool_choice"],
-        code: `curl https://api.nexusflow.ai/v1/messages \\
+        code: `curl https://nexusflow.hk/v1/messages \\
   -H "x-api-key: $API_KEY" \\
   -H "anthropic-version: 2023-06-01" \\
   -H "Content-Type: application/json" \\
@@ -157,28 +157,21 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
       });
     }
 
-    if (protocol === "google/generate-content") {
+    if (protocol === "openai/responses") {
       examples.push({
         id: protocol,
-        label: "Google Gemini GenerateContent",
-        endpoint: `/v1beta/models/${model.id}:generateContent`,
-        filename: "gemini-generate-content.sh",
-        params: ["contents", "systemInstruction", "generationConfig.temperature", "generationConfig.maxOutputTokens", "generationConfig.topP", "generationConfig.stopSequences", "tools", "toolConfig", "stream"],
-        code: `curl "https://api.nexusflow.ai/v1beta/models/${model.id}:generateContent?key=$API_KEY" \\
+        label: "OpenAI Responses",
+        endpoint: "/v1/responses",
+        filename: "openai-responses.sh",
+        params: ["model", "input", "instructions", "temperature", "max_output_tokens", "top_p", "stream", "tools", "tool_choice"],
+        code: `curl https://nexusflow.hk/v1/responses \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "contents": [
-      {
-        "role": "user",
-        "parts": [{"text": "你好！"}]
-      }
-    ],
-    "generationConfig": {
-      "temperature": 0.7,
-      "maxOutputTokens": 512
-    }
+    "model": "${model.id}",
+    "input": "你好！"
   }'`,
-        note: "流式输出使用 :streamGenerateContent?alt=sse，适合兼容 Gemini SDK。",
+        note: "简洁的 Responses API 格式，适合快速调用。",
       });
     }
   }
@@ -190,7 +183,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
       endpoint: "/v1/embeddings",
       filename: "openai-embeddings.sh",
       params: ["model", "input", "encoding_format", "dimensions"],
-      code: `curl https://api.nexusflow.ai/v1/embeddings \\
+      code: `curl https://nexusflow.hk/v1/embeddings \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -208,7 +201,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
       endpoint: "/v1/images/generations",
       filename: "openai-images.sh",
       params: ["model", "prompt", "size", "n", "response_format"],
-      code: `curl https://api.nexusflow.ai/v1/images/generations \\
+      code: `curl https://nexusflow.hk/v1/images/generations \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -231,7 +224,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         "prompt",
         ...(isVideoModel ? ["duration", "aspect_ratio"] : ["size", "image_url"]),
       ],
-      code: `curl https://api.nexusflow.ai/v1/tasks \\
+      code: `curl https://nexusflow.hk/v1/tasks \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -253,7 +246,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         endpoint: "/v1/audio/speech",
         filename: "openai-tts.sh",
         params: ["model", "input", "voice", "response_format"],
-        code: `curl https://api.nexusflow.ai/v1/audio/speech \\
+        code: `curl https://nexusflow.hk/v1/audio/speech \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -272,7 +265,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         endpoint: "/v1/audio/transcriptions",
         filename: "openai-asr.sh",
         params: ["model", "file_url", "response_format"],
-        code: `curl https://api.nexusflow.ai/v1/audio/transcriptions \\
+        code: `curl https://nexusflow.hk/v1/audio/transcriptions \\
   -H "Authorization: Bearer $API_KEY" \\
   -F "model=${model.id}" \\
   -F "file_url=https://example.com/audio.wav"`,
@@ -310,7 +303,7 @@ export default function ModelDetailPage() {
 
   function formatTokens(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
+    if (n >= 1024) return `${Math.round(n / 1024)}K`;
     return n.toString();
   }
 

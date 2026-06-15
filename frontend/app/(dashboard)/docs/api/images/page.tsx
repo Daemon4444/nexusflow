@@ -34,7 +34,7 @@ const curlExample = `curl -X POST '${API_BASE}/v1/tasks' \\
 #   "type": "image",
 #   "output": {
 #     "type": "image",
-#     "image_url": "https://dashscope-result.oss-cn-beijing.aliyuncs.com/xxx.png",
+#     "image_url": "https://nexusflow.hk/storage/xxx.png",
 #     "images": ["https://...png"]
 #   },
 #   "created_at": "2026-06-01T10:00:00.000Z",
@@ -237,9 +237,9 @@ export default function ImagesApiPage() {
   "type": "image",
   "output": {
     "type": "image",
-    "image_url": "https://dashscope-result.oss-cn-beijing.aliyuncs.com/xxx.png",
+    "image_url": "https://nexusflow.hk/storage/xxx.png",
     "images": [
-      "https://dashscope-result.oss-cn-beijing.aliyuncs.com/xxx.png"
+      "https://nexusflow.hk/storage/xxx.png"
     ]
   },
   "created_at": "2026-06-01T10:00:00.000Z",

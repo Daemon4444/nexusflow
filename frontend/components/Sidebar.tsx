@@ -56,7 +56,7 @@ export default function Sidebar() {
         <Link href="/" style={{ textDecoration: "none" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <div className="sidebar-logo-box">
-              <NexusflowLogo size={18} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#fff", lineHeight: 1 }}>N</span>
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 400, color: "var(--text-primary)", fontFamily: "var(--font-serif)", letterSpacing: "-0.2px" }}>

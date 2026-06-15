@@ -24,6 +24,7 @@ export default function UserSidebar() {
   const { user } = useAuth();
   const { t } = useI18n();
   const isActive = (href: string) => href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+  const quietDashboard = true;
 
   if (!user) return null;
 
@@ -54,13 +55,19 @@ export default function UserSidebar() {
       {/* Logo */}
       <div className="usr-sidebar-header">
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg,#0d9488,#2f81f7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <NexusflowLogo size={14} color="#fff" />
-          </div>
-          <div>
-            <div className="usr-sidebar-title">nexusflow</div>
-            <div className="usr-sidebar-subtitle">AI Model Router</div>
-          </div>
+          {quietDashboard ? (
+            <span className="quiet-sidebar-wordmark"><strong>nexus</strong>flow</span>
+          ) : (
+            <>
+              <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg,#0d9488,#2f81f7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1 }}>N</span>
+              </div>
+              <div>
+                <div className="usr-sidebar-title">nexusflow</div>
+                <div className="usr-sidebar-subtitle">AI Model Router</div>
+              </div>
+            </>
+          )}
         </Link>
       </div>
 
@@ -81,13 +88,21 @@ export default function UserSidebar() {
 
       {/* User card */}
       <div className="usr-sidebar-footer">
-        <div className="usr-sidebar-user">
-          <div className="usr-sidebar-avatar">{user.nickname.slice(0, 2)}</div>
-          <div className="usr-sidebar-userinfo">
-            <span className="usr-sidebar-username">{user.nickname}</span>
-            <span className="usr-sidebar-balance">{formatCny(user.balance ?? 0)}</span>
+        {quietDashboard ? (
+          <div className="quiet-sidebar-balance">
+            <span>Balance</span>
+            <strong>{formatCny(user.balance ?? 0)}</strong>
+            <Link href="/billing">Add credit <span>＋</span></Link>
           </div>
-        </div>
+        ) : (
+          <div className="usr-sidebar-user">
+            <div className="usr-sidebar-avatar">{user.nickname.slice(0, 2)}</div>
+            <div className="usr-sidebar-userinfo">
+              <span className="usr-sidebar-username">{user.nickname}</span>
+              <span className="usr-sidebar-balance">{formatCny(user.balance ?? 0)}</span>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

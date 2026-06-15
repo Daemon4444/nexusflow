@@ -2,13 +2,13 @@
 
 > One API for leading text, vision, image and video models.
 
-Nexusflow 是统一 AI 模型聚合路由平台，提供 OpenAI、Anthropic Messages、Gemini-compatible 等公共兼容协议，并把阿里云百炼、PixVerse、HappyHorse、万相等上游能力收敛到一个入口。
+Nexusflow 是统一 AI 模型聚合路由平台，提供 OpenAI、Anthropic Messages、OpenAI Responses API 等公共兼容协议，并把阿里云百炼、PixVerse、HappyHorse、万相等上游能力收敛到一个入口。
 
 线上域名：`https://nexusflow.hk`
 
 ## 核心能力
 
-- **多协议公共 API**：OpenAI Chat/Images/Embeddings、Anthropic Messages、Gemini GenerateContent、Nexusflow Tasks。
+- **多协议公共 API**：OpenAI Chat/Images/Embeddings、Anthropic Messages、OpenAI Responses API（含 web_search、web_extractor、code_interpreter、file_search、image_search、web_search_image、mcp 等内置工具，以及 `previous_response_id` 多轮串联和响应存储）、Nexusflow Tasks。
 - **多模型聚合**：Qwen、DeepSeek、GLM、Kimi、MiniMax、万相、PixVerse、HappyHorse 等文本、向量、图像、视频模型。
 - **异步任务**：图像/视频任务通过 `/v1/tasks` 创建和轮询；public API 当前不依赖 webhook 回调。
 - **限流与计费**：API Key 鉴权、Provider/Consumer 双层限流、用量记录、余额扣费。
@@ -34,9 +34,9 @@ nexusflow/
 │   ├── src/
 │   │   ├── db/                  # PostgreSQL client, migrations, sqlite-to-pg migration tools
 │   │   ├── data/                # users, keys, usage, tasks, providers
-│   │   ├── routes/              # v1, protocols, tasks, billing, provider, admin
+│   │   ├── routes/              # v1, responses, tasks, billing, provider, admin
 │   │   ├── services/            # adapters, rate limiter, providers, alipay
-│   │   └── utils/               # protocol helpers, provider secret encryption
+│   │   └── utils/               # response helpers, provider secret encryption
 │   └── dist/
 ├── frontend/
 │   ├── app/
@@ -126,7 +126,8 @@ export API_KEY="sk-air-..."
 | Models | `GET /v1/models` | 可用 | OpenAI 风格模型列表 |
 | Chat | `POST /v1/chat/completions` | 可用 | OpenAI Chat Completions |
 | Messages | `POST /v1/messages` | 可用 | Anthropic Messages 兼容层，不代表托管 Claude 原生模型 |
-| Gemini | `POST /v1beta/models/:model:generateContent` | 可用 | Gemini GenerateContent 兼容层 |
+| Responses | `POST /v1/responses` | 可用 | OpenAI Responses API，支持 web_search/web_extractor/code_interpreter/file_search/image_search/web_search_image/mcp 内置工具、`previous_response_id` 多轮串联、`store=true/false` 响应存储 |
+| Response retrieval | `GET /v1/responses/:id`, `DELETE /v1/responses/:id`, `GET /v1/responses/:id/input_items` | 可用 | 已存储响应的查询、删除与原始 input items 回放 |
 | Embeddings | `POST /v1/embeddings` | 可用 | OpenAI Embeddings |
 | Images | `POST /v1/images/generations` | 可用 | OpenAI Images 风格，当前接万相图像 |
 | Tasks | `POST /v1/tasks`, `GET /v1/tasks/:id` | 可用 | 图像/视频异步任务 |
@@ -159,19 +160,36 @@ curl https://nexusflow.hk/v1/messages \
   }'
 ```
 
-### Gemini GenerateContent
+### Responses API
 
 ```bash
-curl "https://nexusflow.hk/v1beta/models/qwen3.5-flash:generateContent?key=$API_KEY" \
+curl https://nexusflow.hk/v1/responses \
+  -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "contents": [{
-      "role": "user",
-      "parts": [{"text": "Reply only OK"}]
-    }],
-    "generationConfig": {"maxOutputTokens": 8}
+    "model": "qwen3.5-flash",
+    "input": "Reply only OK",
+    "max_output_tokens": 8,
+    "store": true
   }'
 ```
+
+启用内置工具（如 `web_search`、`code_interpreter`）和多轮串联：
+
+```bash
+curl https://nexusflow.hk/v1/responses \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3.5-flash",
+    "input": "Search latest LLM news and summarize.",
+    "tools": [{"type": "web_search"}],
+    "previous_response_id": "resp_abc123",
+    "store": true
+  }'
+```
+
+可用内置工具：`web_search`、`web_extractor`、`code_interpreter`、`web_search_image`、`image_search`、`file_search`、`mcp`。已存储响应可通过 `GET /v1/responses/:id`、`DELETE /v1/responses/:id`、`GET /v1/responses/:id/input_items` 进行管理。
 
 ### Embeddings
 
@@ -244,7 +262,7 @@ curl https://nexusflow.hk/v1/tasks/$TASK_ID \
 | `GET /v1/models` | 200 |
 | `POST /v1/chat/completions` | 200 |
 | `POST /v1/messages` | 200 |
-| `POST /v1beta/models/qwen3.6-flash:generateContent` | 200 |
+| `POST /v1/responses` | 200 |
 | `POST /v1/embeddings` | 200 |
 | `POST /v1/images/generations` | 200，真实返回图片 URL |
 | `POST /v1/tasks` with `wan2.6-t2v` | 202，轮询后 `succeeded`，真实返回 mp4 URL |

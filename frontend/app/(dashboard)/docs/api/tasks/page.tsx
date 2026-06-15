@@ -362,7 +362,7 @@ export default function TasksApiPage() {
   "type": "image",
   "progress": 100,
   "output": {
-    "image_url": "https://dashscope-result.oss-cn-beijing.aliyuncs.com/xxx.png"
+    "image_url": "https://nexusflow.hk/storage/xxx.png"
   },
   "created_at": "2026-06-01T10:00:00.000Z",
   "completed_at": "2026-06-01T10:00:22.000Z"
@@ -374,7 +374,7 @@ export default function TasksApiPage() {
   "type": "video",
   "progress": 100,
   "output": {
-    "video_url": "https://dashscope-result.oss-cn-beijing.aliyuncs.com/xxx.mp4"
+    "video_url": "https://nexusflow.hk/storage/xxx.mp4"
   },
   "created_at": "2026-06-01T10:00:00.000Z",
   "completed_at": "2026-06-01T10:02:36.000Z"

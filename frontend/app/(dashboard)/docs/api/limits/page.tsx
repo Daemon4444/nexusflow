@@ -9,8 +9,8 @@ const rateLimits = [
 ];
 
 const modelLimits = [
-  { model: "qwen3-max", maxInput: "258K", maxOutput: "64K", contextWindow: "262K" },
-  { model: "qwen3.6-max-preview", maxInput: "262K", maxOutput: "64K", contextWindow: "262K" },
+  { model: "qwen3-max", maxInput: "252K", maxOutput: "64K", contextWindow: "256K" },
+  { model: "qwen3.6-max-preview", maxInput: "256K", maxOutput: "64K", contextWindow: "256K" },
   { model: "qwen3.6-plus", maxInput: "1M", maxOutput: "64K", contextWindow: "1M" },
   { model: "qwen3.6-flash", maxInput: "1M", maxOutput: "64K", contextWindow: "1M" },
   { model: "qwen3.5-plus", maxInput: "1M", maxOutput: "64K", contextWindow: "1M" },

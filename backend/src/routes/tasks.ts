@@ -32,7 +32,7 @@ import {
 } from "../services/adapters";
 import { checkConsumerLimits, checkRPM, recordRequest } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
-import { selectProvider, acquireConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
+import { selectProvider, acquireConcurrency, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
 import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
@@ -193,135 +193,139 @@ router.post("/", async (req: Request, res: Response) => {
   const provider = selected.providerId;
   acquireConcurrency(selected.providerId, modelId);
 
-  // Create task record
-  const task = await createTask({
-    userId: apiKeyRecord.user_id,
-    apiKeyId: apiKeyRecord.id,
-    type: modelType as "image" | "video",
-    model: modelId,
-    provider,
-    input: { prompt, ...params },
-  });
-
-  // Record rate limit
-  recordRequest("system", modelId, apiKeyRecord.id, 0);
-
-  // Build upstream request
-  const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
-  let adapted;
   try {
-    if (modelType === "image") {
-      adapted = adaptImageRequest(upstreamApiKey, { model: modelId, prompt, ...params });
-    } else if (isPixVerseOfficial) {
-      adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, selected.apiBaseUrl);
-    } else if (modelId.startsWith("happyhorse-")) {
-      adapted = adaptHappyHorseRequest(upstreamApiKey, { model: modelId, prompt, ...params });
-    } else {
-      adapted = adaptVideoRequest(upstreamApiKey, { model: modelId, prompt, ...params });
-    }
-  } catch (err: any) {
-    recordFailure(selected.providerId, modelId, err.message);
-    await failTask(task.id, `Adapter error: ${err.message}`);
-    res.status(500).json({
-      error: { message: `Failed to prepare request: ${sanitizeUpstreamError(err)}`, type: "server_error", code: "adapter_error" },
-    });
-    return;
-  }
-
-  // Submit to upstream
-  const submitStart = Date.now();
-  try {
-    const response = await fetch(adapted.url, {
-      method: adapted.method,
-      headers: adapted.headers,
-      body: JSON.stringify(adapted.body),
+    // Create task record
+    const task = await createTask({
+      userId: apiKeyRecord.user_id,
+      apiKeyId: apiKeyRecord.id,
+      type: modelType as "image" | "video",
+      model: modelId,
+      provider,
+      input: { prompt, ...params },
     });
 
-    const data: any = await response.json();
+    // Record rate limit
+    recordRequest("system", modelId, apiKeyRecord.id, 0);
 
-    if (!response.ok || data.code || (data.ErrCode !== undefined && data.ErrCode !== 0)) {
-      const errorMsg = data.message || data.error?.message || data.ErrMsg || `HTTP ${response.status}`;
-      recordFailure(selected.providerId, modelId, errorMsg);
-      await failTask(task.id, errorMsg);
-      await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
-      res.status(response.ok ? 400 : response.status).json({
-        error: { message: errorMsg, type: "upstream_error", code: "upstream_error" },
+    // Build upstream request
+    const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
+    let adapted;
+    try {
+      if (modelType === "image") {
+        adapted = adaptImageRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+      } else if (isPixVerseOfficial) {
+        adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, selected.apiBaseUrl);
+      } else if (modelId.startsWith("happyhorse-")) {
+        adapted = adaptHappyHorseRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+      } else {
+        adapted = adaptVideoRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+      }
+    } catch (err: any) {
+      recordFailure(selected.providerId, modelId, err.message);
+      await failTask(task.id, `Adapter error: ${err.message}`);
+      res.status(500).json({
+        error: { message: `Failed to prepare request: ${sanitizeUpstreamError(err)}`, type: "server_error", code: "adapter_error" },
       });
       return;
     }
 
-    recordSuccess(selected.providerId, modelId, Date.now() - submitStart);
+    // Submit to upstream
+    const submitStart = Date.now();
+    try {
+      const response = await fetch(adapted.url, {
+        method: adapted.method,
+        headers: adapted.headers,
+        body: JSON.stringify(adapted.body),
+      });
 
-    // Extract task ID from response
-    let upstreamTaskId: string | undefined;
+      const data: any = await response.json();
 
-    // Handle synchronous response (e.g., wan2.6-t2i returns result directly)
-    if (data.output?.choices?.[0]?.message?.content) {
-      const content = data.output.choices[0].message.content;
-      const imageUrls = content
-        .filter((c: any) => c.type === "image" || c.image)
-        .map((c: any) => c.image || c.url);
-      
-      if (imageUrls.length > 0) {
-        const output = { type: "image", image_url: imageUrls[0], images: imageUrls };
-        const model = models.find((m) => m.id === modelId);
-        const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
-        await completeTask(task.id, output, cost);
-        if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
-        res.status(202).json({
-          id: task.id,
-          object: "task",
-          status: "succeeded",
-          model: modelId,
-          type: modelType,
-          output,
-          created_at: task.created_at,
-          completed_at: new Date().toISOString(),
+      if (!response.ok || data.code || (data.ErrCode !== undefined && data.ErrCode !== 0)) {
+        const errorMsg = data.message || data.error?.message || data.ErrMsg || `HTTP ${response.status}`;
+        recordFailure(selected.providerId, modelId, errorMsg);
+        await failTask(task.id, errorMsg);
+        await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
+        res.status(response.ok ? 400 : response.status).json({
+          error: { message: errorMsg, type: "upstream_error", code: "upstream_error" },
         });
         return;
       }
-    }
-    
-    // DashScope format
-    if (data.output?.task_id) {
-      upstreamTaskId = data.output.task_id;
-    }
-    // PixVerse format (official API returns video_id)
-    if (data.Resp?.video_id) {
-      upstreamTaskId = String(data.Resp.video_id);
-    }
-    if (data.Resp?.task_id) {
-      upstreamTaskId = String(data.Resp.task_id);
-    }
 
-    if (upstreamTaskId) {
-      await setUpstreamTaskId(task.id, upstreamTaskId);
-    } else {
-      // Unexpected response format
-      await failTask(task.id, "No task_id in upstream response");
-      res.status(500).json({
-        error: { message: "No task_id returned from upstream", type: "upstream_error", code: "unexpected_response" },
+      recordSuccess(selected.providerId, modelId, Date.now() - submitStart);
+
+      // Extract task ID from response
+      let upstreamTaskId: string | undefined;
+
+      // Handle synchronous response (e.g., wan2.6-t2i returns result directly)
+      if (data.output?.choices?.[0]?.message?.content) {
+        const content = data.output.choices[0].message.content;
+        const imageUrls = content
+          .filter((c: any) => c.type === "image" || c.image)
+          .map((c: any) => c.image || c.url);
+
+        if (imageUrls.length > 0) {
+          const output = { type: "image", image_url: imageUrls[0], images: imageUrls };
+          const model = models.find((m) => m.id === modelId);
+          const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
+          await completeTask(task.id, output, cost);
+          if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+          res.status(202).json({
+            id: task.id,
+            object: "task",
+            status: "succeeded",
+            model: modelId,
+            type: modelType,
+            output,
+            created_at: task.created_at,
+            completed_at: new Date().toISOString(),
+          });
+          return;
+        }
+      }
+
+      // DashScope format
+      if (data.output?.task_id) {
+        upstreamTaskId = data.output.task_id;
+      }
+      // PixVerse format (official API returns video_id)
+      if (data.Resp?.video_id) {
+        upstreamTaskId = String(data.Resp.video_id);
+      }
+      if (data.Resp?.task_id) {
+        upstreamTaskId = String(data.Resp.task_id);
+      }
+
+      if (upstreamTaskId) {
+        await setUpstreamTaskId(task.id, upstreamTaskId);
+      } else {
+        // Unexpected response format
+        await failTask(task.id, "No task_id in upstream response");
+        res.status(500).json({
+          error: { message: "No task_id returned from upstream", type: "upstream_error", code: "unexpected_response" },
+        });
+        return;
+      }
+
+      // Return task info
+      res.status(202).json({
+        id: task.id,
+        object: "task",
+        status: "running",
+        model: modelId,
+        type: modelType,
+        created_at: task.created_at,
       });
-      return;
+
+    } catch (err: any) {
+      recordFailure(selected.providerId, modelId, err.message);
+      await failTask(task.id, `Request failed: ${sanitizeUpstreamError(err)}`);
+      await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
+      res.status(500).json({
+        error: { message: `Upstream request failed: ${sanitizeUpstreamError(err)}`, type: "server_error", code: "upstream_error" },
+      });
     }
-
-    // Return task info
-    res.status(202).json({
-      id: task.id,
-      object: "task",
-      status: "running",
-      model: modelId,
-      type: modelType,
-      created_at: task.created_at,
-    });
-
-  } catch (err: any) {
-    recordFailure(selected.providerId, modelId, err.message);
-    await failTask(task.id, `Request failed: ${err.message}`);
-    await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
-    res.status(500).json({
-      error: { message: `Upstream request failed: ${err.message}`, type: "server_error", code: "upstream_error" },
-    });
+  } finally {
+    releaseConcurrency(selected.providerId, modelId);
   }
 });
 

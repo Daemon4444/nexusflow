@@ -12,6 +12,7 @@ interface UsageData {
   overview: {
     totalRequests: number;
     totalTokens: number;
+    totalPromptTokens: number;
     totalCost: number;
     activeModels: number;
     avgLatency: number;
@@ -66,7 +67,7 @@ export default function ActivityPage() {
       // 部分接口失败时优雅降级：有任一数据即渲染，全部失败才报错
       if (ovRes.success || dayRes.success || modelRes.success || recentRes.success) {
         setData({
-          overview: ovRes.success ? ovRes.data : { totalRequests: 0, totalTokens: 0, totalCost: 0, activeModels: 0, avgLatency: 0, successRate: 0, totalCachedTokens: 0 },
+          overview: ovRes.success ? ovRes.data : { totalRequests: 0, totalTokens: 0, totalPromptTokens: 0, totalCost: 0, activeModels: 0, avgLatency: 0, successRate: 0, totalCachedTokens: 0 },
           daily: dayRes.success ? dayRes.data : [],
           byModel: modelRes.success ? modelRes.data : [],
           recent: recentRes.success ? recentRes.data : [],
@@ -138,7 +139,15 @@ export default function ActivityPage() {
               { label: t("activeModels"), value: data.overview.activeModels.toString(), tint: "tint-purple", icon: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></> },
               { label: t("avgLatency"), value: data.overview.avgLatency + "s", tint: "tint-blue", icon: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></> },
               { label: t("successRate"), value: data.overview.successRate + "%", tint: "tint-teal", icon: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></> },
-              ...(data.overview.totalCachedTokens > 0 ? [{ label: "缓存命中", value: formatTokensCompact(data.overview.totalCachedTokens), tint: "tint-blue", icon: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></> }] : []),
+              ...(data.overview.totalCachedTokens > 0 ? [{
+                label: "缓存命中",
+                value: formatTokensCompact(data.overview.totalCachedTokens),
+                sub: data.overview.totalPromptTokens > 0
+                  ? `命中率 ${((data.overview.totalCachedTokens / data.overview.totalPromptTokens) * 100).toFixed(1)}%`
+                  : undefined,
+                tint: "tint-blue",
+                icon: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></>,
+              }] : []),
             ].map((m) => (
               <div key={m.label} className="usr-metric with-icon">
                 <div className={`usr-metric-icon ${m.tint}`}>
@@ -147,6 +156,9 @@ export default function ActivityPage() {
                 <div className="usr-metric-body">
                   <div className="usr-metric-label">{m.label}</div>
                   <div className="usr-metric-value">{m.value}</div>
+                  {("sub" in m && m.sub) ? (
+                    <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>{m.sub}</div>
+                  ) : null}
                 </div>
               </div>
             ))}

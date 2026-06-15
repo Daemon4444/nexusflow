@@ -11,9 +11,9 @@ type TabKey = "chat" | "reasoning";
 const models = [
   { id: "deepseek-v4-pro", category: "推理模型", context: "1M", input: 12, output: 24, desc: "V4 旗舰推理模型" },
   { id: "deepseek-v4-flash", category: "大语言模型", context: "1M", input: 1, output: 2, desc: "V4 高速对话模型" },
-  { id: "deepseek-v3.2", category: "大语言模型", context: "131K", input: 2, output: 3, desc: "V3.2 通用模型" },
-  { id: "deepseek-r1", category: "推理模型", context: "65K", input: 4, output: 16, desc: "R1 推理模型" },
-  { id: "deepseek-v3", category: "大语言模型", context: "65K", input: 2, output: 8, desc: "V3 通用模型" },
+  { id: "deepseek-v3.2", category: "大语言模型", context: "128K", input: 2, output: 3, desc: "V3.2 通用模型" },
+  { id: "deepseek-r1", category: "推理模型", context: "128K", input: 4, output: 16, desc: "R1 推理模型" },
+  { id: "deepseek-v3", category: "大语言模型", context: "128K", input: 2, output: 8, desc: "V3 通用模型" },
 ];
 
 const curlExamples: Record<TabKey, string> = {
@@ -115,21 +115,14 @@ const protocolCurlExamples = [
   }'`,
   },
   {
-    title: "Gemini-compatible GenerateContent",
-    endpoint: "/v1beta/models/deepseek-v4-flash:generateContent",
-    code: `curl -X POST '${API_BASE}/v1beta/models/deepseek-v4-flash:generateContent' \\
-  -H "x-goog-api-key: $API_KEY" \\
+    title: "Responses API",
+    endpoint: "/v1/responses",
+    code: `curl ${API_BASE}/v1/responses \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "contents": [
-      {
-        "role": "user",
-        "parts": [{"text": "只回复 OK"}]
-      }
-    ],
-    "generationConfig": {
-      "maxOutputTokens": 8
-    }
+    "model": "deepseek-v4-flash",
+    "input": "只回复 OK"
   }'`,
   },
 ];
@@ -153,7 +146,7 @@ export default function DeepSeekApiPage() {
           DeepSeek 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          百炼接入的 DeepSeek 系列模型，支持推理模式和流式输出。文本类 DeepSeek 模型可通过 OpenAI Chat Completions、Anthropic Messages 和 Gemini-compatible GenerateContent 三类公共协议调用。
+          百炼接入的 DeepSeek 系列模型，支持推理模式和流式输出。文本类 DeepSeek 模型可通过 OpenAI Chat Completions、Anthropic Messages 和 Responses API 三类公共协议调用。
         </p>
       </div>
 
@@ -169,7 +162,7 @@ export default function DeepSeekApiPage() {
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
           这是默认示例端点。多协议调用方式见 <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>多协议支持</Link>、
           <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> 和
-          <Link href="/docs/api/gemini" style={{ color: "var(--accent)" }}> Gemini-compatible</Link>。
+          <Link href="/docs/api/responses" style={{ color: "var(--accent)" }}> Responses API</Link>。
         </p>
       </section>
 
