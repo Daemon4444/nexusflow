@@ -276,11 +276,7 @@ export default function QwenDocsPage() {
           </table>
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
-          百炼官方 API 参考见{" "}
-          <a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>
-            阿里云 Qwen API Reference
-          </a>
-          。本页只展示当前 NexusFlow 公共网关已开放、可直接调用的协议。
+          本页展示当前 NexusFlow 公共网关已开放、可直接调用的协议。
         </p>
       </section>
 

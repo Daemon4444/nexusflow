@@ -7,7 +7,7 @@ const openAiParams = [
   ["messages", "array", "必填", "对话消息数组，按顺序传入 system、user、assistant、tool。"],
   ["messages[].role", "string", "必填", "system / user / assistant / tool。tool 消息用于回传工具执行结果。"],
   ["messages[].content", "string | array", "必填", "文本可直接传字符串；多模态输入传内容块数组。"],
-  ["messages[].content[].type", "string", "多模态", "稳定示例为 text / image_url；video、input_audio 等百炼扩展内容块需按具体模型实测。"],
+  ["messages[].content[].type", "string", "多模态", "稳定示例为 text / image_url；video、input_audio 等扩展内容块需按具体模型实测。"],
   ["messages[].content[].text", "string", "多模态", "type=text 时的文本。"],
   ["messages[].content[].image_url.url", "string", "多模态", "图片 URL 或 data URL，需模型支持视觉理解。"],
   ["stream", "boolean", "可选", "开启 SSE 流式输出。长文本、推理模型和交互场景建议开启。"],
@@ -51,6 +51,7 @@ const thinkingSupport = [
   ["deepseek-r1", "仅思考", "false 不能关闭", "线上验证：true/false 都返回 reasoning_content。"],
   ["deepseek-v3.2", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
   ["deepseek-v4-pro", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
+  ["glm-5.2", "混合思考", "支持 true / false", "长程任务旗舰，1M 上下文。默认开启思考；true 返回 reasoning_content，最大思维链 128K；false 不返回。支持 thinking_budget。"],
   ["glm-5.1", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
 ];
 

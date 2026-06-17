@@ -36,7 +36,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
 | 分类 | 模型数量 | 说明 |
 |------|----------|------|
-| 大语言模型 | 23 | 通用对话、文本生成 |
+| 大语言模型 | 24 | 通用对话、文本生成 |
 | 推理模型 | 4 | 数学、逻辑、复杂推理 |
 | 多模态模型 | 6 | 视觉理解、图像输入 |
 | 编程模型 | 2 | 代码生成、代码补全 |
@@ -45,7 +45,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 | 语音模型 | 2 | 语音识别、语音合成 |
 | 图像生成 | 1 | 文生图、图像编辑 |
 | 视频生成 | 11 | 文生视频、图生视频、视频编辑 |
-| **总计** | **53** | |
+| **总计** | **54** | |
 
 ---
 
@@ -134,6 +134,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | `glm-4.7` | GLM 4.7 | 131K | 8K | ¥3/M | ¥14/M | 中文优化 |
 | `glm-5` | GLM 5 | 131K | 16K | ¥4/M | ¥18/M | 旗舰 |
 | `glm-5.1` | GLM 5.1 | 131K | 16K | ¥6/M | ¥24/M | 增强旗舰 |
+| `glm-5.2` | GLM 5.2 | **1M** | 128K | ¥8/M (缓存命中 ¥2/M) | ¥28/M | 长程任务、1M上下文、思考模式 |
 
 ### Kimi 系列
 
@@ -312,6 +313,21 @@ NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Mess
 | 图像生成 | `openai/image-generations`, `nexusflow/tasks` |
 | 视频生成 | `nexusflow/tasks` |
 
+### 协议 × 模型家族支持矩阵
+
+> 重要：不同协议的模型覆盖范围不同，第三方模型（GLM / DeepSeek / Kimi / MiniMax）**不在 Responses API 支持列表中**。
+
+| 模型家族 | `/v1/chat/completions` | `/v1/messages` | `/v1/responses` |
+|---------|:---:|:---:|:---:|
+| 通义千问 Qwen 系列 | ✅ | ✅ | ✅ |
+| DeepSeek 系列 | ✅ | ✅ | ❌ |
+| 智谱 GLM 系列 (含 GLM 5.2) | ✅ | ✅ | ❌ |
+| Kimi 系列 | ✅ | ✅ | ❌ |
+| MiniMax 系列 | ✅ | ✅ | ❌ |
+| Anthropic Claude 系列 | ✅ | ✅ | ✅ |
+
+对 GLM / DeepSeek / Kimi / MiniMax 调用 `/v1/responses` 时，会返回 `Unsupported model` 错误。请改用 `/v1/chat/completions` 或 `/v1/messages`。
+
 ---
 
 ## API 端点
@@ -409,7 +425,7 @@ Authorization: Bearer YOUR_API_KEY
 | DeepSeek | 5 | V3、V3.2、V4 Pro、V4 Flash、R1 |
 | 拍我AI (PixVerse) | 1 | PixVerse V6 |
 | 阿里巴巴 (Alibaba) | 4 | HappyHorse 系列 |
-| 智谱AI | 3 | GLM 4.7、GLM 5、GLM 5.1 |
+| 智谱AI | 4 | GLM 4.7、GLM 5、GLM 5.1、GLM 5.2 |
 | 月之暗面 | 2 | Kimi K2.5、Kimi K2.6 |
 | MiniMax | 2 | M2.1、M2.5 |
 | Anthropic | 3 | Claude Opus 4.7、Sonnet 4.6、Haiku 4.5 |
@@ -431,7 +447,7 @@ Authorization: Bearer YOUR_API_KEY
 
 ## 更新日期
 
-文档更新时间: 2026-06-03
+文档更新时间: 2026-06-17
 模型数据来源: `/api/models` API + 代码配置文件
 
 ---

@@ -456,6 +456,22 @@ export default function ChatCompletionsApiPage() {
         </p>
       </div>
 
+      {/* ───────── Protocol Limit ───────── */}
+      <section style={{ marginBottom: 32 }}>
+        <div style={{
+          padding: "14px 18px", borderRadius: 10,
+          background: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
+          border: "1px solid #6ee7b7",
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#065f46", marginBottom: 6, letterSpacing: "0.3px" }}>
+            ✓ 协议支持范围
+          </div>
+          <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.7 }}>
+            <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/chat/completions</code> 支持 NexusFlow 接入的全部模型 — 包含通义千问、GLM、DeepSeek、Kimi、MiniMax 等。
+          </div>
+        </div>
+      </section>
+
       {/* ───────── Endpoint ───────── */}
       <section style={{ marginBottom: 36 }}>
         <h2 style={sectionHeading}>请求端点</h2>
@@ -703,17 +719,16 @@ data: [DONE]`} />
 
       {/* ───────── Notes ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>与百炼官方 Chat API 的关系</h2>
+        <h2 style={sectionHeading}>协议透传说明</h2>
         <div style={{
           padding: 16, background: "#f8fafc", border: "1px solid var(--border)",
           borderRadius: 8, fontSize: 13, lineHeight: 1.8, color: "var(--text-secondary)",
         }}>
-          NexusFlow 的 <code>/v1/chat/completions</code> 与阿里云百炼 OpenAI 兼容端点完全协议透传：
+          NexusFlow 的 <code>/v1/chat/completions</code> 与 OpenAI Chat Completions 协议完全透传：
           请求体原样转发上游，响应原样回传。<code>tools</code>、<code>tool_choice</code>、<code>response_format</code>、
           <code>enable_thinking</code>、<code>thinking_budget</code>、<code>enable_search</code>、<code>search_options</code>、
-          <code>seed</code>、<code>top_k</code>、<code>logprobs</code>、<code>stream_options</code> 等百炼扩展字段都可直接使用，
-          具体支持范围以模型为准。官方参考：
-          {" "}<a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "#1d4ed8" }}>千问 API 参考</a>。
+          <code>seed</code>、<code>top_k</code>、<code>logprobs</code>、<code>stream_options</code> 等扩展字段都可直接使用，
+          具体支持范围以模型为准。
         </div>
       </section>
 
@@ -724,7 +739,7 @@ data: [DONE]`} />
         <div style={{ marginBottom: 20 }}>
           <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>阶梯计费</h3>
           <p style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 12 }}>
-            百炼系列模型（通义千问、GLM 等）采用<strong>按请求输入 token 数分阶梯计费</strong>。单次请求的 prompt token 总量决定该请求适用的价格档位，输入和输出分别按对应档位的单价计费。
+            通义千问、GLM 等系列模型采用<strong>按请求输入 token 数分阶梯计费</strong>。单次请求的 prompt token 总量决定该请求适用的价格档位，输入和输出分别按对应档位的单价计费。
           </p>
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", fontSize: 13, marginBottom: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", padding: "10px 14px", background: "var(--bg-elevated)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
@@ -748,7 +763,7 @@ data: [DONE]`} />
         <div>
           <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>上下文缓存（Prompt Caching）</h3>
           <p style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 12 }}>
-            通过 <code>/v1/messages</code>（Anthropic 协议）调用时支持上下文缓存。对重复的 system prompt 或长文档，DashScope 会自动缓存 prompt 前缀，后续请求命中缓存部分享受折扣：
+            通过 <code>/v1/messages</code>（Anthropic 协议）调用时支持上下文缓存。对重复的 system prompt 或长文档，上游会自动缓存 prompt 前缀，后续请求命中缓存部分享受折扣：
           </p>
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", fontSize: 13 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 14px", background: "var(--bg-elevated)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
@@ -765,7 +780,7 @@ data: [DONE]`} />
             ))}
           </div>
           <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6, marginTop: 10 }}>
-            <code>/v1/chat/completions</code> 支持通过 <code>enable_context_caching: true</code> 参数启用显式缓存（百炼系列模型）。<code>/v1/messages</code>（Anthropic 协议）支持 <code>cache_control</code> 内容块注解。两种协议均自动享受隐式缓存折扣。
+            <code>/v1/chat/completions</code> 支持通过 <code>enable_context_caching: true</code> 参数启用显式缓存。<code>/v1/messages</code>（Anthropic 协议）支持 <code>cache_control</code> 内容块注解。两种协议均自动享受隐式缓存折扣。
           </p>
         </div>
       </section>
@@ -783,7 +798,7 @@ data: [DONE]`} />
             <li>图像理解功能建议使用 Qwen-VL 系列等多模态模型。<code>content</code> 需传入数组格式包含 <code>image_url</code> 类型。</li>
             <li>Function Calling 推荐使用 Qwen、DeepSeek、GLM 等支持工具调用的模型系列。</li>
             <li>思考模式（<code>enable_thinking</code>）必须按模型 ID 使用；支持矩阵见 <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>参数矩阵</Link>。</li>
-            <li>请求体与上游百炼协议透传，文档之外的百炼扩展字段（如 <code>thinking_budget</code>、<code>enable_search</code>、<code>search_options</code>）可直接使用，具体支持以模型为准。</li>
+            <li>请求体与上游协议透传，文档之外的扩展字段（如 <code>thinking_budget</code>、<code>enable_search</code>、<code>search_options</code>）可直接使用，具体支持以模型为准。</li>
             <li>完整参数说明与模型兼容矩阵见 <Link href="/docs/api/parameters" style={{ color: "#1d4ed8" }}>参数矩阵</Link>。</li>
           </ul>
         </div>

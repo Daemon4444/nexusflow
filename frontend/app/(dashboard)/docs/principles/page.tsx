@@ -36,7 +36,7 @@ export default function PrinciplesPage() {
             {
               title: "智能路由",
               code: "route(model) → provider",
-              desc: "根据模型名称和请求协议自动路由至对应供应商端点。公共 API 与上游 DashScope / 百炼原生协议解耦，业务侧只需要关心 NexusFlow 支持的 public protocol。",
+              desc: "根据模型名称和请求协议自动路由至对应供应商端点。公共 API 与上游原生协议解耦，业务侧只需要关心 NexusFlow 支持的 public protocol。",
             },
             {
               title: "统一计费",

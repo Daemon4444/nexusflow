@@ -24,7 +24,6 @@ const models: Record<TabKey, string> = {
 
 const curlExamples: Record<TabKey, string> = {
   t2v: `curl --location '${API_BASE}/v1/services/aigc/video-generation/video-synthesis' \\
-  -H 'X-DashScope-Async: enable' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
@@ -40,7 +39,6 @@ const curlExamples: Record<TabKey, string> = {
   }
 }'`,
   i2v: `curl --location '${API_BASE}/v1/services/aigc/video-generation/video-synthesis' \\
-  -H 'X-DashScope-Async: enable' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
@@ -62,7 +60,6 @@ const curlExamples: Record<TabKey, string> = {
   }
 }'`,
   kf2v: `curl --location '${API_BASE}/v1/services/aigc/video-generation/video-synthesis' \\
-  -H 'X-DashScope-Async: enable' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
@@ -88,7 +85,6 @@ const curlExamples: Record<TabKey, string> = {
   }
 }'`,
   r2v: `curl --location '${API_BASE}/v1/services/aigc/video-generation/video-synthesis' \\
-  -H 'X-DashScope-Async: enable' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
@@ -121,7 +117,6 @@ response = requests.post(
     headers={
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable"
     },
     json={
         "model": "pixverse-v6",
@@ -158,7 +153,6 @@ response = requests.post(
     headers={
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable"
     },
     json={
         "model": "pixverse-v6",
@@ -196,7 +190,6 @@ response = requests.post(
     headers={
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable"
     },
     json={
         "model": "pixverse-v6",
@@ -237,7 +230,6 @@ response = requests.post(
     headers={
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable"
     },
     json={
         "model": "pixverse-v6",
@@ -429,7 +421,6 @@ function PixVerseDocsInner() {
               {[
                 { h: "Content-Type", req: "是", d: "application/json" },
                 { h: "Authorization", req: "是", d: "Bearer <API_KEY>" },
-                { h: "X-DashScope-Async", req: "是", d: '必须设置为 "enable"' },
               ].map((row, i) => (
                 <tr key={row.h} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
@@ -646,7 +637,6 @@ function PixVerseDocsInner() {
       }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: "#92400e", marginBottom: 8 }}>注意事项</h3>
         <ul style={{ margin: 0, paddingLeft: 18, color: "#92400e" }}>
-          <li>API 仅支持异步调用，请求头必须包含 <code>X-DashScope-Async: enable</code></li>
           <li>task_id 有效期 24 小时，超时后无法查询</li>
           <li>视频生成通常需要 1-5 分钟，轮询建议间隔 15 秒</li>
           <li>1080P 分辨率下不支持 10 秒时长</li>

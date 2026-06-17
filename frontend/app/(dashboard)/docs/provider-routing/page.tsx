@@ -32,7 +32,7 @@ export default function ProviderRoutingPage() {
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 20 }}>
           <DocsCodeBlock code={`┌──────────────┐     ┌─────────────────┐     ┌──────────────────┐
 │  Client      │────▶│  nexusflow      │────▶│  供应商 A (主)    │
-│  POST /v1/   │     │  智能路由        │     │  DashScope       │
+│  POST /v1/   │     │  智能路由        │     │  通义千问         │
 │  chat/compl  │     │                 │     └──────────────────┘
 └──────────────┘     │  健康检测        │     ┌──────────────────┐
                      │  延迟监控        │────▶│  供应商 B (备)    │

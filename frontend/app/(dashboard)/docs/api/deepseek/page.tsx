@@ -146,7 +146,7 @@ export default function DeepSeekApiPage() {
           DeepSeek 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          百炼接入的 DeepSeek 系列模型，支持推理模式和流式输出。文本类 DeepSeek 模型可通过 OpenAI Chat Completions、Anthropic Messages 和 Responses API 三类公共协议调用。
+          DeepSeek 系列模型，支持推理模式和流式输出。文本类 DeepSeek 模型可通过 OpenAI Chat Completions、Anthropic Messages 和 Responses API 三类公共协议调用。
         </p>
       </div>
 

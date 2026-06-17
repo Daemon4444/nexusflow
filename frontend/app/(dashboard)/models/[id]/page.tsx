@@ -255,7 +255,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
     "voice": "alloy"
   }' \\
   --output speech.wav`,
-        note: "返回音频二进制数据。voice 支持 alloy/ash/nova/echo/sage/shimmer 等，也可传 DashScope 原生音色名。",
+        note: "返回音频二进制数据。voice 支持 alloy/ash/nova/echo/sage/shimmer 等，也可传上游原生音色名。",
       });
     }
     if (model.id.toLowerCase().includes("asr")) {

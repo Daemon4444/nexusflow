@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 const models = [
-  ["pixverse-v6", "当前主推", "支持文生视频和图生视频，后台可在百炼渠道与 PixVerse 官方渠道之间切换。"],
+  ["pixverse-v6", "当前主推", "支持文生视频和图生视频。"],
 ];
 
 export default function PixVerseModelPage() {

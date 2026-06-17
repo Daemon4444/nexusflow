@@ -2739,7 +2739,7 @@ export default function AdminPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <div>
                     <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>模型管理</h1>
-                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>按模型维护上游渠道路由。比如 glm-5.1 可以同时配置百炼和方舟，再通过优先级/权重决定走哪边。</div>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>按模型维护上游渠道路由。比如 glm-5.1 可以同时配置多个供应商渠道，再通过优先级/权重决定走哪边。</div>
                   </div>
                   <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
                     刷新

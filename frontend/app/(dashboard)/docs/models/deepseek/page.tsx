@@ -7,7 +7,7 @@ const deepseekModels = [
   {
     id: "deepseek-v4-pro",
     name: "DeepSeek V4 Pro",
-    desc: "百炼接入的 DeepSeek V4 旗舰推理模型，适合复杂数学、长链路决策和代码 Agent 任务。",
+    desc: "DeepSeek V4 旗舰推理模型，适合复杂数学、长链路决策和代码 Agent 任务。",
     ctx: "1,000,000",
     maxOutput: "16,384",
     inputPrice: "¥12",
@@ -20,7 +20,7 @@ const deepseekModels = [
   {
     id: "deepseek-v4-flash",
     name: "DeepSeek V4 Flash",
-    desc: "百炼接入的 DeepSeek V4 高速版本，低延迟高吞吐，适合在线问答、客服和高并发网关场景。",
+    desc: "DeepSeek V4 高速版本，低延迟高吞吐，适合在线问答、客服和高并发网关场景。",
     ctx: "1,000,000",
     maxOutput: "16,384",
     inputPrice: "¥1",

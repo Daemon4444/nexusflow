@@ -176,6 +176,32 @@ export default function MultiProtocolPage() {
           这些协议在平台内通过兼容层接到同一套模型路由、计费和监控链路上，目标是让你可以继续使用熟悉的 SDK，同时不把供应商差异泄漏到业务侧。
           Responses API 提供内置工具（联网搜索、代码解释器等）和 previous_response_id 多轮上下文管理，适合复杂任务场景。
         </p>
+        <div style={{
+          marginTop: 18, padding: "14px 18px", borderRadius: 10,
+          background: "linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%)",
+          border: "1px solid #fcd34d",
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e", marginBottom: 8, letterSpacing: "0.3px" }}>
+            ⚠ 协议支持范围
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 13, color: "#92400e", lineHeight: 1.6 }}>
+            <div>
+              <code style={{ fontSize: 12, fontWeight: 700 }}> /v1/chat/completions</code>
+              <div style={{ marginTop: 2 }}>全部模型支持</div>
+            </div>
+            <div>
+              <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/messages</code>
+              <div style={{ marginTop: 2 }}>全部模型支持</div>
+            </div>
+          </div>
+          <div style={{
+            marginTop: 10, paddingTop: 10, borderTop: "1px dashed #fcd34d",
+            fontSize: 13, color: "#92400e", lineHeight: 1.6,
+          }}>
+            <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/responses</code> — <strong>仅通义千问系列支持</strong>；
+            DeepSeek / GLM / Kimi / MiniMax 调用会返回 <code style={{ fontSize: 11 }}>Unsupported model</code>，请改用前两个端点。
+          </div>
+        </div>
       </section>
 
       <section style={{ marginBottom: 48 }}>
@@ -251,7 +277,7 @@ export default function MultiProtocolPage() {
           </table>
         </div>
         <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 12 }}>
-          参考：<a href="https://help.aliyun.com/zh/model-studio/qwen-api-reference/" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>阿里云百炼 Qwen API Reference</a>。
+          参考：<a href="https://platform.openai.com/docs/api-reference/chat" target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>OpenAI Chat Completions API Reference</a>。
         </p>
       </section>
 

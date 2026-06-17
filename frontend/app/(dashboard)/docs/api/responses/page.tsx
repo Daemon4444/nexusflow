@@ -271,6 +271,28 @@ export default function ResponsesApiPage() {
         </p>
       </div>
 
+      {/* ───────── Protocol Limit ───────── */}
+      <section style={{ marginBottom: 32 }}>
+        <div style={{
+          padding: "14px 18px", borderRadius: 10,
+          background: "linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%)",
+          border: "1px solid #fcd34d",
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e", marginBottom: 8, letterSpacing: "0.3px" }}>
+            ⚠ 协议限制
+          </div>
+          <div style={{ fontSize: 13, color: "#92400e", lineHeight: 1.7 }}>
+            Responses API <strong>仅支持通义千问系列</strong>。调用 GLM、DeepSeek、Kimi、MiniMax 等模型会返回 <code style={{ fontSize: 11 }}>Unsupported model</code> 错误，请改用 <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/chat/completions</code> 或 <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/messages</code>。
+          </div>
+          <div style={{
+            marginTop: 10, paddingTop: 10, borderTop: "1px dashed #fcd34d",
+            fontSize: 13, color: "#92400e", lineHeight: 1.7,
+          }}>
+            当前支持的通义千问系列模型：<code style={{ fontSize: 11 }}>qwen3.7-max</code>、<code style={{ fontSize: 11 }}>qwen3.7-plus</code>、<code style={{ fontSize: 11 }}>qwen3.6-plus</code>、<code style={{ fontSize: 11 }}>qwen3.5-plus</code>、<code style={{ fontSize: 11 }}>qwen3.5-flash</code>、<code style={{ fontSize: 11 }}>qwen3.6-flash</code>、<code style={{ fontSize: 11 }}>qwen-plus</code>、<code style={{ fontSize: 11 }}>qwen-flash</code>、<code style={{ fontSize: 11 }}>qwen3-coder-plus</code>、<code style={{ fontSize: 11 }}>qwen3-coder-flash</code> 等。
+          </div>
+        </div>
+      </section>
+
       {/* ───────── Endpoint ───────── */}
       <section style={{ marginBottom: 36 }}>
         <h2 style={sectionHeading}>请求端点</h2>
@@ -455,6 +477,13 @@ export default function ResponsesApiPage() {
       {/* ───────── Supported Models ───────── */}
       <section style={{ marginBottom: 36 }}>
         <h2 style={sectionHeading}>支持的模型</h2>
+        <div style={{ padding: "14px 18px", borderRadius: 8, background: "#fffbeb", border: "1px solid #fcd34d", marginBottom: 16 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#92400e", marginBottom: 6 }}>协议限制</div>
+          <p style={{ fontSize: 13, color: "#92400e", lineHeight: 1.7, margin: 0 }}>
+            Responses API <strong>仅支持通义千问系列</strong>。
+            调用 GLM、DeepSeek、Kimi、MiniMax 等模型会返回 <code style={{ fontSize: 12 }}>Unsupported model</code> 错误。请改用 <Link href="/docs/api/chat" style={{ color: "#92400e", textDecoration: "underline" }}>/v1/chat/completions</Link> 或 <Link href="/docs/api/anthropic" style={{ color: "#92400e", textDecoration: "underline" }}>/v1/messages</Link>。
+          </p>
+        </div>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>
           当前 Responses API 支持通义千问系列模型：qwen3.7-max、qwen3.7-plus、qwen3.6-plus、qwen3.5-plus、qwen3.5-flash、qwen3.6-flash、qwen-plus、qwen-flash、qwen3-coder-plus、qwen3-coder-flash 等。
         </p>

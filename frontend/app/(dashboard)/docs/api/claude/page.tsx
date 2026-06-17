@@ -61,6 +61,22 @@ export default function ClaudeDocsPage() {
         </p>
       </div>
 
+      {/* ───────── Protocol Limit ───────── */}
+      <section style={{ marginBottom: 32 }}>
+        <div style={{
+          padding: "14px 18px", borderRadius: 10,
+          background: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
+          border: "1px solid #6ee7b7",
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#065f46", marginBottom: 6, letterSpacing: "0.3px" }}>
+            ✓ 协议支持范围
+          </div>
+          <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.7 }}>
+            <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/messages</code> 支持 NexusFlow 接入的全部模型 — 包含 Claude 官方系列，以及通义千问、GLM、DeepSeek、Kimi、MiniMax 等。
+          </div>
+        </div>
+      </section>
+
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>接口地址</h2>
         <div
@@ -171,7 +187,7 @@ export default function ClaudeDocsPage() {
           ))}
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
-          用法示例：在 system 块上添加 <code>{`"cache_control": {"type": "ephemeral"}`}</code>。适用于长 system prompt、文档上下文等重复内容。Claude 直连和百炼模型均支持。
+          用法示例：在 system 块上添加 <code>{`"cache_control": {"type": "ephemeral"}`}</code>。适用于长 system prompt、文档上下文等重复内容。所有 <code>/v1/messages</code> 协议下的模型均支持。
         </p>
       </section>
 
