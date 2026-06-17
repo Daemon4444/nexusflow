@@ -1001,6 +1001,24 @@ export const models: AIModel[] = [
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
+    id: "glm-5.2",
+    name: "GLM 5.2",
+    provider: "智谱AI",
+    description: "智谱AI GLM-5.2 面向长程任务（Long Horizon Task）的新一代开源旗舰模型，支持 1M 无损超长上下文。具备卓越的编程与工程能力，可自主完成任务拆解、架构设计、前后端开发、联调测试到多端部署的完整链路，适用于复杂工程、长程交互、代码生成与企业应用场景。",
+    contextLength: 1048576,
+    promptPrice: 8,
+    completionPrice: 28,
+    tokenPricingTiers: [
+      { label: "0<Token≤1M", maxTokens: 1048576, promptPrice: 8, completionPrice: 28 },
+    ],
+    category: "大语言模型",
+    tags: ["旗舰", "长上下文", "百万上下文", "编程", "思考模式", "开源"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 131072,
+    supported: ["文本", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理"]
+  },
+  {
     id: "kimi-k2.5",
     name: "Kimi K2.5",
     provider: "月之暗面",
