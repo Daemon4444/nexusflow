@@ -840,7 +840,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         cachedTokens: billing.cachedTokens,
         cacheCreationTokens: billing.cacheCreationTokens,
         requestBody: req.body,
-        responseBody: fullResponse.slice(-3000),
+        responseBody: fullResponse,
       });
       recordProviderTokens(upstream.providerId, modelId, streamTokens.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);

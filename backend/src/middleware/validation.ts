@@ -116,7 +116,7 @@ export const LoginSchema = z.object({
 /** API Key 创建请求验证 */
 export const CreateKeySchema = z.object({
   name: z.string().min(1).max(50, "Name must be 1-50 characters"),
-  rate_limit: z.number().int().min(1).max(1000).optional().default(60),
+  rate_limit: z.number().int().min(1).max(30000).optional().default(30000),
 });
 
 /** 充值请求验证 */

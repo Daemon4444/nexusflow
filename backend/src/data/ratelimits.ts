@@ -9,8 +9,8 @@ import {
   reviewRateLimitRequest,
 } from "./rate-limit-requests";
 
-const DEFAULT_QPM = 60;
-const DEFAULT_TPM = 100000;
+const DEFAULT_QPM = 30000;
+const DEFAULT_TPM = 5000000;
 
 export interface UserRateLimit {
   id: string;
