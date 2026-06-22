@@ -1,4 +1,3 @@
-import { cnyToUsd } from "@/lib/money";
 
 export interface ModelSummary {
   id: string;
@@ -83,8 +82,7 @@ export function pickDefaultPlaygroundModel(models: ModelSummary[], requestedMode
   return preferred || chatModels[0]?.id || models[0]?.id || "";
 }
 
-function formatCompactPrice(cnyValue: number) {
-  const value = cnyToUsd(cnyValue);
+function formatCompactPrice(value: number) {
   if (value === 0) return "0";
   if (value < 0.01) return value.toFixed(4);
   if (value < 1) return value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");

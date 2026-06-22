@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { cnyToUsd } from "@/lib/money";
 
 interface PricingTier {
   label: string;
@@ -342,7 +341,7 @@ export default function ModelDetailPage() {
                     Starting Price
                   </div>
                   <div className="stat-value" style={{ color: "#10b981" }}>
-                    ${cnyToUsd(model.promptPrice).toFixed(2)}
+                    ${model.promptPrice.toFixed(2)}
                   </div>
                   <div className="stat-label">{model.pricingType === "per-second" ? "/sec" : "/image"}</div>
                 </div>
@@ -385,7 +384,7 @@ export default function ModelDetailPage() {
                       }}>
                         <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{tier.label}</span>
                         <span style={{ textAlign: "right", fontWeight: 600, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>
-                          ${cnyToUsd(tier.price).toFixed(2)}{model.pricingType === "per-second" ? " /sec" : " /image"}
+                          ${tier.price.toFixed(2)}{model.pricingType === "per-second" ? " /sec" : " /image"}
                         </span>
                       </div>
                     ))}
@@ -429,7 +428,7 @@ export default function ModelDetailPage() {
                   1st Tier Input
                 </div>
                 <div className="stat-value" style={{ color: "#10b981" }}>
-                  ${cnyToUsd(model.promptPrice).toFixed(2)}
+                  ${model.promptPrice.toFixed(2)}
                 </div>
                 <div className="stat-label">/ million tokens</div>
               </div>
@@ -438,7 +437,7 @@ export default function ModelDetailPage() {
                   1st Tier Output
                 </div>
                 <div className="stat-value" style={{ color: "#0f766e" }}>
-                  ${cnyToUsd(model.completionPrice).toFixed(2)}
+                  ${model.completionPrice.toFixed(2)}
                 </div>
                 <div className="stat-label">/ million tokens</div>
               </div>
@@ -473,8 +472,8 @@ export default function ModelDetailPage() {
                       fontSize: 14,
                     }}>
                       <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{tier.label}</span>
-                      <span style={{ textAlign: "right", fontWeight: 600, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>${cnyToUsd(tier.promptPrice).toFixed(2)}</span>
-                      <span style={{ textAlign: "right", fontWeight: 600, color: "#0f766e", fontVariantNumeric: "tabular-nums" }}>${cnyToUsd(tier.completionPrice).toFixed(2)}</span>
+                      <span style={{ textAlign: "right", fontWeight: 600, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>${tier.promptPrice.toFixed(2)}</span>
+                      <span style={{ textAlign: "right", fontWeight: 600, color: "#0f766e", fontVariantNumeric: "tabular-nums" }}>${tier.completionPrice.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>

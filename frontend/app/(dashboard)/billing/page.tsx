@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { formatUsd, formatCny, formatCnyPrecise, cnyToUsd, usdToCny } from "@/lib/money";
+import { formatUsd, formatCny, formatCnyPrecise } from "@/lib/money";
 import UserLayout from "@/components/UserLayout";
 import { BalanceWarning } from "@/components/BalanceWarning";
 import OnboardingGuide, { useOnboarding } from "@/components/OnboardingGuide";
@@ -113,14 +113,14 @@ export default function BillingPage() {
   }
 
   async function handleRecharge() {
-    // The user enters/selects USD; the backend bills and charges Alipay in CNY.
-    const usdAmount = parseFloat(rechargeAmount);
-    if (!usdAmount || usdAmount <= 0) { setRechargeMsg({ type: "error", text: t("invalidAmount") }); return; }
-    const cnyAmount = Math.round(usdToCny(usdAmount) * 100) / 100;
-    if (cnyAmount > 10000) { setRechargeMsg({ type: "error", text: t("maxAmount") }); return; }
+    // Balances/prices are in USD. The user tops up in USD (credited to balance as USD);
+    // the backend charges Alipay the CNY equivalent (USD * rate) at payment time.
+    const amount = parseFloat(rechargeAmount);
+    if (!amount || amount <= 0) { setRechargeMsg({ type: "error", text: t("invalidAmount") }); return; }
+    if (amount > 10000) { setRechargeMsg({ type: "error", text: t("maxAmount") }); return; }
     setRecharging(true); setRechargeMsg(null); setPaymentFormHtml(null);
     try {
-      const body: Record<string, unknown> = { amount: cnyAmount };
+      const body: Record<string, unknown> = { amount };
       if (payMethod === "alipay") body.method = "page";
       const res = await fetchAPI("/api/billing/recharge", { method: "POST", headers: authHeaders(), body: JSON.stringify(body) });
       if (res.success) {
@@ -285,9 +285,9 @@ export default function BillingPage() {
             {summary && (
               <SmartRecharge
                 stats={{
-                  monthlyCost: cnyToUsd(summary.totalConsumption),
-                  avgDailyCost: cnyToUsd(summary.totalConsumption / 30),
-                  balance: cnyToUsd(summary.balance),
+                  monthlyCost: summary.totalConsumption,
+                  avgDailyCost: summary.totalConsumption / 30,
+                  balance: summary.balance,
                 }}
                 onSelect={(amount) => setRechargeAmount(String(amount))}
                 selectedAmount={rechargeAmount}

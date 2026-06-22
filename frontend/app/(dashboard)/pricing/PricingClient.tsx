@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { cnyToUsd } from "@/lib/money";
 
 interface PricingTier {
   label: string;
@@ -218,7 +217,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                       }}>
                         {model.pricingTiers!.map((tier, idx) => (
                           <span key={idx} style={{ whiteSpace: "nowrap" }}>
-                            {tier.label}: ${cnyToUsd(tier.price).toFixed(2)}{model.pricingType === "per-second" ? "/sec" : "/image"}
+                            {tier.label}: ${tier.price.toFixed(2)}{model.pricingType === "per-second" ? "/sec" : "/image"}
                           </span>
                         ))}
                       </span>
@@ -230,7 +229,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                         color: "var(--text-primary)",
                         fontVariantNumeric: "tabular-nums",
                       }}>
-                        ${cnyToUsd(model.promptPrice).toFixed(2)}{model.pricingType === "per-second" ? "/sec" : "/image"}
+                        ${model.promptPrice.toFixed(2)}{model.pricingType === "per-second" ? "/sec" : "/image"}
                       </span>
                     ) : hasTokenTiers ? (
                       <span style={{
@@ -246,7 +245,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                       }}>
                         {model.tokenPricingTiers!.map((tier) => (
                           <span key={tier.label} style={{ whiteSpace: "nowrap" }}>
-                            {tier.label}: in ${cnyToUsd(tier.promptPrice).toFixed(2)}/out ${cnyToUsd(tier.completionPrice).toFixed(2)}
+                            {tier.label}: in ${tier.promptPrice.toFixed(2)}/out ${tier.completionPrice.toFixed(2)}
                           </span>
                         ))}
                       </span>
@@ -265,10 +264,10 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                         ) : (
                           <>
                             <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>in</span>
-                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>${cnyToUsd(model.promptPrice).toFixed(2)}</span>
+                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>${model.promptPrice.toFixed(2)}</span>
                             <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450, margin: "0 2px" }}>/</span>
                             <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>out</span>
-                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>${cnyToUsd(model.completionPrice).toFixed(2)}</span>
+                            <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>${model.completionPrice.toFixed(2)}</span>
                           </>
                         )}
                       </span>
