@@ -162,7 +162,7 @@ export default function SmartRecharge({ stats, onSelect, selectedAmount }: Smart
                 color: isSelected ? "var(--accent)" : "var(--text-primary)",
                 marginBottom: 4,
               }}>
-                ¥{rec.amount}
+                ${rec.amount}
               </div>
               <div style={{
                 fontSize: 10,

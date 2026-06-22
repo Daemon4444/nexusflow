@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { cnyToUsd } from "@/lib/money";
 
 interface TokenPricingTier {
   label: string;
@@ -402,13 +403,13 @@ export default function ModelDetailPage() {
           <div>
             <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>1st Tier Input</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: model.promptPrice === 0 ? "var(--success)" : "var(--text-primary)" }}>
-              {model.promptPrice === 0 ? "Free" : `$${(model.promptPrice / 7).toFixed(2)}/M`}
+              {model.promptPrice === 0 ? "Free" : `$${cnyToUsd(model.promptPrice).toFixed(2)}/M`}
             </div>
           </div>
           <div>
             <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>1st Tier Output</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: model.completionPrice === 0 ? "var(--success)" : "var(--text-primary)" }}>
-              {model.completionPrice === 0 ? "Free" : `$${(model.completionPrice / 7).toFixed(2)}/M`}
+              {model.completionPrice === 0 ? "Free" : `$${cnyToUsd(model.completionPrice).toFixed(2)}/M`}
             </div>
           </div>
         </div>

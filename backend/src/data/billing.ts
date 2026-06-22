@@ -111,7 +111,7 @@ export async function recharge(userId: string, amount: number, description?: str
   const normalizedAmount = roundBalance(amount);
   const txId = uuidv4();
   const now = new Date().toISOString();
-  const text = description || `Top-up $${amount.toFixed(2)}`;
+  const text = description || `Account top-up`;
 
   return db.transaction(async (client) => {
     const user = await client.queryOne<{ balance: number }>("SELECT balance FROM users WHERE id = ? FOR UPDATE", [userId]);

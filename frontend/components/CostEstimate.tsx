@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { cnyToUsd } from "@/lib/money";
 
 interface ModelInfo {
   id: string;
@@ -68,7 +69,7 @@ export default function CostEstimate({
 
   // Format cost with appropriate precision
   const formatCost = (cost: number) => {
-    const usd = cost / 7;
+    const usd = cnyToUsd(cost);
     if (usd < 0.0001) return "$0";
     if (usd < 0.01) return `$${usd.toFixed(4)}`;
     if (usd < 1) return `$${usd.toFixed(3)}`;

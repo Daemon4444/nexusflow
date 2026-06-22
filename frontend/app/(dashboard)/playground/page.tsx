@@ -9,6 +9,7 @@ import PlaygroundHistory, { saveToHistory, HistoryEntry } from "@/components/Pla
 import PromptTemplates from "@/components/PromptTemplates";
 import ErrorSuggestion, { ApiError } from "@/components/ErrorSuggestion";
 import { pickDefaultPlaygroundModel } from "@/lib/models";
+import { cnyToUsd } from "@/lib/money";
 
 interface AIModel {
   id: string;
@@ -346,7 +347,7 @@ function PlaygroundInner() {
     const promptPrice = tier?.promptPrice ?? model.promptPrice;
     const completionPrice = tier?.completionPrice ?? model.completionPrice;
     const cost = (promptTokens / 1_000_000) * promptPrice + (completionTokens / 1_000_000) * completionPrice;
-    const usd = cost / 7;
+    const usd = cnyToUsd(cost);
     if (usd <= 0) return "$0";
     if (usd < 0.0001) return "<$0.01";
     if (usd < 0.01) return `$${usd.toFixed(4)}`;

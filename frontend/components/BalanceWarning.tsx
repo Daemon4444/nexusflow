@@ -1,5 +1,7 @@
 "use client";
 
+import { cnyToUsd } from "@/lib/money";
+
 interface BalanceWarningProps {
   balance: number;
   threshold?: number;
@@ -64,7 +66,7 @@ export function BalanceWarning({ balance, threshold = 10, onRecharge }: BalanceW
         }}>
           {isCritical
             ? "API calls will be rejected. Please recharge immediately to continue using the service"
-            : `Current balance ¥${numericBalance.toFixed(2)}, recharge recommended to ensure normal service usage`}
+            : `Current balance $${cnyToUsd(numericBalance).toFixed(2)}, recharge recommended to ensure normal service usage`}
         </div>
       </div>
 
