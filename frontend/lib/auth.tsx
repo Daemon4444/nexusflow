@@ -17,6 +17,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, code: string) => Promise<{ success: boolean; message: string }>;
   loginWithPassword: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  loginWithGoogle: (credential: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => ({ success: false, message: "" }),
   loginWithPassword: async () => ({ success: false, message: "" }),
+  loginWithGoogle: async () => ({ success: false, message: "" }),
   logout: async () => {},
   refreshUser: async () => {},
 });
@@ -120,6 +122,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithGoogle = async (credential: string) => {
+    try {
+      const res = await fetchAPI("/api/auth/google", {
+        method: "POST",
+        body: JSON.stringify({ credential }),
+      });
+      if (res.success) {
+        setToken(res.data.token);
+        setUser(res.data.user);
+        return { success: true, message: res.message };
+      }
+      return { success: false, message: res.message || "Google sign-in failed" };
+    } catch {
+      return { success: false, message: "Network error, please try again" };
+    }
+  };
+
   const logout = async () => {
     const token = getToken();
     if (token) {
@@ -135,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithPassword, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithPassword, loginWithGoogle, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

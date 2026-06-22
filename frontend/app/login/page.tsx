@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { NexusflowLogo } from "@/components/QuadrantLogo";
 
 type LoginMode = "code" | "password";
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
 function LoginPageInner() {
   const searchParams = useSearchParams();
@@ -20,12 +22,56 @@ function LoginPageInner() {
   const [submitting, setSubmitting] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const { login, loginWithPassword, user } = useAuth();
+  const { login, loginWithPassword, loginWithGoogle, user } = useAuth();
   const router = useRouter();
+  const googleBtnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) router.push("/billing");
   }, [user, router]);
+
+  // Google Identity Services: load script once, then render the official button.
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    const handleCredential = async (response: { credential?: string }) => {
+      if (!response.credential) return;
+      setError("");
+      setInfo("");
+      setSubmitting(true);
+      const result = await loginWithGoogle(response.credential);
+      setSubmitting(false);
+      if (result.success) router.push("/billing");
+      else setError(result.message);
+    };
+
+    const render = () => {
+      const g = (window as unknown as { google?: any }).google;
+      if (!g?.accounts?.id || !googleBtnRef.current) return;
+      g.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleCredential });
+      googleBtnRef.current.innerHTML = "";
+      g.accounts.id.renderButton(googleBtnRef.current, {
+        theme: "outline", size: "large", width: 332, text: "continue_with", shape: "rectangular",
+      });
+    };
+
+    if ((window as unknown as { google?: any }).google?.accounts?.id) {
+      render();
+      return;
+    }
+    const existing = document.getElementById("google-gsi-script") as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener("load", render);
+      return () => existing.removeEventListener("load", render);
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.id = "google-gsi-script";
+    script.onload = render;
+    document.body.appendChild(script);
+  }, [loginWithGoogle, router]);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -131,6 +177,18 @@ function LoginPageInner() {
 
         <form onSubmit={handleLogin}>
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+
+            {/* Sign in with Google */}
+            {GOOGLE_CLIENT_ID && (
+              <>
+                <div ref={googleBtnRef} style={{ display: "flex", justifyContent: "center", minHeight: 40, marginBottom: 18 }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+                  <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+                  <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>or</span>
+                  <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
+                </div>
+              </>
+            )}
 
             {/* Mode Tabs — registration only supports verification code mode, hide toggle */}
             {!isRegister && (

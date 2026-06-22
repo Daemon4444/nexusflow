@@ -3,8 +3,13 @@ import { loginByEmail, loginByPassword, setUserPassword, hasPassword, validateSe
 import { sendEmailCode, verifyEmailCode } from "../services/email";
 import { validateBody, SendCodeSchema, LoginSchema } from "../middleware/validation";
 import { z } from "zod";
+import { OAuth2Client } from "google-auth-library";
 
 const router = Router();
+
+/** Google OAuth client (used only to verify ID tokens; lazily reused). */
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 /** Extract session token from request header */
 function extractSessionToken(req: Request): string | null {
@@ -72,6 +77,61 @@ router.post("/login-password", validateBody(PasswordLoginSchema), async (req: Re
   const result = await loginByPassword(email, password);
   if (!result) {
     res.status(401).json({ success: false, message: "Email or password incorrect" });
+    return;
+  }
+
+  res.json({
+    success: true,
+    data: {
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        nickname: result.user.nickname,
+        balance: result.user.balance,
+        hasPassword: !!result.user.password_hash,
+        createdAt: result.user.created_at,
+      },
+      token: result.token,
+    },
+    message: "Login successful",
+  });
+});
+
+// POST /api/auth/google — Sign in with Google (verify ID token, find-or-create user by email)
+const GoogleLoginSchema = z.object({
+  credential: z.string().min(1, "Missing Google credential"),
+});
+
+router.post("/google", validateBody(GoogleLoginSchema), async (req: Request, res: Response) => {
+  if (!googleClient) {
+    res.status(503).json({ success: false, message: "Google sign-in is not configured" });
+    return;
+  }
+
+  const { credential } = req.body;
+
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID });
+    payload = ticket.getPayload();
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid Google credential" });
+    return;
+  }
+
+  if (!payload?.email) {
+    res.status(401).json({ success: false, message: "Google account has no email" });
+    return;
+  }
+  if (payload.email_verified === false) {
+    res.status(401).json({ success: false, message: "Google account email is not verified" });
+    return;
+  }
+
+  // Same email = same account (auto-links to an existing email/password account).
+  const result = await loginByEmail(payload.email);
+  if (!result) {
+    res.status(500).json({ success: false, message: "Login failed" });
     return;
   }
 
