@@ -296,7 +296,7 @@ export default function BillingPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
                 {presetAmounts.map((a) => {
                   const selected = rechargeAmount === String(a);
-                  return (<button key={a} onClick={() => setRechargeAmount(String(a))} style={{ padding: "12px 0", borderRadius: 8, border: selected ? "2px solid #111" : "1px solid var(--border)", background: selected ? "rgba(0,0,0,0.03)" : "var(--bg-card)", cursor: "pointer", fontSize: 15, fontWeight: 700, color: selected ? "#111" : "var(--text-secondary)", transition: "all 0.15s", fontFamily: "inherit" }}>¥{a}</button>);
+                  return (<button key={a} onClick={() => setRechargeAmount(String(a))} style={{ padding: "12px 0", borderRadius: 8, border: selected ? "2px solid #111" : "1px solid var(--border)", background: selected ? "rgba(0,0,0,0.03)" : "var(--bg-card)", cursor: "pointer", fontSize: 15, fontWeight: 700, color: selected ? "#111" : "var(--text-secondary)", transition: "all 0.15s", fontFamily: "inherit" }}>${a}</button>);
                 })}
               </div>
             </div>
@@ -330,7 +330,7 @@ export default function BillingPage() {
               </div>
             )}
             <button className="btn-primary" onClick={handleRecharge} disabled={recharging || !rechargeAmount || pollOrderId !== null} style={{ padding: "9px 24px", fontSize: 13 }}>
-              {recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} ¥${rechargeAmount || "0"}`}
+              {recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} $${rechargeAmount || "0"}`}
             </button>
             {rechargeMsg && (
               <div style={{ marginTop: 14, padding: "9px 12px", borderRadius: 7, fontSize: 12.5, background: rechargeMsg.type === "success" ? "var(--success-bg)" : "var(--danger-bg)", border: `1px solid ${rechargeMsg.type === "success" ? "var(--success-border)" : "var(--danger-border)"}`, color: rechargeMsg.type === "success" ? "var(--success)" : "var(--danger)" }}>

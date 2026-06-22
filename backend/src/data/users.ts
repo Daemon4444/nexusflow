@@ -57,7 +57,7 @@ export async function getUserById(id: string): Promise<User | null> {
 export async function createUser(phone: string): Promise<User> {
   const id = uuidv4();
   const now = new Date().toISOString();
-  const nickname = `用户${phone.slice(-4)}`;
+  const nickname = `User${phone.slice(-4)}`;
   const user = await db.queryOne<User>(
     "INSERT INTO users (id, phone, email, nickname, balance, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
     [id, phone, null, nickname, 0, now, now]
