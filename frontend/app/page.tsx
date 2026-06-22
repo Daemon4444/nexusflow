@@ -9,17 +9,17 @@ import { fetchAPI } from "@/lib/api";
 import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
 
 const fallbackModelRows = [
-  { model: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", context: "262K", price: "input ¥9 / output ¥54 per 1M" },
-  { model: "DeepSeek V3.2", provider: "DeepSeek", context: "131K", price: "input ¥2 / output ¥3 per 1M" },
-  { model: "GLM 5", provider: "Zhipu AI", context: "131K", price: "input ¥4 / output ¥18 per 1M" },
-  { model: "Kimi K2.5", provider: "Moonshot AI", context: "131K", price: "input ¥4 / output ¥21 per 1M" },
-  { model: "PixVerse V4.5", provider: "PixVerse", context: "Async video", price: "from ¥0.15 / second" },
+  { model: "Qwen3.6 Max Preview", provider: "Qwen (Alibaba)", context: "262K", price: "input $9 / output $54 per 1M" },
+  { model: "DeepSeek V3.2", provider: "DeepSeek", context: "131K", price: "input $2 / output $3 per 1M" },
+  { model: "GLM 5.2", provider: "Zhipu AI", context: "1M", price: "input $8 / output $28 per 1M" },
+  { model: "Kimi K2.5", provider: "Moonshot AI", context: "131K", price: "input $4 / output $21 per 1M" },
+  { model: "PixVerse V4.5", provider: "PixVerse", context: "Async video", price: "from $0.15 / second" },
 ];
 
 const capabilities = [
   {
     title: "Unified API",
-    desc: "Use one OpenAI-compatible endpoint for chat, embeddings, image, video, Anthropic Messages and Gemini-compatible calls.",
+    desc: "Use one OpenAI-compatible endpoint for chat, embeddings, image, video, Anthropic Messages and Responses API calls.",
   },
   {
     title: "Billing Control",
@@ -43,31 +43,33 @@ const workflow = [
 ];
 
 const fallbackCarouselModels = [
-  { name: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥9 · Out ¥54", badge: "Flagship", tone: "blue" },
-  { name: "Qwen3 Max", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥2.5 · Out ¥10", badge: "Stable", tone: "blue" },
-  { name: "Qwen Long", provider: "Tongyi Qianwen", ctx: "10M context", price: "In ¥0.5 · Out ¥2", badge: "Long", tone: "teal" },
-  { name: "Qwen3.6 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥2 · Out ¥12", badge: "Popular", tone: "blue" },
-  { name: "Qwen3.5 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.8 · Out ¥4.8", badge: "Balanced", tone: "blue" },
-  { name: "Qwen3.5 Flash", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.2 · Out ¥2", badge: "Fast", tone: "teal" },
-  { name: "Qwen VL Flash", provider: "Tongyi Qianwen", ctx: "262K vision", price: "In ¥0.15 · Out ¥1.5", badge: "Vision", tone: "violet" },
-  { name: "Qwen Coder Flash", provider: "Tongyi Qianwen", ctx: "1M code", price: "In ¥1 · Out ¥4", badge: "Code", tone: "slate" },
-  { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },
-  { name: "DeepSeek R1", provider: "DeepSeek", ctx: "64K context", price: "In ¥4 · Out ¥16", badge: "Reasoning", tone: "red" },
-  { name: "GLM 5", provider: "Zhipu AI", ctx: "131K context", price: "In ¥4 · Out ¥18", badge: "General", tone: "violet" },
-  { name: "Kimi K2.5", provider: "Moonshot AI", ctx: "131K context", price: "In ¥4 · Out ¥21", badge: "Writing", tone: "teal" },
-  { name: "Text Embedding V4", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
-  { name: "Qwen Image Max", provider: "Tongyi Qianwen", ctx: "Image", price: "per image", badge: "Image", tone: "orange" },
-  { name: "PixVerse V4.5", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
-  { name: "HappyHorse 1.0", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.9/s", badge: "Video", tone: "orange" },
+  { name: "Qwen3.6 Max Preview", provider: "Qwen (Alibaba)", ctx: "262K context", price: "In $9 · Out $54", badge: "Flagship", tone: "blue" },
+  { name: "Qwen3 Max", provider: "Qwen (Alibaba)", ctx: "262K context", price: "In $2.5 · Out $10", badge: "Stable", tone: "blue" },
+  { name: "Qwen Long", provider: "Qwen (Alibaba)", ctx: "10M context", price: "In $0.5 · Out $2", badge: "Long", tone: "teal" },
+  { name: "Qwen3.6 Plus", provider: "Qwen (Alibaba)", ctx: "1M context", price: "In $2 · Out $12", badge: "Popular", tone: "blue" },
+  { name: "Qwen3.5 Plus", provider: "Qwen (Alibaba)", ctx: "1M context", price: "In $0.8 · Out $4.8", badge: "Balanced", tone: "blue" },
+  { name: "Qwen3.5 Flash", provider: "Qwen (Alibaba)", ctx: "1M context", price: "In $0.2 · Out $2", badge: "Fast", tone: "teal" },
+  { name: "Qwen3.5 Omni Plus", provider: "Qwen (Alibaba)", ctx: "262K omni", price: "In $7 · Out $40", badge: "Omni", tone: "violet" },
+  { name: "Qwen3.5 Omni Flash", provider: "Qwen (Alibaba)", ctx: "262K omni", price: "In $2.2 · Out $13.3", badge: "Omni", tone: "violet" },
+  { name: "Qwen VL Flash", provider: "Qwen (Alibaba)", ctx: "262K vision", price: "In $0.15 · Out $1.5", badge: "Vision", tone: "violet" },
+  { name: "Qwen Coder Flash", provider: "Qwen (Alibaba)", ctx: "1M code", price: "In $1 · Out $4", badge: "Code", tone: "slate" },
+  { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In $2 · Out $3", badge: "General", tone: "red" },
+  { name: "DeepSeek R1", provider: "DeepSeek", ctx: "64K context", price: "In $4 · Out $16", badge: "Reasoning", tone: "red" },
+  { name: "GLM 5.2", provider: "Zhipu AI", ctx: "1M context", price: "In $8 · Out $28", badge: "Flagship", tone: "violet" },
+  { name: "Kimi K2.5", provider: "Moonshot AI", ctx: "131K context", price: "In $4 · Out $21", badge: "Writing", tone: "teal" },
+  { name: "Text Embedding V4", provider: "Qwen (Alibaba)", ctx: "8K vectors", price: "$0.5 / 1M input", badge: "Vector", tone: "slate" },
+  { name: "Qwen Image Max", provider: "Qwen (Alibaba)", ctx: "Image", price: "per image", badge: "Image", tone: "orange" },
+  { name: "PixVerse V4.5", provider: "PixVerse", ctx: "Async video", price: "from $0.15/s", badge: "Video", tone: "orange" },
+  { name: "HappyHorse 1.0", provider: "Qwen (Alibaba)", ctx: "Async video", price: "from $0.9/s", badge: "Video", tone: "orange" },
 ];
 
 type CarouselModel = typeof fallbackCarouselModels[number];
 
 function toneForCategory(category: string): CarouselModel["tone"] {
-  if (category.includes("推理") || category.includes("DeepSeek")) return "red";
-  if (category.includes("多模态")) return "violet";
-  if (category.includes("图像") || category.includes("视频")) return "orange";
-  if (category.includes("编程") || category.includes("向量")) return "slate";
+  if (category.includes("Reasoning") || category.includes("DeepSeek")) return "red";
+  if (category.includes("Multimodal")) return "violet";
+  if (category.includes("Image") || category.includes("Video")) return "orange";
+  if (category.includes("Coding") || category.includes("Embedding")) return "slate";
   return "blue";
 }
 
@@ -77,7 +79,7 @@ function modelToCarousel(model: ModelSummary): CarouselModel {
     provider: model.provider,
     ctx: model.pricingType === "per-second" ? "Async video" : `${formatContextLength(model.contextLength)} context`,
     price: formatModelPrice(model),
-    badge: model.category.replace("模型", "") || "Model",
+    badge: model.category.replace("Model", "").trim() || "Model",
     tone: toneForCategory(model.category),
   };
 }
@@ -223,7 +225,7 @@ export default function LandingPage() {
           </p>
           <div className="nf-hero-actions">
             <Link href={user ? "/dashboard" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">
-              {user ? "Open Console" : "免费开始"}
+              {user ? "Open Console" : "Get started free"}
             </Link>
             <Link href="/docs/quickstart" className="nf-btn nf-btn-secondary nf-btn-lg">
               Read quickstart
@@ -231,7 +233,7 @@ export default function LandingPage() {
           </div>
           <div className="nf-hero-metrics">
             <div><strong>{modelCount}+</strong><span>model options</span></div>
-            <div><strong>¥0.15/s</strong><span>video from</span></div>
+            <div><strong>$0.15/s</strong><span>video from</span></div>
             <div><strong>VBench #1</strong><span>HappyHorse video</span></div>
           </div>
         </div>
@@ -293,7 +295,7 @@ export default function LandingPage() {
           <p>Validate in Playground, then ship through the same model names, keys and billing path in production.</p>
         </div>
         <Link href={user ? "/keys" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">
-          {user ? "Create API key" : "免费开始"}
+          {user ? "Create API key" : "Get started free"}
         </Link>
       </section>
     </main>

@@ -12,7 +12,7 @@ import { randomUUID } from "crypto";
  * - video: DashScope video generation (async)
  */
 
-const DASHSCOPE_BASE = "https://dashscope.aliyuncs.com";
+const DASHSCOPE_BASE = process.env.DASHSCOPE_BASE_URL ? process.env.DASHSCOPE_BASE_URL.replace(/\/compatible-mode\/v1$/, "").replace(/\/api\/v1$/, "") : "https://ws-n4w0z49s9nes8pgm.ap-southeast-1.maas.aliyuncs.com";
 
 // ============================================================
 // Types
@@ -42,19 +42,19 @@ export interface TaskResult {
 
 export function detectModelType(category: string): ModelType {
   switch (category) {
-    case "大语言模型":
-    case "推理模型":
-    case "多模态模型":
-    case "编程模型":
-    case "专业模型":
+    case "Large Language Model":
+    case "Reasoning Model":
+    case "Multimodal Model":
+    case "Programming Model":
+    case "Specialized Model":
       return "chat";
-    case "向量模型":
+    case "Embedding Model":
       return "embedding";
-    case "图像生成":
+    case "Image Generation":
       return "image";
-    case "视频生成":
+    case "Video Generation":
       return "video";
-    case "语音模型":
+    case "Audio Model":
       return "audio";
     default:
       return "unknown";

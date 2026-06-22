@@ -454,7 +454,7 @@ function ModelCombobox({ value, onChange, options }: {
   return (
     <div ref={ref} style={{ position: "relative", width: "100%" }}>
       <input
-        placeholder="搜索模型 ID..."
+        placeholder="Search model ID..."
         value={query}
         onFocus={() => setOpen(true)}
         onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
@@ -491,21 +491,21 @@ const statusColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  draft: "待配置",
-  enabled: "已启用",
-  disabled: "已停用",
+  draft: "Pending",
+  enabled: "Enabled",
+  disabled: "Disabled",
 };
 
 const healthLabels: Record<string, string> = {
-  healthy: "健康",
-  degraded: "降级",
-  down: "不可用",
+  healthy: "Healthy",
+  degraded: "Degraded",
+  down: "Down",
 };
 
 const fallbackLabels: Record<string, string> = {
-  closed: "正常",
-  monitoring: "监控中",
-  open: "已熔断",
+  closed: "Normal",
+  monitoring: "Monitoring",
+  open: "Circuit Open",
 };
 
 const cardStyle: CSSProperties = {
@@ -516,7 +516,7 @@ const cardStyle: CSSProperties = {
 };
 
 function isTaskModelCategory(category?: string): boolean {
-  return category === "图像生成" || category === "视频生成" || category === "语音模型";
+  return category === "Image Generation" || category === "Video Generation" || category === "Voice Model";
 }
 
 function formatPercent(value: number): string {
@@ -665,12 +665,12 @@ export default function AdminPage() {
         if (providersRes.status === 403 || providersRes.status === 401) {
           setAccessDenied(true);
         } else {
-          setError("管理员权限不足或后台接口未开放");
+          setError("Insufficient admin privileges or backend API not available");
         }
       }
     } catch (loadErr) {
-      console.error("加载后台数据失败", loadErr);
-      setError("加载后台数据失败");
+      console.error("Failed to load admin data", loadErr);
+      setError("Failed to load admin data");
     } finally {
       setLoading(false);
     }
@@ -704,7 +704,7 @@ export default function AdminPage() {
         contactPhone: detail.provider.contactPhone || "",
       });
     } catch (detailErr) {
-      console.error("加载渠道详情失败", detailErr);
+      console.error("Failed to load provider detail", detailErr);
     } finally {
       setDetailLoading(false);
     }
@@ -740,84 +740,84 @@ export default function AdminPage() {
   async function handleApproveProvider(id: string) {
     await withAction(`enable-provider-${id}`, async () => {
       const res = await fetchAPI(`/api/provider/admin/providers/${id}/enable`, { method: "POST", headers: authHeaders() });
-      if (res.success) { setNotice("渠道已启用"); loadData(); if (selectedProviderId === id) loadProviderDetail(id); }
-      else setNotice(res.message || "操作失败");
+      if (res.success) { setNotice("Provider enabled"); loadData(); if (selectedProviderId === id) loadProviderDetail(id); }
+      else setNotice(res.message || "Operation failed");
     });
   }
 
   async function handleRejectProvider(id: string) {
     await withAction(`disable-provider-${id}`, async () => {
-      const reason = prompt("请输入停用备注（可选）：");
+      const reason = prompt("Enter disable reason (optional):");
       const res = await fetchAPI(`/api/provider/admin/providers/${id}/disable`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ reason }),
       });
-      if (res.success) { setNotice("渠道已停用"); loadData(); if (selectedProviderId === id) loadProviderDetail(id); }
-      else setNotice(res.message || "操作失败");
+      if (res.success) { setNotice("Provider disabled"); loadData(); if (selectedProviderId === id) loadProviderDetail(id); }
+      else setNotice(res.message || "Operation failed");
     });
   }
 
   async function handleApproveModel(id: string) {
     await withAction(`enable-model-${id}`, async () => {
       const res = await fetchAPI(`/api/provider/admin/models/${id}/enable`, { method: "POST", headers: authHeaders() });
-      if (res.success) { setNotice("模型已启用"); loadData(); }
-      else setNotice(res.message || "操作失败");
+      if (res.success) { setNotice("Model enabled"); loadData(); }
+      else setNotice(res.message || "Operation failed");
     });
   }
 
   async function handleRejectModel(id: string) {
     await withAction(`disable-model-${id}`, async () => {
       const res = await fetchAPI(`/api/provider/admin/models/${id}/disable`, { method: "POST", headers: authHeaders() });
-      if (res.success) { setNotice("模型已停用"); loadData(); }
-      else setNotice(res.message || "操作失败");
+      if (res.success) { setNotice("Model disabled"); loadData(); }
+      else setNotice(res.message || "Operation failed");
     });
   }
 
   async function handleReplyTicket(id: string) {
     await withAction(`reply-ticket-${id}`, async () => {
-      const reply = prompt("请输入管理员回复：");
+      const reply = prompt("Enter admin reply:");
       if (!reply) return;
-      const status = prompt("请输入状态：open / in_progress / resolved / rejected", "in_progress");
+      const status = prompt("Enter status: open / in_progress / resolved / rejected", "in_progress");
       if (!status) return;
       const res = await fetchAPI(`/api/tickets/${id}/reply`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ reply, status }),
       });
-      if (res.success) { setNotice("回复已发送"); loadData(); }
-      else setNotice(res.message || "回复失败");
+      if (res.success) { setNotice("Reply sent"); loadData(); }
+      else setNotice(res.message || "Reply failed");
     });
   }
 
   async function handleApproveRequest(id: string, request?: RateLimitRequest) {
     await withAction(`approve-request-${id}`, async () => {
-      const reply = prompt("审批备注（可留空）", "已批准");
+      const reply = prompt("Approval note (optional)", "Approved");
       const res = await fetchAPI(`/api/rate-limits/admin/requests/${id}/approve`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
-          reply: reply || "已批准",
+          reply: reply || "Approved",
           model: request?.model,
           qpm: request?.requested_qpm,
           tpm: request?.requested_tpm,
         }),
       });
-      if (res.success) { setNotice("申请已批准"); loadData(); }
-      else setNotice(res.message || "操作失败");
+      if (res.success) { setNotice("Request approved"); loadData(); }
+      else setNotice(res.message || "Operation failed");
     });
   }
 
   async function handleRejectRequest(id: string) {
     await withAction(`reject-request-${id}`, async () => {
-      const reply = prompt("拒绝原因（可留空）", "暂不通过");
+      const reply = prompt("Rejection reason (optional)", "Not approved");
       const res = await fetchAPI(`/api/rate-limits/admin/requests/${id}/reject`, {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ reply: reply || "暂不通过" }),
+        body: JSON.stringify({ reply: reply || "Not approved" }),
       });
-      if (res.success) { setNotice("申请已拒绝"); loadData(); }
-      else setNotice(res.message || "操作失败");
+      if (res.success) { setNotice("Request rejected"); loadData(); }
+      else setNotice(res.message || "Operation failed");
     });
   }
 
@@ -841,7 +841,7 @@ export default function AdminPage() {
         }),
       });
       if (res.success) {
-        setNotice("渠道配置已保存");
+        setNotice("Provider config saved");
         setProviderForm((current) => ({ ...current, apiKey: "" }));
         await loadData();
         await loadProviderDetail(selectedProviderId);
@@ -852,11 +852,11 @@ export default function AdminPage() {
   }
 
   async function handleCreateProvider() {
-    const name = prompt("渠道名称，例如：火山方舟");
+    const name = prompt("Provider name, e.g.: Volcengine Ark");
     if (!name) return;
-    const apiBaseUrl = prompt("API Base URL，例如：https://ark.cn-beijing.volces.com/api/v3");
+    const apiBaseUrl = prompt("API Base URL, e.g.: https://ark.cn-beijing.volces.com/api/v3");
     if (!apiBaseUrl) return;
-    const apiKey = prompt("API Key（可留空后续再填）", "") || "";
+    const apiKey = prompt("API Key (can be left empty to fill later)", "") || "";
     const res = await fetchAPI("/api/provider/admin/providers", {
       method: "POST",
       headers: authHeaders(),
@@ -864,12 +864,12 @@ export default function AdminPage() {
         name,
         api_base_url: apiBaseUrl,
         api_key: apiKey,
-        contact_name: "平台运营",
+        contact_name: "Platform Ops",
         contact_email: "ops@nexusflow.ai",
       }),
     });
     if (res.success) {
-      setNotice("渠道已创建");
+      setNotice("Provider created");
       await loadData();
       if (res.data?.id) setSelectedProviderId(res.data.id);
     }
@@ -883,11 +883,11 @@ export default function AdminPage() {
       body: JSON.stringify({ channel }),
     });
     if (res.success) {
-      setNotice(res.message || "渠道已切换");
+      setNotice(res.message || "Provider channel switched");
       await loadData();
       await loadProviderDetail(providerId);
     } else {
-      setNotice(res.message || "渠道切换失败");
+      setNotice(res.message || "Provider channel switch failed");
     }
   }
 
@@ -896,29 +896,29 @@ export default function AdminPage() {
     const model = providerDetail?.models.find((item) => item.modelId === modelId);
     const isTaskModel = isTaskModelCategory(model?.category);
 
-    const rpm = prompt(isTaskModel ? "任务提交 RPM 限制" : "RPM 限制", String(current?.rpmLimit ?? 60));
+    const rpm = prompt(isTaskModel ? "Task submission RPM limit" : "RPM limit", String(current?.rpmLimit ?? 60));
     if (rpm === null) return;
     let tpm = String(current?.tpmLimit ?? 100000);
     if (!isTaskModel) {
-      const nextTpm = prompt("TPM 限制", tpm);
+      const nextTpm = prompt("TPM limit", tpm);
       if (nextTpm === null) return;
       tpm = nextTpm;
     } else {
       tpm = String(current?.tpmLimit ?? 0);
     }
-    const daily = prompt("每日请求上限", String(current?.dailyLimit ?? 10000));
+    const daily = prompt("Daily request limit", String(current?.dailyLimit ?? 10000));
     if (daily === null) return;
     let concurrent = String(current?.concurrentLimit ?? 10);
     if (isTaskModel) {
-      const nextConcurrent = prompt("后台任务并发上限", concurrent);
+      const nextConcurrent = prompt("Background task concurrency limit", concurrent);
       if (nextConcurrent === null) return;
       concurrent = nextConcurrent;
     }
-    const priority = prompt("优先级", String(current?.priority ?? 0));
+    const priority = prompt("Priority", String(current?.priority ?? 0));
     if (priority === null) return;
-    const weight = prompt("权重", String(current?.weight ?? 100));
+    const weight = prompt("Weight", String(current?.weight ?? 100));
     if (weight === null) return;
-    const enabled = prompt("是否启用：true / false", String(current?.isEnabled ?? true));
+    const enabled = prompt("Enable: true / false", String(current?.isEnabled ?? true));
     if (enabled === null) return;
 
     const res = await fetchAPI(`/api/provider/${selectedProviderId}/capacity/${modelId}`, {
@@ -935,38 +935,38 @@ export default function AdminPage() {
       }),
     });
     if (res.success) {
-      setNotice(`模型 ${modelId} 的容量策略已更新`);
+      setNotice(`Model ${modelId} capacity policy updated`);
       loadProviderDetail(selectedProviderId);
     }
   }
 
   async function handleSaveModelRoute(model: Model, route?: NonNullable<Model["routes"]>[number]) {
-    const providerId = route?.providerId || prompt("选择渠道 ID（可在渠道控制台查看，例如 dashscope 或 volcengine-ark）", providers[0]?.id || "");
+    const providerId = route?.providerId || prompt("Select provider ID (check Provider Console, e.g. dashscope or volcengine-ark)", providers[0]?.id || "");
     if (!providerId) return;
     const isTaskModel = isTaskModelCategory(model.category);
-    const rpm = prompt(isTaskModel ? "任务提交 RPM 限制" : "RPM 限制", String(route?.rpmLimit ?? 1000));
+    const rpm = prompt(isTaskModel ? "Task submission RPM limit" : "RPM limit", String(route?.rpmLimit ?? 1000));
     if (rpm === null) return;
     let tpm = String(route?.tpmLimit ?? 1000000);
     if (!isTaskModel) {
-      const nextTpm = prompt("TPM 限制", tpm);
+      const nextTpm = prompt("TPM limit", tpm);
       if (nextTpm === null) return;
       tpm = nextTpm;
     } else {
       tpm = String(route?.tpmLimit ?? 0);
     }
-    const daily = prompt("每日请求上限", String(route?.dailyLimit ?? 100000));
+    const daily = prompt("Daily request limit", String(route?.dailyLimit ?? 100000));
     if (daily === null) return;
     let concurrent = String(route?.concurrentLimit ?? 50);
     if (isTaskModel) {
-      const nextConcurrent = prompt("后台任务并发上限", concurrent);
+      const nextConcurrent = prompt("Background task concurrency limit", concurrent);
       if (nextConcurrent === null) return;
       concurrent = nextConcurrent;
     }
-    const priority = prompt("优先级，越大越优先", String(route?.priority ?? 0));
+    const priority = prompt("Priority, higher = more preferred", String(route?.priority ?? 0));
     if (priority === null) return;
-    const weight = prompt("权重，同优先级下越大越容易被选中", String(route?.weight ?? 100));
+    const weight = prompt("Weight, higher = more likely selected at same priority", String(route?.weight ?? 100));
     if (weight === null) return;
-    const enabled = prompt("是否启用：true / false", String(route?.isEnabled ?? true));
+    const enabled = prompt("Enable: true / false", String(route?.isEnabled ?? true));
     if (enabled === null) return;
 
     const res = await fetchAPI(`/api/provider/${providerId}/capacity/${model.modelId}`, {
@@ -983,7 +983,7 @@ export default function AdminPage() {
       }),
     });
     if (res.success) {
-      setNotice(`${model.modelId} 的渠道路由已保存`);
+      setNotice(`$Route saved for {model.modelId}`);
       await loadData();
       if (selectedProviderId) loadProviderDetail(selectedProviderId);
     }
@@ -1003,11 +1003,11 @@ export default function AdminPage() {
     if (!discountForm) return;
     const discountRate = Number(discountForm.rate);
     if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate > 1) {
-      setNotice("折扣率必须在 0 到 1 之间");
+      setNotice("Discount rate must be between 0 and 1");
       return;
     }
     if (!discountForm.modelId.trim()) {
-      setNotice("模型 ID 不能为空");
+      setNotice("Model ID cannot be empty");
       return;
     }
     const res = await fetchAPI("/api/billing/admin/user-model-discounts", {
@@ -1022,12 +1022,12 @@ export default function AdminPage() {
       }),
     });
     if (res.success) {
-      setNotice("用户模型折扣已保存");
+      setNotice("User model discount saved");
       setDiscountForm(null);
       await loadData();
       await loadUserDetail(userId);
     } else {
-      setNotice(res.message || "折扣保存失败");
+      setNotice(res.message || "Discount save failed");
     }
   }
 
@@ -1038,11 +1038,11 @@ export default function AdminPage() {
         headers: authHeaders(),
       });
       if (res.success) {
-        setNotice("折扣已删除");
+        setNotice("Discount deleted");
         await loadData();
         if (selectedUserId) await loadUserDetail(selectedUserId);
       } else {
-        setNotice(res.message || "折扣删除失败");
+        setNotice(res.message || "Discount delete failed");
       }
     });
   }
@@ -1055,22 +1055,22 @@ export default function AdminPage() {
     if (!balanceForm) return;
     const amountDelta = Number(balanceForm.amount);
     if (!Number.isFinite(amountDelta) || amountDelta === 0) {
-      setNotice("调账金额必须是非 0 数字");
+      setNotice("Adjustment amount must be a non-zero number");
       return;
     }
-    const description = balanceForm.description.trim() || (amountDelta > 0 ? "管理员增加余额" : "管理员扣减余额");
+    const description = balanceForm.description.trim() || (amountDelta > 0 ? "Admin balance increase" : "Admin balance decrease");
     const res = await fetchAPI(`/api/admin/users/${userId}/balance-adjust`, {
       method: "POST",
       headers: authHeaders(),
       body: JSON.stringify({ amountDelta, description }),
     });
     if (res.success) {
-      setNotice("用户余额已调整");
+      setNotice("User balance adjusted");
       setBalanceForm(null);
       await loadData();
       await loadUserDetail(userId);
     } else {
-      setNotice(res.message || "余额调整失败");
+      setNotice(res.message || "Balance adjustment failed");
     }
   }
 
@@ -1089,7 +1089,7 @@ export default function AdminPage() {
     const qpm = Number(rateLimitForm.qpm);
     const tpm = Number(rateLimitForm.tpm);
     if (!Number.isFinite(qpm) || qpm <= 0 || !Number.isFinite(tpm) || tpm <= 0) {
-      setNotice("QPM 和 TPM 必须是大于 0 的数字");
+      setNotice("QPM and TPM must be numbers greater than 0");
       return;
     }
     const res = await fetchAPI(`/api/rate-limits/admin/users/${userId}/models/${encodeURIComponent(model)}`, {
@@ -1098,13 +1098,13 @@ export default function AdminPage() {
       body: JSON.stringify({ qpm, tpm }),
     });
     if (res.success) {
-      setNotice("用户模型限流已更新");
+      setNotice("User model rate limit updated");
       setRateLimitForm(null);
       setRateLimitFormTarget(null);
       await loadData();
       await loadUserDetail(userId);
     } else {
-      setNotice(res.message || "限流更新失败");
+      setNotice(res.message || "Rate limit update failed");
     }
   }
 
@@ -1115,11 +1115,11 @@ export default function AdminPage() {
         headers: authHeaders(),
       });
       if (res.success) {
-        setNotice("用户模型限流已删除");
+        setNotice("User model rate limit deleted");
         await loadData();
         await loadUserDetail(userId);
       } else {
-        setNotice(res.message || "限流删除失败");
+        setNotice(res.message || "Rate limit delete failed");
       }
     });
   }
@@ -1128,12 +1128,12 @@ export default function AdminPage() {
     const now = new Date();
     const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const defaultEnd = now.toISOString().slice(0, 10);
-    const startDate = prompt("账单开始日期 YYYY-MM-DD", defaultStart);
+    const startDate = prompt("Billing start date YYYY-MM-DD", defaultStart);
     if (!startDate) return;
-    const endDate = prompt("账单结束日期 YYYY-MM-DD", defaultEnd);
+    const endDate = prompt("Billing end date YYYY-MM-DD", defaultEnd);
     if (!endDate) return;
     if (startDate > endDate) {
-      setNotice("开始日期不能晚于结束日期");
+      setNotice("Start date cannot be later than end date");
       return;
     }
 
@@ -1154,9 +1154,9 @@ export default function AdminPage() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      setNotice("用户账单 CSV 已导出");
+      setNotice("User billing CSV exported");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "账单导出失败");
+      setNotice(error instanceof Error ? error.message : "Billing export failed");
     }
   }
 
@@ -1165,7 +1165,7 @@ export default function AdminPage() {
     const qpm = Number(defaultLimitForm.qpm);
     const tpm = Number(defaultLimitForm.tpm);
     if (!Number.isFinite(qpm) || qpm <= 0 || !Number.isFinite(tpm) || tpm <= 0) {
-      setNotice("QPM 和 TPM 必须是大于 0 的数字");
+      setNotice("QPM and TPM must be numbers greater than 0");
       return;
     }
     const res = await fetchAPI(`/api/rate-limits/admin/users/${userId}/models/${encodeURIComponent("*")}`, {
@@ -1174,12 +1174,12 @@ export default function AdminPage() {
       body: JSON.stringify({ qpm, tpm }),
     });
     if (res.success) {
-      setNotice("默认限额已更新");
+      setNotice("Default limits updated");
       setDefaultLimitForm(null);
       await loadData();
       await loadUserDetail(userId);
     } else {
-      setNotice(res.message || "默认限额更新失败");
+      setNotice(res.message || "Default limits update failed");
     }
   }
 
@@ -1227,7 +1227,7 @@ export default function AdminPage() {
       setLogDetail(res.data);
       if (res.note) setLogDetailNote(res.note);
     } else {
-      setLogDetailNote(res.message || "查询失败");
+      setLogDetailNote(res.message || "Query failed");
     }
     setLogDetailLoading(false);
   }
@@ -1259,15 +1259,15 @@ export default function AdminPage() {
   }, [models]);
 
   const tabs: { key: TabKey; label: string }[] = [
-    { key: "dashboard", label: "监控大盘" },
-    { key: "overview", label: "总览" },
-    { key: "operations", label: "供应商运营" },
-    { key: "users", label: "用户管理" },
-    { key: "approvals", label: "限额审批" },
-    { key: "providers", label: "渠道控制台" },
-    { key: "models", label: "模型管理" },
-    { key: "tickets", label: "工单中心" },
-    { key: "logs", label: "日志查询" },
+    { key: "dashboard", label: "Dashboard" },
+    { key: "overview", label: "Overview" },
+    { key: "operations", label: "Provider Operations" },
+    { key: "users", label: "User Management" },
+    { key: "approvals", label: "Rate Limit Approvals" },
+    { key: "providers", label: "Provider Console" },
+    { key: "models", label: "Model Management" },
+    { key: "tickets", label: "Tickets" },
+    { key: "logs", label: "Log Search" },
   ];
 
   const selectedProvider = useMemo(
@@ -1328,10 +1328,10 @@ export default function AdminPage() {
       <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#f3f4f6", fontFamily: "system-ui, sans-serif" }}>
         <div style={{ textAlign: "center", padding: 40 }}>
           <div style={{ fontSize: 48, fontWeight: 700, color: "#111827" }}>403</div>
-          <div style={{ fontSize: 18, color: "#374151", marginTop: 8 }}>无管理员权限</div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 8 }}>您的账号未被授权访问后台管理控制台。</div>
+          <div style={{ fontSize: 18, color: "#374151", marginTop: 8 }}>No admin access</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 8 }}>Your account is not authorized to access the admin console.</div>
           <Link href="/" style={{ display: "inline-block", marginTop: 24, padding: "10px 20px", background: "#111827", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: 14 }}>
-            返回主站
+            Back to main site
           </Link>
         </div>
       </div>
@@ -1376,14 +1376,14 @@ export default function AdminPage() {
         </nav>
         <div style={{ padding: "16px 20px", borderTop: "1px solid rgba(148, 163, 184, 0.15)" }}>
           <Link href="/" style={{ fontSize: 12, color: "#94a3b8", textDecoration: "none" }}>
-            &larr; 返回主站
+            &larr; Back to main site
           </Link>
         </div>
       </aside>
 
       <main style={{ flex: 1, padding: "28px 32px 36px", overflow: "auto" }}>
         {loading ? (
-          <div style={{ ...cardStyle, textAlign: "center", padding: 80, color: "#6b7280" }}>加载中...</div>
+          <div style={{ ...cardStyle, textAlign: "center", padding: 80, color: "#6b7280" }}>Loading...</div>
         ) : error ? (
           <div style={{ background: "#fff7ed", border: "1px solid #fdba74", color: "#9a3412", padding: 16, borderRadius: 12 }}>{error}</div>
         ) : (
@@ -1396,16 +1396,16 @@ export default function AdminPage() {
               <AdminDashboard />
             ) : activeTab === "overview" ? (
               <>
-                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>管理总览</h1>
+                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>Admin Overview</h1>
                 {stats ? (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
                     {[
-                      { label: "待配置渠道", value: stats.providers.draft, color: "#d97706" },
-                      { label: "已启用渠道", value: stats.providers.enabled, color: "#10b981" },
-                      { label: "已停用渠道", value: stats.providers.disabled, color: "#ef4444" },
-                      { label: "草稿模型", value: stats.models.draft, color: "#d97706" },
-                      { label: "已启用模型", value: stats.models.enabled, color: "#10b981" },
-                      { label: "已停用模型", value: stats.models.disabled, color: "#ef4444" },
+                      { label: "Pending Providers", value: stats.providers.draft, color: "#d97706" },
+                      { label: "Enabled Providers", value: stats.providers.enabled, color: "#10b981" },
+                      { label: "Disabled Providers", value: stats.providers.disabled, color: "#ef4444" },
+                      { label: "Draft Models", value: stats.models.draft, color: "#d97706" },
+                      { label: "Enabled Models", value: stats.models.enabled, color: "#10b981" },
+                      { label: "Disabled Models", value: stats.models.disabled, color: "#ef4444" },
                     ].map((item) => (
                       <div key={item.label} style={{ ...cardStyle, padding: 20 }}>
                         <div style={{ fontSize: 30, fontWeight: 700, color: item.color }}>{item.value}</div>
@@ -1418,10 +1418,10 @@ export default function AdminPage() {
                   <>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
                       {[
-                        { label: "全站当前RPM", value: monitorOverview.totals.currentRpm, color: "#2563eb" },
-                        { label: "全站当前TPM", value: monitorOverview.totals.currentTpm, color: "#0f766e" },
-                        { label: "全站总RPM上限", value: monitorOverview.totals.rpmLimit, color: "#7c3aed" },
-                        { label: "全站总TPM上限", value: monitorOverview.totals.tpmLimit, color: "#b45309" },
+                        { label: "Site Current RPM", value: monitorOverview.totals.currentRpm, color: "#2563eb" },
+                        { label: "Site Current TPM", value: monitorOverview.totals.currentTpm, color: "#0f766e" },
+                        { label: "Site Total RPM Limit", value: monitorOverview.totals.rpmLimit, color: "#7c3aed" },
+                        { label: "Site Total TPM Limit", value: monitorOverview.totals.tpmLimit, color: "#b45309" },
                       ].map((item) => (
                         <div key={item.label} style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ fontSize: 24, fontWeight: 700, color: item.color, fontVariantNumeric: "tabular-nums" }}>{Number(item.value || 0).toLocaleString()}</div>
@@ -1431,10 +1431,10 @@ export default function AdminPage() {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
                       {[
-                        { label: "健康渠道", value: monitorOverview.totals.healthyProviders, color: "#10b981" },
-                        { label: "降级渠道", value: monitorOverview.totals.degradedProviders, color: "#f59e0b" },
-                        { label: "熔断渠道", value: monitorOverview.totals.downProviders, color: "#ef4444" },
-                        { label: "监控时间", value: new Date(monitorOverview.generatedAt).toLocaleTimeString("zh-CN"), color: "#2563eb" },
+                        { label: "Healthy Providers", value: monitorOverview.totals.healthyProviders, color: "#10b981" },
+                        { label: "Degraded Providers", value: monitorOverview.totals.degradedProviders, color: "#f59e0b" },
+                        { label: "Down Providers", value: monitorOverview.totals.downProviders, color: "#ef4444" },
+                        { label: "Monitored At", value: new Date(monitorOverview.generatedAt).toLocaleTimeString("zh-CN"), color: "#2563eb" },
                       ].map((item) => (
                         <div key={item.label} style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ fontSize: 24, fontWeight: 700, color: item.color }}>{item.value}</div>
@@ -1444,14 +1444,14 @@ export default function AdminPage() {
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 16, marginBottom: 20 }}>
                       <div style={{ ...cardStyle, padding: 20 }}>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>渠道运行状态</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Provider Health Status</div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           {monitorOverview.providers.map((provider) => (
                             <div key={provider.providerId} style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr 0.7fr 0.7fr", gap: 12, alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
                               <div>
                                 <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{provider.providerName}</div>
                                 <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-                                  路由 {provider.enabledRoutes}/{provider.modelCount} · 熔断 {fallbackLabels[provider.fallbackState]}
+                                  Routes {provider.enabledRoutes}/{provider.modelCount} · Circuit {fallbackLabels[provider.fallbackState]}
                                 </div>
                               </div>
                               <div style={{ fontSize: 12, color: "#4b5563" }}>
@@ -1466,10 +1466,10 @@ export default function AdminPage() {
                         </div>
                       </div>
                       <div style={{ ...cardStyle, padding: 20 }}>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>告警面板</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 14 }}>Alert Panel</div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           {monitorOverview.alerts.length === 0 ? (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>当前没有激活告警。</div>
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>No active alerts.</div>
                           ) : monitorOverview.alerts.map((alert, index) => (
                             <div key={`${alert.providerId}-${index}`} style={{
                               borderRadius: 10,
@@ -1488,11 +1488,11 @@ export default function AdminPage() {
                 ) : null}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 16 }}>
                   <div style={{ ...cardStyle, padding: 20 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 12 }}>注册用户</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 12 }}>Registered Users</div>
                     <div style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>{users.length}</div>
                   </div>
                   <div style={{ ...cardStyle, padding: 20 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 12 }}>待处理工单</div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 12 }}>Pending Tickets</div>
                     <div style={{ fontSize: 28, fontWeight: 700, color: "#111827" }}>
                       {tickets.filter((ticket) => ticket.status === "open" || ticket.status === "in_progress").length}
                     </div>
@@ -1503,26 +1503,26 @@ export default function AdminPage() {
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <div>
-                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>供应商运营</h1>
-                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>把上游供应商、模型路由、价格、限流和健康状态放到一张运营视图里</div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>Provider Operations</h1>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>Unified view of upstream providers, model routing, pricing, rate limits and health status</div>
                   </div>
                   <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                    刷新
+                    Refresh
                   </button>
                 </div>
 
                 {!operations ? (
-                  <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>暂无供应商运营数据</div>
+                  <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>No provider operations data available</div>
                 ) : (
                   <>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 14, marginBottom: 18 }}>
                       {[
-                        { label: "启用供应商", value: `${operations.summary.enabledProviders}/${operations.summary.providers}`, color: "#10b981" },
-                        { label: "已路由模型", value: `${operations.summary.routedModels}/${operations.summary.models}`, color: "#2563eb" },
-                        { label: "启用路由", value: `${operations.summary.enabledRoutes}/${operations.summary.routes}`, color: "#0f766e" },
-                        { label: "成本覆盖", value: `${operations.summary.costedRoutes}/${operations.summary.routes}`, color: "#7c3aed" },
-                        { label: "策略覆盖", value: operations.summary.routePolicies, color: "#b45309" },
-                        { label: "风险", value: `${operations.summary.criticalIssues}/${operations.summary.warningIssues}`, color: "#dc2626" },
+                        { label: "Active Providers", value: `${operations.summary.enabledProviders}/${operations.summary.providers}`, color: "#10b981" },
+                        { label: "Routed Models", value: `${operations.summary.routedModels}/${operations.summary.models}`, color: "#2563eb" },
+                        { label: "EnableRoutes", value: `${operations.summary.enabledRoutes}/${operations.summary.routes}`, color: "#0f766e" },
+                        { label: "Cost Coverage", value: `${operations.summary.costedRoutes}/${operations.summary.routes}`, color: "#7c3aed" },
+                        { label: "Policy Coverage", value: operations.summary.routePolicies, color: "#b45309" },
+                        { label: "Risks", value: `${operations.summary.criticalIssues}/${operations.summary.warningIssues}`, color: "#dc2626" },
                       ].map((item) => (
                         <div key={item.label} style={{ ...cardStyle, padding: 16 }}>
                           <div style={{ fontSize: 22, fontWeight: 700, color: item.color, fontVariantNumeric: "tabular-nums" }}>{item.value}</div>
@@ -1534,8 +1534,8 @@ export default function AdminPage() {
                     <div style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 16, marginBottom: 18, alignItems: "start" }}>
                       <div style={{ ...cardStyle, padding: 20 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 14 }}>
-                          <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>上游供应商账本</h2>
-                          <span style={{ fontSize: 12, color: "#6b7280" }}>生成于 {new Date(operations.generatedAt).toLocaleTimeString("zh-CN")}</span>
+                          <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>Provider Ledger</h2>
+                          <span style={{ fontSize: 12, color: "#6b7280" }}>Generated at {new Date(operations.generatedAt).toLocaleTimeString("zh-CN")}</span>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           {operations.providers.map((provider) => (
@@ -1555,12 +1555,12 @@ export default function AdminPage() {
                                     <span style={{ padding: "2px 8px", borderRadius: 9999, fontSize: 11.5, background: `${statusColors[provider.health]}15`, color: statusColors[provider.health] }}>{healthLabels[provider.health]}</span>
                                   </div>
                                   <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", overflowWrap: "anywhere" }}>{provider.apiBaseUrl}</div>
-                                  <div style={{ marginTop: 4, fontSize: 12, color: provider.missingApiKey ? "#b91c1c" : "#6b7280" }}>密钥: {provider.apiKeyMasked}</div>
+                                  <div style={{ marginTop: 4, fontSize: 12, color: provider.missingApiKey ? "#b91c1c" : "#6b7280" }}>Key: {provider.apiKeyMasked}</div>
                                 </div>
                                 <div style={{ fontSize: 12, color: "#4b5563" }}>
-                                  模型 {provider.modelCount}
+                                  Model {provider.modelCount}
                                   <br />
-                                  路由 {provider.enabledRoutes}
+                                  Routes {provider.enabledRoutes}
                                 </div>
                                 <div style={{ fontSize: 12, color: "#4b5563" }}>
                                   RPM {provider.currentRpm}/{provider.rpmLimit}
@@ -1569,7 +1569,7 @@ export default function AdminPage() {
                                 </div>
                                 <div style={{ textAlign: "right" }}>
                                   <div style={{ fontSize: 20, fontWeight: 700, color: provider.saturationRatio >= 0.8 ? "#dc2626" : provider.saturationRatio >= 0.5 ? "#d97706" : "#10b981" }}>{formatPercent(provider.saturationRatio)}</div>
-                                  <div style={{ fontSize: 12, color: "#6b7280" }}>容量</div>
+                                  <div style={{ fontSize: 12, color: "#6b7280" }}>Capacity</div>
                                 </div>
                               </div>
                             </button>
@@ -1578,10 +1578,10 @@ export default function AdminPage() {
                       </div>
 
                       <div style={{ ...cardStyle, padding: 20 }}>
-                        <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>运营风险清单</h2>
+                        <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>Operational Risk List</h2>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           {operations.issues.length === 0 ? (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>当前没有发现配置风险。</div>
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>No configuration risks found.</div>
                           ) : operations.issues.slice(0, 12).map((issue, index) => (
                             <div key={`${issue.title}-${index}`} style={{
                               borderRadius: 10,
@@ -1594,11 +1594,11 @@ export default function AdminPage() {
                                 <span style={{ fontSize: 11, color: "#6b7280" }}>{issue.scope}</span>
                               </div>
                               <div style={{ marginTop: 6, fontSize: 12, color: "#4b5563", lineHeight: 1.6 }}>{issue.detail}</div>
-                              <div style={{ marginTop: 6, fontSize: 12, color: "#111827", lineHeight: 1.6 }}>建议: {issue.action}</div>
+                              <div style={{ marginTop: 6, fontSize: 12, color: "#111827", lineHeight: 1.6 }}>Suggestion: {issue.action}</div>
                             </div>
                           ))}
                           {operations.issues.length > 12 ? (
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>还有 {operations.issues.length - 12} 条风险，可在模型管理和渠道控制台继续排查。</div>
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>more {operations.issues.length - 12} risks. Check Model Management and Provider Console for more.</div>
                           ) : null}
                         </div>
                       </div>
@@ -1606,21 +1606,21 @@ export default function AdminPage() {
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18, alignItems: "start" }}>
                       <div style={{ ...cardStyle, padding: 20 }}>
-                        <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>客户/模型路由策略</h2>
+                        <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>Customer/Model Route Policies</h2>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           {operations.routePolicies.length === 0 ? (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>当前没有客户级覆盖策略，系统按全局权重和健康状态调度。</div>
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>No customer-level override policies. System dispatches by global weight and health.</div>
                           ) : operations.routePolicies.slice(0, 8).map((policy) => (
                             <div key={policy.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12 }}>
                               <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                                 <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{policy.model_id} · {policy.strategy}</div>
-                                <span style={{ fontSize: 12, color: policy.is_enabled ? "#059669" : "#6b7280" }}>{policy.is_enabled ? "启用" : "停用"}</span>
+                                <span style={{ fontSize: 12, color: policy.is_enabled ? "#059669" : "#6b7280" }}>{policy.is_enabled ? "Enable" : "Disabled"}</span>
                               </div>
                               <div style={{ marginTop: 6, fontSize: 12, color: "#4b5563", lineHeight: 1.6 }}>
-                                客户 {policy.user_id || "全局"} · 固定供应商 {policy.pinned_provider_id || "-"} · SLA {policy.min_availability ?? "-"}%
+                                Customer {policy.user_id || "Global"} · Pinned Provider {policy.pinned_provider_id || "-"} · SLA {policy.min_availability ?? "-"}%
                               </div>
                               <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-                                允许 {policy.allowed_providers.length ? policy.allowed_providers.join(", ") : "不限"} · 屏蔽 {policy.blocked_providers.length ? policy.blocked_providers.join(", ") : "无"}
+                                Allowed {policy.allowed_providers.length ? policy.allowed_providers.join(", ") : "Any"} · Blocked {policy.blocked_providers.length ? policy.blocked_providers.join(", ") : "None"}
                               </div>
                             </div>
                           ))}
@@ -1628,10 +1628,10 @@ export default function AdminPage() {
                       </div>
 
                       <div style={{ ...cardStyle, padding: 20 }}>
-                        <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近路由变更审计</h2>
+                        <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>Recent Route Change Audits</h2>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           {operations.routeAudits.length === 0 ? (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>暂未记录路由、成本或策略变更。</div>
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>No route, cost or policy changes recorded.</div>
                           ) : operations.routeAudits.map((audit) => (
                             <div key={audit.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12 }}>
                               <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
@@ -1651,18 +1651,18 @@ export default function AdminPage() {
                     <div style={{ ...cardStyle, overflow: "hidden" }}>
                       <div style={{ padding: "16px 18px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", background: "#f8fafc" }}>
                         <div>
-                          <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型路由矩阵</h2>
-                          <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>每行是一条上游承载路由，价格来自模型目录，容量来自供应商配置</div>
+                          <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>Model Route Matrix</h2>
+                          <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>Each row is an upstream route. Pricing from model catalog, capacity from provider config</div>
                         </div>
                         <button onClick={() => setActiveTab("models")} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                          编辑模型路由
+                          EditModelRoutes
                         </button>
                       </div>
                       <div style={{ overflowX: "auto" }}>
                         <table style={{ width: "100%", minWidth: 1100, borderCollapse: "collapse", fontSize: 12.5 }}>
                           <thead>
                             <tr style={{ background: "#fff" }}>
-                              {["模型", "供应商", "状态", "价格/毛利", "限流", "权重", "SLA", "容量"].map((head) => (
+                              {["Model", "Provider", "Status", "Price/Margin", "Rate Limit", "Weight", "SLA", "Capacity"].map((head) => (
                                 <th key={head} style={{ padding: "11px 12px", borderBottom: "1px solid #e5e7eb", color: "#6b7280", textAlign: "left", fontWeight: 700 }}>{head}</th>
                               ))}
                             </tr>
@@ -1679,39 +1679,39 @@ export default function AdminPage() {
                                   </td>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" }}>
                                     <div style={{ fontWeight: 700, color: "#111827" }}>{route.providerName}</div>
-                                    <div style={{ marginTop: 5, color: route.recommended ? "#059669" : "#b45309" }}>{route.recommended ? "推荐承载" : `建议走 ${route.recommendedProviderId}`}</div>
+                                    <div style={{ marginTop: 5, color: route.recommended ? "#059669" : "#b45309" }}>{route.recommended ? "Recommended" : `Consider routing to ${route.recommendedProviderId}`}</div>
                                   </td>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" }}>
-                                    <span style={{ padding: "3px 8px", borderRadius: 9999, background: route.enabled ? "#ecfdf5" : "#f3f4f6", color: route.enabled ? "#166534" : "#6b7280" }}>{route.enabled ? "启用" : "停用"}</span>
-                                    <div style={{ marginTop: 6, color: "#6b7280" }}>供应商 {statusLabels[route.providerStatus] || route.providerStatus}</div>
+                                    <span style={{ padding: "3px 8px", borderRadius: 9999, background: route.enabled ? "#ecfdf5" : "#f3f4f6", color: route.enabled ? "#166534" : "#6b7280" }}>{route.enabled ? "Enable" : "Disabled"}</span>
+                                    <div style={{ marginTop: 6, color: "#6b7280" }}>Provider {statusLabels[route.providerStatus] || route.providerStatus}</div>
                                   </td>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top", color: "#4b5563" }}>
-                                    售价 输入 {route.promptPrice}
+                                    Price In {route.promptPrice}
                                     <br />
-                                    售价 输出 {route.completionPrice}
+                                    Price Out {route.completionPrice}
                                     <br />
-                                    成本 {route.promptCost}/{route.completionCost}
+                                    Cost {route.promptCost}/{route.completionCost}
                                     <br />
-                                    毛利 {route.grossMarginPrompt}%/{route.grossMarginCompletion}%
+                                    Margin {route.grossMarginPrompt}%/{route.grossMarginCompletion}%
                                     <br />
                                     {route.priceUnit}
                                   </td>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top", color: "#4b5563" }}>
-                                    {isTaskModel ? "任务提交" : "RPM"} {route.currentRpm}/{route.rpmLimit}
+                                    {isTaskModel ? "Task Submit" : "RPM"} {route.currentRpm}/{route.rpmLimit}
                                     <br />
-                                    {isTaskModel ? `任务并发 ${route.concurrentLimit}` : `TPM ${route.currentTpm}/${route.tpmLimit}`}
+                                    {isTaskModel ? `Task Concur. ${route.concurrentLimit}` : `TPM ${route.currentTpm}/${route.tpmLimit}`}
                                     <br />
-                                    日上限 {route.dailyLimit}
+                                    Daily Limit {route.dailyLimit}
                                   </td>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top", color: "#4b5563" }}>
-                                    优先级 {route.priority}
+                                    Priority {route.priority}
                                     <br />
-                                    权重 {route.weight}
+                                    Weight {route.weight}
                                   </td>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" }}>
                                     <span style={{ padding: "3px 8px", borderRadius: 9999, background: `${statusColors[route.health]}15`, color: statusColors[route.health] }}>{healthLabels[route.health]}</span>
-                                    <div style={{ marginTop: 6, color: "#6b7280" }}>延迟 {route.avgLatencyMs}ms</div>
-                                    <div style={{ marginTop: 4, color: "#6b7280" }}>可用率 {route.availability}%</div>
+                                    <div style={{ marginTop: 6, color: "#6b7280" }}>Latency {route.avgLatencyMs}ms</div>
+                                    <div style={{ marginTop: 4, color: "#6b7280" }}>Availability {route.availability}%</div>
                                     {route.lastError ? <div style={{ marginTop: 4, color: "#b91c1c", maxWidth: 220, overflowWrap: "anywhere" }}>{route.lastError}</div> : null}
                                   </td>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top", textAlign: "right" }}>
@@ -1731,12 +1731,12 @@ export default function AdminPage() {
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <div>
-                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>用户管理</h1>
-                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>查看账号、余额、使用量、默认限额和每个模型的覆盖规则</div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>User Management</h1>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>View accounts, balances, usage, default limits and per-model override rules</div>
                   </div>
                   {usageOverview ? (
                     <div style={{ display: "flex", gap: 10, fontSize: 12, color: "#4b5563" }}>
-                      <span style={{ padding: "6px 10px", borderRadius: 9999, background: "#f3f4f6" }}>请求 {usageOverview.totalRequests.toLocaleString()}</span>
+                      <span style={{ padding: "6px 10px", borderRadius: 9999, background: "#f3f4f6" }}>Requests {usageOverview.totalRequests.toLocaleString()}</span>
                       <span style={{ padding: "6px 10px", borderRadius: 9999, background: "#f3f4f6" }}>Tokens {usageOverview.totalTokens.toLocaleString()}</span>
                     </div>
                   ) : null}
@@ -1745,19 +1745,19 @@ export default function AdminPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(360px, 0.9fr) minmax(420px, 1.1fr)", gap: 16, alignItems: "start" }}>
                   <div style={{ ...cardStyle, overflow: "hidden" }}>
                     <div style={{ padding: "14px 16px", borderBottom: "1px solid #e5e7eb", background: "#f8fafc", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
-                      用户列表
+                      User List
                     </div>
                     <div style={{ padding: 12, borderBottom: "1px solid #e5e7eb", background: "#fff" }}>
                       <input
                         value={userSearch}
                         onChange={(event) => setUserSearch(event.target.value)}
-                        placeholder="搜索昵称、邮箱、手机号或用户 ID"
+                        placeholder="Search nickname, email, phone or user ID"
                         style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: 8, padding: "9px 10px", fontSize: 13, fontFamily: "inherit" }}
                       />
                     </div>
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       {filteredUsers.length === 0 ? (
-                        <div style={{ padding: 36, textAlign: "center", color: "#6b7280" }}>暂无用户数据</div>
+                        <div style={{ padding: 36, textAlign: "center", color: "#6b7280" }}>No user data available</div>
                       ) : filteredUsers.map((user) => (
                         <button
                           key={user.id}
@@ -1781,14 +1781,14 @@ export default function AdminPage() {
                             <div style={{ textAlign: "right" }}>
                               <div style={{ fontSize: 12, color: "#10b981", fontWeight: 600 }}>¥{Number(user.balance || 0).toFixed(2)}</div>
                               <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280" }}>
-                                {user.customLimitCount || 0} 条限额 · {userModelDiscounts.filter((discount) => discount.user_id === user.id).length} 条折扣
+                                {user.customLimitCount || 0} limits · {userModelDiscounts.filter((discount) => discount.user_id === user.id).length} discounts
                               </div>
                             </div>
                           </div>
                           <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", fontSize: 11.5, color: "#4b5563" }}>
-                            <span style={{ padding: "4px 8px", borderRadius: 9999, background: "#f3f4f6" }}>默认 QPM {user.defaultQpm?.toLocaleString?.() || "-"}</span>
-                            <span style={{ padding: "4px 8px", borderRadius: 9999, background: "#f3f4f6" }}>默认 TPM {user.defaultTpm?.toLocaleString?.() || "-"}</span>
-                            <span style={{ padding: "4px 8px", borderRadius: 9999, background: "#f3f4f6" }}>申请中 {user.pendingRequestCount || 0}</span>
+                            <span style={{ padding: "4px 8px", borderRadius: 9999, background: "#f3f4f6" }}>Default QPM {user.defaultQpm?.toLocaleString?.() || "-"}</span>
+                            <span style={{ padding: "4px 8px", borderRadius: 9999, background: "#f3f4f6" }}>Default TPM {user.defaultTpm?.toLocaleString?.() || "-"}</span>
+                            <span style={{ padding: "4px 8px", borderRadius: 9999, background: "#f3f4f6" }}>Pending {user.pendingRequestCount || 0}</span>
                           </div>
                         </button>
                       ))}
@@ -1805,23 +1805,23 @@ export default function AdminPage() {
                               <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0 }}>{selectedUser.nickname}</h2>
                               <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>{selectedUser.email || selectedUser.phone}</div>
                               <div style={{ marginTop: 2, fontSize: 11, color: "#9ca3af" }}>ID: {selectedUser.id}</div>
-                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>注册于 {new Date(selectedUser.createdAt).toLocaleString("zh-CN")}</div>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>Registered on {new Date(selectedUser.createdAt).toLocaleString("zh-CN")}</div>
                             </div>
                             <div style={{ textAlign: "right" }}>
                               <div style={{ fontSize: 26, fontWeight: 700, color: "#10b981" }}>¥{Number(selectedUser.balance || 0).toFixed(2)}</div>
-                              <div style={{ fontSize: 12, color: "#6b7280" }}>账户余额</div>
+                              <div style={{ fontSize: 12, color: "#6b7280" }}>Account Balance</div>
                               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10, flexWrap: "wrap" }}>
                                 <button
                                   onClick={() => { setBalanceForm(null); openBalanceForm(selectedUser.id); }}
                                   style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                                 >
-                                  调整余额
+                                  Adjust Balance
                                 </button>
                                 <button
                                   onClick={() => handleExportUserBilling(selectedUser.id)}
                                   style={{ border: "1px solid #bfdbfe", background: "#eff6ff", color: "#1d4ed8", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                                 >
-                                  导出账单
+                                  Export Billing
                                 </button>
                               </div>
                             </div>
@@ -1830,41 +1830,41 @@ export default function AdminPage() {
                           {/* Inline balance form */}
                           {balanceForm && (
                             <div style={{ marginTop: 14, padding: 14, background: "#f0fdf4", borderRadius: 10, border: "1px solid #bbf7d0" }}>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 10 }}>调整余额</div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 10 }}>Adjust Balance</div>
                               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                                 <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
-                                  调账金额（正数增加，负数扣减）
+                                  Adjustment amount (positive = increase, negative = decrease)
                                   <input
                                     type="number"
                                     value={balanceForm.amount}
                                     onChange={(e) => setBalanceForm({ ...balanceForm, amount: e.target.value })}
-                                    placeholder="例如 100 或 -50"
+                                    placeholder="e.g. 100 or -50"
                                     style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }}
                                   />
                                 </label>
                                 <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
-                                  说明
+                                  Description
                                   <input
                                     value={balanceForm.description}
                                     onChange={(e) => setBalanceForm({ ...balanceForm, description: e.target.value })}
-                                    placeholder="调账说明（可选）"
+                                    placeholder="Adjustment description (optional)"
                                     style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }}
                                   />
                                 </label>
                               </div>
                               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                                <button onClick={() => submitBalanceForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "7px 16px", fontSize: 13, cursor: "pointer" }}>确认调账</button>
-                                <button onClick={() => setBalanceForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "7px 12px", fontSize: 13, cursor: "pointer" }}>取消</button>
+                                <button onClick={() => submitBalanceForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "7px 16px", fontSize: 13, cursor: "pointer" }}>Confirm Adjustment</button>
+                                <button onClick={() => setBalanceForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "7px 12px", fontSize: 13, cursor: "pointer" }}>Cancel</button>
                               </div>
                             </div>
                           )}
 
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12, marginTop: 14 }}>
                             {[
-                              { label: "默认 QPM", value: (selectedUserDetail?.defaultQpm ?? selectedUser.defaultQpm)?.toLocaleString?.() || "-" },
-                              { label: "默认 TPM", value: (selectedUserDetail?.defaultTpm ?? selectedUser.defaultTpm)?.toLocaleString?.() || "-" },
-                              { label: "模型限额数", value: (selectedUserDetail?.customLimits ?? selectedUser.customLimits)?.length || 0 },
-                              { label: "审批中", value: selectedUser.pendingRequestCount || 0 },
+                              { label: "Default QPM", value: (selectedUserDetail?.defaultQpm ?? selectedUser.defaultQpm)?.toLocaleString?.() || "-" },
+                              { label: "Default TPM", value: (selectedUserDetail?.defaultTpm ?? selectedUser.defaultTpm)?.toLocaleString?.() || "-" },
+                              { label: "Model Limits", value: (selectedUserDetail?.customLimits ?? selectedUser.customLimits)?.length || 0 },
+                              { label: "Pending", value: selectedUser.pendingRequestCount || 0 },
                             ].map((item) => (
                               <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#f8fafc" }}>
                                 <div style={{ fontSize: 12, color: "#6b7280" }}>{item.label}</div>
@@ -1878,8 +1878,8 @@ export default function AdminPage() {
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                             <div>
-                              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>默认限额</h3>
-                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>适用于未单独配置的所有模型</div>
+                              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>Default Limits</h3>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>Applies to all models without specific overrides</div>
                             </div>
                             {!defaultLimitForm && (
                               <button
@@ -1889,7 +1889,7 @@ export default function AdminPage() {
                                 })}
                                 style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                               >
-                                修改
+                                Edit
                               </button>
                             )}
                           </div>
@@ -1906,8 +1906,8 @@ export default function AdminPage() {
                                   style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }} />
                               </label>
                               <div style={{ display: "flex", gap: 6 }}>
-                                <button onClick={() => submitDefaultLimitForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "8px 14px", fontSize: 13, cursor: "pointer" }}>保存</button>
-                                <button onClick={() => setDefaultLimitForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "8px 10px", fontSize: 13, cursor: "pointer" }}>取消</button>
+                                <button onClick={() => submitDefaultLimitForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "8px 14px", fontSize: 13, cursor: "pointer" }}>Save</button>
+                                <button onClick={() => setDefaultLimitForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "8px 10px", fontSize: 13, cursor: "pointer" }}>Cancel</button>
                               </div>
                             </div>
                           ) : (
@@ -1921,17 +1921,17 @@ export default function AdminPage() {
                         {/* ── Per-model rate limits ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型限流明细</h3>
+                            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>Model Rate Limit Details</h3>
                             <button
                               onClick={() => { setRateLimitFormTarget(null); setRateLimitForm({ model: "", qpm: "60", tpm: "100000" }); }}
                               style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                             >
-                              + 新增
+                              + Add New
                             </button>
                           </div>
 
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 120px 140px", gap: 8, padding: "6px 10px", fontSize: 11, fontWeight: 600, color: "#6b7280", borderBottom: "1px solid #f3f4f6", marginBottom: 4 }}>
-                            <div>模型</div><div>QPM</div><div>TPM</div><div></div>
+                            <div>Model</div><div>QPM</div><div>TPM</div><div></div>
                           </div>
 
                           <div style={{ display: "flex", flexDirection: "column" }}>
@@ -1947,8 +1947,8 @@ export default function AdminPage() {
                                       <input type="number" value={rateLimitForm.tpm} onChange={(e) => setRateLimitForm({ ...rateLimitForm, tpm: e.target.value })}
                                         style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
                                       <div style={{ display: "flex", gap: 6 }}>
-                                        <button onClick={() => submitRateLimitForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", flex: 1 }}>保存</button>
-                                        <button onClick={() => { setRateLimitForm(null); setRateLimitFormTarget(null); }} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>取消</button>
+                                        <button onClick={() => submitRateLimitForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", flex: 1 }}>Save</button>
+                                        <button onClick={() => { setRateLimitForm(null); setRateLimitFormTarget(null); }} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>Cancel</button>
                                       </div>
                                     </div>
                                   ) : (
@@ -1960,14 +1960,14 @@ export default function AdminPage() {
                                       <div style={{ fontSize: 13, color: "#374151" }}>{limit.qpm.toLocaleString()}</div>
                                       <div style={{ fontSize: 13, color: "#374151" }}>{limit.tpm.toLocaleString()}</div>
                                       <div style={{ display: "flex", gap: 6 }}>
-                                        <button onClick={() => openRateLimitForm(selectedUser.id, limit)} style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", flex: 1 }}>修改</button>
-                                        <button onClick={() => handleDeleteUserRateLimit(selectedUser.id, limit.model)} style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>删除</button>
+                                        <button onClick={() => openRateLimitForm(selectedUser.id, limit)} style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", flex: 1 }}>Edit</button>
+                                        <button onClick={() => handleDeleteUserRateLimit(selectedUser.id, limit.model)} style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>Delete</button>
                                       </div>
                                     </div>
                                   )}
                                 </div>
                               )) : (
-                                <div style={{ padding: "12px 10px", color: "#6b7280", fontSize: 13 }}>当前没有模型级覆盖，默认限额生效。</div>
+                                <div style={{ padding: "12px 10px", color: "#6b7280", fontSize: 13 }}>No model-level overrides. Default limits apply.</div>
                               );
                             })()}
 
@@ -1977,7 +1977,7 @@ export default function AdminPage() {
                                   value={rateLimitForm.model}
                                   onChange={(v) => setRateLimitForm({ ...rateLimitForm, model: v })}
                                   options={[
-                                    { value: "*", label: "* 全局默认" },
+                                    { value: "*", label: "* Global Default" },
                                     ...models.map((m) => ({ value: m.modelId, label: m.modelId })),
                                   ]}
                                 />
@@ -1986,8 +1986,8 @@ export default function AdminPage() {
                                 <input type="number" value={rateLimitForm.tpm} onChange={(e) => setRateLimitForm({ ...rateLimitForm, tpm: e.target.value })}
                                   style={{ border: "1px solid #d1d5db", borderRadius: 6, padding: "5px 8px", fontSize: 13, width: "100%", boxSizing: "border-box" }} />
                                 <div style={{ display: "flex", gap: 6 }}>
-                                  <button onClick={() => submitRateLimitForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", flex: 1 }}>保存</button>
-                                  <button onClick={() => { setRateLimitForm(null); setRateLimitFormTarget(null); }} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>取消</button>
+                                  <button onClick={() => submitRateLimitForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 6, padding: "5px 12px", fontSize: 12, cursor: "pointer", flex: 1 }}>Save</button>
+                                  <button onClick={() => { setRateLimitForm(null); setRateLimitFormTarget(null); }} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" }}>Cancel</button>
                                 </div>
                               </div>
                             )}
@@ -1998,13 +1998,13 @@ export default function AdminPage() {
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                             <div>
-                              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型折扣</h3>
-                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>按用户 + 模型覆盖目录价</div>
+                              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>Model Discounts</h3>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>Override catalog price by user + model</div>
                             </div>
                             {!discountForm && (
                               <button onClick={() => openDiscountForm(selectedUser.id)}
                                 style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" }}>
-                                新增折扣
+                                Add Discount
                               </button>
                             )}
                           </div>
@@ -2013,30 +2013,30 @@ export default function AdminPage() {
                             <div style={{ padding: 14, background: "#f8fafc", borderRadius: 10, border: "1px solid #e0e7ff", marginBottom: 12 }}>
                               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 8 }}>
                                 <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
-                                  模型 ID
+                                  Model ID
                                   <input value={discountForm.modelId} onChange={(e) => setDiscountForm({ ...discountForm, modelId: e.target.value })}
-                                    placeholder="如 qwen-plus" disabled={!!discountForm.editId}
+                                    placeholder="e.g. qwen-plus" disabled={!!discountForm.editId}
                                     style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13, background: discountForm.editId ? "#f3f4f6" : "#fff" }} />
                                 </label>
                                 <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
-                                  折扣率（0–1，0.8=八折）
+                                  Discount rate (0-1, 0.8 = 20% off)
                                   <input type="number" step="0.01" min="0" max="1" value={discountForm.rate}
                                     onChange={(e) => setDiscountForm({ ...discountForm, rate: e.target.value })}
                                     style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }} />
                                 </label>
                                 <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
-                                  备注
+                                  Notes
                                   <input value={discountForm.notes} onChange={(e) => setDiscountForm({ ...discountForm, notes: e.target.value })}
-                                    placeholder="可选" style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }} />
+                                    placeholder="Optional" style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }} />
                                 </label>
                               </div>
                               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#374151", cursor: "pointer" }}>
                                   <input type="checkbox" checked={discountForm.enabled} onChange={(e) => setDiscountForm({ ...discountForm, enabled: e.target.checked })} />
-                                  启用
+                                  Enable
                                 </label>
-                                <button onClick={() => submitDiscountForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "7px 16px", fontSize: 13, cursor: "pointer" }}>保存</button>
-                                <button onClick={() => setDiscountForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "7px 12px", fontSize: 13, cursor: "pointer" }}>取消</button>
+                                <button onClick={() => submitDiscountForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "7px 16px", fontSize: 13, cursor: "pointer" }}>Save</button>
+                                <button onClick={() => setDiscountForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "7px 12px", fontSize: 13, cursor: "pointer" }}>Cancel</button>
                               </div>
                             </div>
                           )}
@@ -2048,41 +2048,41 @@ export default function AdminPage() {
                                   <div>
                                     <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{discount.model_id}</div>
                                     <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-                                      {discount.notes || "无备注"} · {discount.is_enabled ? "启用" : "停用"}
+                                      {discount.notes || "NoneNotes"} · {discount.is_enabled ? "Enable" : "Disabled"}
                                     </div>
                                   </div>
                                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                     <div style={{ textAlign: "right" }}>
                                       <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>{Math.round(Number(discount.discount_rate || 1) * 100)}%</div>
-                                      <div style={{ fontSize: 11, color: "#6b7280" }}>实付比例</div>
+                                      <div style={{ fontSize: 11, color: "#6b7280" }}>Actual Pay Rate</div>
                                     </div>
                                     <button onClick={() => openDiscountForm(selectedUser.id, discount)}
-                                      style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}>修改</button>
+                                      style={{ border: "1px solid #d1d5db", background: "#fff", color: "#374151", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}>Edit</button>
                                     <button onClick={() => handleDeleteUserDiscount(discount.id)}
-                                      style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}>删除</button>
+                                      style={{ border: "1px solid #fecaca", background: "#fff1f2", color: "#be123c", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}>Delete</button>
                                   </div>
                                 </div>
                               </div>
                             )) : (
-                              <div style={{ color: "#6b7280", fontSize: 13 }}>当前没有模型折扣，所有模型按目录价计费。</div>
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>No model discounts. All models billed at catalog price.</div>
                             )}
                           </div>
                         </div>
 
                         {/* ── Usage stats ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
-                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>使用情况</h3>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>Usage</h3>
                           {userDetailLoading ? (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>正在加载用量...</div>
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>Loading usage...</div>
                           ) : (selectedUserDetail?.usage || selectedUser.usage) ? (
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
                               {(() => {
                                 const usage = selectedUserDetail?.usage || selectedUser.usage!;
                                 return [
-                                  { label: "请求", value: usage.totalRequests.toLocaleString() },
+                                  { label: "Requests", value: usage.totalRequests.toLocaleString() },
                                   { label: "Tokens", value: usage.totalTokens.toLocaleString() },
-                                  { label: "扣费", value: `¥${Number(usage.totalCost || 0).toFixed(4)}` },
-                                  { label: "成功率", value: `${Number(usage.successRate || 0).toFixed(1)}%` },
+                                  { label: "Cost", value: `¥${Number(usage.totalCost || 0).toFixed(4)}` },
+                                  { label: "Success Rate", value: `${Number(usage.successRate || 0).toFixed(1)}%` },
                                 ].map((item) => (
                                   <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff" }}>
                                     <div style={{ fontSize: 12, color: "#6b7280" }}>{item.label}</div>
@@ -2091,32 +2091,32 @@ export default function AdminPage() {
                                 ));
                               })()}
                             </div>
-                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无使用数据</div>}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>No usage data available</div>}
                         </div>
 
                         {/* ── By-model usage ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
-                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>按模型用量</h3>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>Usage by Model</h3>
                           {selectedUserDetail?.byModel && selectedUserDetail.byModel.length > 0 ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                               {selectedUserDetail.byModel.map((row) => (
                                 <div key={row.model} style={{ display: "grid", gridTemplateColumns: "1fr 90px 110px 90px", gap: 10, padding: 12, border: "1px solid #e5e7eb", borderRadius: 10, alignItems: "center" }}>
                                   <div>
                                     <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{row.model}</div>
-                                    <div style={{ marginTop: 3, fontSize: 11.5, color: "#6b7280" }}>{row.percentage}% 请求占比</div>
+                                    <div style={{ marginTop: 3, fontSize: 11.5, color: "#6b7280" }}>{row.percentage}% request share</div>
                                   </div>
-                                  <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>{row.requests.toLocaleString()} 次</div>
+                                  <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>{row.requests.toLocaleString()} times</div>
                                   <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>{row.tokens.toLocaleString()} tokens</div>
                                   <div style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: "#111827" }}>¥{Number(row.cost || 0).toFixed(4)}</div>
                                 </div>
                               ))}
                             </div>
-                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无模型用量明细</div>}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>No model usage details available</div>}
                         </div>
 
                         {/* ── Recent API calls ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
-                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近 API 调用</h3>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>Recent API Calls</h3>
                           {selectedUserDetail?.recent && selectedUserDetail.recent.length > 0 ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                               {selectedUserDetail.recent.slice(0, 20).map((call, index) => (
@@ -2125,16 +2125,16 @@ export default function AdminPage() {
                                   <div style={{ minWidth: 0, fontSize: 12.5, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{call.model}</div>
                                   <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>{Number(call.tokens || 0).toLocaleString()} tokens</div>
                                   <div style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: "#111827" }}>¥{Number(call.cost || 0).toFixed(6)}</div>
-                                  <div style={{ textAlign: "right", fontSize: 12, color: call.status === "成功" ? "#059669" : "#dc2626" }}>{call.status}</div>
+                                  <div style={{ textAlign: "right", fontSize: 12, color: call.status === "Success" ? "#059669" : "#dc2626" }}>{call.status}</div>
                                 </div>
                               ))}
                             </div>
-                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无 API 调用明细</div>}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>No API call details available</div>}
                         </div>
 
                         {/* ── Transactions ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
-                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近账务流水</h3>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>Recent Transactions</h3>
                           {selectedUserDetail?.transactions?.rows?.length ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                               {selectedUserDetail.transactions.rows.slice(0, 8).map((tx) => (
@@ -2146,14 +2146,14 @@ export default function AdminPage() {
                                 </div>
                               ))}
                             </div>
-                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无账务流水</div>}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>No transactions available</div>}
                         </div>
 
                         {/* ── All requests history ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
-                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>限额申请历史</h3>
+                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>Rate Limit Request History</h3>
                           {userDetailLoading ? (
-                            <div style={{ color: "#6b7280", fontSize: 13 }}>加载中...</div>
+                            <div style={{ color: "#6b7280", fontSize: 13 }}>Loading...</div>
                           ) : selectedUserDetail?.requests && selectedUserDetail.requests.length > 0 ? (
                             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                               {selectedUserDetail.requests.map((req) => (
@@ -2165,25 +2165,25 @@ export default function AdminPage() {
                                         QPM {req.requested_qpm.toLocaleString()} · TPM {req.requested_tpm.toLocaleString()}
                                       </div>
                                       {req.reason ? <div style={{ marginTop: 4, fontSize: 12, color: "#4b5563" }}>{req.reason}</div> : null}
-                                      {req.admin_reply ? <div style={{ marginTop: 6, fontSize: 12, color: "#334155", background: "#f8fafc", borderRadius: 6, padding: "6px 10px" }}>审批备注：{req.admin_reply}</div> : null}
+                                      {req.admin_reply ? <div style={{ marginTop: 6, fontSize: 12, color: "#334155", background: "#f8fafc", borderRadius: 6, padding: "6px 10px" }}>Approval note: {req.admin_reply}</div> : null}
                                     </div>
                                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                                       <span style={{
                                         padding: "3px 10px", borderRadius: 9999, fontSize: 12,
                                         background: req.status === "pending" ? "#fff7ed" : req.status === "approved" ? "#ecfdf5" : "#fef2f2",
                                         color: req.status === "pending" ? "#c2410c" : req.status === "approved" ? "#166534" : "#b91c1c",
-                                      }}>{req.status === "pending" ? "审批中" : req.status === "approved" ? "已通过" : "已拒绝"}</span>
+                                      }}>{req.status === "pending" ? "Pending" : req.status === "approved" ? "Approved" : "Rejected"}</span>
                                       <span style={{ fontSize: 11, color: "#9ca3af" }}>{new Date(req.created_at).toLocaleString("zh-CN")}</span>
                                     </div>
                                   </div>
                                 </div>
                               ))}
                             </div>
-                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无申请记录</div>}
+                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>No request history available</div>}
                         </div>
                       </>
                     ) : (
-                      <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>请选择一个用户查看详情</div>
+                      <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>Select a user to view details</div>
                     )}
                   </div>
                 </div>
@@ -2192,17 +2192,17 @@ export default function AdminPage() {
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <div>
-                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>限额审批</h1>
-                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>用户直接提交 QPM / TPM 申请，后台在这里批准或拒绝</div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>Rate Limit Approvals</h1>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>Users submit QPM/TPM requests here for admin approval or rejection</div>
                   </div>
                   <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                    刷新
+                    Refresh
                   </button>
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {rateLimitRequests.length === 0 ? (
-                    <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>暂无限额申请</div>
+                    <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>No rate limit requests</div>
                   ) : rateLimitRequests.map((request) => {
                     const user = users.find((item) => item.id === request.user_id);
                     return (
@@ -2211,23 +2211,23 @@ export default function AdminPage() {
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                               <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{user?.nickname || request.user_id}</span>
-                              <span style={{ fontSize: 12, color: "#6b7280" }}>{user?.email || user?.phone || "未知账号"}</span>
+                              <span style={{ fontSize: 12, color: "#6b7280" }}>{user?.email || user?.phone || "Unknown account"}</span>
                               <span style={{ padding: "3px 10px", borderRadius: 9999, fontSize: 12, background: request.status === "pending" ? "#fff7ed" : request.status === "approved" ? "#ecfdf5" : "#fef2f2", color: request.status === "pending" ? "#c2410c" : request.status === "approved" ? "#166534" : "#b91c1c" }}>
                                 {request.status}
                               </span>
                             </div>
                             <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "#4b5563" }}>
-                              <span>模型: {request.model}</span>
+                              <span>Model: {request.model}</span>
                               <span>QPM: {request.requested_qpm}</span>
                               <span>TPM: {request.requested_tpm}</span>
-                              <span>创建时间: {new Date(request.created_at).toLocaleString("zh-CN")}</span>
+                              <span>Created At: {new Date(request.created_at).toLocaleString("zh-CN")}</span>
                             </div>
                             {request.reason ? (
                               <div style={{ marginTop: 8, fontSize: 13, color: "#4b5563", lineHeight: 1.6 }}>{request.reason}</div>
                             ) : null}
                             {request.admin_reply ? (
                               <div style={{ marginTop: 10, fontSize: 12.5, color: "#334155", background: "#f8fafc", borderRadius: 8, padding: 10 }}>
-                                审批备注：{request.admin_reply}
+                                Approval note: {request.admin_reply}
                               </div>
                             ) : null}
                           </div>
@@ -2238,14 +2238,14 @@ export default function AdminPage() {
                                 disabled={isActing(`approve-request-${request.id}`) || isActing(`reject-request-${request.id}`)}
                                 style={{ padding: "8px 14px", border: "none", borderRadius: 8, background: "#10b981", color: "#fff", cursor: "pointer", fontFamily: "inherit", opacity: isActing(`approve-request-${request.id}`) ? 0.6 : 1 }}
                               >
-                                {isActing(`approve-request-${request.id}`) ? "处理中..." : "通过"}
+                                {isActing(`approve-request-${request.id}`) ? "Processing..." : "Approve"}
                               </button>
                               <button
                                 onClick={() => handleRejectRequest(request.id)}
                                 disabled={isActing(`approve-request-${request.id}`) || isActing(`reject-request-${request.id}`)}
                                 style={{ padding: "8px 14px", border: "none", borderRadius: 8, background: "#ef4444", color: "#fff", cursor: "pointer", fontFamily: "inherit", opacity: isActing(`reject-request-${request.id}`) ? 0.6 : 1 }}
                               >
-                                {isActing(`reject-request-${request.id}`) ? "处理中..." : "拒绝"}
+                                {isActing(`reject-request-${request.id}`) ? "Processing..." : "Reject"}
                               </button>
                             </div>
                           ) : null}
@@ -2259,11 +2259,11 @@ export default function AdminPage() {
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <div>
-                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>渠道控制台</h1>
-                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>统一维护上游渠道配置、容量策略和健康状态</div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>Provider Console</h1>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>Unified management of upstream provider config, capacity policies and health status</div>
                   </div>
                   <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                    刷新
+                    Refresh
                   </button>
                 </div>
 
@@ -2284,7 +2284,7 @@ export default function AdminPage() {
                         fontWeight: providerViewMode === mode ? 600 : 400,
                       }}
                     >
-                      {mode === "by-provider" ? "按供应商" : "按模型"}
+                      {mode === "by-provider" ? "By Provider" : "By Model"}
                     </button>
                   ))}
                 </div>
@@ -2295,10 +2295,10 @@ export default function AdminPage() {
                 {monitorOverview ? (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 18 }}>
                     {[
-                      { label: "全站当前RPM", value: monitorOverview.totals.currentRpm, color: "#2563eb" },
-                      { label: "全站当前TPM", value: monitorOverview.totals.currentTpm, color: "#0f766e" },
-                      { label: "全站总RPM上限", value: monitorOverview.totals.rpmLimit, color: "#7c3aed" },
-                      { label: "全站总TPM上限", value: monitorOverview.totals.tpmLimit, color: "#b45309" },
+                      { label: "Site Current RPM", value: monitorOverview.totals.currentRpm, color: "#2563eb" },
+                      { label: "Site Current TPM", value: monitorOverview.totals.currentTpm, color: "#0f766e" },
+                      { label: "Site Total RPM Limit", value: monitorOverview.totals.rpmLimit, color: "#7c3aed" },
+                      { label: "Site Total TPM Limit", value: monitorOverview.totals.tpmLimit, color: "#b45309" },
                     ].map((item) => (
                       <div key={item.label} style={{ ...cardStyle, padding: 18 }}>
                         <div style={{ fontSize: 22, fontWeight: 700, color: item.color, fontVariantNumeric: "tabular-nums" }}>{Number(item.value || 0).toLocaleString()}</div>
@@ -2327,13 +2327,13 @@ export default function AdminPage() {
                               fontFamily: "inherit",
                             }}
                           >
-                            {item === "all" ? "全部" : statusLabels[item]}
+                            {item === "all" ? "All" : statusLabels[item]}
                           </button>
                         ))}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                         {filteredProviders.length === 0 ? (
-                          <div style={{ padding: 32, textAlign: "center", color: "#6b7280" }}>暂无渠道数据</div>
+                          <div style={{ padding: 32, textAlign: "center", color: "#6b7280" }}>No provider data available</div>
                         ) : filteredProviders.map((provider) => (
                           <button
                             key={provider.id}
@@ -2358,7 +2358,7 @@ export default function AdminPage() {
                               </span>
                             </div>
                             <div style={{ fontSize: 12, color: "#6b7280", marginTop: 10 }}>
-                              模型 {provider.modelCount ?? 0} · 路由 {provider.enabledRoutes ?? 0} · TPM {Number(provider.currentTpm || 0).toLocaleString()}/{Number(provider.tpmLimit || 0).toLocaleString()}
+                              Model {provider.modelCount ?? 0} · Routes {provider.enabledRoutes ?? 0} · TPM {Number(provider.currentTpm || 0).toLocaleString()}/{Number(provider.tpmLimit || 0).toLocaleString()}
                             </div>
                           </button>
                         ))}
@@ -2368,7 +2368,7 @@ export default function AdminPage() {
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     {detailLoading ? (
-                      <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>正在加载渠道详情...</div>
+                      <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>Loading provider details...</div>
                     ) : providerDetail && selectedProvider ? (
                       <>
                         <div style={{ ...cardStyle, padding: 20 }}>
@@ -2381,7 +2381,7 @@ export default function AdminPage() {
                                 </span>
                               </div>
                               <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>
-                                slug: <code>{selectedProvider.slug}</code> · 密钥: {selectedProvider.apiKeyMasked}
+                                slug: <code>{selectedProvider.slug}</code> · Key: {selectedProvider.apiKeyMasked}
                               </div>
                             </div>
                             <div style={{ display: "flex", gap: 8 }}>
@@ -2391,7 +2391,7 @@ export default function AdminPage() {
                                   disabled={isActing(`enable-provider-${selectedProvider.id}`) || isActing(`disable-provider-${selectedProvider.id}`)}
                                   style={{ padding: "8px 14px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`enable-provider-${selectedProvider.id}`) ? 0.6 : 1 }}
                                 >
-                                  {isActing(`enable-provider-${selectedProvider.id}`) ? "处理中..." : "启用渠道"}
+                                  {isActing(`enable-provider-${selectedProvider.id}`) ? "Processing..." : "Enable Provider"}
                                 </button>
                               ) : null}
                               {selectedProvider.status !== "disabled" ? (
@@ -2400,7 +2400,7 @@ export default function AdminPage() {
                                   disabled={isActing(`enable-provider-${selectedProvider.id}`) || isActing(`disable-provider-${selectedProvider.id}`)}
                                   style={{ padding: "8px 14px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`disable-provider-${selectedProvider.id}`) ? 0.6 : 1 }}
                                 >
-                                  {isActing(`disable-provider-${selectedProvider.id}`) ? "处理中..." : "停用渠道"}
+                                  {isActing(`disable-provider-${selectedProvider.id}`) ? "Processing..." : "Disable Provider"}
                                 </button>
                               ) : null}
                             </div>
@@ -2410,7 +2410,7 @@ export default function AdminPage() {
                             <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, marginBottom: 16, background: "#f8fafc" }}>
                               <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", marginBottom: 12 }}>
                                 <div>
-                                  <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>当前子渠道</div>
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Current Channel</div>
                                   <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
                                     {selectedProvider.channelConfig.activeChannel}
                                   </div>
@@ -2435,7 +2435,7 @@ export default function AdminPage() {
                                       <span style={{ fontSize: 11, color: "#4b5563", background: "#f3f4f6", borderRadius: 9999, padding: "2px 8px" }}>{channel.adapter}</span>
                                     </div>
                                     <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", overflowWrap: "anywhere" }}>{channel.apiBaseUrl}</div>
-                                    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>密钥: {channel.apiKeyMasked}</div>
+                                    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>Key: {channel.apiKeyMasked}</div>
                                   </div>
                                 ))}
                               </div>
@@ -2444,12 +2444,12 @@ export default function AdminPage() {
 
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
                             {[
-                              { label: "渠道名称", key: "name", type: "text" },
-                              { label: "网站", key: "website", type: "text" },
+                              { label: "Provider Name", key: "name", type: "text" },
+                              { label: "Website", key: "website", type: "text" },
                               { label: "API Base URL", key: "apiBaseUrl", type: "text" },
-                              { label: "联系人", key: "contactName", type: "text" },
-                              { label: "联系邮箱", key: "contactEmail", type: "text" },
-                              { label: "联系电话", key: "contactPhone", type: "text" },
+                              { label: "Contact Name", key: "contactName", type: "text" },
+                              { label: "Contact Email", key: "contactEmail", type: "text" },
+                              { label: "Contact Phone", key: "contactPhone", type: "text" },
                             ].map((field) => (
                               <label key={field.key} style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "#6b7280" }}>
                                 {field.label}
@@ -2463,7 +2463,7 @@ export default function AdminPage() {
                           </div>
 
                           <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "#6b7280", marginTop: 12 }}>
-                            渠道描述
+                            Provider Description
                             <textarea
                               value={providerForm.description}
                               onChange={(event) => setProviderForm((current) => ({ ...current, description: event.target.value }))}
@@ -2473,10 +2473,10 @@ export default function AdminPage() {
                           </label>
 
                           <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "#6b7280", marginTop: 12 }}>
-                            更新 API Key
+                            Update API Key
                             <input
                               type="password"
-                              placeholder="留空则保持当前密钥"
+                              placeholder="Leave empty to keep current key"
                               value={providerForm.apiKey}
                               onChange={(event) => setProviderForm((current) => ({ ...current, apiKey: event.target.value }))}
                               style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, color: "#111827" }}
@@ -2485,10 +2485,10 @@ export default function AdminPage() {
 
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16 }}>
                             <div style={{ fontSize: 12, color: "#6b7280" }}>
-                              {selectedProvider.createdAt ? `创建于 ${new Date(selectedProvider.createdAt).toLocaleString("zh-CN")}` : "平台内置上游渠道"}
+                              {selectedProvider.createdAt ? `Created on ${new Date(selectedProvider.createdAt).toLocaleString("zh-CN")}` : "Platform built-in upstream provider"}
                             </div>
                             <button onClick={handleSaveProvider} disabled={savingProvider} style={{ padding: "10px 18px", background: "#111827", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: savingProvider ? 0.55 : 1 }}>
-                              {savingProvider ? "保存中..." : "保存渠道配置"}
+                              {savingProvider ? "Saving..." : "Save Provider Config"}
                             </button>
                           </div>
                         </div>
@@ -2497,14 +2497,14 @@ export default function AdminPage() {
                           <div style={{ ...cardStyle, padding: 20 }}>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
                               {[
-                                { label: "模型总数", value: selectedProviderTotals.modelCount },
-                                { label: "启用路由", value: selectedProviderTotals.enabledRoutes },
-                                { label: "当前 RPM", value: selectedProviderTotals.currentRpm.toLocaleString() },
-                                { label: "当前 TPM", value: selectedProviderTotals.currentTpm.toLocaleString() },
-                                { label: "RPM 上限", value: selectedProviderTotals.rpmLimit.toLocaleString() },
-                                { label: "TPM 上限", value: selectedProviderTotals.tpmLimit.toLocaleString() },
-                                { label: "任务并发上限", value: selectedProviderTotals.taskConcurrentLimit.toLocaleString() },
-                                { label: "容量占用", value: `${selectedProviderTotals.rpmLimit > 0 ? Math.round((selectedProviderTotals.currentRpm / selectedProviderTotals.rpmLimit) * 100) : 0}%` },
+                                { label: "Total Models", value: selectedProviderTotals.modelCount },
+                                { label: "EnableRoutes", value: selectedProviderTotals.enabledRoutes },
+                                { label: "Current RPM", value: selectedProviderTotals.currentRpm.toLocaleString() },
+                                { label: "Current TPM", value: selectedProviderTotals.currentTpm.toLocaleString() },
+                                { label: "RPM Limit", value: selectedProviderTotals.rpmLimit.toLocaleString() },
+                                { label: "TPM Limit", value: selectedProviderTotals.tpmLimit.toLocaleString() },
+                                { label: "Task Concurrency Limit", value: selectedProviderTotals.taskConcurrentLimit.toLocaleString() },
+                                { label: "Capacity Usage", value: `${selectedProviderTotals.rpmLimit > 0 ? Math.round((selectedProviderTotals.currentRpm / selectedProviderTotals.rpmLimit) * 100) : 0}%` },
                               ].map((item) => (
                                 <div key={item.label} style={{ padding: 14, borderRadius: 10, border: "1px solid #e5e7eb", background: "#f8fafc" }}>
                                   <div style={{ fontSize: 12, color: "#6b7280" }}>{item.label}</div>
@@ -2517,12 +2517,12 @@ export default function AdminPage() {
 
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>容量与路由策略</h3>
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>文本/VL 看 RPM/TPM；生图/生视频/语音看任务提交速率和后台任务并发</div>
+                            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>Capacity & Route Policy</h3>
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>Text/VL: RPM/TPM; Image/Video/Voice: task submission rate and background concurrency</div>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {providerDetail.models.length === 0 ? (
-                              <div style={{ color: "#6b7280", fontSize: 13 }}>当前渠道还没有模型。</div>
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>No models on this provider yet.</div>
                             ) : providerDetail.models.map((model) => {
                               const capacity = providerDetail.capacity.find((item) => item.modelId === model.modelId);
                               const health = providerDetail.health.find((item) => item.modelId === model.modelId);
@@ -2539,25 +2539,25 @@ export default function AdminPage() {
                                         </span>
                                       </div>
                                       <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "#6b7280" }}>
-                                        <span>分类: {model.category}</span>
-                                        <span>权重: {capacity?.weight ?? 100}</span>
-                                        <span>优先级: {capacity?.priority ?? 0}</span>
-                                        <span>{isTaskModel ? "任务提交 RPM" : "RPM"}: {capacity?.rpmLimit ?? 60}</span>
+                                        <span>Category: {model.category}</span>
+                                        <span>Weight: {capacity?.weight ?? 100}</span>
+                                        <span>Priority: {capacity?.priority ?? 0}</span>
+                                        <span>{isTaskModel ? "Task Submit RPM" : "RPM"}: {capacity?.rpmLimit ?? 60}</span>
                                         {isTaskModel ? (
-                                          <span>任务并发: {capacity?.concurrentLimit ?? 10}</span>
+                                          <span>Task Concur.: {capacity?.concurrentLimit ?? 10}</span>
                                         ) : (
                                           <span>TPM: {capacity?.tpmLimit ?? 100000}</span>
                                         )}
                                       </div>
                                       {health ? (
                                         <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-                                          延迟 {health.avgLatencyMs} ms · 连续失败 {health.consecutiveFailures} 次
-                                          {health.lastError ? ` · 最近错误：${health.lastError}` : ""}
+                                          Latency {health.avgLatencyMs} ms · Consecutive failures {health.consecutiveFailures}
+                                          {health.lastError ? ` · Recent error: ${health.lastError}` : ""}
                                         </div>
                                       ) : null}
                                     </div>
                                     <button onClick={() => handleSaveCapacity(model.modelId, capacity)} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                                      编辑容量
+                                      EditCapacity
                                     </button>
                                   </div>
                                 </div>
@@ -2568,12 +2568,12 @@ export default function AdminPage() {
 
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>运行监控</h3>
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>容量命中率、熔断状态、延迟趋势</div>
+                            <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>Runtime Monitoring</h3>
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>Capacity hit rate, circuit breaker status, latency trends</div>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {providerRouteMetrics.length === 0 ? (
-                              <div style={{ color: "#6b7280", fontSize: 13 }}>暂无路由监控数据。</div>
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>No route monitoring data available.</div>
                             ) : providerRouteMetrics.map((route) => {
                               const model = providerDetail.models.find((item) => item.modelId === route.modelId);
                               const isTaskModel = isTaskModelCategory(model?.category);
@@ -2592,18 +2592,18 @@ export default function AdminPage() {
                                       </span>
                                     </div>
                                     <div style={{ marginTop: 8, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#6b7280" }}>
-                                      <span>{isTaskModel ? "任务提交 RPM" : "RPM"} {route.currentRpm}/{route.rpmLimit}</span>
-                                      {isTaskModel ? <span>任务并发 {route.concurrentLimit}</span> : <span>TPM {route.currentTpm}/{route.tpmLimit}</span>}
-                                      <span>延迟 {route.avgLatencyMs} ms</span>
-                                      <span>失败 {route.consecutiveFailures} 次</span>
-                                      <span>权重 {route.weight}</span>
+                                      <span>{isTaskModel ? "Task Submit RPM" : "RPM"} {route.currentRpm}/{route.rpmLimit}</span>
+                                      {isTaskModel ? <span>Task Concur. {route.concurrentLimit}</span> : <span>TPM {route.currentTpm}/{route.tpmLimit}</span>}
+                                      <span>Latency {route.avgLatencyMs} ms</span>
+                                      <span>Failures {route.consecutiveFailures} times</span>
+                                      <span>Weight {route.weight}</span>
                                     </div>
                                   </div>
                                   <div style={{ minWidth: 92, textAlign: "right" }}>
                                     <div style={{ fontSize: 22, fontWeight: 700, color: route.saturation >= 0.8 ? "#dc2626" : route.saturation >= 0.5 ? "#d97706" : "#10b981" }}>
                                       {Math.round(route.saturation * 100)}%
                                     </div>
-                                    <div style={{ fontSize: 12, color: "#6b7280" }}>容量命中率</div>
+                                    <div style={{ fontSize: 12, color: "#6b7280" }}>Capacity Hit Rate</div>
                                   </div>
                                 </div>
                                 <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(12, minmax(0, 1fr))", gap: 4 }}>
@@ -2617,7 +2617,7 @@ export default function AdminPage() {
                                   ))}
                                 </div>
                                 {route.lastError ? (
-                                  <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>最近错误：{route.lastError}</div>
+                                  <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>Recent error: {route.lastError}</div>
                                 ) : null}
                               </div>
                               );
@@ -2626,7 +2626,7 @@ export default function AdminPage() {
                         </div>
                       </>
                     ) : (
-                      <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>请选择一个渠道查看详情</div>
+                      <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>Select a provider to view details</div>
                     )}
                   </div>
                 </div>
@@ -2637,7 +2637,7 @@ export default function AdminPage() {
                     <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                       <input
                         type="text"
-                        placeholder="搜索模型 ID 或名称..."
+                        placeholder="Search model ID or name..."
                         value={modelSearchQuery}
                         onChange={(e) => setModelSearchQuery(e.target.value)}
                         style={{ flex: 1, minWidth: 200, padding: "9px 14px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, fontFamily: "inherit", outline: "none" }}
@@ -2647,7 +2647,7 @@ export default function AdminPage() {
                           onClick={() => setModelCategoryFilter("all")}
                           style={{ padding: "6px 12px", background: modelCategoryFilter === "all" ? "#111827" : "#fff", color: modelCategoryFilter === "all" ? "#fff" : "#4b5563", border: "1px solid #d1d5db", borderRadius: 9999, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
                         >
-                          全部
+                          All
                         </button>
                         {modelCategories.map((cat) => (
                           <button
@@ -2660,12 +2660,12 @@ export default function AdminPage() {
                         ))}
                       </div>
                     </div>
-                    <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>共 {filteredByModelModels.length} 个模型</div>
+                    <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>Total {filteredByModelModels.length} models</div>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {filteredByModelModels.length === 0 ? (
-                      <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>没有匹配的模型</div>
+                      <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>No matching models</div>
                     ) : filteredByModelModels.map((model) => (
                       <div key={model.id} style={{ ...cardStyle, padding: "16px 20px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -2675,7 +2675,7 @@ export default function AdminPage() {
                             <span style={{ padding: "2px 8px", borderRadius: 9999, fontSize: 12, background: "#f3f4f6", color: "#374151" }}>{model.category}</span>
                           </div>
                           <div style={{ fontSize: 12, color: "#6b7280", whiteSpace: "nowrap" }}>
-                            {model.routes?.filter((r) => r.isEnabled).length || 0}/{model.routes?.length || 0} 路由启用
+                            {model.routes?.filter((r) => r.isEnabled).length || 0}/{model.routes?.length || 0} RoutesEnable
                           </div>
                         </div>
 
@@ -2690,13 +2690,13 @@ export default function AdminPage() {
                                 <div>
                                   <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{route.providerName}</div>
                                   <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
-                                    <span style={{ color: route.isEnabled ? "#10b981" : "#ef4444", fontWeight: 600 }}>{route.isEnabled ? "启用" : "停用"}</span>
+                                    <span style={{ color: route.isEnabled ? "#10b981" : "#ef4444", fontWeight: 600 }}>{route.isEnabled ? "Enable" : "Disabled"}</span>
                                   </div>
                                 </div>
                                 {isTask ? (
                                   <div style={{ fontSize: 12, color: "#4b5563" }}>
                                     RPM {route.currentRpm}/{route.rpmLimit}<br />
-                                    任务并发 {route.concurrentLimit}
+                                    Task Concur. {route.concurrentLimit}
                                   </div>
                                 ) : (
                                   <div style={{ fontSize: 12, color: "#4b5563" }}>
@@ -2705,27 +2705,27 @@ export default function AdminPage() {
                                   </div>
                                 )}
                                 <div style={{ fontSize: 12, color: "#4b5563" }}>
-                                  优先级 {route.priority}<br />
-                                  权重 {route.weight}
+                                  Priority {route.priority}<br />
+                                  Weight {route.weight}
                                 </div>
                                 <button
                                   onClick={() => handleSaveModelRoute(model, route)}
                                   style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}
                                 >
-                                  编辑
+                                  Edit
                                 </button>
                               </div>
                             );
                           }) : (
                             <div style={{ fontSize: 12.5, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 12 }}>
-                              当前没有启用渠道路由
+                              No active provider routes
                             </div>
                           )}
                           <button
                             onClick={() => handleSaveModelRoute(model)}
                             style={{ alignSelf: "flex-start", padding: "7px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit", fontSize: 12 }}
                           >
-                            + 添加渠道路由
+                            + Add Provider Route
                           </button>
                         </div>
                       </div>
@@ -2738,11 +2738,11 @@ export default function AdminPage() {
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <div>
-                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>模型管理</h1>
-                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>按模型维护上游渠道路由。比如 glm-5.1 可以同时配置百炼和方舟，再通过优先级/权重决定走哪边。</div>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>Model Management</h1>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>Manage upstream provider routes per model. E.g. glm-5.1 can route to both DashScope and Ark, with priority/weight determining which.</div>
                   </div>
                   <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                    刷新
+                    Refresh
                   </button>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
@@ -2761,13 +2761,13 @@ export default function AdminPage() {
                         fontFamily: "inherit",
                       }}
                     >
-                      {item === "all" ? "全部" : statusLabels[item]}
+                      {item === "all" ? "All" : statusLabels[item]}
                     </button>
                   ))}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {filteredModels.length === 0 ? (
-                    <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>暂无模型数据</div>
+                    <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>No model data available</div>
                   ) : filteredModels.map((model) => (
                     <div key={model.id} style={{ ...cardStyle, padding: "16px 20px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -2785,22 +2785,22 @@ export default function AdminPage() {
                               disabled={isActing(`enable-model-${model.id}`) || isActing(`disable-model-${model.id}`)}
                               style={{ padding: "6px 16px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`enable-model-${model.id}`) ? 0.6 : 1 }}
                             >
-                              {isActing(`enable-model-${model.id}`) ? "..." : "启用"}
+                              {isActing(`enable-model-${model.id}`) ? "..." : "Enable"}
                             </button>
                             <button
                               onClick={() => handleRejectModel(model.id)}
                               disabled={isActing(`enable-model-${model.id}`) || isActing(`disable-model-${model.id}`)}
                               style={{ padding: "6px 16px", background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`disable-model-${model.id}`) ? 0.6 : 1 }}
                             >
-                              {isActing(`disable-model-${model.id}`) ? "..." : "停用"}
+                              {isActing(`disable-model-${model.id}`) ? "..." : "Disabled"}
                             </button>
                           </div>
                         ) : null}
                       </div>
-                      <div style={{ marginTop: 8, fontSize: 13, color: "#4b5563" }}>{model.description || "暂无描述"}</div>
+                      <div style={{ marginTop: 8, fontSize: 13, color: "#4b5563" }}>{model.description || "No description"}</div>
                       <div style={{ marginTop: 8, display: "flex", gap: 16, fontSize: 12, color: "#6b7280" }}>
-                        <span>分类: {model.category}</span>
-                        <span>渠道路由: {model.routes?.filter((route) => route.isEnabled).length || 0}/{model.routes?.length || 0}</span>
+                        <span>Category: {model.category}</span>
+                        <span>Provider Routes: {model.routes?.filter((route) => route.isEnabled).length || 0}/{model.routes?.length || 0}</span>
                       </div>
                       <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                         {model.routes && model.routes.length > 0 ? model.routes.map((route) => {
@@ -2809,13 +2809,13 @@ export default function AdminPage() {
                           <div key={`${model.modelId}-${route.providerId}`} style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 0.8fr auto", gap: 12, alignItems: "center", padding: 12, borderRadius: 10, border: "1px solid #e5e7eb", background: route.isEnabled ? "#f8fafc" : "#fff" }}>
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{route.providerName}</div>
-                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{route.providerId} · {route.isEnabled ? "启用" : "停用"}</div>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{route.providerId} · {route.isEnabled ? "Enable" : "Disabled"}</div>
                             </div>
                             {isTaskModel ? (
                               <div style={{ fontSize: 12, color: "#4b5563" }}>
-                                提交RPM {route.currentRpm}/{route.rpmLimit}
+                                Submit RPM {route.currentRpm}/{route.rpmLimit}
                                 <br />
-                                任务并发 {route.concurrentLimit}
+                                Task Concur. {route.concurrentLimit}
                               </div>
                             ) : (
                               <div style={{ fontSize: 12, color: "#4b5563" }}>
@@ -2825,22 +2825,22 @@ export default function AdminPage() {
                               </div>
                             )}
                             <div style={{ fontSize: 12, color: "#4b5563" }}>
-                              优先级 {route.priority}
+                              Priority {route.priority}
                               <br />
-                              权重 {route.weight}
+                              Weight {route.weight}
                             </div>
                             <button onClick={() => handleSaveModelRoute(model, route)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                              编辑路由
+                              EditRoutes
                             </button>
                           </div>
                           );
                         }) : (
                           <div style={{ fontSize: 12.5, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 12 }}>
-                            当前没有启用渠道路由，API 调用不会选择到该模型。
+                            No active provider routes. API calls will not select this model.
                           </div>
                         )}
                         <button onClick={() => handleSaveModelRoute(model)} style={{ alignSelf: "flex-start", padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
-                          添加渠道路由
+                          Add Provider Route
                         </button>
                       </div>
                     </div>
@@ -2849,7 +2849,7 @@ export default function AdminPage() {
               </>
             ) : activeTab === "tickets" ? (
               <>
-                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>工单中心</h1>
+                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>Ticket Center</h1>
                 <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
                   {["all", "open", "in_progress", "resolved", "rejected"].map((item) => (
                     <button
@@ -2866,39 +2866,39 @@ export default function AdminPage() {
                         fontFamily: "inherit",
                       }}
                     >
-                      {item === "all" ? "全部" : item}
+                      {item === "all" ? "All" : item}
                     </button>
                   ))}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {filteredTickets.length === 0 ? (
-                    <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>暂无工单</div>
+                    <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>No tickets</div>
                   ) : filteredTickets.map((ticket) => (
                     <div key={ticket.id} style={{ ...cardStyle, padding: "16px 20px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 8 }}>
                         <div>
                           <div style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>{ticket.subject}</div>
-                          <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>用户: {users.find((u) => u.id === ticket.user_id)?.nickname || ticket.user_id} · 类型: {ticket.type} · 状态: {ticket.status}</div>
+                          <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>User: {users.find((u) => u.id === ticket.user_id)?.nickname || ticket.user_id} · Type: {ticket.type} · Status: {ticket.status}</div>
                         </div>
                         <button
                           onClick={() => handleReplyTicket(ticket.id)}
                           disabled={isActing(`reply-ticket-${ticket.id}`)}
                           style={{ padding: "6px 16px", background: "#111827", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "inherit", opacity: isActing(`reply-ticket-${ticket.id}`) ? 0.6 : 1 }}
                         >
-                          {isActing(`reply-ticket-${ticket.id}`) ? "处理中..." : "处理"}
+                          {isActing(`reply-ticket-${ticket.id}`) ? "Processing..." : "Handle"}
                         </button>
                       </div>
                       <div style={{ fontSize: 13, lineHeight: 1.7, color: "#4b5563", marginBottom: 8 }}>{ticket.description}</div>
                       {(ticket.model || ticket.requested_qpm || ticket.requested_tpm) ? (
                         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
-                          {ticket.model ? <span>模型: {ticket.model}</span> : null}
+                          {ticket.model ? <span>Model: {ticket.model}</span> : null}
                           {ticket.requested_qpm ? <span>QPM: {ticket.requested_qpm}</span> : null}
                           {ticket.requested_tpm ? <span>TPM: {ticket.requested_tpm}</span> : null}
                         </div>
                       ) : null}
                       {ticket.admin_reply ? (
                         <div style={{ padding: 12, background: "#f8fafc", borderRadius: 8, fontSize: 13, color: "#334155" }}>
-                          管理员回复：{ticket.admin_reply}
+                          Admin reply: {ticket.admin_reply}
                         </div>
                       ) : null}
                     </div>
@@ -2907,43 +2907,43 @@ export default function AdminPage() {
               </>
             ) : (
               <>
-                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>日志查询</h1>
+                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 }}>Log Search</h1>
                 <div style={{ ...cardStyle, padding: 20, marginBottom: 16 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
                     <div>
                       <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Request ID</label>
-                      <input value={logSearchId} onChange={(e) => setLogSearchId(e.target.value)} placeholder="输入 Request ID" onKeyDown={(e) => e.key === "Enter" && handleLogSearch()} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
+                      <input value={logSearchId} onChange={(e) => setLogSearchId(e.target.value)} placeholder="Enter Request ID" onKeyDown={(e) => e.key === "Enter" && handleLogSearch()} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>模型</label>
-                      <input value={logSearchModel} onChange={(e) => setLogSearchModel(e.target.value)} placeholder="如 qwen3.7-max" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
+                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Model</label>
+                      <input value={logSearchModel} onChange={(e) => setLogSearchModel(e.target.value)} placeholder="e.g. qwen3.7-max" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>用户 ID / Email</label>
-                      <input value={logSearchUser} onChange={(e) => setLogSearchUser(e.target.value)} placeholder="用户 ID 或邮箱" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
+                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>User ID / Email</label>
+                      <input value={logSearchUser} onChange={(e) => setLogSearchUser(e.target.value)} placeholder="User ID or email" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>开始时间</label>
+                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Start Time</label>
                       <input type="datetime-local" value={logSearchFrom} onChange={(e) => setLogSearchFrom(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>结束时间</label>
+                      <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>End Time</label>
                       <input type="datetime-local" value={logSearchTo} onChange={(e) => setLogSearchTo(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 12, fontFamily: "inherit", background: "#fff" }} />
                     </div>
                     <button onClick={handleLogSearch} disabled={logSearching} style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "#111827", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", height: 34 }}>
-                      {logSearching ? "搜索中..." : "搜索"}
+                      {logSearching ? "Searching..." : "Search"}
                     </button>
                   </div>
                 </div>
 
                 <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 12, padding: "8px 12px", background: "#f8fafc", borderRadius: 6, border: "1px solid #e5e7eb" }}>
-                  💡 管理员可查看所有用户的日志。输入 Request ID 可精确查询。日志写入后约 1-2 分钟才可查询详情。
+                  💡 Admins can view all user logs. Enter Request ID for precise search. Logs take ~1-2 min before details are queryable.
                 </div>
 
                 {logResults.length > 0 ? (
                   <div style={{ ...cardStyle, overflow: "hidden" }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 0.8fr 0.6fr 0.6fr 0.6fr 1fr", padding: "10px 16px", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "#6b7280", background: "#f9fafb", borderBottom: "1px solid #e5e7eb" }}>
-                      <span>Request ID</span><span>用户</span><span>模型</span><span>Tokens</span><span>费用</span><span>状态</span><span>时间</span>
+                      <span>Request ID</span><span>User</span><span>Model</span><span>Tokens</span><span>Cost</span><span>Status</span><span>Time</span>
                     </div>
                     {logResults.map((r) => (
                       <div key={r.log_id}>
@@ -2959,12 +2959,12 @@ export default function AdminPage() {
                         {logExpandedId === r.log_id && (
                           <div style={{ padding: "16px 20px", background: "#f9fafb", borderTop: "1px solid #e5e7eb", borderBottom: "1px solid #e5e7eb" }}>
                             {logDetailLoading ? (
-                              <div style={{ color: "#6b7280", fontSize: 13 }}>加载中...</div>
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>Loading...</div>
                             ) : logDetail ? (
                               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                                 {logDetail.user_email || logDetail.user_nickname ? (
                                   <div style={{ fontSize: 12, color: "#6b7280" }}>
-                                    用户：{logDetail.user_nickname || ""} {logDetail.user_email ? `(${logDetail.user_email})` : ""}
+                                    User：{logDetail.user_nickname || ""} {logDetail.user_email ? `(${logDetail.user_email})` : ""}
                                   </div>
                                 ) : null}
                                 <div>
@@ -2977,7 +2977,7 @@ export default function AdminPage() {
                                 </div>
                               </div>
                             ) : (
-                              <div style={{ color: "#6b7280", fontSize: 13 }}>{logDetailNote || "暂无详情数据"}</div>
+                              <div style={{ color: "#6b7280", fontSize: 13 }}>{logDetailNote || "No detail data available"}</div>
                             )}
                           </div>
                         )}
@@ -2985,7 +2985,7 @@ export default function AdminPage() {
                     ))}
                   </div>
                 ) : logResults.length === 0 && logSearching === false && logSearchId ? (
-                  <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>未找到匹配的日志</div>
+                  <div style={{ ...cardStyle, padding: 48, textAlign: "center", color: "#6b7280" }}>No matching logs found</div>
                 ) : null}
               </>
             )}

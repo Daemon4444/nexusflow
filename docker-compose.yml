@@ -9,9 +9,9 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass f8a8b6e3c3985bdbc5421d476e1d18f7
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "f8a8b6e3c3985bdbc5421d476e1d18f7", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

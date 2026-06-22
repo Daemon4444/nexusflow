@@ -7,52 +7,52 @@ const deepseekModels = [
   {
     id: "deepseek-v4-pro",
     name: "DeepSeek V4 Pro",
-    desc: "百炼接入的 DeepSeek V4 旗舰推理模型，适合复杂数学、长链路决策和代码 Agent 任务。",
+    desc: "DeepSeek V4 flagship reasoning model, ideal for complex math, long-horizon decision-making, and code agent tasks.",
     ctx: "1,000,000",
     maxOutput: "16,384",
-    inputPrice: "¥12",
-    outputPrice: "¥24",
-    tags: ["V4", "旗舰", "推理"],
-    features: ["复杂推理", "代码 Agent", "函数调用"],
+    inputPrice: "$12",
+    outputPrice: "$24",
+    tags: ["V4", "Flagship", "Reasoning"],
+    features: ["Complex reasoning", "Code agent", "Function calling"],
     isNew: true,
     isFeatured: true,
   },
   {
     id: "deepseek-v4-flash",
     name: "DeepSeek V4 Flash",
-    desc: "百炼接入的 DeepSeek V4 高速版本，低延迟高吞吐，适合在线问答、客服和高并发网关场景。",
+    desc: "DeepSeek V4 high-speed version, low latency and high throughput, ideal for online Q&A, customer support, and high-concurrency gateway scenarios.",
     ctx: "1,000,000",
     maxOutput: "16,384",
-    inputPrice: "¥1",
-    outputPrice: "¥2",
-    tags: ["V4", "极速", "高并发"],
-    features: ["低延迟", "高吞吐", "在线对话"],
+    inputPrice: "$1",
+    outputPrice: "$2",
+    tags: ["V4", "Ultra-fast", "High-concurrency"],
+    features: ["Low latency", "High throughput", "Online chat"],
     isNew: true,
     isFeatured: true,
   },
   {
     id: "deepseek-r1",
     name: "DeepSeek R1",
-    desc: "推理增强模型，通过链式思考进行复杂问题分析。在数学、编程、逻辑推理等任务上表现出色。",
+    desc: "Reasoning-enhanced model that analyzes complex problems via chain-of-thought. Excels at math, programming, and logical reasoning.",
     ctx: "64,000",
     maxOutput: "8,000",
-    inputPrice: "¥4",
-    outputPrice: "¥16",
-    tags: ["推理", "思维链"],
-    features: ["链式思考", "代码生成", "数学推理"],
+    inputPrice: "$4",
+    outputPrice: "$16",
+    tags: ["Reasoning", "Chain-of-thought"],
+    features: ["Chain-of-thought", "Code generation", "Math reasoning"],
     isNew: true,
     isFeatured: true,
   },
   {
     id: "deepseek-v3",
     name: "DeepSeek V3",
-    desc: "最新一代通用模型，MoE 架构，在代码、数学、通用能力上全面提升。性价比极高。",
+    desc: "Latest-generation general-purpose model with an MoE architecture, with all-round improvements in code, math, and general ability. Extremely cost-effective.",
     ctx: "64,000",
     maxOutput: "8,000",
-    inputPrice: "¥2",
-    outputPrice: "¥8",
-    tags: ["推荐", "高性价比"],
-    features: ["代码生成", "函数调用", "多语言"],
+    inputPrice: "$2",
+    outputPrice: "$8",
+    tags: ["Recommended", "Cost-effective"],
+    features: ["Code generation", "Function calling", "Multilingual"],
     isNew: true,
     isFeatured: true,
   },
@@ -80,7 +80,7 @@ export default function DeepSeekModelsPage() {
           </div>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-              DeepSeek 系列
+              DeepSeek Series
             </h1>
             <div style={{ fontSize: 14, color: "var(--text-tertiary)", marginTop: 4 }}>
               by DeepSeek AI
@@ -88,20 +88,20 @@ export default function DeepSeekModelsPage() {
           </div>
         </div>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 700 }}>
-          DeepSeek 是国内领先的开源大模型，以极高的性价比著称。
-          在代码生成、数学推理方面表现突出，是预算敏感场景的理想选择。文本类模型可通过 OpenAI Chat、Anthropic Messages 和 Gemini-compatible 三类公共协议接入。
+          DeepSeek is a leading open-source large model known for its exceptional cost-effectiveness.
+          It stands out in code generation and math reasoning, making it an ideal choice for budget-sensitive scenarios. Text models can be accessed via three public protocols: OpenAI Chat, Anthropic Messages, and Responses API.
         </p>
       </div>
 
       <section style={{ marginBottom: 40 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          接入协议
+          Protocols
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[
             { href: "/docs/api/chat", label: "OpenAI Chat", endpoint: "/v1/chat/completions" },
             { href: "/docs/api/anthropic", label: "Anthropic Messages", endpoint: "/v1/messages" },
-            { href: "/docs/api/gemini", label: "Gemini-compatible", endpoint: "/v1beta/models/{model}:generateContent" },
+            { href: "/docs/api/responses", label: "Responses API", endpoint: "/v1/responses" },
           ].map((item) => (
             <Link key={item.label} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{item.label}</div>
@@ -114,14 +114,14 @@ export default function DeepSeekModelsPage() {
       {/* Key features */}
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          核心优势
+          Core Advantages
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {[
-            { icon: "💰", label: "超高性价比", desc: "价格仅为同级 1/10" },
-            { icon: "🔓", label: "开源透明", desc: "权重公开可审计" },
-            { icon: "💻", label: "代码强者", desc: "编程能力突出" },
-            { icon: "🧮", label: "数学推理", desc: "复杂计算能力" },
+            { icon: "💰", label: "Highly cost-effective", desc: "About 1/10 the price of peers" },
+            { icon: "🔓", label: "Open & transparent", desc: "Weights are public and auditable" },
+            { icon: "💻", label: "Coding powerhouse", desc: "Outstanding programming ability" },
+            { icon: "🧮", label: "Math reasoning", desc: "Strong complex computation" },
           ].map((f) => (
             <div key={f.label} style={{
               padding: 16,
@@ -141,7 +141,7 @@ export default function DeepSeekModelsPage() {
       {/* Models list */}
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          可用模型
+          Available Models
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {deepseekModels.map((model) => (
@@ -172,7 +172,7 @@ export default function DeepSeekModelsPage() {
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   {model.tags.map((tag) => (
-                    <span key={tag} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: tag === "推荐" || tag === "高性价比" ? "var(--success-bg)" : tag === "推理" ? "var(--warning-bg)" : "var(--bg-elevated)", color: tag === "推荐" || tag === "高性价比" ? "var(--success)" : tag === "推理" ? "var(--warning)" : "var(--text-secondary)", fontWeight: 500 }}>
+                    <span key={tag} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: tag === "Recommended" || tag === "Cost-effective" ? "var(--success-bg)" : tag === "Reasoning" ? "var(--warning-bg)" : "var(--bg-elevated)", color: tag === "Recommended" || tag === "Cost-effective" ? "var(--success)" : tag === "Reasoning" ? "var(--warning)" : "var(--text-secondary)", fontWeight: 500 }}>
                       {tag}
                     </span>
                   ))}
@@ -185,19 +185,19 @@ export default function DeepSeekModelsPage() {
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>上下文窗口</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Context Window</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{model.ctx}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>最大输出</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Max Output</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{model.maxOutput}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>输入价格</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Input Price</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--success)" }}>{model.inputPrice}/M</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>输出价格</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Output Price</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--success)" }}>{model.outputPrice}/M</div>
                 </div>
               </div>
@@ -217,7 +217,7 @@ export default function DeepSeekModelsPage() {
       {/* Usage example */}
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          使用示例
+          Usage Example
         </h2>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
           <DocsCodeBlock code={`from openai import OpenAI
@@ -227,16 +227,16 @@ client = OpenAI(
     base_url="https://nexusflow.hk/v1",
 )
 
-# 使用 DeepSeek R1 进行推理
+# Use DeepSeek R1 for reasoning
 response = client.chat.completions.create(
     model="deepseek-r1",
     messages=[
-        {"role": "user", "content": "请一步步分析：如果 A > B，B > C，那么 A 和 C 的关系是什么？"}
+        {"role": "user", "content": "Reason step by step: if A > B and B > C, what is the relationship between A and C?"}
     ],
     max_tokens=2048,
 )
 
-# R1 模型会展示思维链过程
+# The R1 model shows its chain-of-thought process
 print(response.choices[0].message.content)`} />
         </div>
       </section>
@@ -244,13 +244,13 @@ print(response.choices[0].message.content)`} />
       {/* Related */}
       <section>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          相关文档
+          Related Docs
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[
-            { href: "/docs/api/chat", label: "对话补全 API", desc: "API 调用方式" },
-            { href: "/docs/models/qwen", label: "通义千问", desc: "对比通用主力模型" },
-            { href: "/playground", label: "Playground", desc: "在线体验" },
+            { href: "/docs/api/chat", label: "Chat Completions API", desc: "How to call the API" },
+            { href: "/docs/models/qwen", label: "Qwen", desc: "Compare with the general-purpose flagship" },
+            { href: "/playground", label: "Playground", desc: "Try it online" },
           ].map((link) => (
             <Link key={link.href} href={link.href} style={{ padding: 16, background: "var(--bg-elevated)", borderRadius: 8, border: "1px solid var(--border)", textDecoration: "none" }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)", marginBottom: 4 }}>{link.label}</div>

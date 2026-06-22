@@ -42,7 +42,7 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFil
   if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error("不支持的文件格式。支持: JPG, PNG, WebP, GIF, BMP, MP4, MOV, WebM"));
+    cb(new Error("Unsupported file format. Supported: JPG, PNG, WebP, GIF, BMP, MP4, MOV, WebM"));
   }
 };
 
@@ -57,7 +57,7 @@ const upload = multer({
 async function requireUploadAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
-    res.status(401).json({ success: false, message: "上传需要登录或 API Key" });
+    res.status(401).json({ success: false, message: "Upload requires login or API Key" });
     return;
   }
 
@@ -67,7 +67,7 @@ async function requireUploadAuth(req: Request, res: Response, next: NextFunction
     return;
   }
 
-  res.status(401).json({ success: false, message: "上传凭证无效或已过期" });
+  res.status(401).json({ success: false, message: "Upload credential invalid or expired" });
 }
 
 function jpegFilename(filename: string): string {
@@ -129,7 +129,7 @@ router.post("/", requireUploadAuth, upload.single("file"), async (req, res) => {
   console.log("[Upload API] Received request, file:", req.file?.originalname, "size:", req.file?.size);
   if (!req.file) {
     console.log("[Upload API] No file in request");
-    res.status(400).json({ success: false, message: "未收到文件" });
+    res.status(400).json({ success: false, message: "No file received" });
     return;
   }
 
@@ -143,7 +143,7 @@ router.post("/", requireUploadAuth, upload.single("file"), async (req, res) => {
     uploaded = await compressImageIfNeeded(req.file);
   } catch (err: any) {
     console.error("[Upload API] Compression failed:", err.message);
-    // 压缩失败不影响上传，继续用原文件
+    // Compression failure does not affect upload, continue with original file
   }
 
   const baseUrl = process.env.PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -165,13 +165,13 @@ router.post("/", requireUploadAuth, upload.single("file"), async (req, res) => {
 router.get("/:filename", (req, res) => {
   const filename = path.basename(req.params.filename || "");
   if (!filename) {
-    res.status(400).json({ success: false, message: "文件名无效" });
+    res.status(400).json({ success: false, message: "Invalid filename" });
     return;
   }
 
   const filePath = path.join(uploadDir, filename);
   if (!filePath.startsWith(uploadDir) || !fs.existsSync(filePath)) {
-    res.status(404).json({ success: false, message: "文件不存在" });
+    res.status(404).json({ success: false, message: "File not found" });
     return;
   }
 
@@ -182,17 +182,17 @@ router.get("/:filename", (req, res) => {
 router.use((err: any, _req: any, res: any, _next: any) => {
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
-      res.status(413).json({ success: false, message: "文件过大，最大支持 100MB" });
+      res.status(413).json({ success: false, message: "File too large, maximum 100MB" });
       return;
     }
-    res.status(400).json({ success: false, message: `上传错误: ${err.message}` });
+    res.status(400).json({ success: false, message: `Upload error: ${err.message}` });
     return;
   }
   if (err.message) {
     res.status(400).json({ success: false, message: err.message });
     return;
   }
-  res.status(500).json({ success: false, message: "上传失败" });
+  res.status(500).json({ success: false, message: "Upload failed" });
 });
 
 export default router;

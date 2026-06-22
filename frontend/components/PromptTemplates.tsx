@@ -13,58 +13,58 @@ interface PromptTemplate {
 export const promptTemplates: PromptTemplate[] = [
   {
     id: "chat-general",
-    name: "通用对话",
-    category: "聊天",
+    name: "General Chat",
+    category: "Chat",
     prompt: "",
     icon: "💬",
   },
   {
     id: "code-help",
-    name: "编程助手",
-    category: "编程",
-    prompt: "请帮我写一个 Python 函数，实现以下功能：\n\n",
+    name: "Code Assistant",
+    category: "Coding",
+    prompt: "Please help me write a Python function that implements the following:\n\n",
     icon: "💻",
   },
   {
     id: "code-explain",
-    name: "代码解释",
-    category: "编程",
-    prompt: "请解释以下代码的作用和逻辑：\n\n```\n在此粘贴代码\n```",
+    name: "Code Explanation",
+    category: "Coding",
+    prompt: "Please explain the purpose and logic of the following code:\n\n```\nPaste code here\n```",
     icon: "📝",
   },
   {
     id: "code-debug",
-    name: "代码调试",
-    category: "编程",
-    prompt: "这段代码有问题，请帮我找出错误并修复：\n\n```\n在此粘贴代码\n```",
+    name: "Code Debugging",
+    category: "Coding",
+    prompt: "This code has issues. Please help me find and fix the errors:\n\n```\nPaste code here\n```",
     icon: "🐛",
   },
   {
     id: "translate",
-    name: "翻译",
-    category: "文本",
-    prompt: "请将以下文本翻译成英文：\n\n",
+    name: "Translation",
+    category: "Text",
+    prompt: "Please translate the following text into English:\n\n",
     icon: "🌐",
   },
   {
     id: "summarize",
-    name: "文档总结",
-    category: "文本",
-    prompt: "请总结以下文档的核心要点：\n\n",
+    name: "Document Summary",
+    category: "Text",
+    prompt: "Please summarize the key points of the following document:\n\n",
     icon: "📋",
   },
   {
     id: "creative",
-    name: "创意写作",
-    category: "创作",
-    prompt: "请帮我写一篇关于以下主题的文章：\n\n",
+    name: "Creative Writing",
+    category: "Creative",
+    prompt: "Please help me write an article about the following topic:\n\n",
     icon: "✨",
   },
   {
     id: "math",
-    name: "数学问题",
-    category: "推理",
-    prompt: "请详细解答以下数学问题，展示完整的解题步骤：\n\n",
+    name: "Math Problem",
+    category: "Reasoning",
+    prompt: "Please solve the following math problem in detail, showing complete step-by-step solution:\n\n",
     icon: "🧮",
   },
 ];
@@ -107,7 +107,7 @@ export default function PromptTemplates({ onSelect, currentPrompt }: PromptTempl
         }}
       >
         <span>📝</span>
-        <span>预设模板</span>
+        <span>Templates</span>
         <svg
           width="12"
           height="12"
@@ -162,7 +162,7 @@ export default function PromptTemplates({ onSelect, currentPrompt }: PromptTempl
                 cursor: "pointer",
               }}
             >
-              全部
+              All
             </button>
             {categories.map(cat => (
               <button

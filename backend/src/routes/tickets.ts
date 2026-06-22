@@ -17,12 +17,12 @@ const router = Router();
 async function requireAuth(req: Request, res: Response): Promise<string | null> {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ")) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return null;
   }
   const session = await validateSession(auth.slice(7).trim());
   if (!session) {
-    res.status(401).json({ success: false, message: "登录已过期" });
+    res.status(401).json({ success: false, message: "Session expired" });
     return null;
   }
   return (session as any).user_id || session.id;
@@ -39,19 +39,19 @@ router.post("/", async (req: Request, res: Response) => {
   const cleanDescription = typeof description === "string" ? description.trim() : "";
 
   if (!cleanSubject) {
-    res.status(400).json({ success: false, message: "标题不能为空" });
+    res.status(400).json({ success: false, message: "Subject cannot be empty" });
     return;
   }
   if (cleanSubject.length < 5) {
-    res.status(400).json({ success: false, message: "标题至少 5 个字符" });
+    res.status(400).json({ success: false, message: "Subject must be at least 5 characters" });
     return;
   }
   if (!cleanDescription) {
-    res.status(400).json({ success: false, message: "描述不能为空" });
+    res.status(400).json({ success: false, message: "Description cannot be empty" });
     return;
   }
   if (cleanDescription.length < 20) {
-    res.status(400).json({ success: false, message: "请补充更完整的问题描述，至少 20 个字符" });
+    res.status(400).json({ success: false, message: "Please provide a more complete description, at least 20 characters" });
     return;
   }
 
@@ -83,7 +83,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
   const ticket = await getTicket(req.params.id as string, userId);
   if (!ticket) {
-    res.status(404).json({ success: false, message: "工单不存在" });
+    res.status(404).json({ success: false, message: "Ticket not found" });
     return;
   }
 
@@ -101,7 +101,7 @@ router.get("/admin/:id", requireAdmin, async (req: Request, res: Response) => {
   const tickets = await getAllTickets();
   const ticket = tickets.find((item) => item.id === req.params.id);
   if (!ticket) {
-    res.status(404).json({ success: false, message: "工单不存在" });
+    res.status(404).json({ success: false, message: "Ticket not found" });
     return;
   }
   res.json({ success: true, data: ticket });
@@ -111,17 +111,17 @@ router.get("/admin/:id", requireAdmin, async (req: Request, res: Response) => {
 router.post("/:id/reply", requireAdmin, async (req: Request, res: Response) => {
   const { reply, status } = req.body || {};
   if (!reply?.trim()) {
-    res.status(400).json({ success: false, message: "回复不能为空" });
+    res.status(400).json({ success: false, message: "Reply cannot be empty" });
     return;
   }
   if (!["open", "in_progress", "resolved", "rejected"].includes(status)) {
-    res.status(400).json({ success: false, message: "无效状态" });
+    res.status(400).json({ success: false, message: "Invalid status" });
     return;
   }
 
   const ticket = await replyTicket(req.params.id as string, reply.trim(), status);
   if (!ticket) {
-    res.status(404).json({ success: false, message: "工单不存在" });
+    res.status(404).json({ success: false, message: "Ticket not found" });
     return;
   }
 

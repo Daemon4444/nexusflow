@@ -1,36 +1,36 @@
 /**
- * 短信验证码服务 —— 阿里云短信 SDK
+ * SMS Verification Code Service — Alibaba Cloud SMS SDK
  * 
- * ====== 环境变量配置（.env） ======
+ * ====== Environment Variable Configuration (.env) ======
  * 
- * SMS_ACCESS_KEY_ID=你的阿里云 AccessKey ID
- * SMS_ACCESS_KEY_SECRET=你的阿里云 AccessKey Secret
- * SMS_SIGN_NAME=你的短信签名（如：nexusflow）
- * SMS_TEMPLATE_CODE=你的短信模板 Code（如：SMS_123456789）
+ * SMS_ACCESS_KEY_ID=Your Alibaba Cloud AccessKey ID
+ * SMS_ACCESS_KEY_SECRET=Your Alibaba Cloud AccessKey Secret
+ * SMS_SIGN_NAME=Your SMS signature (e.g. nexusflow)
+ * SMS_TEMPLATE_CODE=Your SMS template Code (e.g. SMS_123456789)
  * 
- * ====== 阿里云开通流程 ======
+ * ====== Alibaba Cloud Setup Process ======
  * 
- * 1. 登录阿里云控制台 → 短信服务 https://dysms.console.aliyun.com/
- * 2. 创建短信签名（需审核，一般1个工作日）
- * 3. 创建短信模板，内容示例：
- *      您的验证码为：${code}，5分钟内有效，请勿泄露。
- *    模板变量名必须为 code
- * 4. 获取 AccessKey：https://ram.console.aliyun.com/manage/ak
- *    建议使用 RAM 子账号，仅授予 AliyunDysmsFullAccess 权限
- * 5. 将上述信息填入 .env 文件
+ * 1. Log in to Alibaba Cloud Console → SMS Service https://dysms.console.aliyun.com/
+ * 2. Create SMS signature (requires review, typically 1 business day)
+ * 3. Create SMS template, content example:
+ *      Your verification code is: ${code}, valid for 5 minutes, do not share with others.
+ *    Template variable name must be code
+ * 4. Obtain AccessKey: https://ram.console.aliyun.com/manage/ak
+ *    Recommend using a RAM sub-account with only AliyunDysmsFullAccess permission
+ * 5. Fill in the above information in the .env file
  * 
- * ====== 未配置时的行为 ======
+ * ====== Behavior When Not Configured ======
  * 
- * 未设置环境变量时自动进入测试模式：
- *   - 控制台打印验证码
- *   - 固定码 8888 始终可用
+ * When environment variables are not set, the service automatically enters test mode:
+ *   - Verification codes are printed to the console
+ *   - Fixed code 8888 is always accepted
  */
 
 import Dysmsapi20170525, * as $Dysmsapi20170525 from "@alicloud/dysmsapi20170525";
 import * as $OpenApi from "@alicloud/openapi-client";
 import crypto from "crypto";
 
-// ============ 验证码存储 ============
+// ============ Verification Code Storage ============
 
 interface CodeEntry {
   code: string;
@@ -41,11 +41,11 @@ interface CodeEntry {
 const codeStore = new Map<string, CodeEntry>();
 const sendLimitStore = new Map<string, number>();
 
-const CODE_EXPIRY_MS = 5 * 60 * 1000;  // 5 分钟
-const SEND_INTERVAL_MS = 60 * 1000;    // 60 秒发送间隔
-const MAX_ATTEMPTS = 5;                  // 最大验证尝试次数
+const CODE_EXPIRY_MS = 5 * 60 * 1000;  // 5 minutes
+const SEND_INTERVAL_MS = 60 * 1000;    // 60 seconds send interval
+const MAX_ATTEMPTS = 5;                  // Maximum verification attempts
 
-// ============ 阿里云 SMS 客户端 ============
+// ============ Alibaba Cloud SMS Client ============
 
 let smsClient: Dysmsapi20170525 | null = null;
 
@@ -70,13 +70,13 @@ function getSmsClient(): Dysmsapi20170525 {
   return smsClient;
 }
 
-/** 生成 6 位随机验证码 */
+/** Generate 6-digit random verification code */
 function generateCode(): string {
   return crypto.randomInt(100000, 999999).toString();
 }
 
 /**
- * 通过阿里云 SDK 发送短信
+ * Send SMS via Alibaba Cloud SDK
  */
 async function sendAliyunSms(phone: string, code: string): Promise<boolean> {
   try {
@@ -92,36 +92,36 @@ async function sendAliyunSms(phone: string, code: string): Promise<boolean> {
     const body = response.body!;
 
     if (body.code === "OK") {
-      console.log(`[SMS] 验证码已发送至 ${phone.slice(0, 3)}****${phone.slice(-4)}`);
+      console.log(`[SMS] Verification code sent to ${phone.slice(0, 3)}****${phone.slice(-4)}`);
       return true;
     }
 
-    console.error(`[SMS] 发送失败: ${body.code} - ${body.message}`);
+    console.error(`[SMS] Send failed: ${body.code} - ${body.message}`);
     return false;
   } catch (error: any) {
-    console.error("[SMS] 发送异常:", error.message);
+    console.error("[SMS] Send exception:", error.message);
     if (error.data?.Recommend) {
-      console.log("[SMS] 诊断建议:", error.data.Recommend);
+      console.log("[SMS] Diagnostic suggestion:", error.data.Recommend);
     }
     return false;
   }
 }
 
-// ============ 对外接口 ============
+// ============ Public Interface ============
 
 /**
- * 发送验证码
+ * Send verification code
  */
 export async function sendVerificationCode(phone: string): Promise<{ success: boolean; message: string }> {
   if (!/^1\d{10}$/.test(phone)) {
-    return { success: false, message: "手机号格式不正确" };
+    return { success: false, message: "Invalid phone number format" };
   }
 
-  // 发送频率限制
+  // Send rate limit
   const lastSent = sendLimitStore.get(phone);
   if (lastSent && Date.now() - lastSent < SEND_INTERVAL_MS) {
     const remaining = Math.ceil((SEND_INTERVAL_MS - (Date.now() - lastSent)) / 1000);
-    return { success: false, message: `请${remaining}秒后重试` };
+    return { success: false, message: `Please retry in ${remaining} seconds` };
   }
 
   const code = generateCode();
@@ -130,10 +130,10 @@ export async function sendVerificationCode(phone: string): Promise<{ success: bo
   if (isReal) {
     const sent = await sendAliyunSms(phone, code);
     if (!sent) {
-      return { success: false, message: "短信发送失败，请稍后重试" };
+      return { success: false, message: "SMS sending failed, please try again later" };
     }
   } else {
-    console.log(`[SMS-TEST] 手机号: ${phone}, 验证码: ${code} (测试模式，也可用 8888)`);
+    console.log(`[SMS-TEST] Phone: ${phone}, Code: ${code} (test mode, also accept 8888)`);
   }
 
   codeStore.set(phone, {
@@ -145,15 +145,15 @@ export async function sendVerificationCode(phone: string): Promise<{ success: bo
 
   return {
     success: true,
-    message: isReal ? "验证码已发送" : `验证码已发送（测试模式，验证码: ${code}，也可用 8888）`,
+    message: isReal ? "Verification code sent" : `Verification code sent (test mode, code: ${code}, also accept 8888)`,
   };
 }
 
 /**
- * 验证验证码
+ * Verify verification code
  */
 export function verifyCode(phone: string, code: string): boolean {
-  // 测试模式兜底
+  // Test mode fallback
   if (!isSmsConfigured() && code === "8888") {
     return true;
   }
@@ -181,7 +181,7 @@ export function verifyCode(phone: string, code: string): boolean {
   return false;
 }
 
-// 定期清理过期数据
+// Periodic cleanup of expired data
 setInterval(() => {
   const now = Date.now();
   for (const [phone, data] of codeStore) {

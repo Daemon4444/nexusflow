@@ -3,7 +3,7 @@
 -- Migration: 001_initial_schema.sql
 -- =====================================================
 
--- 用户表
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     phone TEXT UNIQUE,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
--- 会话表
+-- Sessions table
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 
--- 交易流水表
+-- Transaction records table
 CREATE TABLE IF NOT EXISTS transactions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -45,7 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
 CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
 
--- 支付订单表（第三方支付状态跟踪）
+-- Payment orders table (third-party payment status tracking)
 CREATE TABLE IF NOT EXISTS payment_orders (
     id TEXT PRIMARY KEY,
     order_no TEXT NOT NULL UNIQUE,
@@ -66,7 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_payment_orders_user_id ON payment_orders(user_id)
 CREATE INDEX IF NOT EXISTS idx_payment_orders_status ON payment_orders(status);
 CREATE INDEX IF NOT EXISTS idx_payment_orders_created_at ON payment_orders(created_at);
 
--- API 密钥表
+-- API keys table
 CREATE TABLE IF NOT EXISTS api_keys (
     id TEXT PRIMARY KEY,
     user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
@@ -83,7 +83,7 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_key ON api_keys(key);
 CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
 CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
 
--- 用户级限流表
+-- User-level rate limits table
 CREATE TABLE IF NOT EXISTS user_rate_limits (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS user_rate_limits (
 
 CREATE INDEX IF NOT EXISTS idx_user_rate_limits_user ON user_rate_limits(user_id);
 
--- 限额申请表
+-- Rate limit requests table
 CREATE TABLE IF NOT EXISTS rate_limit_requests (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS rate_limit_requests (
 CREATE INDEX IF NOT EXISTS idx_rate_limit_requests_user ON rate_limit_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_rate_limit_requests_status ON rate_limit_requests(status);
 
--- 使用日志表
+-- Usage logs table
 CREATE TABLE IF NOT EXISTS usage_logs (
     id SERIAL PRIMARY KEY,
     api_key_id TEXT REFERENCES api_keys(id) ON DELETE SET NULL,
@@ -139,7 +139,7 @@ CREATE INDEX IF NOT EXISTS idx_usage_logs_model ON usage_logs(model);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_api_key_id ON usage_logs(api_key_id);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_user_id ON usage_logs(user_id);
 
--- 供应商表
+-- Providers table
 CREATE TABLE IF NOT EXISTS providers (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -162,20 +162,20 @@ CREATE TABLE IF NOT EXISTS providers (
 CREATE INDEX IF NOT EXISTS idx_providers_status ON providers(status);
 CREATE INDEX IF NOT EXISTS idx_providers_slug ON providers(slug);
 
--- 供应商模型表
+-- Provider models table
 CREATE TABLE IF NOT EXISTS provider_models (
     id TEXT PRIMARY KEY,
     provider_id TEXT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
     model_id TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
-    category TEXT NOT NULL DEFAULT '大语言模型',
+    category TEXT NOT NULL DEFAULT 'Language Model',
     context_length INTEGER NOT NULL DEFAULT 4096,
     max_output INTEGER NOT NULL DEFAULT 4096,
     prompt_price REAL NOT NULL DEFAULT 0,
     completion_price REAL NOT NULL DEFAULT 0,
     tags TEXT NOT NULL DEFAULT '[]',
-    supported TEXT NOT NULL DEFAULT '["文本"]',
+    supported TEXT NOT NULL DEFAULT '["Text"]',
     is_featured BOOLEAN NOT NULL DEFAULT FALSE,
     is_new BOOLEAN NOT NULL DEFAULT TRUE,
     status TEXT NOT NULL DEFAULT 'draft',  -- 'draft' | 'enabled' | 'disabled'
@@ -187,7 +187,7 @@ CREATE INDEX IF NOT EXISTS idx_provider_models_provider_id ON provider_models(pr
 CREATE INDEX IF NOT EXISTS idx_provider_models_status ON provider_models(status);
 CREATE INDEX IF NOT EXISTS idx_provider_models_category ON provider_models(category);
 
--- 异步任务表
+-- Async tasks table
 CREATE TABLE IF NOT EXISTS async_tasks (
     id TEXT PRIMARY KEY,
     user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -211,7 +211,7 @@ CREATE INDEX IF NOT EXISTS idx_async_tasks_status ON async_tasks(status);
 CREATE INDEX IF NOT EXISTS idx_async_tasks_user_id ON async_tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_async_tasks_upstream ON async_tasks(upstream_task_id);
 
--- 供应商容量配置表
+-- Provider capacity config table
 CREATE TABLE IF NOT EXISTS provider_capacity (
     id TEXT PRIMARY KEY,
     provider_id TEXT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
@@ -231,7 +231,7 @@ CREATE TABLE IF NOT EXISTS provider_capacity (
 CREATE INDEX IF NOT EXISTS idx_provider_capacity_model ON provider_capacity(model_id);
 CREATE INDEX IF NOT EXISTS idx_provider_capacity_provider ON provider_capacity(provider_id);
 
--- 供应商多渠道配置表
+-- Provider multi-channel config table
 CREATE TABLE IF NOT EXISTS provider_channel_configs (
     provider_id TEXT PRIMARY KEY REFERENCES providers(id) ON DELETE CASCADE,
     active_channel TEXT NOT NULL,
@@ -240,7 +240,7 @@ CREATE TABLE IF NOT EXISTS provider_channel_configs (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- 供应商健康记录表
+-- Provider health records table
 CREATE TABLE IF NOT EXISTS provider_health (
     id TEXT PRIMARY KEY,
     provider_id TEXT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS provider_health (
 
 CREATE INDEX IF NOT EXISTS idx_provider_health_provider ON provider_health(provider_id);
 
--- 工单表
+-- Tickets table
 CREATE TABLE IF NOT EXISTS tickets (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -277,7 +277,7 @@ CREATE TABLE IF NOT EXISTS tickets (
 CREATE INDEX IF NOT EXISTS idx_tickets_user ON tickets(user_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
 
--- Webhook 配置表
+-- Webhook config table
 CREATE TABLE IF NOT EXISTS webhooks (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -292,7 +292,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
 CREATE INDEX IF NOT EXISTS idx_webhooks_user_id ON webhooks(user_id);
 CREATE INDEX IF NOT EXISTS idx_webhooks_is_active ON webhooks(is_active);
 
--- Webhook 发送记录表
+-- Webhook delivery records table
 CREATE TABLE IF NOT EXISTS webhook_deliveries (
     id SERIAL PRIMARY KEY,
     webhook_id TEXT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
@@ -309,7 +309,7 @@ CREATE TABLE IF NOT EXISTS webhook_deliveries (
 CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook_id ON webhook_deliveries(webhook_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_status ON webhook_deliveries(status);
 
--- 创建更新时间触发器函数
+-- Create update timestamp trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -318,7 +318,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 为需要自动更新 updated_at 的表创建触发器
+-- Create triggers for tables that need auto-updating updated_at
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_users_updated_at') THEN

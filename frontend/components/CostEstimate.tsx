@@ -68,10 +68,11 @@ export default function CostEstimate({
 
   // Format cost with appropriate precision
   const formatCost = (cost: number) => {
-    if (cost < 0.0001) return "¥0";
-    if (cost < 0.01) return `¥${cost.toFixed(4)}`;
-    if (cost < 1) return `¥${cost.toFixed(3)}`;
-    return `¥${cost.toFixed(2)}`;
+    const usd = cost / 7;
+    if (usd < 0.0001) return "$0";
+    if (usd < 0.01) return `$${usd.toFixed(4)}`;
+    if (usd < 1) return `$${usd.toFixed(3)}`;
+    return `$${usd.toFixed(2)}`;
   };
 
   return (
@@ -97,7 +98,7 @@ export default function CostEstimate({
           fontWeight: 600,
           color: "var(--text-secondary)",
         }}>
-          费用预估
+          Cost Estimate
         </span>
       </div>
 
@@ -112,7 +113,7 @@ export default function CostEstimate({
             color: "var(--text-tertiary)",
             marginBottom: 2,
           }}>
-            输入 Tokens
+            Input Tokens
           </div>
           <div style={{
             fontSize: 14,
@@ -130,7 +131,7 @@ export default function CostEstimate({
               color: "var(--text-tertiary)",
               marginBottom: 2,
             }}>
-              计价阶梯
+              Pricing Tier
             </div>
             <div style={{
               fontSize: 13,
@@ -149,7 +150,7 @@ export default function CostEstimate({
             color: "var(--text-tertiary)",
             marginBottom: 2,
           }}>
-            预估输出
+            Est. Output
           </div>
           <div style={{
             fontSize: 14,
@@ -167,7 +168,7 @@ export default function CostEstimate({
             color: "var(--text-tertiary)",
             marginBottom: 2,
           }}>
-            预估费用
+            Est. Cost
           </div>
           <div style={{
             fontSize: 14,
@@ -190,7 +191,7 @@ export default function CostEstimate({
           color: "var(--success)",
           fontWeight: 600,
         }}>
-          ✓ 此模型免费使用
+          ✓ This model is free to use
         </div>
       )}
     </div>

@@ -11,3 +11,9 @@ dist/
 *.db-wal
 data.db
 backend/uploads/
+
+# macOS junk / local backups
+._*
+*.bak
+*.bak.*
+/backups/

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s | NexusFlow",
   },
   description: "Unified AI model aggregation platform providing OpenAI-compatible API access to leading text, vision, image and video models.",
-  metadataBase: new URL("https://nexusflow.hk"),
+  metadataBase: new URL("https://nexusflow.vip"),
   alternates: {
     canonical: "/",
   },
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     siteName: "NexusFlow",
     title: "NexusFlow - Unified AI Model Gateway",
     description: "Unified AI model aggregation platform providing OpenAI-compatible API access to leading text, vision, image and video models.",
-    url: "https://nexusflow.hk",
+    url: "https://nexusflow.vip",
   },
   twitter: {
     card: "summary_large_image",
@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="en">
       <body className="antialiased">
         <a href="#main-content" className="skip-link">Skip to content</a>
         <script
@@ -43,14 +43,14 @@ export default function RootLayout({
             "@context": "https://schema.org",
             "@type": "WebApplication",
             "name": "NexusFlow",
-            "url": "https://nexusflow.hk",
+            "url": "https://nexusflow.vip",
             "description": "Unified AI model aggregation platform providing OpenAI-compatible API access to leading text, vision, image and video models.",
             "applicationCategory": "DeveloperApplication",
             "operatingSystem": "Any",
             "offers": {
               "@type": "Offer",
               "price": "0",
-              "priceCurrency": "CNY",
+              "priceCurrency": "USD",
               "description": "Pay-as-you-go pricing with no minimum spend"
             }
           }) }}

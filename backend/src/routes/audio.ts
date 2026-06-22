@@ -34,7 +34,7 @@ function extractToken(req: Request): string | null {
 }
 
 const DASHSCOPE_MULTIMODAL_URL =
-  "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
+  (process.env.DASHSCOPE_BASE_URL ? process.env.DASHSCOPE_BASE_URL.replace(/\/compatible-mode\/v1$/, "/api/v1") : "https://ws-n4w0z49s9nes8pgm.ap-southeast-1.maas.aliyuncs.com/api/v1") + "/services/aigc/multimodal-generation/generation";
 
 // Voice mapping: OpenAI voice names -> DashScope voice names
 const OPENAI_VOICE_MAP: Record<string, string> = {

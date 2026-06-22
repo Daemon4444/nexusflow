@@ -1,43 +1,43 @@
 /**
- * 支付宝支付服务
+ * Alipay Payment Service
  * 
- * ====== 环境变量配置（.env） ======
+ * ====== Environment Variable Configuration (.env) ======
  * 
- * ALIPAY_APP_ID=你的支付宝应用 AppID
- * ALIPAY_PRIVATE_KEY=你的应用私钥（RSA2）
- * ALIPAY_PUBLIC_KEY=支付宝公钥
- * ALIPAY_NOTIFY_URL=异步通知回调地址（如 https://api.nexusflow.io/api/billing/alipay/notify）
- * ALIPAY_RETURN_URL=同步跳转地址（如 https://nexusflow.io/billing?pay=success）
- * ALIPAY_GATEWAY=网关地址（正式：https://openapi.alipay.com/gateway.do，沙箱：https://openapi-sandbox.dl.alipaydev.com/gateway.do）
+ * ALIPAY_APP_ID=Your Alipay application AppID
+ * ALIPAY_PRIVATE_KEY=Your application private key (RSA2)
+ * ALIPAY_PUBLIC_KEY=Alipay public key
+ * ALIPAY_NOTIFY_URL=Async notification callback URL (e.g. https://api.nexusflow.io/api/billing/alipay/notify)
+ * ALIPAY_RETURN_URL=Sync redirect URL (e.g. https://nexusflow.io/billing?pay=success)
+ * ALIPAY_GATEWAY=Gateway URL (production: https://openapi.alipay.com/gateway.do, sandbox: https://openapi-sandbox.dl.alipaydev.com/gateway.do)
  * 
- * ====== 支付宝开通流程 ======
+ * ====== Alipay Setup Process ======
  * 
- * 1. 登录支付宝开放平台 https://open.alipay.com/
- * 2. 创建应用 → 网页/移动应用
- * 3. 添加"电脑网站支付"能力（需签约，需营业执照）
- *    - 如果是个人开发者，可先用"沙箱环境"测试
- * 4. 生成密钥：
- *    - 下载支付宝开放平台密钥工具 https://opendocs.alipay.com/common/02kipl
- *    - 生成 RSA2(SHA256) 密钥对
- *    - 将"应用公钥"上传到支付宝开放平台
- *    - 获取"支付宝公钥"（注意不是应用公钥）
- * 5. 将 AppID、应用私钥、支付宝公钥填入 .env
+ * 1. Log in to Alipay Open Platform https://open.alipay.com/
+ * 2. Create an application → Website/Mobile application
+ * 3. Add "PC Website Payment" capability (requires contract and business license)
+ *    - Individual developers can test with the sandbox environment first
+ * 4. Generate keys:
+ *    - Download Alipay Open Platform Key Tool https://opendocs.alipay.com/common/02kipl
+ *    - Generate RSA2(SHA256) key pair
+ *    - Upload the "application public key" to Alipay Open Platform
+ *    - Obtain the "Alipay public key" (note: not the application public key)
+ * 5. Fill in AppID, application private key, and Alipay public key in .env
  * 
- * ====== 沙箱测试 ======
+ * ====== Sandbox Testing ======
  * 
- * 沙箱环境：https://open.alipay.com/develop/sandbox/app
- *   - 设置 ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
- *   - 使用沙箱的 AppID、密钥、账号
+ * Sandbox environment: https://open.alipay.com/develop/sandbox/app
+ *   - Set ALIPAY_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
+ *   - Use sandbox AppID, keys, and accounts
  * 
- * ====== 测试支付 ======
+ * ====== Test Payment ======
  *
- * 模拟支付必须显式设置 ENABLE_MOCK_PAYMENT=true，且生产环境永不允许。
+ * Mock payment must be explicitly enabled with ENABLE_MOCK_PAYMENT=true, and is never allowed in production.
  */
 
 import { AlipaySdk } from "alipay-sdk";
 import crypto from "crypto";
 
-// ============ 支付宝客户端 ============
+// ============ Alipay Client ============
 
 let alipayClient: InstanceType<typeof AlipaySdk> | null = null;
 
@@ -86,7 +86,7 @@ function getAlipayClient(): InstanceType<typeof AlipaySdk> {
   return alipayClient;
 }
 
-/** 生成唯一订单号 */
+/** Generate unique order number */
 export function generateOrderNo(): string {
   const date = new Date();
   const dateStr = date.getFullYear().toString() +
@@ -99,49 +99,49 @@ export function generateOrderNo(): string {
   return `NF${dateStr}${random}`;
 }
 
-// ============ 对外接口 ============
+// ============ Public Interface ============
 
 export interface CreatePaymentResult {
   success: boolean;
   message: string;
   data?: {
     orderNo: string;
-    /** 电脑网站支付：返回 HTML form，前端直接渲染跳转 */
+    /** PC website payment: returns HTML form for frontend redirect */
     paymentForm?: string;
-    /** 当面付：返回二维码链接 */
+    /** Face-to-face payment: returns QR code URL */
     qrCode?: string;
-    /** 模拟模式：直接返回成功 */
+    /** Mock mode: returns success directly */
     mockPaid?: boolean;
   };
 }
 
 /**
- * 创建电脑网站支付订单（alipay.trade.page.pay）
- * 用户点击后跳转到支付宝收银台页面
+ * Create PC website payment order (alipay.trade.page.pay)
+ * User clicks and redirects to Alipay checkout page
  */
 export async function createPagePayment(
   userId: string,
   amount: number,
-  subject: string = "nexusflow 账户充值"
+  subject: string = "Nexusflow Account Recharge"
 ): Promise<CreatePaymentResult> {
   const orderNo = generateOrderNo();
 
   if (!isAlipayConfigured()) {
     if (isMockPaymentAllowed()) {
-      console.log(`[ALIPAY-MOCK] 模拟支付: 用户=${userId}, 金额=${amount}, 订单=${orderNo}`);
+      console.log(`[ALIPAY-MOCK] Mock payment: user=${userId}, amount=${amount}, order=${orderNo}`);
       return {
         success: true,
-        message: "模拟支付成功（未配置支付宝，充值即时到账）",
+        message: "Mock payment successful (Alipay not configured, recharge credited instantly)",
         data: { orderNo, mockPaid: true },
       };
     }
-    return { success: false, message: "支付服务暂未配置，请稍后重试" };
+    return { success: false, message: "Payment service not configured, please try again later" };
   }
 
   try {
     const client = getAlipayClient();
 
-    // 电脑网站支付 - 返回跳转 URL（GET 方式）
+    // PC website payment - return redirect URL (GET method)
     const result = await client.pageExec("alipay.trade.page.pay", {
       method: "GET",
       notify_url: process.env.ALIPAY_NOTIFY_URL,
@@ -156,40 +156,40 @@ export async function createPagePayment(
       },
     });
 
-    console.log(`[ALIPAY] 创建支付订单: ${orderNo}, 金额: ¥${amount}`);
+    console.log(`[ALIPAY] Payment order created: ${orderNo}, amount: ¥${amount}`);
 
     return {
       success: true,
-      message: "支付订单已创建",
+      message: "Payment order created",
       data: { orderNo, paymentForm: result as string },
     };
   } catch (error: any) {
-    console.error("[ALIPAY] 创建支付失败:", error.message);
-    return { success: false, message: "创建支付订单失败，请稍后重试" };
+    console.error("[ALIPAY] Payment creation failed:", error.message);
+    return { success: false, message: "Failed to create payment order, please try again later" };
   }
 }
 
 /**
- * 创建当面付订单（alipay.trade.precreate）
- * 返回二维码链接，用户扫码支付
+ * Create face-to-face payment order (alipay.trade.precreate)
+ * Returns QR code URL for user to scan and pay
  */
 export async function createQrPayment(
   userId: string,
   amount: number,
-  subject: string = "nexusflow 账户充值"
+  subject: string = "Nexusflow Account Recharge"
 ): Promise<CreatePaymentResult> {
   const orderNo = generateOrderNo();
 
   if (!isAlipayConfigured()) {
     if (isMockPaymentAllowed()) {
-      console.log(`[ALIPAY-MOCK] 模拟支付: 用户=${userId}, 金额=${amount}, 订单=${orderNo}`);
+      console.log(`[ALIPAY-MOCK] Mock payment: user=${userId}, amount=${amount}, order=${orderNo}`);
       return {
         success: true,
-        message: "模拟支付成功（未配置支付宝，充值即时到账）",
+        message: "Mock payment successful (Alipay not configured, recharge credited instantly)",
         data: { orderNo, mockPaid: true },
       };
     }
-    return { success: false, message: "支付服务暂未配置，请稍后重试" };
+    return { success: false, message: "Payment service not configured, please try again later" };
   }
 
   try {
@@ -202,55 +202,55 @@ export async function createQrPayment(
         total_amount: amount.toFixed(2),
         subject,
         timeout_express: "15m",
-        // 附加数据
+        // Additional data
         passback_params: encodeURIComponent(JSON.stringify({ userId })),
       },
     });
 
     const responseData = result as any;
     if (responseData.code === "10000" && responseData.qrCode) {
-      console.log(`[ALIPAY] 当面付订单: ${orderNo}, 金额: ¥${amount}`);
+      console.log(`[ALIPAY] QR payment order: ${orderNo}, amount: ¥${amount}`);
       return {
         success: true,
-        message: "支付二维码已生成",
+        message: "Payment QR code generated",
         data: { orderNo, qrCode: responseData.qrCode },
       };
     }
 
-    console.error("[ALIPAY] 当面付失败:", responseData.subMsg || responseData.msg);
-    return { success: false, message: responseData.subMsg || "创建支付失败" };
+    console.error("[ALIPAY] QR payment failed:", responseData.subMsg || responseData.msg);
+    return { success: false, message: responseData.subMsg || "Payment creation failed" };
   } catch (error: any) {
-    console.error("[ALIPAY] 当面付异常:", error.message);
-    return { success: false, message: "创建支付订单失败" };
+    console.error("[ALIPAY] QR payment exception:", error.message);
+    return { success: false, message: "Failed to create payment order" };
   }
 }
 
 /**
- * 验证支付宝异步通知签名
+ * Verify Alipay async notification signature
  */
 export function verifyAlipayNotify(params: Record<string, string>): boolean {
   if (!isAlipayConfigured()) {
-    console.error("[ALIPAY] verifyAlipayNotify: 支付宝未配置");
+    console.error("[ALIPAY] verifyAlipayNotify: Alipay not configured");
     return false;
   }
 
   try {
     const client = getAlipayClient();
-    // 使用 V2 版本：express.urlencoded 已对 POST body 做了 decode，
-    // checkNotifySignV2 内部用 raw 模式拼接验签字符串，避免二次 decode 导致签名不匹配
+    // Use V2 version: express.urlencoded has already decoded the POST body,
+    // checkNotifySignV2 internally uses raw mode to assemble the verification string, avoiding double decode that causes signature mismatch
     const result = client.checkNotifySignV2(params);
     if (!result) {
-      console.error(`[ALIPAY] checkNotifySignV2 返回 false, sign_type=${params.sign_type}, has_sign=${!!params.sign}, alipayPublicKey长度=${process.env.ALIPAY_PUBLIC_KEY?.length}`);
+      console.error(`[ALIPAY] checkNotifySignV2 returned false, sign_type=${params.sign_type}, has_sign=${!!params.sign}, alipayPublicKey_length=${process.env.ALIPAY_PUBLIC_KEY?.length}`);
     }
     return result;
   } catch (error: any) {
-    console.error("[ALIPAY] 签名验证异常:", error.message);
+    console.error("[ALIPAY] Signature verification exception:", error.message);
     return false;
   }
 }
 
 /**
- * 查询支付订单状态
+ * Query payment order status
  */
 export async function queryTradeStatus(orderNo: string): Promise<{
   success: boolean;

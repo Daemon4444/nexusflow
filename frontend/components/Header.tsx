@@ -39,7 +39,7 @@ export default function Header() {
     { href: "/pricing", label: t("navPricing") },
   ];
 
-  // 控制台内部导航由侧边栏承担，顶栏只保留一个 Console 入口，避免双导航
+  // Internal console navigation is handled by sidebar; top bar only keeps one Console entry to avoid duplicate navigation
   const userNav = [
     { href: "/dashboard", label: "Console" },
   ];
@@ -193,7 +193,7 @@ export default function Header() {
                 </Link>
                 <Link
                   href="/billing"
-                  title="余额，点击进入账单"
+                  title="Balance, click to view billing"
                   style={{
                     display: "inline-flex",
                     alignItems: "center",

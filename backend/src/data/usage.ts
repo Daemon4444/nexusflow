@@ -90,6 +90,7 @@ export async function getOverview(userId?: string) {
     `SELECT
       SUM(CASE WHEN status = 'success' AND cost > 0 THEN 1 ELSE 0 END) as "totalRequests",
       COALESCE(SUM(total_tokens), 0) as "totalTokens",
+      COALESCE(SUM(prompt_tokens), 0) as "totalPromptTokens",
       COALESCE(SUM(cost), 0) as "totalCost",
       COUNT(DISTINCT model) as "activeModels",
       COALESCE(AVG(CASE WHEN latency_ms > 0 THEN latency_ms END), 0) as "avgLatencyMs",
@@ -102,6 +103,7 @@ export async function getOverview(userId?: string) {
   return {
     totalRequests: Number(row?.totalRequests || 0),
     totalTokens: Number(row?.totalTokens || 0),
+    totalPromptTokens: Number(row?.totalPromptTokens || 0),
     totalCost: Number(Number(row?.totalCost || 0).toFixed(6)),
     activeModels: Number(row?.activeModels || 0),
     avgLatency: Math.round(Number(row?.avgLatencyMs || 0) / 100) / 10,

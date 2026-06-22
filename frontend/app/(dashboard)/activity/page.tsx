@@ -12,6 +12,7 @@ interface UsageData {
   overview: {
     totalRequests: number;
     totalTokens: number;
+    totalPromptTokens: number;
     totalCost: number;
     activeModels: number;
     avgLatency: number;
@@ -63,19 +64,19 @@ export default function ActivityPage() {
         fetchAPI("/api/usage/by-model", { headers, signal }),
         fetchAPI("/api/usage/recent?limit=50", { headers, signal }),
       ]);
-      // 部分接口失败时优雅降级：有任一数据即渲染，全部失败才报错
+      // Graceful degradation when some endpoints fail: render if any data is available, only error when all fail
       if (ovRes.success || dayRes.success || modelRes.success || recentRes.success) {
         setData({
-          overview: ovRes.success ? ovRes.data : { totalRequests: 0, totalTokens: 0, totalCost: 0, activeModels: 0, avgLatency: 0, successRate: 0, totalCachedTokens: 0 },
+          overview: ovRes.success ? ovRes.data : { totalRequests: 0, totalTokens: 0, totalPromptTokens: 0, totalCost: 0, activeModels: 0, avgLatency: 0, successRate: 0, totalCachedTokens: 0 },
           daily: dayRes.success ? dayRes.data : [],
           byModel: modelRes.success ? modelRes.data : [],
           recent: recentRes.success ? recentRes.data : [],
         });
       } else {
-        setError(ovRes.message || dayRes.message || modelRes.message || recentRes.message || "用量数据加载失败");
+        setError(ovRes.message || dayRes.message || modelRes.message || recentRes.message || "Failed to load usage data");
       }
     } catch {
-      setError("无法连接用量服务，请稍后重试");
+      setError("Unable to connect to the usage service, please try again later");
     } finally {
       setLoading(false);
     }
@@ -100,8 +101,8 @@ export default function ActivityPage() {
 
       <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--border)" }}>
         {([
-          { key: "dashboard" as const, label: "监控大盘" },
-          { key: "logs" as const, label: "日志分析" },
+          { key: "dashboard" as const, label: "Dashboard" },
+          { key: "logs" as const, label: "Log Analysis" },
         ]).map((tab) => (
           <button
             key={tab.key}
@@ -126,7 +127,7 @@ export default function ActivityPage() {
       ) : error ? (
         <ErrorState title={t("failedLoad")} message={error} onAction={load} />
       ) : !data ? (
-        <EmptyState title="暂无用量数据" />
+        <EmptyState title="No usage data yet" />
       ) : (
         <>
           {/* Overview Metrics */}
@@ -138,7 +139,15 @@ export default function ActivityPage() {
               { label: t("activeModels"), value: data.overview.activeModels.toString(), tint: "tint-purple", icon: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></> },
               { label: t("avgLatency"), value: data.overview.avgLatency + "s", tint: "tint-blue", icon: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></> },
               { label: t("successRate"), value: data.overview.successRate + "%", tint: "tint-teal", icon: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></> },
-              ...(data.overview.totalCachedTokens > 0 ? [{ label: "缓存命中", value: formatTokensCompact(data.overview.totalCachedTokens), tint: "tint-blue", icon: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></> }] : []),
+              ...(data.overview.totalCachedTokens > 0 ? [{
+                label: "Cache Hits",
+                value: formatTokensCompact(data.overview.totalCachedTokens),
+                sub: data.overview.totalPromptTokens > 0
+                  ? `Hit rate ${((data.overview.totalCachedTokens / data.overview.totalPromptTokens) * 100).toFixed(1)}%`
+                  : undefined,
+                tint: "tint-blue",
+                icon: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></>,
+              }] : []),
             ].map((m) => (
               <div key={m.label} className="usr-metric with-icon">
                 <div className={`usr-metric-icon ${m.tint}`}>
@@ -147,6 +156,9 @@ export default function ActivityPage() {
                 <div className="usr-metric-body">
                   <div className="usr-metric-label">{m.label}</div>
                   <div className="usr-metric-value">{m.value}</div>
+                  {("sub" in m && m.sub) ? (
+                    <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>{m.sub}</div>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -260,7 +272,7 @@ export default function ActivityPage() {
                       {r.model}
                       {r.discount_rate !== undefined && r.discount_rate < 1 && (
                         <span style={{ fontSize: 9.5, fontWeight: 600, padding: "1px 4px", borderRadius: 3, background: "#fef3c7", color: "#b45309" }}>
-                          {Math.round(r.discount_rate * 10)}折
+                          {Math.round((1 - r.discount_rate) * 100)}% off
                         </span>
                       )}
                     </span>
@@ -269,15 +281,15 @@ export default function ActivityPage() {
                       {hasCacheHit && (
                         <span style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}>
                           <span style={{ padding: "1px 5px", borderRadius: 3, background: "#dbeafe", color: "#1d4ed8", fontWeight: 600 }}>
-                            缓存命中
+                            Cache hit
                           </span>
-                          <span style={{ color: "#1d4ed8" }}>{r.cached_tokens!.toLocaleString()} tokens (节省 {Math.round((r.cached_tokens! / r.tokens) * 100)}%)</span>
+                          <span style={{ color: "#1d4ed8" }}>{r.cached_tokens!.toLocaleString()} tokens (saved {Math.round((r.cached_tokens! / r.tokens) * 100)}%)</span>
                         </span>
                       )}
                       {hasCacheCreation && (
                         <span style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}>
                           <span style={{ padding: "1px 5px", borderRadius: 3, background: "#ffedd5", color: "#c2410c", fontWeight: 600 }}>
-                            创建缓存
+                            Cache write
                           </span>
                           <span style={{ color: "#c2410c" }}>{r.cache_creation_tokens!.toLocaleString()} tokens</span>
                         </span>
@@ -289,7 +301,7 @@ export default function ActivityPage() {
                     <span>
                       <span style={{
                         width: 7, height: 7, borderRadius: "50%", display: "inline-block",
-                        background: r.status === "success" || r.status === "成功" ? "#10b981" : "#ef4444",
+                        background: r.status === "success" ? "#10b981" : "#ef4444",
                       }} />
                     </span>
                   </div>
@@ -342,7 +354,7 @@ function LogAnalysis() {
       setDetail(res.data);
       if (res.note) setDetailNote(res.note);
     } else {
-      setDetailNote(res.message || "查询失败");
+      setDetailNote(res.message || "Query failed");
     }
     setDetailLoading(false);
   }
@@ -355,42 +367,42 @@ function LogAnalysis() {
   return (
     <>
       <div className="usr-section" style={{ marginBottom: 16 }}>
-        <div className="usr-section-header"><h3>搜索日志</h3></div>
+        <div className="usr-section-header"><h3>Search Logs</h3></div>
         <div className="usr-section-body">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
             <div>
               <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>Request ID</label>
-              <input value={searchLogId} onChange={(e) => setSearchLogId(e.target.value)} placeholder="输入 Request ID" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
+              <input value={searchLogId} onChange={(e) => setSearchLogId(e.target.value)} placeholder="Enter Request ID" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>模型</label>
-              <input value={searchModel} onChange={(e) => setSearchModel(e.target.value)} placeholder="如 qwen3.7-max" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
+              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>Model</label>
+              <input value={searchModel} onChange={(e) => setSearchModel(e.target.value)} placeholder="e.g. qwen3.7-max" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>开始时间</label>
+              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>Start time</label>
               <input type="datetime-local" value={searchFrom} onChange={(e) => setSearchFrom(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>结束时间</label>
+              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>End time</label>
               <input type="datetime-local" value={searchTo} onChange={(e) => setSearchTo(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
             </div>
             <button onClick={handleSearch} disabled={loading} style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "#111827", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", height: 34 }}>
-              {loading ? "搜索中..." : "搜索"}
+              {loading ? "Searching..." : "Search"}
             </button>
           </div>
         </div>
       </div>
 
       <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 12, padding: "8px 12px", background: "var(--bg-elevated)", borderRadius: 6, border: "1px solid var(--border)" }}>
-        💡 日志写入后约 1-2 分钟才可查询详情（SLS 索引延迟）。不填条件直接搜索可查看最近 50 条记录。
+        💡 Log details become queryable about 1-2 minutes after being written (SLS indexing delay). Search without any filters to view the 50 most recent records.
       </div>
 
       {results.length > 0 && (
         <div className="usr-section">
-          <div className="usr-section-header"><h3>查询结果（{results.length} 条）</h3></div>
+          <div className="usr-section-header"><h3>Results ({results.length})</h3></div>
           <div>
             <div className="table-row" style={{ gridTemplateColumns: "1.5fr 1fr 0.6fr 0.6fr 0.6fr 1fr", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "var(--text-tertiary)", background: "var(--bg-elevated)" }}>
-              <span>Request ID</span><span>模型</span><span>Tokens</span><span>费用</span><span>状态</span><span>时间</span>
+              <span>Request ID</span><span>Model</span><span>Tokens</span><span>Cost</span><span>Status</span><span>Time</span>
             </div>
             {results.map((r) => (
               <div key={r.log_id}>
@@ -398,14 +410,14 @@ function LogAnalysis() {
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#1d4ed8", overflow: "hidden", textOverflow: "ellipsis" }}>{r.log_id?.slice(0, 12)}...</span>
                   <span style={{ fontSize: 12, color: "var(--text-primary)", fontWeight: 500 }}>{r.model}</span>
                   <span style={{ fontSize: 12, color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>{r.total_tokens?.toLocaleString()}</span>
-                  <span style={{ fontSize: 12, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>¥{r.cost}</span>
+                  <span style={{ fontSize: 12, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>${r.cost}</span>
                   <span><span style={{ width: 7, height: 7, borderRadius: "50%", display: "inline-block", background: r.status === "success" ? "#10b981" : "#ef4444" }} /></span>
                   <span style={{ fontSize: 11.5, color: "var(--text-tertiary)" }}>{r.time}</span>
                 </div>
                 {expandedId === r.log_id && (
                   <div style={{ padding: "16px 20px", background: "var(--bg-elevated)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
                     {detailLoading ? (
-                      <div style={{ color: "var(--text-tertiary)", fontSize: 13 }}>加载中...</div>
+                      <div style={{ color: "var(--text-tertiary)", fontSize: 13 }}>Loading...</div>
                     ) : detail ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                         <div>
@@ -418,7 +430,7 @@ function LogAnalysis() {
                         </div>
                       </div>
                     ) : (
-                      <div style={{ color: "var(--text-tertiary)", fontSize: 13 }}>{detailNote || "暂无详情数据"}</div>
+                      <div style={{ color: "var(--text-tertiary)", fontSize: 13 }}>{detailNote || "No detail data available"}</div>
                     )}
                   </div>
                 )}

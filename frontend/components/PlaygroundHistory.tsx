@@ -100,12 +100,12 @@ export default function PlaygroundHistory({ onSelect, currentModel }: Playground
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "刚刚";
-    if (diffMins < 60) return `${diffMins}分钟前`;
-    if (diffHours < 24) return `${diffHours}小时前`;
-    if (diffDays < 7) return `${diffDays}天前`;
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hr ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
 
-    return date.toLocaleDateString("zh-CN", {
+    return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       hour: "2-digit",
@@ -134,7 +134,7 @@ export default function PlaygroundHistory({ onSelect, currentModel }: Playground
           <circle cx="12" cy="12" r="10"/>
           <polyline points="12 6 12 12 16 14"/>
         </svg>
-        <span>历史 ({history.length})</span>
+        <span>History ({history.length})</span>
       </button>
 
       {/* Dropdown */}
@@ -169,7 +169,7 @@ export default function PlaygroundHistory({ onSelect, currentModel }: Playground
               fontWeight: 600,
               color: "var(--text-primary)",
             }}>
-              最近对话
+              Recent Conversations
             </span>
             <button
               onClick={() => setConfirmClear(true)}
@@ -184,16 +184,16 @@ export default function PlaygroundHistory({ onSelect, currentModel }: Playground
                 cursor: "pointer",
               }}
             >
-              清除全部
+              Clear All
             </button>
           </div>
 
           {confirmClear && (
             <div style={{ padding: 10, border: "1px solid var(--danger-border)", background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, marginBottom: 10, fontSize: 12 }}>
-              <div style={{ marginBottom: 8 }}>确定清除所有历史记录？</div>
+              <div style={{ marginBottom: 8 }}>Clear all history?</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-danger" onClick={handleClear} style={{ padding: "4px 10px", fontSize: 11 }}>清除</button>
-                <button className="btn-secondary" onClick={() => setConfirmClear(false)} style={{ padding: "4px 10px", fontSize: 11 }}>取消</button>
+                <button className="btn-danger" onClick={handleClear} style={{ padding: "4px 10px", fontSize: 11 }}>Clear</button>
+                <button className="btn-secondary" onClick={() => setConfirmClear(false)} style={{ padding: "4px 10px", fontSize: 11 }}>Cancel</button>
               </div>
             </div>
           )}
@@ -282,7 +282,7 @@ export default function PlaygroundHistory({ onSelect, currentModel }: Playground
                     width: "100%",
                   }}
                 >
-                  恢复此对话
+                  Restore
                 </button>
               </div>
             ))}

@@ -4,7 +4,7 @@ import { validateSession } from "../data/users";
 
 const router = Router();
 
-/** 从请求头提取 session token */
+/** Extract session token from request header */
 async function getSessionUserId(req: Request): Promise<string | null> {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
@@ -13,11 +13,11 @@ async function getSessionUserId(req: Request): Promise<string | null> {
   return session?.id || null;
 }
 
-// 获取密钥：必须登录
+// Get keys: must be logged in
 router.get("/", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   const keys = await getKeysByUser(userId);
@@ -39,16 +39,16 @@ router.get("/", async (req: Request, res: Response) => {
   res.json({ success: true, data });
 });
 
-// 创建新密钥（需要登录）
+// Create new key (requires login)
 router.post("/", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   const { name, rateLimit = 60 } = req.body;
   if (!name) {
-    res.status(400).json({ success: false, message: "密钥名称不能为空" });
+    res.status(400).json({ success: false, message: "API key name cannot be empty" });
     return;
   }
 
@@ -64,15 +64,15 @@ router.post("/", async (req: Request, res: Response) => {
       createdAt: newKey.created_at,
       rateLimit: newKey.rate_limit,
     },
-    message: "密钥创建成功",
+    message: "API key created successfully",
   });
 });
 
-// 删除密钥（需要登录）
+// Delete key (requires login)
 router.delete("/:id", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
-    res.status(401).json({ success: false, message: "未登录" });
+    res.status(401).json({ success: false, message: "Not logged in" });
     return;
   }
   const keyId = req.params.id as string;
@@ -80,10 +80,10 @@ router.delete("/:id", async (req: Request, res: Response) => {
   const success = await deleteApiKeyByUser(keyId, userId);
 
   if (!success) {
-    res.status(404).json({ success: false, message: "密钥不存在" });
+    res.status(404).json({ success: false, message: "API key not found" });
     return;
   }
-  res.json({ success: true, message: "密钥已删除" });
+  res.json({ success: true, message: "API key deleted" });
 });
 
 export default router;

@@ -9,10 +9,10 @@ const API_BASE = "https://nexusflow.hk";
 type TabKey = "t2v" | "i2v" | "kf2v" | "r2v";
 
 const tabs: { key: TabKey; label: string; desc: string }[] = [
-  { key: "t2v", label: "文生视频", desc: "基于文本提示词生成视频" },
-  { key: "i2v", label: "图生视频（首帧）", desc: "基于输入图像和文本提示词生成视频" },
-  { key: "kf2v", label: "图生视频（首尾帧）", desc: "基于首帧、尾帧图像和文本提示词生成过渡视频" },
-  { key: "r2v", label: "参考生视频", desc: "基于多张参考图片和文本提示词生成视频" },
+  { key: "t2v", label: "Text-to-Video", desc: "Generate video from a text prompt" },
+  { key: "i2v", label: "Image-to-Video (First Frame)", desc: "Generate video from an input image and text prompt" },
+  { key: "kf2v", label: "Image-to-Video (First & Last Frame)", desc: "Generate a transition video from first-frame, last-frame images and a text prompt" },
+  { key: "r2v", label: "Reference-to-Video", desc: "Generate video from multiple reference images and a text prompt" },
 ];
 
 const models: Record<TabKey, string> = {
@@ -24,13 +24,12 @@ const models: Record<TabKey, string> = {
 
 const curlExamples: Record<TabKey, string> = {
   t2v: `curl --location '${API_BASE}/v1/services/aigc/video-generation/video-synthesis' \\
-  -H 'X-DashScope-Async: enable' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
   "model": "pixverse-v6",
   "input": {
-    "prompt": "一只小猫在月光下奔跑"
+    "prompt": "A kitten running in the moonlight"
   },
   "parameters": {
     "size": "1280*720",
@@ -40,7 +39,6 @@ const curlExamples: Record<TabKey, string> = {
   }
 }'`,
   i2v: `curl --location '${API_BASE}/v1/services/aigc/video-generation/video-synthesis' \\
-  -H 'X-DashScope-Async: enable' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
@@ -52,7 +50,7 @@ const curlExamples: Record<TabKey, string> = {
         "url": "https://example.com/your-image.jpg"
       }
     ],
-    "prompt": "让图片中的场景动起来"
+    "prompt": "Bring the scene in the image to life"
   },
   "parameters": {
     "resolution": "720P",
@@ -62,7 +60,6 @@ const curlExamples: Record<TabKey, string> = {
   }
 }'`,
   kf2v: `curl --location '${API_BASE}/v1/services/aigc/video-generation/video-synthesis' \\
-  -H 'X-DashScope-Async: enable' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
@@ -78,7 +75,7 @@ const curlExamples: Record<TabKey, string> = {
         "url": "https://example.com/last-frame.png"
       }
     ],
-    "prompt": "小猫从窗台跳下，落在沙发上，好奇地环顾四周"
+    "prompt": "The kitten jumps down from the windowsill, lands on the sofa, and curiously looks around"
   },
   "parameters": {
     "resolution": "720P",
@@ -88,7 +85,6 @@ const curlExamples: Record<TabKey, string> = {
   }
 }'`,
   r2v: `curl --location '${API_BASE}/v1/services/aigc/video-generation/video-synthesis' \\
-  -H 'X-DashScope-Async: enable' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H 'Content-Type: application/json' \\
   -d '{
@@ -98,7 +94,7 @@ const curlExamples: Record<TabKey, string> = {
       { "type": "image_url", "url": "https://example.com/ref1.jpg" },
       { "type": "image_url", "url": "https://example.com/ref2.jpg" }
     ],
-    "prompt": "男人坐在靠窗的椅子上，手持吉他演奏乡村民谣"
+    "prompt": "A man sits in a chair by the window, playing a country folk tune on a guitar"
   },
   "parameters": {
     "size": "1280*720",
@@ -115,36 +111,35 @@ const pythonExamples: Record<TabKey, string> = {
 API_KEY = "sk-air-your-key"
 BASE = "${API_BASE}"
 
-# 步骤1: 创建任务
+# Step 1: Create the task
 response = requests.post(
     f"{BASE}/v1/services/aigc/video-generation/video-synthesis",
     headers={
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable"
     },
     json={
         "model": "pixverse-v6",
-        "input": {"prompt": "一只小猫在月光下奔跑"},
+        "input": {"prompt": "A kitten running in the moonlight"},
         "parameters": {"size": "1280*720", "duration": 5}
     }
 )
 task_id = response.json()["output"]["task_id"]
-print(f"任务已创建: {task_id}")
+print(f"Task created: {task_id}")
 
-# 步骤2: 轮询查询结果
+# Step 2: Poll for the result
 while True:
     result = requests.get(
         f"{BASE}/v1/video/tasks/{task_id}",
         headers={"Authorization": f"Bearer {API_KEY}"}
     ).json()
     status = result["output"]["task_status"]
-    print(f"状态: {status}")
+    print(f"Status: {status}")
     if status == "SUCCEEDED":
-        print(f"视频URL: {result['output']['video_url']}")
+        print(f"Video URL: {result['output']['video_url']}")
         break
     elif status == "FAILED":
-        print(f"失败: {result['output'].get('message')}")
+        print(f"Failed: {result['output'].get('message')}")
         break
     time.sleep(15)`,
   i2v: `import time, requests
@@ -152,26 +147,25 @@ while True:
 API_KEY = "sk-air-your-key"
 BASE = "${API_BASE}"
 
-# 步骤1: 创建图生视频任务
+# Step 1: Create the image-to-video task
 response = requests.post(
     f"{BASE}/v1/services/aigc/video-generation/video-synthesis",
     headers={
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable"
     },
     json={
         "model": "pixverse-v6",
         "input": {
             "media": [{"type": "image_url", "url": "https://example.com/image.jpg"}],
-            "prompt": "让画面中的场景动起来"
+            "prompt": "Bring the scene in the frame to life"
         },
         "parameters": {"resolution": "720P", "duration": 5}
     }
 )
 task_id = response.json()["output"]["task_id"]
 
-# 步骤2: 轮询结果
+# Step 2: Poll for the result
 while True:
     result = requests.get(
         f"{BASE}/v1/video/tasks/{task_id}",
@@ -179,10 +173,10 @@ while True:
     ).json()
     status = result["output"]["task_status"]
     if status == "SUCCEEDED":
-        print(f"视频: {result['output']['video_url']}")
+        print(f"Video: {result['output']['video_url']}")
         break
     elif status == "FAILED":
-        print(f"失败: {result['output'].get('message')}")
+        print(f"Failed: {result['output'].get('message')}")
         break
     time.sleep(15)`,
   kf2v: `import time, requests
@@ -190,13 +184,12 @@ while True:
 API_KEY = "sk-air-your-key"
 BASE = "${API_BASE}"
 
-# 步骤1: 创建首尾帧生视频任务
+# Step 1: Create the first-and-last-frame video task
 response = requests.post(
     f"{BASE}/v1/services/aigc/video-generation/video-synthesis",
     headers={
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable"
     },
     json={
         "model": "pixverse-v6",
@@ -205,14 +198,14 @@ response = requests.post(
                 {"type": "first_frame", "url": "https://example.com/first.png"},
                 {"type": "last_frame", "url": "https://example.com/last.png"}
             ],
-            "prompt": "小猫从窗台跳到沙发上"
+            "prompt": "The kitten jumps from the windowsill onto the sofa"
         },
         "parameters": {"resolution": "720P", "duration": 5}
     }
 )
 task_id = response.json()["output"]["task_id"]
 
-# 步骤2: 轮询结果
+# Step 2: Poll for the result
 while True:
     result = requests.get(
         f"{BASE}/v1/video/tasks/{task_id}",
@@ -220,10 +213,10 @@ while True:
     ).json()
     status = result["output"]["task_status"]
     if status == "SUCCEEDED":
-        print(f"视频: {result['output']['video_url']}")
+        print(f"Video: {result['output']['video_url']}")
         break
     elif status in ("FAILED", "UNKNOWN"):
-        print(f"失败: {result['output'].get('message', '未知错误')}")
+        print(f"Failed: {result['output'].get('message', 'Unknown error')}")
         break
     time.sleep(15)`,
   r2v: `import time, requests
@@ -231,13 +224,12 @@ while True:
 API_KEY = "sk-air-your-key"
 BASE = "${API_BASE}"
 
-# 步骤1: 创建参考生视频任务（最多7张参考图）
+# Step 1: Create the reference-to-video task (up to 7 reference images)
 response = requests.post(
     f"{BASE}/v1/services/aigc/video-generation/video-synthesis",
     headers={
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
-        "X-DashScope-Async": "enable"
     },
     json={
         "model": "pixverse-v6",
@@ -246,14 +238,14 @@ response = requests.post(
                 {"type": "image_url", "url": "https://example.com/ref1.jpg"},
                 {"type": "image_url", "url": "https://example.com/ref2.jpg"}
             ],
-            "prompt": "男人坐在窗边弹吉他"
+            "prompt": "A man sits by the window playing guitar"
         },
         "parameters": {"size": "1280*720", "duration": 5}
     }
 )
 task_id = response.json()["output"]["task_id"]
 
-# 步骤2: 轮询结果
+# Step 2: Poll for the result
 while True:
     result = requests.get(
         f"{BASE}/v1/video/tasks/{task_id}",
@@ -261,7 +253,7 @@ while True:
     ).json()
     status = result["output"]["task_status"]
     if status == "SUCCEEDED":
-        print(f"视频: {result['output']['video_url']}")
+        print(f"Video: {result['output']['video_url']}")
         break
     elif status in ("FAILED", "UNKNOWN"):
         break
@@ -270,51 +262,51 @@ while True:
 
 const requestParams: Record<TabKey, { name: string; type: string; required: boolean; desc: string }[]> = {
   t2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
-    { name: "input.prompt", type: "string", required: true, desc: "文本提示词，支持中英文，不超过 5000 字符。支持多镜头描述（镜头1:... 镜头2:...）" },
-    { name: "parameters.size", type: "string", required: true, desc: "视频分辨率（宽*高），如 1280*720、1920*1080" },
-    { name: "parameters.duration", type: "integer", required: true, desc: "视频时长（秒）。v6 支持 1~15 秒" },
-    { name: "parameters.audio", type: "boolean", required: false, desc: "是否生成有声视频（AI 配音/音效），默认 false" },
-    { name: "parameters.watermark", type: "boolean", required: false, desc: "是否添加水印，默认 false" },
-    { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]，固定可提高复现性" },
-    { name: "parameters.shot_type", type: "string", required: false, desc: "镜头类型：single（默认）或 multi（多镜头）" },
-    { name: "parameters.style", type: "string", required: false, desc: "视觉风格：anime / cyberpunk / comic / clay / 3d_animation" },
-    { name: "parameters.camera_movement", type: "string", required: false, desc: "镜头运动：zoom_in / zoom_out / horizontal_left / horizontal_right / crane_up / crane_down 等" },
+    { name: "model", type: "string", required: true, desc: "Fixed value: pixverse-v6" },
+    { name: "input.prompt", type: "string", required: true, desc: "Text prompt, supports English and Chinese, up to 5000 characters. Supports multi-shot descriptions (Shot 1:... Shot 2:...)" },
+    { name: "parameters.size", type: "string", required: true, desc: "Video resolution (width*height), e.g. 1280*720, 1920*1080" },
+    { name: "parameters.duration", type: "integer", required: true, desc: "Video duration in seconds. v6 supports 1-15 seconds" },
+    { name: "parameters.audio", type: "boolean", required: false, desc: "Whether to generate video with audio (AI voiceover/sound effects), default false" },
+    { name: "parameters.watermark", type: "boolean", required: false, desc: "Whether to add a watermark, default false" },
+    { name: "parameters.seed", type: "integer", required: false, desc: "Random seed [0, 2147483647]; fixing it improves reproducibility" },
+    { name: "parameters.shot_type", type: "string", required: false, desc: "Shot type: single (default) or multi (multi-shot)" },
+    { name: "parameters.style", type: "string", required: false, desc: "Visual style: anime / cyberpunk / comic / clay / 3d_animation" },
+    { name: "parameters.camera_movement", type: "string", required: false, desc: "Camera movement: zoom_in / zoom_out / horizontal_left / horizontal_right / crane_up / crane_down, etc." },
   ],
   i2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
-    { name: "input.media[0].type", type: "string", required: true, desc: '固定值："image_url"' },
-    { name: "input.media[0].url", type: "string", required: true, desc: "图像 URL（JPG/PNG/WEBP，≤20MB，宽高≤10000px）" },
-    { name: "input.prompt", type: "string", required: false, desc: "文本提示词，描述视频动态效果" },
-    { name: "parameters.resolution", type: "string", required: true, desc: "分辨率档位：360P / 540P / 720P / 1080P" },
-    { name: "parameters.duration", type: "integer", required: true, desc: "视频时长（秒）。360P~720P: 5/8/10；1080P: 5/8" },
-    { name: "parameters.audio", type: "boolean", required: false, desc: "是否生成有声视频，默认 false" },
-    { name: "parameters.watermark", type: "boolean", required: false, desc: "是否添加水印，默认 false" },
-    { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]" },
+    { name: "model", type: "string", required: true, desc: "Fixed value: pixverse-v6" },
+    { name: "input.media[0].type", type: "string", required: true, desc: 'Fixed value: "image_url"' },
+    { name: "input.media[0].url", type: "string", required: true, desc: "Image URL (JPG/PNG/WEBP, ≤20MB, width/height ≤10000px)" },
+    { name: "input.prompt", type: "string", required: false, desc: "Text prompt describing the video motion" },
+    { name: "parameters.resolution", type: "string", required: true, desc: "Resolution tier: 360P / 540P / 720P / 1080P" },
+    { name: "parameters.duration", type: "integer", required: true, desc: "Video duration in seconds. 360P-720P: 5/8/10; 1080P: 5/8" },
+    { name: "parameters.audio", type: "boolean", required: false, desc: "Whether to generate video with audio, default false" },
+    { name: "parameters.watermark", type: "boolean", required: false, desc: "Whether to add a watermark, default false" },
+    { name: "parameters.seed", type: "integer", required: false, desc: "Random seed [0, 2147483647]" },
   ],
   kf2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
-    { name: "input.media", type: "array", required: true, desc: "包含 2 个元素：type=first_frame 和 type=last_frame" },
-    { name: "input.media[].type", type: "string", required: true, desc: '"first_frame" 或 "last_frame"' },
-    { name: "input.media[].url", type: "string", required: true, desc: "图像 URL（JPG/PNG/WEBP，≤20MB，宽高≤10000px）" },
-    { name: "input.prompt", type: "string", required: true, desc: "描述首帧到尾帧的变化过程" },
-    { name: "parameters.resolution", type: "string", required: true, desc: "分辨率档位：360P / 540P / 720P / 1080P" },
-    { name: "parameters.duration", type: "integer", required: true, desc: "视频时长（秒）。360P~720P: 5/8/10；1080P: 5/8" },
-    { name: "parameters.audio", type: "boolean", required: false, desc: "是否生成有声视频，默认 false" },
-    { name: "parameters.watermark", type: "boolean", required: false, desc: "是否添加水印，默认 false" },
-    { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]" },
+    { name: "model", type: "string", required: true, desc: "Fixed value: pixverse-v6" },
+    { name: "input.media", type: "array", required: true, desc: "Contains 2 elements: type=first_frame and type=last_frame" },
+    { name: "input.media[].type", type: "string", required: true, desc: '"first_frame" or "last_frame"' },
+    { name: "input.media[].url", type: "string", required: true, desc: "Image URL (JPG/PNG/WEBP, ≤20MB, width/height ≤10000px)" },
+    { name: "input.prompt", type: "string", required: true, desc: "Describe the transition from the first frame to the last frame" },
+    { name: "parameters.resolution", type: "string", required: true, desc: "Resolution tier: 360P / 540P / 720P / 1080P" },
+    { name: "parameters.duration", type: "integer", required: true, desc: "Video duration in seconds. 360P-720P: 5/8/10; 1080P: 5/8" },
+    { name: "parameters.audio", type: "boolean", required: false, desc: "Whether to generate video with audio, default false" },
+    { name: "parameters.watermark", type: "boolean", required: false, desc: "Whether to add a watermark, default false" },
+    { name: "parameters.seed", type: "integer", required: false, desc: "Random seed [0, 2147483647]" },
   ],
   r2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：pixverse-v6" },
-    { name: "input.media", type: "array", required: true, desc: "参考图片数组，最多 7 张" },
-    { name: "input.media[].type", type: "string", required: true, desc: '固定值："image_url"' },
-    { name: "input.media[].url", type: "string", required: true, desc: "图像 URL（JPG/PNG/WEBP，≤20MB）" },
-    { name: "input.prompt", type: "string", required: true, desc: "描述视频内容和场景" },
-    { name: "parameters.size", type: "string", required: true, desc: "视频分辨率（宽*高），如 1280*720" },
-    { name: "parameters.duration", type: "integer", required: true, desc: "视频时长（秒）。360P~720P: 5/8/10；1080P: 5/8" },
-    { name: "parameters.audio", type: "boolean", required: false, desc: "是否生成有声视频，默认 false" },
-    { name: "parameters.watermark", type: "boolean", required: false, desc: "是否添加水印，默认 false" },
-    { name: "parameters.seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]" },
+    { name: "model", type: "string", required: true, desc: "Fixed value: pixverse-v6" },
+    { name: "input.media", type: "array", required: true, desc: "Array of reference images, up to 7" },
+    { name: "input.media[].type", type: "string", required: true, desc: 'Fixed value: "image_url"' },
+    { name: "input.media[].url", type: "string", required: true, desc: "Image URL (JPG/PNG/WEBP, ≤20MB)" },
+    { name: "input.prompt", type: "string", required: true, desc: "Describe the video content and scene" },
+    { name: "parameters.size", type: "string", required: true, desc: "Video resolution (width*height), e.g. 1280*720" },
+    { name: "parameters.duration", type: "integer", required: true, desc: "Video duration in seconds. 360P-720P: 5/8/10; 1080P: 5/8" },
+    { name: "parameters.audio", type: "boolean", required: false, desc: "Whether to generate video with audio, default false" },
+    { name: "parameters.watermark", type: "boolean", required: false, desc: "Whether to add a watermark, default false" },
+    { name: "parameters.seed", type: "integer", required: false, desc: "Random seed [0, 2147483647]" },
   ],
 };
 
@@ -351,15 +343,15 @@ function PixVerseDocsInner() {
           background: "#f0fdf4", color: "#16a34a", fontSize: 11, fontWeight: 600,
           letterSpacing: "0.5px", marginBottom: 12,
         }}>
-          PixVerse / 爱诗科技
+          PixVerse
         </span>
       </div>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8, letterSpacing: "-0.5px" }}>
-        爱诗（PixVerse）视频生成 API
+        PixVerse Video Generation API
       </h1>
       <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 32, lineHeight: 1.6 }}>
-        爱诗 PixVerse V6 系列模型支持文生视频、图生视频、首尾帧生视频、参考生视频四种模式。
-        API 采用异步调用方式：先创建任务获取 task_id，再轮询查询结果。
+        PixVerse V6 models support four modes: text-to-video, image-to-video, first-and-last-frame video, and reference-to-video.
+        The API is asynchronous: first create a task to get a task_id, then poll for the result.
       </p>
 
       {/* Tabs */}
@@ -383,7 +375,7 @@ function PixVerseDocsInner() {
 
       {/* Endpoint */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>接口信息</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Endpoint Info</h2>
         <div style={{
           background: "var(--bg-elevated)", borderRadius: 8, padding: "14px 18px",
           border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 8,
@@ -407,7 +399,7 @@ function PixVerseDocsInner() {
             </code>
           </div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>
-            <strong>模型：</strong><code style={{ background: "var(--bg)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>{models[activeTab]}</code>
+            <strong>Model:</strong><code style={{ background: "var(--bg)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>{models[activeTab]}</code>
             <span style={{ marginLeft: 16 }}>{tabs.find(t => t.key === activeTab)?.desc}</span>
           </div>
         </div>
@@ -415,27 +407,26 @@ function PixVerseDocsInner() {
 
       {/* Headers */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>请求头</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Request Headers</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
                 <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Header</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>必选</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Required</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
               {[
-                { h: "Content-Type", req: "是", d: "application/json" },
-                { h: "Authorization", req: "是", d: "Bearer <API_KEY>" },
-                { h: "X-DashScope-Async", req: "是", d: '必须设置为 "enable"' },
+                { h: "Content-Type", req: "Yes", d: "application/json" },
+                { h: "Authorization", req: "Yes", d: "Bearer <API_KEY>" },
               ].map((row, i) => (
                 <tr key={row.h} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
                     <code style={{ fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>{row.h}</code>
                   </td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: row.req === "是" ? "#dc2626" : "var(--text-secondary)" }}>{row.req}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: row.req === "Yes" ? "#dc2626" : "var(--text-secondary)" }}>{row.req}</td>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{row.d}</td>
                 </tr>
               ))}
@@ -446,15 +437,15 @@ function PixVerseDocsInner() {
 
       {/* Request Params */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>请求参数</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Request Parameters</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>参数</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>必选</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Parameter</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>Required</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -478,16 +469,16 @@ function PixVerseDocsInner() {
       {/* Size reference table (for t2v and r2v) */}
       {(activeTab === "t2v" || activeTab === "r2v") && (
         <section style={{ marginBottom: 36 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>分辨率对照表</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Resolution Reference</h2>
           <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "var(--bg-elevated)" }}>
-                  <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>档位</th>
+                  <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Tier</th>
                   {aspectLabels.map(a => (
                     <th key={a} style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>{a}</th>
                   ))}
-                  <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>可选时长</th>
+                  <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Available Durations</th>
                 </tr>
               </thead>
               <tbody>
@@ -512,7 +503,7 @@ function PixVerseDocsInner() {
 
       {/* Code Examples */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>请求示例</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Request Examples</h2>
         <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
           {(["curl", "python"] as const).map(lang => (
             <button
@@ -537,8 +528,8 @@ function PixVerseDocsInner() {
 
       {/* Response */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>响应示例</h2>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>步骤1：创建任务响应</h3>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Response Examples</h2>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>Step 1: Create Task Response</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 8, padding: 16, overflow: "auto", marginBottom: 16 }}>
           <DocsCodeBlock code={`{
   "output": {
@@ -549,7 +540,7 @@ function PixVerseDocsInner() {
 }`} />
         </div>
 
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>步骤2：查询结果响应（成功）</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>Step 2: Query Result Response (Success)</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 8, padding: 16, overflow: "auto" }}>
           <DocsCodeBlock code={`{
   "request_id": "19171ea5-9efb-4d35-93a1-xxxxxx",
@@ -559,7 +550,7 @@ function PixVerseDocsInner() {
     "submit_time": "2026-03-20 10:34:41.630",
     "scheduled_time": "2026-03-20 10:34:41.655",
     "end_time": "2026-03-20 10:35:12.725",
-    "orig_prompt": "一只小猫在月光下奔跑",
+    "orig_prompt": "A kitten running in the moonlight",
     "video_url": "https://media.pixverseai.cn/xxxx.mp4"
   },
   "usage": {
@@ -576,30 +567,30 @@ function PixVerseDocsInner() {
 
       {/* Response Params */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>响应参数</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Response Parameters</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>字段</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Field</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
               {[
-                { f: "output.task_id", t: "string", d: "任务ID，有效期24小时" },
+                { f: "output.task_id", t: "string", d: "Task ID, valid for 24 hours" },
                 { f: "output.task_status", t: "string", d: "PENDING / RUNNING / SUCCEEDED / FAILED / CANCELED / UNKNOWN" },
-                { f: "output.video_url", t: "string", d: "生成的视频URL（仅 SUCCEEDED 时返回），MP4 格式" },
-                { f: "output.orig_prompt", t: "string", d: "原始输入的 prompt" },
-                { f: "output.submit_time", t: "string", d: "任务提交时间" },
-                { f: "output.end_time", t: "string", d: "任务完成时间" },
-                { f: "usage.duration", t: "integer", d: "视频时长（秒），用于计费" },
-                { f: "usage.size", t: "string", d: "视频分辨率" },
-                { f: "usage.fps", t: "integer", d: "视频帧率" },
-                { f: "usage.audio", t: "boolean", d: "是否有声视频" },
-                { f: "usage.video_count", t: "integer", d: "视频数量，固定为 1" },
-                { f: "request_id", t: "string", d: "请求唯一标识" },
+                { f: "output.video_url", t: "string", d: "Generated video URL (returned only when SUCCEEDED), MP4 format" },
+                { f: "output.orig_prompt", t: "string", d: "The original input prompt" },
+                { f: "output.submit_time", t: "string", d: "Task submission time" },
+                { f: "output.end_time", t: "string", d: "Task completion time" },
+                { f: "usage.duration", t: "integer", d: "Video duration in seconds, used for billing" },
+                { f: "usage.size", t: "string", d: "Video resolution" },
+                { f: "usage.fps", t: "integer", d: "Video frame rate" },
+                { f: "usage.audio", t: "boolean", d: "Whether the video has audio" },
+                { f: "usage.video_count", t: "integer", d: "Number of videos, always 1" },
+                { f: "request_id", t: "string", d: "Unique request identifier" },
               ].map((row, i) => (
                 <tr key={row.f} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
@@ -616,12 +607,12 @@ function PixVerseDocsInner() {
 
       {/* Workflow */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>调用流程</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Workflow</h2>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           {[
-            { step: "1", title: "创建任务", desc: "POST 请求创建视频生成任务，获取 task_id" },
-            { step: "2", title: "轮询状态", desc: "GET 请求查询任务状态，建议间隔 15 秒" },
-            { step: "3", title: "获取结果", desc: "状态变为 SUCCEEDED 时，从 video_url 下载视频" },
+            { step: "1", title: "Create Task", desc: "Send a POST request to create the video generation task and get a task_id" },
+            { step: "2", title: "Poll Status", desc: "Send GET requests to check task status, recommended every 15 seconds" },
+            { step: "3", title: "Get Result", desc: "When status becomes SUCCEEDED, download the video from video_url" },
           ].map(s => (
             <div key={s.step} style={{
               flex: 1, minWidth: 200, padding: 16, border: "1px solid var(--border)",
@@ -644,16 +635,15 @@ function PixVerseDocsInner() {
         padding: 18, background: "#fffbeb", border: "1px solid #fcd34d",
         borderRadius: 8, fontSize: 13, lineHeight: 1.7,
       }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: "#92400e", marginBottom: 8 }}>注意事项</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "#92400e", marginBottom: 8 }}>Notes</h3>
         <ul style={{ margin: 0, paddingLeft: 18, color: "#92400e" }}>
-          <li>API 仅支持异步调用，请求头必须包含 <code>X-DashScope-Async: enable</code></li>
-          <li>task_id 有效期 24 小时，超时后无法查询</li>
-          <li>视频生成通常需要 1-5 分钟，轮询建议间隔 15 秒</li>
-          <li>1080P 分辨率下不支持 10 秒时长</li>
-          <li>video_url 请及时下载保存，不建议作为长期存储</li>
-          <li>图片格式支持 JPG/PNG/WEBP，单张不超过 20MB，分辨率不超过 10000x10000</li>
-          {activeTab === "r2v" && <li>参考生视频最多支持传入 7 张参考图片</li>}
-          {activeTab === "kf2v" && <li>首帧和尾帧图像分辨率可以不同，输出以首帧为基准</li>}
+          <li>task_id is valid for 24 hours; after that it cannot be queried</li>
+          <li>Video generation usually takes 1-5 minutes; poll at a recommended interval of 15 seconds</li>
+          <li>10-second duration is not supported at 1080P resolution</li>
+          <li>Download and save video_url promptly; it is not meant for long-term storage</li>
+          <li>Image formats: JPG/PNG/WEBP, up to 20MB each, resolution up to 10000x10000</li>
+          {activeTab === "r2v" && <li>Reference-to-video supports up to 7 reference images</li>}
+          {activeTab === "kf2v" && <li>The first-frame and last-frame images can have different resolutions; output is based on the first frame</li>}
         </ul>
       </section>
     </div>

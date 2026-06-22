@@ -70,6 +70,11 @@ function normalizeOpenAiStreamLine(line: string, logId: string): string {
           typeof event.usage.prompt_tokens_details === "object"
             ? event.usage.prompt_tokens_details
             : {};
+        const compDetails =
+          event.usage.completion_tokens_details &&
+          typeof event.usage.completion_tokens_details === "object"
+            ? event.usage.completion_tokens_details
+            : {};
         event.usage.prompt_tokens = Number(event.usage.prompt_tokens || 0);
         event.usage.completion_tokens = Number(event.usage.completion_tokens || 0);
         event.usage.total_tokens = Number(
@@ -79,6 +84,10 @@ function normalizeOpenAiStreamLine(line: string, logId: string): string {
           ...details,
           cached_tokens: Number(details.cached_tokens || 0),
           cache_creation_input_tokens: Number(details.cache_creation_input_tokens || 0),
+        };
+        event.usage.completion_tokens_details = {
+          ...compDetails,
+          reasoning_tokens: Number(compDetails.reasoning_tokens || 0),
         };
       }
     }
@@ -529,6 +538,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     enable_search,
     search_options,
     parallel_tool_calls,
+    modalities,
+    audio,
   } = req.body;
 
   if (!modelId || !messages || !Array.isArray(messages) || messages.length === 0) {
@@ -645,6 +656,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   }
 
   // Build request
+  const wantsAudioOutput = Array.isArray(modalities) && modalities.includes("audio");
+  const effectiveStream = stream || wantsAudioOutput;
   const requiresUpstreamStream = modelId === "qwq-plus" && !stream;
   const requestBody = buildUpstreamChatRequest(
     model,
@@ -673,6 +686,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       enable_search,
       search_options,
       parallel_tool_calls,
+      modalities,
+      audio,
     },
     { forceStream: requiresUpstreamStream }
   );
@@ -687,7 +702,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   try {
     // Streaming
-    if (stream) {
+    if (effectiveStream) {
       const response = await fetch(`${upstream.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
@@ -932,6 +947,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       }
 
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      if (data.usage && typeof data.usage === "object") {
+        const compDetails = data.usage.completion_tokens_details || {};
+        data.usage.completion_tokens_details = {
+          ...compDetails,
+          reasoning_tokens: Number(compDetails.reasoning_tokens || 0),
+        };
+      }
       data.id = logId;
       res.json(data);
       return;
@@ -1001,6 +1023,15 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         billing.discountRate,
         billing.discountAmount,
       );
+    }
+
+    // Normalize usage to always include completion_tokens_details
+    if (data.usage && typeof data.usage === "object") {
+      const compDetails = data.usage.completion_tokens_details || {};
+      data.usage.completion_tokens_details = {
+        ...compDetails,
+        reasoning_tokens: Number(compDetails.reasoning_tokens || 0),
+      };
     }
 
     // Add rate limit headers

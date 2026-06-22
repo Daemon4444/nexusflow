@@ -26,36 +26,36 @@ export function formatContextLength(contextLength?: number) {
     const value = contextLength / 1_000_000;
     return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)}M`;
   }
-  if (contextLength >= 1000) return `${Math.round(contextLength / 1000)}K`;
+  if (contextLength >= 1024) return `${Math.round(contextLength / 1024)}K`;
   return contextLength.toLocaleString();
 }
 
 export function formatModelPrice(model: ModelSummary) {
   if (model.pricingType === "per-second") {
-    return `from ¥${formatCompactPrice(model.promptPrice || 0)}/s`;
+    return `from $${formatCompactPrice(model.promptPrice || 0)}/s`;
   }
   if (model.pricingType === "per-image") {
-    return `¥${formatCompactPrice(model.promptPrice || 0)}/image`;
+    return `$${formatCompactPrice(model.promptPrice || 0)}/image`;
   }
   const input = formatCompactPrice(model.promptPrice || 0);
   const output = formatCompactPrice(model.completionPrice || 0);
-  return `In ¥${input} · Out ¥${output}/M`;
+  return `In $${input} · Out $${output}/M`;
 }
 
 export function getRecommendedModels(models: ModelSummary[], limit = 6) {
   const preferredIds = [
-    "claude-sonnet-4-6",
     "qwen3.7-max",
     "qwen3.7-plus",
     "deepseek-v4-pro",
+    "claude-sonnet-4-6",
     "qwen3.6-max-preview",
     "qwen3.6-plus",
-    "claude-haiku-4-5",
     "qwen3-max",
-    "deepseek-r1",
     "qwen-plus",
     "qwen3-coder-plus",
+    "claude-haiku-4-5",
     "qwen-vl-plus",
+    "deepseek-r1",
   ];
   const byId = new Map(models.map((model) => [model.id, model]));
   const preferred = preferredIds
@@ -76,7 +76,7 @@ export function pickDefaultPlaygroundModel(models: ModelSummary[], requestedMode
     "qwen3-max",
     "qwen-plus",
   ].filter(Boolean);
-  const chatModels = models.filter((model) => ["大语言模型", "推理模型", "编程模型", "多模态模型"].includes(model.category));
+  const chatModels = models.filter((model) => ["Language Model", "Reasoning Model", "Code Model", "Multimodal Model"].includes(model.category));
   const preferred = preferredIds.find((id) => chatModels.some((model) => model.id === id));
   return preferred || chatModels[0]?.id || models[0]?.id || "";
 }

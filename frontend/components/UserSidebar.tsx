@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { formatCny } from "@/lib/money";
-import { NexusflowLogo } from "./QuadrantLogo";
 
 const icons: Record<string, React.ReactNode> = {
   dashboard: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
@@ -31,7 +30,7 @@ export default function UserSidebar() {
     {
       group: t("sidebarAccount"),
       items: [
-        { href: "/dashboard",   label: "概览",              icon: "dashboard" },
+        { href: "/dashboard",   label: "Overview",              icon: "dashboard" },
         { href: "/keys",        label: t("sidebarApiKeys"), icon: "key"       },
         { href: "/billing",     label: t("sidebarCredits"), icon: "credit"    },
         { href: "/playground",  label: t("navPlayground"),  icon: "play"      },
@@ -55,7 +54,7 @@ export default function UserSidebar() {
       <div className="usr-sidebar-header">
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
           <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg,#0d9488,#2f81f7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <NexusflowLogo size={14} color="#fff" />
+            <span style={{ color: "#fff", fontSize: 15, fontWeight: 800, lineHeight: 1, letterSpacing: "-0.04em" }}>N</span>
           </div>
           <div>
             <div className="usr-sidebar-title">nexusflow</div>

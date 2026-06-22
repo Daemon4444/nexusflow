@@ -6,7 +6,7 @@ import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-c
 
 const router = Router();
 
-// 合并静态模型和供应商模型
+// Merge static models and provider models
 async function getAllModels(): Promise<AIModel[]> {
   let providerModels: Awaited<ReturnType<typeof getApprovedModelsWithProvider>> = [];
   try {
@@ -53,13 +53,13 @@ async function getAllModels(): Promise<AIModel[]> {
   return Array.from(modelMap.values());
 }
 
-// 获取所有模型列表
+// Get all model list
 router.get("/", async (req: Request, res: Response) => {
   const { category, provider, search, sort } = req.query;
 
   let filtered = await getAllModels();
 
-  if (category && category !== "全部") {
+  if (category && category !== "All") {
     filtered = filtered.filter((m) => m.category === category);
   }
   if (provider) {
@@ -76,7 +76,7 @@ router.get("/", async (req: Request, res: Response) => {
     );
   }
 
-  // 排序
+  // Sort
   if (sort === "price-asc") {
     filtered.sort((a, b) => a.promptPrice - b.promptPrice);
   } else if (sort === "price-desc") {
@@ -106,12 +106,12 @@ router.get("/", async (req: Request, res: Response) => {
   });
 });
 
-// 获取单个模型详情
+// Get single model detail
 router.get("/:id", async (req: Request, res: Response) => {
   const allModels = await getAllModels();
   const model = allModels.find((m) => m.id === req.params.id);
   if (!model) {
-    res.status(404).json({ success: false, message: "模型不存在" });
+    res.status(404).json({ success: false, message: "Model not found" });
     return;
   }
   res.json({

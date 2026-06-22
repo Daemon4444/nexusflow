@@ -11,7 +11,7 @@ import { checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProvider
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 
 const router = Router();
-const UPSTREAM_TIMEOUT = 600000; // 10分钟
+const UPSTREAM_TIMEOUT = 600000; // 10 minutes
 
 function extractToken(req: Request): string | null {
   const auth = req.headers.authorization;
@@ -61,7 +61,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   const token = extractToken(req);
   const session = token ? await validateSession(token) : null;
   if (!session) {
-    openAiError(res, 401, "请先登录后再使用 Playground。", "invalid_session");
+    openAiError(res, 401, "Please log in before using Playground.", "invalid_session");
     return;
   }
 
@@ -150,7 +150,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   const estimatedChatCost = await estimateChatMaxCost(session.id, model, messages, max_tokens);
   if (!await hasSufficientBalance(session.id, estimatedChatCost)) {
-    openAiError(res, 402, "账户余额不足，请充值后再调用。", "insufficient_balance", "insufficient_balance");
+    openAiError(res, 402, "Insufficient account balance, please recharge before calling.", "insufficient_balance", "insufficient_balance");
     return;
   }
 
@@ -275,7 +275,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       });
       recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
       await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
-      if (totalCost > 0) await consume(session.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
+      if (totalCost > 0) await consume(session.id, totalCost, `Playground chat: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
       return;
     }
 
@@ -312,7 +312,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     });
     recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
     await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
-    if (totalCost > 0) await consume(session.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
+    if (totalCost > 0) await consume(session.id, totalCost, `Playground chat: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
 
     res.setHeader("X-RateLimit-Remaining", rpmCheck.remaining.toString());
     res.json(data);

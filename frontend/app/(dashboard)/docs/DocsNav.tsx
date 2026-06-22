@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 
-/* ── 模型方列表：左侧栏只显示模型名，展开后显示子接口 ── */
+/* ── Provider list: sidebar shows provider name only; expands to show sub-endpoints ── */
 interface ProviderItem {
   key: string;
   label: string;
@@ -14,23 +14,22 @@ interface ProviderItem {
 const providers: ProviderItem[] = [
   {
     key: "qwen",
-    label: "通义千问",
+    label: "Qwen",
     children: [
-      { href: "/docs/models/qwen/intro", label: "模型介绍" },
-      { href: "/docs/api/qwen", label: "对话补全" },
-      { href: "/docs/api/qwen?tab=reasoning", label: "推理模型" },
-      { href: "/docs/api/qwen?tab=multimodal", label: "多模态" },
-      { href: "/docs/api/qwen?tab=coding", label: "编程模型" },
-      { href: "/docs/api/embeddings", label: "文本向量" },
-      { href: "/docs/api/images", label: "图像生成" },
-      { href: "/docs/api/videos", label: "视频生成" },
+      { href: "/docs/models/qwen/intro", label: "Overview" },
+      { href: "/docs/api/qwen", label: "Chat Completions" },
+      { href: "/docs/api/qwen?tab=reasoning", label: "Reasoning Models" },
+      { href: "/docs/api/qwen?tab=multimodal", label: "Multimodal" },
+      { href: "/docs/api/embeddings", label: "Text Embedding" },
+      { href: "/docs/api/images", label: "Image Generation" },
+      { href: "/docs/api/videos", label: "Video Generation" },
     ],
   },
   {
     key: "claude",
     label: "Claude (Anthropic)",
     children: [
-      { href: "/docs/models/claude", label: "模型介绍" },
+      { href: "/docs/models/claude", label: "Overview" },
       { href: "/docs/api/anthropic", label: "Messages API" },
     ],
   },
@@ -38,79 +37,81 @@ const providers: ProviderItem[] = [
     key: "deepseek",
     label: "DeepSeek",
     children: [
-      { href: "/docs/models/deepseek/intro", label: "模型介绍" },
-      { href: "/docs/api/deepseek", label: "对话补全" },
-      { href: "/docs/api/deepseek?tab=reasoning", label: "推理模型" },
+      { href: "/docs/models/deepseek/intro", label: "Overview" },
+      { href: "/docs/api/deepseek", label: "Chat Completions" },
+      { href: "/docs/api/deepseek?tab=reasoning", label: "Reasoning Models" },
     ],
   },
   {
     key: "happyhorse",
     label: "HappyHorse",
     children: [
-      { href: "/docs/models/happyhorse", label: "模型介绍" },
-      { href: "/docs/api/happyhorse", label: "API 用法" },
+      { href: "/docs/models/happyhorse", label: "Overview" },
+      { href: "/docs/api/happyhorse", label: "API Usage" },
     ],
   },
   {
     key: "pixverse",
-    label: "PixVerse (爱诗)",
+    label: "PixVerse",
     children: [
-      { href: "/docs/models/pixverse/intro", label: "模型介绍" },
-      { href: "/docs/api/pixverse?tab=t2v", label: "文生视频" },
-      { href: "/docs/api/pixverse?tab=i2v", label: "图生视频（首帧）" },
-      { href: "/docs/api/pixverse?tab=kf2v", label: "图生视频（首尾帧）" },
-      { href: "/docs/api/pixverse?tab=r2v", label: "参考生视频" },
+      { href: "/docs/models/pixverse/intro", label: "Overview" },
+      { href: "/docs/api/pixverse?tab=t2v", label: "Text-to-Video" },
+      { href: "/docs/api/pixverse?tab=i2v", label: "Image-to-Video (First Frame)" },
+      { href: "/docs/api/pixverse?tab=kf2v", label: "Image-to-Video (First & Last Frame)" },
+      { href: "/docs/api/pixverse?tab=r2v", label: "Reference-to-Video" },
     ],
   },
   {
     key: "glm",
-    label: "智谱AI (GLM)",
+    label: "Zhipu AI (GLM)",
     children: [
-      { href: "/docs/api/glm", label: "对话补全" },
+      { href: "/docs/api/glm", label: "Chat Completions" },
     ],
   },
   {
     key: "kimi",
-    label: "月之暗面 (Kimi)",
+    label: "Moonshot AI (Kimi)",
     children: [
-      { href: "/docs/api/kimi", label: "对话补全" },
+      { href: "/docs/api/kimi", label: "Chat Completions" },
     ],
   },
   {
     key: "minimax",
     label: "MiniMax",
     children: [
-      { href: "/docs/api/minimax", label: "对话补全" },
+      { href: "/docs/api/minimax", label: "Chat Completions" },
     ],
   },
 ];
 
-const apiRefLinks = [
+const apiProtocolLinks = [
   { href: "/docs/api/chat", label: "Chat Completions" },
-  { href: "/docs/context-cache", label: "上下文缓存" },
-  { href: "/docs/api/parameters", label: "参数详解" },
-  { href: "/docs/api/cache", label: "上下文缓存" },
-  { href: "/docs/api/embeddings", label: "Embeddings" },
-  { href: "/docs/api/tasks", label: "Async Tasks (图像/视频)" },
   { href: "/docs/api/anthropic", label: "Anthropic Messages" },
-  { href: "/docs/api/gemini", label: "Gemini GenerateContent" },
-  { href: "/docs/api/errors", label: "错误码" },
-  { href: "/docs/api/limits", label: "限流说明" },
+  { href: "/docs/api/responses", label: "Responses API" },
+];
+
+const apiOtherLinks = [
+  { href: "/docs/api/parameters", label: "Parameters" },
+  { href: "/docs/api/embeddings", label: "Embeddings" },
+  { href: "/docs/context-cache", label: "Context Cache" },
+  { href: "/docs/api/tasks", label: "Async Tasks (Image/Video)" },
+  { href: "/docs/api/errors", label: "Error Codes" },
+  { href: "/docs/api/limits", label: "Rate Limits" },
 ];
 
 const platformLinks = [
-  { href: "/docs/multi-protocol", label: "多协议支持" },
-  { href: "/docs/provider-routing", label: "智能路由" },
-  { href: "/docs/model-fallback", label: "模型降级", tag: "Coming Soon" },
-  { href: "/docs/api-keys", label: "API 密钥管理" },
-  { href: "/docs/principles", label: "平台优势" },
+  { href: "/docs/multi-protocol", label: "Multi-Protocol Support" },
+  { href: "/docs/provider-routing", label: "Smart Routing" },
+  { href: "/docs/model-fallback", label: "Model Fallback", tag: "Coming Soon" },
+  { href: "/docs/api-keys", label: "API Key Management" },
+  { href: "/docs/principles", label: "Platform Advantages" },
 ];
 
 const helpLinks = [
-  { href: "/docs/faq", label: "常见问题" },
+  { href: "/docs/faq", label: "FAQ" },
 ];
 
-/* ── 箭头 SVG ── */
+/* ── Chevron SVG ── */
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
@@ -132,7 +133,7 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
-/* ── 单个模型方折叠项 ── */
+/* ── Single collapsible provider section ── */
 function ProviderSection({
   provider,
   pathname,
@@ -152,10 +153,10 @@ function ProviderSection({
     if (isAnyChildActive) setOpen(true);
   }, [isAnyChildActive]);
 
-  // 只有一个子项时直接作为链接
+  // When there is only one child, render directly as a link
   if (provider.children.length === 1) {
     const child = provider.children[0];
-    const isActive = fullUrl === child.href || pathname === child.href.split("?")[0];
+    const isActive = fullUrl === child.href;
     return (
       <Link
         href={child.href}
@@ -205,7 +206,7 @@ function ProviderSection({
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 1, paddingLeft: 16, marginTop: 2 }}>
           {provider.children.map((child) => {
-            const isActive = fullUrl === child.href || pathname === child.href.split("?")[0];
+            const isActive = fullUrl === child.href;
             return (
               <Link
                 key={child.href}
@@ -233,7 +234,7 @@ function ProviderSection({
   );
 }
 
-/* ── 内部导航组件（需要 useSearchParams） ── */
+/* ── Inner nav component (needs useSearchParams) ── */
 function DocsNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -241,11 +242,11 @@ function DocsNav() {
 
   return (
     <>
-      {/* 顶部快速入口 */}
+      {/* Top quick entry */}
       <div style={{ padding: "20px 16px 12px" }}>
         <Link href="/docs" style={{ textDecoration: "none" }}>
           <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.3px" }}>
-            API 文档
+            API Docs
           </div>
         </Link>
         <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 4 }}>
@@ -254,14 +255,14 @@ function DocsNav() {
       </div>
 
       <nav style={{ padding: "0 10px 24px" }}>
-        {/* 开始 */}
+        {/* Getting Started */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            开始
+            Getting Started
           </div>
           {[
-            { href: "/docs", label: "概览" },
-            { href: "/docs/quickstart", label: "快速开始" },
+            { href: "/docs", label: "Overview" },
+            { href: "/docs/quickstart", label: "Quick Start" },
           ].map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -286,12 +287,15 @@ function DocsNav() {
           })}
         </div>
 
-        {/* API 参考 */}
+        {/* API Reference */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            API 参考
+            API Reference
           </div>
-          {apiRefLinks.map((item) => {
+          <div style={{ padding: "6px 10px 4px", fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", marginTop: 4 }}>
+            Protocols
+          </div>
+          {apiProtocolLinks.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -299,12 +303,39 @@ function DocsNav() {
                 href={item.href}
                 style={{
                   display: "block",
-                  padding: "8px 12px",
+                  padding: "6px 12px 6px 20px",
                   fontSize: 13,
                   color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
                   fontWeight: isActive ? 600 : 400,
                   textDecoration: "none",
                   borderRadius: 6,
+                  borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+                  background: isActive ? "var(--bg-elevated)" : "transparent",
+                  transition: "all 0.15s",
+                }}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+          <div style={{ padding: "10px 10px 4px", fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)" }}>
+            General
+          </div>
+          {apiOtherLinks.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  display: "block",
+                  padding: "6px 12px 6px 20px",
+                  fontSize: 13,
+                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                  fontWeight: isActive ? 600 : 400,
+                  textDecoration: "none",
+                  borderRadius: 6,
+                  borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
                   background: isActive ? "var(--bg-elevated)" : "transparent",
                   transition: "all 0.15s",
                 }}
@@ -315,10 +346,10 @@ function DocsNav() {
           })}
         </div>
 
-        {/* 模型 */}
+        {/* Models */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            模型
+            Models
           </div>
           <Link
             href="/docs/models"
@@ -334,7 +365,7 @@ function DocsNav() {
               transition: "all 0.15s",
             }}
           >
-            选型指南
+            Selection Guide
           </Link>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {providers.map((p) => (
@@ -343,10 +374,10 @@ function DocsNav() {
           </div>
         </div>
 
-        {/* 平台能力 */}
+        {/* Platform Capabilities */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            平台能力
+            Platform Capabilities
           </div>
           {platformLinks.map((item) => {
             const isActive = pathname === item.href;
@@ -379,10 +410,10 @@ function DocsNav() {
           })}
         </div>
 
-        {/* 帮助 */}
+        {/* Help */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            帮助
+            Help
           </div>
           {helpLinks.map((item) => {
             const isActive = pathname === item.href;
@@ -409,7 +440,7 @@ function DocsNav() {
         </div>
       </nav>
 
-      {/* Playground 链接 */}
+      {/* Playground link */}
       <div style={{ padding: "16px", borderTop: "1px solid var(--border)" }}>
         <Link
           href="/playground"
@@ -431,7 +462,7 @@ function DocsNav() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
-          打开 Playground
+          Open Playground
         </Link>
       </div>
     </>

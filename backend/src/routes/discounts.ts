@@ -23,11 +23,11 @@ router.post("/admin/user-model-discounts", async (req: Request, res: Response) =
   const rate = Number(discountRate ?? discount_rate);
 
   if (!normalizedUserId || !normalizedModelId) {
-    res.status(400).json({ success: false, message: "缺少 userId 或 modelId" });
+    res.status(400).json({ success: false, message: "Missing userId or modelId" });
     return;
   }
   if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
-    res.status(400).json({ success: false, message: "discountRate 必须在 0 到 1 之间" });
+    res.status(400).json({ success: false, message: "discountRate must be between 0 and 1" });
     return;
   }
 
@@ -39,12 +39,12 @@ router.post("/admin/user-model-discounts", async (req: Request, res: Response) =
     notes: String(notes || ""),
     createdBy: (req as any).admin?.id || null,
   });
-  res.json({ success: true, data: row, message: "用户模型折扣已保存" });
+  res.json({ success: true, data: row, message: "User model discount saved" });
 });
 
 router.delete("/admin/user-model-discounts/:id", async (req: Request, res: Response) => {
   const ok = await deleteUserModelDiscount(String(req.params.id));
-  res.json({ success: ok, message: ok ? "折扣已删除" : "折扣不存在" });
+  res.json({ success: ok, message: ok ? "Discount deleted" : "Discount not found" });
 });
 
 export default router;

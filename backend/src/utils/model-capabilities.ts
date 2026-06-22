@@ -41,6 +41,7 @@ const MIXED_THINKING_DEFAULT_ON = new Set([
   "qwen-flash",
   "deepseek-v4-pro",
   "deepseek-v4-flash",
+  "glm-5.2",
   "glm-5.1",
   "glm-5",
   "glm-4.7",
@@ -68,6 +69,7 @@ const THINKING_BUDGET_PREFIXES = [
   "deepseek-v3",
   "deepseek-r1",
   "deepseek-v4",
+  "glm-",
 ];
 
 const PRESERVE_THINKING_MODELS = new Set([

@@ -74,7 +74,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
     api_base_url: dashscopeConfig.baseUrl,
     api_key: process.env.DASHSCOPE_API_KEY || "",
     contact_name: "平台运营",
-    contact_email: "ops@nexusflow.ai",
+    contact_email: "ops@nexusflow.hk",
     status: "enabled",
   });
   const anthropic = await ensureProvider({
@@ -86,7 +86,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
     api_base_url: "https://api.anthropic.com/v1",
     api_key: process.env.ANTHROPIC_API_KEY || "",
     contact_name: "平台运营",
-    contact_email: "ops@nexusflow.ai",
+    contact_email: "ops@nexusflow.hk",
     status: "enabled",
   });
   await ensureProvider({
@@ -98,7 +98,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
     api_base_url: "https://ark.cn-beijing.volces.com/api/v3",
     api_key: process.env.ARK_API_KEY || "",
     contact_name: "平台运营",
-    contact_email: "ops@nexusflow.ai",
+    contact_email: "ops@nexusflow.hk",
     status: "enabled",
   });
   for (const model of models) {

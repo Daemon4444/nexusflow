@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = [
     "default-src 'self'",
-    `connect-src 'self' https://nexusflow.hk`,
+    `connect-src 'self' https://nexusflow.vip`,
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
     `style-src 'self' 'unsafe-inline'`,

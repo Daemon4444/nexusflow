@@ -1,14 +1,14 @@
 /**
- * Zod 验证 Middleware
+ * Zod Validation Middleware
  *
- * 提供统一的请求参数验证，防止无效输入
+ * Provides unified request parameter validation, preventing invalid input
  */
 
 import { Request, Response, NextFunction } from "express";
 import { ZodSchema, ZodError, z } from "zod";
 
 /**
- * 验证请求体的 middleware
+ * Validate request body middleware
  */
 export function validateBody(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -37,7 +37,7 @@ export function validateBody(schema: ZodSchema) {
 }
 
 /**
- * 验证查询参数的 middleware
+ * Validate query parameters middleware
  */
 export function validateQuery(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -65,9 +65,9 @@ export function validateQuery(schema: ZodSchema) {
   };
 }
 
-// ============ 常用 Schema ============
+// ============ Common Schemas ============
 
-/** Chat Completions 请求验证 */
+/** Chat Completions request validation */
 export const ChatCompletionSchema = z.object({
   model: z.string().min(1, "Model ID is required"),
   messages: z.array(
@@ -90,7 +90,7 @@ export const ChatCompletionSchema = z.object({
   response_format: z.object({ type: z.enum(["text", "json_object"]) }).optional(),
 });
 
-/** Embeddings 请求验证 */
+/** Embeddings request validation */
 export const EmbeddingSchema = z.object({
   model: z.string().min(1, "Model ID is required"),
   input: z.union([
@@ -102,24 +102,24 @@ export const EmbeddingSchema = z.object({
   encoding_format: z.enum(["float", "base64"]).optional(),
 });
 
-/** 发送验证码请求验证 */
+/** Send verification code request validation */
 export const SendCodeSchema = z.object({
   email: z.string().email("Invalid email format"),
 });
 
-/** 验证码登录请求验证 */
+/** Verification code login request validation */
 export const LoginSchema = z.object({
   email: z.string().email("Invalid email format"),
   code: z.string().regex(/^\d{6}$/, "Code must be 6 digits").or(z.string().regex(/^\d{4}$/, "Code must be 4 digits")),
 });
 
-/** API Key 创建请求验证 */
+/** API Key creation request validation */
 export const CreateKeySchema = z.object({
   name: z.string().min(1).max(50, "Name must be 1-50 characters"),
   rate_limit: z.number().int().min(1).max(1000).optional().default(60),
 });
 
-/** 充值请求验证 */
+/** Recharge request validation */
 export const RechargeSchema = z.object({
   amount: z.number().positive("Amount must be positive"),
   method: z.enum(["alipay", "mock"]).optional().default("mock"),

@@ -4,7 +4,7 @@ import { detectModelType } from "../services/adapters";
 export type SupportedProtocol =
   | "openai/chat-completions"
   | "anthropic/messages"
-  | "google/generate-content"
+  | "openai/responses"
   | "openai/embeddings"
   | "openai/image-generations"
   | "openai/audio-speech"
@@ -22,7 +22,7 @@ export function getSupportedProtocols(model: AIModel): SupportedProtocol[] {
     return [
       "openai/chat-completions",
       "anthropic/messages",
-      "google/generate-content",
+      "openai/responses",
     ];
   }
 

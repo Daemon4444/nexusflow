@@ -59,26 +59,26 @@ interface ProtocolExample {
 }
 
 const categoryColors: Record<string, string> = {
-  "大语言模型": "#2563eb",
-  "推理模型": "#dc2626",
-  "多模态模型": "#7c3aed",
-  "编程模型": "#0891b2",
-  "图像生成": "#db2777",
-  "视频生成": "#f97316",
-  "向量模型": "#0f766e",
-  "专业模型": "#64748b",
-  "语音模型": "#7c2d12",
+  "Large Language Model": "#2563eb",
+  "Reasoning Model": "#dc2626",
+  "Multimodal Model": "#7c3aed",
+  "Coding Model": "#0891b2",
+  "Image Generation": "#db2777",
+  "Video Generation": "#f97316",
+  "Embedding Model": "#0f766e",
+  "Specialized Model": "#64748b",
+  "Audio Model": "#7c2d12",
 };
 
 function getProtocolExamples(model: AIModel): ProtocolExample[] {
   const protocols = model.supportedProtocols || model.supported_protocols || [];
   const examples: ProtocolExample[] = [];
-  const isImageModel = model.category === "图像生成";
-  const isVideoModel = model.category === "视频生成";
-  const isEmbeddingModel = model.category === "向量模型";
+  const isImageModel = model.category === "Image Generation";
+  const isVideoModel = model.category === "Video Generation";
+  const isEmbeddingModel = model.category === "Embedding Model";
   const isAsyncModel = isImageModel || isVideoModel;
-  const supportsTools = model.supported.some((item) => item.includes("工具"));
-  const supportsVision = model.supported.some((item) => item.includes("视觉") || item.includes("图像理解"));
+  const supportsTools = model.supported.some((item) => item.includes("Tools"));
+  const supportsVision = model.supported.some((item) => item.includes("Vision") || item.includes("Image understanding"));
   const allowedParameters = model.allowed_parameters || [];
 
   for (const protocol of protocols) {
@@ -108,7 +108,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model.id}",
-    "messages": [{"role": "user", "content": "你好！"}],
+    "messages": [{"role": "user", "content": "Hello!"}],
     "stream": true,
     "stream_options": {"include_usage": true},
     "temperature": 0.7,
@@ -117,7 +117,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
       "type": "function",
       "function": {
         "name": "get_weather",
-        "description": "查询天气",
+        "description": "Check weather",
         "parameters": {
           "type": "object",
           "properties": {
@@ -129,8 +129,8 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
     }` : ""}
   }'`,
         note: supportsVision
-          ? "支持流式输出和常用采样参数；视觉模型可在 messages 中传入图片内容。"
-          : "支持流式输出、常用采样参数以及标准对话格式。",
+          ? "Supports streaming output and common sampling parameters; vision models can accept image content in messages."
+          : "Supports streaming, common sampling parameters, and standard conversation format.",
       });
     }
 
@@ -150,10 +150,10 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
     "max_tokens": 512,
     "stream": true,
     "messages": [
-      {"role": "user", "content": "你好！"}
+      {"role": "user", "content": "Hello!"}
     ]
   }'`,
-        note: "适合直接复用 Anthropic SDK 或 Claude Code 风格客户端。",
+        note: "Suitable for reusing Anthropic SDK or Claude Code-style clients。",
       });
     }
 
@@ -170,7 +170,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
     "contents": [
       {
         "role": "user",
-        "parts": [{"text": "你好！"}]
+        "parts": [{"text": "Hello!"}]
       }
     ],
     "generationConfig": {
@@ -178,7 +178,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
       "maxOutputTokens": 512
     }
   }'`,
-        note: "流式输出使用 :streamGenerateContent?alt=sse，适合兼容 Gemini SDK。",
+        note: "Streaming uses :streamGenerateContent?alt=sse, compatible with Gemini SDK.",
       });
     }
   }
@@ -195,9 +195,9 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model.id}",
-    "input": ["第一段文本", "第二段文本"]
+    "input": ["First text", "Second text"]
   }'`,
-      note: "支持单条文本和字符串数组批量向量化。",
+      note: "Supports single text and string array batch vectorization.",
     });
   }
 
@@ -213,10 +213,10 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model.id}",
-    "prompt": "一匹高速奔跑的机械马，金属线条充满速度感",
+    "prompt": "A mechanical horse running at high speed, metallic lines full of motion",
     "size": "1024x1024"
   }'`,
-      note: "适用于支持同步出图的图像模型，常用参数包括 size、n、response_format。",
+      note: "Applicable for synchronous image models. Common parameters: size, n, response_format.",
     });
   }
 
@@ -236,16 +236,16 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model.id}",
-    "prompt": "${isVideoModel ? "生成一段未来城市中穿梭的短视频" : "生成一张质感强烈的产品海报"}"${isVideoModel ? `,
+    "prompt": "${isVideoModel ? "Generate a short video of a futuristic city" : "Generate a high-quality product poster"}"${isVideoModel ? `,
     "duration": 5,
     "aspect_ratio": "16:9"` : `,
     "size": "1024x1024"`}
   }'`,
-      note: "提交后返回 task_id，再轮询 GET /v1/tasks/:id 获取状态和结果。",
+      note: "Submit to get task_id, then poll GET /v1/tasks/:id for status and results。",
     });
   }
 
-  if (model.category === "语音模型") {
+  if (model.category === "Audio Model") {
     if (model.id.toLowerCase().includes("tts")) {
       examples.push({
         id: "openai/audio-speech",
@@ -258,11 +258,11 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "${model.id}",
-    "input": "你好世界，这是语音合成测试。",
+    "input": "Hello world, this is a speech synthesis test.",
     "voice": "alloy"
   }' \\
   --output speech.wav`,
-        note: "返回音频二进制数据。voice 支持 alloy/ash/nova/echo/sage/shimmer 等，也可传 DashScope 原生音色名。",
+        note: "Returns audio binary data. Voices include alloy/ash/nova/echo/sage/shimmer; also supports DashScope native voice names.",
       });
     }
     if (model.id.toLowerCase().includes("asr")) {
@@ -276,7 +276,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
   -H "Authorization: Bearer $API_KEY" \\
   -F "model=${model.id}" \\
   -F "file_url=https://example.com/audio.wav"`,
-        note: "file_url 指向公网可访问的音频文件 URL。返回 { text: '...' } 转录结果。",
+        note: "file_url points to a publicly accessible audio URL. Returns transcription result.",
       });
     }
   }
@@ -302,7 +302,7 @@ export default function ModelDetailPage() {
         setModel(res.data);
       }
     } catch {
-      console.error("加载模型详情失败");
+      console.error("Failed to load model details");
     } finally {
       setLoading(false);
     }
@@ -325,8 +325,8 @@ export default function ModelDetailPage() {
   if (!model) {
     return (
       <div className="empty-state" style={{ padding: 60 }}>
-        <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>模型未找到</div>
-        <Link href="/models" className="btn-secondary">返回模型列表</Link>
+        <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>Model not found</div>
+        <Link href="/models" className="btn-secondary">Back to Model Catalog</Link>
       </div>
     );
   }
@@ -335,15 +335,15 @@ export default function ModelDetailPage() {
   const protocols = model.supportedProtocols || model.supported_protocols || [];
   const protocolExamples = getProtocolExamples(model);
   const capabilityRows = model.capabilities ? [
-    ["类型", model.capabilities.model_type],
-    ["思考模式", model.capabilities.thinking_mode === "mixed" ? `可开关${model.capabilities.thinking_default === null ? "" : `，默认${model.capabilities.thinking_default ? "开启" : "关闭"}`}` : model.capabilities.thinking_mode === "always" ? "仅思考，不能关闭" : "无"],
-    ["工具调用", model.capabilities.supports_tools ? "支持" : "未声明"],
-    ["视觉输入", model.capabilities.supports_vision ? "支持" : "未声明"],
-    ["视频输入", model.capabilities.supports_video_input ? "支持" : "未声明"],
-    ["音频输入", model.capabilities.supports_audio_input ? "支持" : "未声明"],
-    ["thinking_budget", model.capabilities.supports_thinking_budget ? "上游支持，当前 public chat 未透传" : "未声明"],
-    ["preserve_thinking", model.capabilities.supports_preserve_thinking ? "上游支持，当前 public chat 未透传" : "未声明"],
-    ["搜索参数", model.capabilities.supports_search ? "支持" : "当前未开放"],
+    ["Type", model.capabilities.model_type],
+    ["Thinking Mode", model.capabilities.thinking_mode === "mixed" ? `Toggleable${model.capabilities.thinking_default === null ? "" : `，default${model.capabilities.thinking_default ? "on" : "off"}`}` : model.capabilities.thinking_mode === "always" ? "Always on, cannot disable" : "None"],
+    ["Tool Calls", model.capabilities.supports_tools ? "Supported" : "Not declared"],
+    ["Vision Input", model.capabilities.supports_vision ? "Supported" : "Not declared"],
+    ["Video Input", model.capabilities.supports_video_input ? "Supported" : "Not declared"],
+    ["Audio Input", model.capabilities.supports_audio_input ? "Supported" : "Not declared"],
+    ["thinking_budget", model.capabilities.supports_thinking_budget ? "Upstream supported, not forwarded in public chat" : "Not declared"],
+    ["preserve_thinking", model.capabilities.supports_preserve_thinking ? "Upstream supported, not forwarded in public chat" : "Not declared"],
+    ["Search Param", model.capabilities.supports_search ? "Supported" : "Not yet enabled"],
   ] : [];
 
   return (
@@ -351,7 +351,7 @@ export default function ModelDetailPage() {
       <div style={{ marginBottom: 28 }}>
         <Link href="/models" style={{ fontSize: 13, color: "var(--text-tertiary)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-          返回模型列表
+          Back to Model Catalog
         </Link>
       </div>
 
@@ -392,30 +392,30 @@ export default function ModelDetailPage() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, padding: "16px 0", borderTop: "1px solid var(--border)" }}>
           <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>上下文</div>
+            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>Context</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{formatTokens(model.contextLength)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>最大输出</div>
+            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>Max Output</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{formatTokens(model.maxOutput)}</div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶输入</div>
+            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>1st Tier Input</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: model.promptPrice === 0 ? "var(--success)" : "var(--text-primary)" }}>
-              {model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}/M`}
+              {model.promptPrice === 0 ? "Free" : `$${(model.promptPrice / 7).toFixed(2)}/M`}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶输出</div>
+            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>1st Tier Output</div>
             <div style={{ fontSize: 18, fontWeight: 600, color: model.completionPrice === 0 ? "var(--success)" : "var(--text-primary)" }}>
-              {model.completionPrice === 0 ? "免费" : `¥${model.completionPrice}/M`}
+              {model.completionPrice === 0 ? "Free" : `$${(model.completionPrice / 7).toFixed(2)}/M`}
             </div>
           </div>
         </div>
         {model.tokenPricingTiers && model.tokenPricingTiers.length > 0 && (
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
-              阶梯定价
+              Tiered Pricing
             </div>
             <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
               {model.tokenPricingTiers.map((tier, idx) => (
@@ -428,8 +428,8 @@ export default function ModelDetailPage() {
                   fontSize: 13,
                 }}>
                   <span style={{ fontWeight: 500 }}>{tier.label}</span>
-                  <span style={{ textAlign: "right" }}>输入 ¥{tier.promptPrice}/M</span>
-                  <span style={{ textAlign: "right" }}>输出 ¥{tier.completionPrice}/M</span>
+                  <span style={{ textAlign: "right" }}>Input ${tier.promptPrice}/M</span>
+                  <span style={{ textAlign: "right" }}>Output ${tier.completionPrice}/M</span>
                 </div>
               ))}
             </div>
@@ -439,7 +439,7 @@ export default function ModelDetailPage() {
 
       <div className="card-static" style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          支持的功能
+          Supported Features
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {model.supported.map((s) => (
@@ -454,7 +454,7 @@ export default function ModelDetailPage() {
       {protocols.length > 0 && (
         <div className="card-static" style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            支持协议
+            Supported Protocols
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {protocols.map((protocol) => (
@@ -481,7 +481,7 @@ export default function ModelDetailPage() {
       {(capabilityRows.length > 0 || (model.allowed_parameters?.length || 0) > 0) && (
         <div className="card-static" style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            能力与参数边界
+            Capabilities & Parameters
           </div>
           {capabilityRows.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
@@ -496,7 +496,7 @@ export default function ModelDetailPage() {
           {(model.allowed_parameters?.length || 0) > 0 && (
             <div>
               <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8 }}>
-                当前 NexusFlow public chat 入口会透传的参数：
+                Parameters forwarded by NexusFlow public chat：
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {model.allowed_parameters!.map((param) => (
@@ -512,7 +512,7 @@ export default function ModelDetailPage() {
 
       <div className="card-static" style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          API 调用示例
+          API Examples
         </div>
 
         <div style={{ display: "grid", gap: 18 }}>
@@ -574,15 +574,15 @@ export default function ModelDetailPage() {
       <div className="card-static">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>立即体验</div>
-            <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>在 Playground 中测试此模型</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>Try Now</div>
+            <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>Test this model in Playground</div>
           </div>
           <Link
             href={`/playground?model=${encodeURIComponent(model.id)}`}
             className="btn-primary"
             style={{ padding: "10px 20px" }}
           >
-            打开 Playground
+            Open Playground
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
           </Link>
         </div>

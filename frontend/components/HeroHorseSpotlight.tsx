@@ -62,12 +62,11 @@ export default function HeroHorseSpotlight() {
       <div className="hh-spotlight-copy">
         <div className="hh-spotlight-kicker">FEATURED MODEL ACCESS</div>
         <div className="hh-spotlight-title">
-          <span>HappyHorse 已正式接入</span>
+          <span>HappyHorse is now available</span>
           <span className="hh-spotlight-title-pill">LIVE</span>
         </div>
         <p className="hh-spotlight-sub">
-          现在可以通过统一 API 直接调用 HappyHorse 视频能力。不换鉴权，不换接入方式，
-          直接在 nexusflow 开始跑。
+          You can now call HappyHorse video capabilities directly through our unified API. Same authentication, same integration method — start running on NexusFlow right away.
         </p>
       </div>
     </div>

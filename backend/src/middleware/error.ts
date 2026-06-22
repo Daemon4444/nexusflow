@@ -1,12 +1,12 @@
 /**
- * 错误处理 Middleware
+ * Error Handling Middleware
  *
- * 统一所有 API 的错误响应格式
+ * Unified error response format for all APIs
  */
 
 import { Request, Response, NextFunction } from "express";
 
-/** 自定义 API 错误类 */
+/** Custom API error class */
 export class ApiError extends Error {
   public status: number;
   public type: string;
@@ -20,50 +20,50 @@ export class ApiError extends Error {
     Object.setPrototypeOf(this, ApiError.prototype);
   }
 
-  /** 401 认证错误 */
+  /** 401 Authentication error */
   static unauthorized(message: string = "Unauthorized"): ApiError {
     return new ApiError(401, message, "authentication_error", "unauthorized");
   }
 
-  /** 403 权限错误 */
+  /** 403 Permission error */
   static forbidden(message: string = "Forbidden"): ApiError {
     return new ApiError(403, message, "permission_error", "forbidden");
   }
 
-  /** 404 资源不存在 */
+  /** 404 Resource not found */
   static notFound(message: string = "Resource not found"): ApiError {
     return new ApiError(404, message, "not_found_error", "not_found");
   }
 
-  /** 400 参数错误 */
+  /** 400 Bad request */
   static badRequest(message: string, code: string = "invalid_request"): ApiError {
     return new ApiError(400, message, "invalid_request_error", code);
   }
 
-  /** 429 限流错误 */
+  /** 429 Rate limit error */
   static rateLimited(message: string = "Rate limit exceeded"): ApiError {
     return new ApiError(429, message, "rate_limit_error", "rate_limit_exceeded");
   }
 
-  /** 402 余额不足 */
+  /** 402 Insufficient balance */
   static insufficientBalance(message: string = "Insufficient balance"): ApiError {
     return new ApiError(402, message, "billing_error", "insufficient_balance");
   }
 
-  /** 500 服务器错误 */
+  /** 500 Server error */
   static internal(message: string = "Internal server error"): ApiError {
     return new ApiError(500, message, "server_error", "internal_error");
   }
 }
 
-/** 统一错误响应格式 */
+/** Unified error response format */
 export function errorHandler(
   err: Error | ApiError,
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
-  // 如果是 ApiError，使用统一格式
+  // If ApiError, use unified format
   if (err instanceof ApiError) {
     res.status(err.status).json({
       error: {
@@ -75,7 +75,7 @@ export function errorHandler(
     return;
   }
 
-  // 其他错误，统一为 500
+  // Other errors, unified as 500
   console.error("[Error]", err.message, err.stack);
   res.status(500).json({
     error: {
@@ -86,7 +86,7 @@ export function errorHandler(
   });
 }
 
-/** 404 处理 */
+/** 404 handler */
 export function notFoundHandler(req: Request, res: Response): void {
   res.status(404).json({
     error: {
@@ -97,7 +97,7 @@ export function notFoundHandler(req: Request, res: Response): void {
   });
 }
 
-/** 成功响应包装器（用于 /api/* 路由） */
+/** Success response wrapper (for /api/* routes) */
 export function successResponse<T>(data: T, message?: string) {
   return {
     success: true,
@@ -106,7 +106,7 @@ export function successResponse<T>(data: T, message?: string) {
   };
 }
 
-/** 错误响应包装器（用于 /api/* 路由） */
+/** Error response wrapper (for /api/* routes) */
 export function errorResponse(message: string, code?: string) {
   return {
     success: false,

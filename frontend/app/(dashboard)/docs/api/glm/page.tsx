@@ -7,9 +7,10 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
-  { id: "glm-5.1", context: "131K", input: 6, output: 24, desc: "GLM-5.1 增强版旗舰" },
-  { id: "glm-5", context: "131K", input: 4, output: 18, desc: "GLM-5 旗舰模型" },
-  { id: "glm-4.7", context: "131K", input: 3, output: 14, desc: "GLM-4.7 通用模型" },
+  { id: "glm-5.2", context: "1M", input: 8, output: 28, desc: "GLM-5.2 flagship for long-horizon tasks, 1M context" },
+  { id: "glm-5.1", context: "198K", input: 6, output: 24, desc: "GLM-5.1 enhanced flagship" },
+  { id: "glm-5", context: "198K", input: 4, output: 18, desc: "GLM-5 flagship model" },
+  { id: "glm-4.7", context: "166K", input: 3, output: 14, desc: "GLM-4.7 general-purpose model" },
 ];
 
 const curlExample = `curl ${API_BASE}/v1/chat/completions \\
@@ -18,7 +19,7 @@ const curlExample = `curl ${API_BASE}/v1/chat/completions \\
   -d '{
     "model": "glm-5",
     "messages": [
-      {"role": "user", "content": "请解释量子纠缠的原理"}
+      {"role": "user", "content": "Explain the principle of quantum entanglement"}
     ],
     "stream": true
   }'`;
@@ -33,7 +34,7 @@ client = OpenAI(
 response = client.chat.completions.create(
     model="glm-5",
     messages=[
-        {"role": "user", "content": "请解释量子纠缠的原理"}
+        {"role": "user", "content": "Explain the principle of quantum entanglement"}
     ],
     stream=True,
 )
@@ -52,7 +53,7 @@ const protocolCurlExamples = [
   -d '{
     "model": "glm-5.1",
     "messages": [
-      {"role": "user", "content": "只回复 OK"}
+      {"role": "user", "content": "Reply with OK only"}
     ],
     "max_tokens": 8
   }'`,
@@ -68,26 +69,19 @@ const protocolCurlExamples = [
     "model": "glm-5.1",
     "max_tokens": 8,
     "messages": [
-      {"role": "user", "content": "只回复 OK"}
+      {"role": "user", "content": "Reply with OK only"}
     ]
   }'`,
   },
   {
-    title: "Gemini-compatible GenerateContent",
-    endpoint: "/v1beta/models/glm-5.1:generateContent",
-    code: `curl -X POST '${API_BASE}/v1beta/models/glm-5.1:generateContent' \\
-  -H "x-goog-api-key: $API_KEY" \\
+    title: "Responses API",
+    endpoint: "/v1/responses",
+    code: `curl ${API_BASE}/v1/responses \\
+  -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "contents": [
-      {
-        "role": "user",
-        "parts": [{"text": "只回复 OK"}]
-      }
-    ],
-    "generationConfig": {
-      "maxOutputTokens": 8
-    }
+    "model": "glm-5.1",
+    "input": "Reply with OK only"
   }'`,
   },
 ];
@@ -102,13 +96,13 @@ export default function GLMApiPage() {
           display: "inline-block", padding: "3px 10px", borderRadius: 5,
           background: "#fef3c7", color: "#92400e", fontSize: 11, fontWeight: 700, marginBottom: 12,
         }}>
-          智谱AI / Zhipu
+          Zhipu AI
         </span>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
-          GLM 系列模型 API
+          GLM Model API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          智谱 AI GLM 系列大模型，中文理解力强，综合能力优秀。GLM 文本类模型可通过 OpenAI Chat Completions、Anthropic Messages 和 Gemini-compatible GenerateContent 三类公共协议调用。
+          Zhipu AI's GLM model family offers strong language understanding and excellent all-round performance. GLM text models can be called via three public protocols: OpenAI Chat Completions, Anthropic Messages, and Responses API.
         </p>
       </div>
 
@@ -121,23 +115,23 @@ export default function GLMApiPage() {
           <code style={{ fontSize: 14 }}>{API_BASE}/v1/chat/completions</code>
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
-          这是默认示例端点。多协议调用方式见 <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>多协议支持</Link>、
-          <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> 和
-          <Link href="/docs/api/gemini" style={{ color: "var(--accent)" }}> Gemini-compatible</Link>。
+          This is the default example endpoint. For multi-protocol usage, see <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>Multi-Protocol Support</Link>,
+          <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link>, and
+          <Link href="/docs/api/responses" style={{ color: "var(--accent)" }}> Responses API</Link>.
         </p>
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>模型列表</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Models</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型 ID</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>上下文</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>首阶输入/百万</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>首阶输出/百万</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Model ID</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Context</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Tier 1 Input/1M</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Tier 1 Output/1M</th>
               </tr>
             </thead>
             <tbody>
@@ -146,8 +140,8 @@ export default function GLMApiPage() {
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{m.id}</code></td>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>{m.desc}</td>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{m.context}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>¥{m.input}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>¥{m.output}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>${m.input}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>${m.output}</td>
                 </tr>
               ))}
             </tbody>
@@ -156,7 +150,7 @@ export default function GLMApiPage() {
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>请求示例</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Request Examples</h2>
         <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
           {(["curl", "python"] as const).map(lang => (
             <button key={lang} onClick={() => setCodeLang(lang)} style={{
@@ -175,9 +169,9 @@ export default function GLMApiPage() {
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>三协议 cURL 示例</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Three-Protocol cURL Examples</h2>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, marginTop: -4, marginBottom: 16 }}>
-          GLM 文本类模型共享同一套 NexusFlow 模型 ID、API Key、余额、用量和扣费记录。
+          GLM text models share the same NexusFlow model IDs, API keys, balance, usage, and billing records.
         </p>
         <div style={{ display: "grid", gap: 14 }}>
           {protocolCurlExamples.map((example) => (
@@ -196,9 +190,9 @@ export default function GLMApiPage() {
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         {[
-          { href: "/docs/api/chat", label: "Chat Completions", desc: "查看完整对话接口文档" },
-          { href: "/docs/quickstart", label: "快速开始", desc: "5 分钟接入指南" },
-          { href: "/pricing", label: "完整定价", desc: "查看所有模型价格" },
+          { href: "/docs/api/chat", label: "Chat Completions", desc: "View the full chat API documentation" },
+          { href: "/docs/quickstart", label: "Quick Start", desc: "5-minute integration guide" },
+          { href: "/pricing", label: "Full Pricing", desc: "View pricing for all models" },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

@@ -4,21 +4,21 @@ import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useState } from "react";
 import Link from "next/link";
 
-const API_BASE = "https://nexusflow.hk";
+const API_BASE = "https://nexusflow.vip";
 
 type ExampleKey = "basic" | "batch" | "similarity";
 type LangKey = "curl" | "python" | "nodejs";
 
 const exampleTabs: { key: ExampleKey; label: string }[] = [
-  { key: "basic", label: "基础调用" },
-  { key: "batch", label: "批量嵌入" },
-  { key: "similarity", label: "相似度计算" },
+  { key: "basic", label: "Basic Invocation" },
+  { key: "batch", label: "Batch Embedding" },
+  { key: "similarity", label: "Similarity Calculation" },
 ];
 
 const requestParams: { name: string; type: string; required: boolean; desc: string }[] = [
-  { name: "model", type: "string", required: true, desc: "嵌入模型 ID，固定值：text-embedding-v4。" },
-  { name: "input", type: "string | string[]", required: true, desc: "要嵌入的文本。可以是单个字符串或字符串数组（批量处理）。" },
-  { name: "encoding_format", type: "string", required: false, desc: '返回向量的编码格式，可选值："float"（默认）或 "base64"。' },
+  { name: "model", type: "string", required: true, desc: "Embedding model ID, fixed value: text-embedding-v4." },
+  { name: "input", type: "string | string[]", required: true, desc: "Text to be embedded. Can be a single string or a string array (batch processing)." },
+  { name: "encoding_format", type: "string", required: false, desc: 'Embedding encoding format in the response. Options: "float" (default) or "base64".' },
 ];
 
 const codeExamples: Record<ExampleKey, Record<LangKey, string>> = {
@@ -28,7 +28,7 @@ const codeExamples: Record<ExampleKey, Record<LangKey, string>> = {
   -H "Content-Type: application/json" \\
   -d '{
     "model": "text-embedding-v4",
-    "input": "nexusflow 是一个统一的大模型 API 平台"
+    "input": "NexusFlow is a unified large model API platform"
   }'`,
     python: `from openai import OpenAI
 
@@ -39,12 +39,12 @@ client = OpenAI(
 
 response = client.embeddings.create(
     model="text-embedding-v4",
-    input="nexusflow 是一个统一的大模型 API 平台",
+    input="NexusFlow is a unified large model API platform",
 )
 
 embedding = response.data[0].embedding
-print(f"向量维度: {len(embedding)}")
-print(f"前 5 个值: {embedding[:5]}")`,
+print(f"Embedding dimensions: {len(embedding)}")
+print(f"First 5 values: {embedding[:5]}")`,
     nodejs: `import OpenAI from "openai";
 
 const client = new OpenAI({
@@ -54,12 +54,12 @@ const client = new OpenAI({
 
 const response = await client.embeddings.create({
   model: "text-embedding-v4",
-  input: "nexusflow 是一个统一的大模型 API 平台",
+  input: "NexusFlow is a unified large model API platform",
 });
 
 const embedding = response.data[0].embedding;
-console.log("向量维度:", embedding.length);
-console.log("前 5 个值:", embedding.slice(0, 5));`,
+console.log("Embedding dimensions:", embedding.length);
+console.log("First 5 values:", embedding.slice(0, 5));`,
   },
   batch: {
     curl: `curl -X POST '${API_BASE}/v1/embeddings' \\
@@ -68,9 +68,9 @@ console.log("前 5 个值:", embedding.slice(0, 5));`,
   -d '{
     "model": "text-embedding-v4",
     "input": [
-      "什么是机器学习？",
-      "深度学习和机器学习的区别",
-      "如何入门人工智能"
+      "What is machine learning?",
+      "The difference between deep learning and machine learning",
+      "How to get started with artificial intelligence"
     ]
   }'`,
     python: `from openai import OpenAI
@@ -80,11 +80,11 @@ client = OpenAI(
     base_url="${API_BASE}/v1",
 )
 
-# 批量嵌入多个文本
+# Batch embedding multiple texts
 texts = [
-    "什么是机器学习？",
-    "深度学习和机器学习的区别",
-    "如何入门人工智能",
+    "What is machine learning?",
+    "The difference between deep learning and machine learning",
+    "How to get started with artificial intelligence",
 ]
 
 response = client.embeddings.create(
@@ -93,9 +93,9 @@ response = client.embeddings.create(
 )
 
 for i, item in enumerate(response.data):
-    print(f"文本 {i}: 维度 {len(item.embedding)}")
+    print(f"Text {i}: dimensions {len(item.embedding)}")
 
-print(f"总 Token: {response.usage.total_tokens}")`,
+print(f"Total tokens: {response.usage.total_tokens}")`,
     nodejs: `import OpenAI from "openai";
 
 const client = new OpenAI({
@@ -104,9 +104,9 @@ const client = new OpenAI({
 });
 
 const texts = [
-  "什么是机器学习？",
-  "深度学习和机器学习的区别",
-  "如何入门人工智能",
+  "What is machine learning?",
+  "The difference between deep learning and machine learning",
+  "How to get started with artificial intelligence",
 ];
 
 const response = await client.embeddings.create({
@@ -115,23 +115,23 @@ const response = await client.embeddings.create({
 });
 
 response.data.forEach((item, i) => {
-  console.log(\`文本 \${i}: 维度 \${item.embedding.length}\`);
+  console.log(\`Text \${i}: dimensions \${item.embedding.length}\`);
 });
 
-console.log("总 Token:", response.usage.total_tokens);`,
+console.log("Total tokens:", response.usage.total_tokens);`,
   },
   similarity: {
-    curl: `# 1. 获取嵌入向量
+    curl: `# 1. Get embedding vectors
 curl -X POST '${API_BASE}/v1/embeddings' \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "text-embedding-v4",
-    "input": ["我喜欢吃苹果", "苹果是我最爱的水果"]
+    "input": ["I like eating apples", "Apples are my favorite fruit"]
   }'
 
-# 2. 使用返回的向量计算余弦相似度
-# 需要在应用层实现向量运算`,
+# 2. Calculate cosine similarity using the returned embeddings
+# This must be done in your application layer`,
     python: `import numpy as np
 from openai import OpenAI
 
@@ -143,12 +143,12 @@ client = OpenAI(
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-# 获取两个文本的嵌入向量
+# Get embeddings for two texts
 response = client.embeddings.create(
     model="text-embedding-v4",
     input=[
-        "我喜欢吃苹果",
-        "苹果是我最爱的水果",
+        "I like eating apples",
+        "Apples are my favorite fruit",
     ],
 )
 
@@ -156,7 +156,7 @@ vec1 = response.data[0].embedding
 vec2 = response.data[1].embedding
 
 similarity = cosine_similarity(vec1, vec2)
-print(f"相似度: {similarity:.4f}")  # 输出接近 1 表示高度相似`,
+print(f"Similarity: {similarity:.4f}")  # Output approaching 1 indicates high similarity`,
     nodejs: `import OpenAI from "openai";
 
 const client = new OpenAI({
@@ -173,14 +173,14 @@ function cosineSimilarity(a: number[], b: number[]): number {
 
 const response = await client.embeddings.create({
   model: "text-embedding-v4",
-  input: ["我喜欢吃苹果", "苹果是我最爱的水果"],
+  input: ["I like eating apples", "Apples are my favorite fruit"],
 });
 
 const vec1 = response.data[0].embedding;
 const vec2 = response.data[1].embedding;
 
 const similarity = cosineSimilarity(vec1, vec2);
-console.log(\`相似度: \${similarity.toFixed(4)}\`);`,
+console.log(\`Similarity: \${similarity.toFixed(4)}\`);`,
   },
 };
 
@@ -197,19 +197,19 @@ export default function EmbeddingsApiPage() {
           background: "#eff6ff", color: "#1d4ed8", fontSize: 11, fontWeight: 700,
           letterSpacing: "0.5px", marginBottom: 12,
         }}>
-          Embeddings / 阿里云
+          Embeddings / Alibaba Cloud
         </span>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 10px" }}>
           Text Embeddings API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          将文本转换为高维向量表示，用于语义搜索、文本聚类、推荐系统等场景。API 为同步调用，请求后立即返回嵌入向量结果，无需轮询。
+          Convert text into high-dimensional embedding representations for semantic search, text clustering, recommendation systems, and other scenarios. The API uses synchronous invocation, returning embedding results immediately after the request, with no polling needed.
         </p>
       </div>
 
       {/* Endpoint */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>请求端点</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Request Endpoint</h2>
         <div style={{
           padding: "10px 16px", background: "var(--bg-elevated)", borderRadius: 8,
           border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8,
@@ -224,15 +224,15 @@ export default function EmbeddingsApiPage() {
 
       {/* Supported models */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>支持的模型</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Supported Models</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>模型 ID</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>供应商</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>向量维度</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>价格</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Model ID</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Provider</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Embedding Dimensions</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Price</th>
               </tr>
             </thead>
             <tbody>
@@ -240,9 +240,9 @@ export default function EmbeddingsApiPage() {
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
                   <code style={{ fontSize: 12 }}>text-embedding-v4</code>
                 </td>
-                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>阿里云</td>
+                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>Alibaba Cloud</td>
                 <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>2048/1536/1024/768/512/256/128/64</td>
-                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", color: "var(--accent)", fontWeight: 600 }}>¥0.5/百万 tokens</td>
+                <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", color: "var(--accent)", fontWeight: 600 }}>¥0.5/million tokens</td>
               </tr>
             </tbody>
           </table>
@@ -251,15 +251,15 @@ export default function EmbeddingsApiPage() {
 
       {/* Request params */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>请求参数</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Request Parameters</h2>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>参数</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 100 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>必选</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Parameters</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 100 }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 50 }}>Required</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -282,7 +282,7 @@ export default function EmbeddingsApiPage() {
 
       {/* Code examples */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>代码示例</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Code Examples</h2>
 
         {/* Example type tabs */}
         <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
@@ -329,7 +329,7 @@ export default function EmbeddingsApiPage() {
 
       {/* Response format */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>响应格式</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Response Format</h2>
 
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto", marginBottom: 20 }}>
           <DocsCodeBlock code={`{
@@ -350,23 +350,23 @@ export default function EmbeddingsApiPage() {
         </div>
 
         {/* Response fields table */}
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>响应字段</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>Response Fields</h3>
         <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>字段</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>类型</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>说明</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Field</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)", width: 70 }}>Type</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Description</th>
               </tr>
             </thead>
             <tbody>
               {[
-                ["object", "string", '固定值 "list"，表示返回的是嵌入向量列表。'],
-                ["data[].embedding", "array", "浮点数向量数组，维度取决于模型。"],
-                ["data[].index", "integer", "对应输入文本的索引位置（从 0 开始）。"],
-                ["model", "string", "本次请求使用的模型 ID。"],
-                ["usage", "object", "Token 使用统计，包含 prompt_tokens 和 total_tokens。"],
+                ["object", "string", 'Fixed value "list", indicating the response is an embedding list.'],
+                ["data[].embedding", "array", "Float embedding array; dimensions depend on the model."],
+                ["data[].index", "integer", "Index position corresponding to the input text (starting from 0)."],
+                ["model", "string", "The model ID used for this request."],
+                ["usage", "object", "Token usage statistics, including prompt_tokens and total_tokens."],
               ].map(([field, type, desc], i) => (
                 <tr key={field} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code style={{ fontSize: 12 }}>{field}</code></td>
@@ -381,13 +381,13 @@ export default function EmbeddingsApiPage() {
 
       {/* Use cases */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>应用场景</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>Application Scenarios</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
           {[
-            { title: "语义搜索", desc: "将查询和文档转换为向量，通过向量相似度实现语义级别的搜索，比关键词匹配更精准。" },
-            { title: "文本聚类", desc: "对大量文本进行聚类分析，自动发现隐含的主题和模式，适用于舆情分析、内容归类。" },
-            { title: "推荐系统", desc: "基于内容向量相似度为用户推荐相关文章、商品或服务，提升个性化体验。" },
-            { title: "异常检测", desc: "通过计算文本向量与正常样本的距离，识别偏离正常模式的异常内容或行为。" },
+            { title: "Semantic Search", desc: "Convert queries and documents into embeddings, then perform semantic-level search via embedding similarity, which is more precise than keyword matching." },
+            { title: "Text Clustering", desc: "Perform clustering analysis on large volumes of text, automatically discovering implicit topics and patterns, suitable for sentiment analysis and content categorization." },
+            { title: "Recommendation Systems", desc: "Recommend related articles, products, or services based on content embedding similarity, improving personalized experience." },
+            { title: "Anomaly Detection", desc: "Identify anomalous content or behavior by calculating the distance between text embeddings and normal samples, detecting deviations from normal patterns." },
           ].map((item) => (
             <div key={item.title} style={{
               padding: 18, border: "1px solid var(--border)",
@@ -403,9 +403,9 @@ export default function EmbeddingsApiPage() {
       {/* Related links */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
         {[
-          { href: "/docs/api/chat", label: "对话补全 API", desc: "查看文本生成接口文档" },
-          { href: "/docs/api/errors", label: "错误码参考", desc: "查看错误码与处理方式" },
-          { href: "/pricing", label: "完整定价", desc: "查看所有模型定价" },
+          { href: "/docs/api/chat", label: "Chat Completions API", desc: "View text generation API documentation" },
+          { href: "/docs/api/errors", label: "Error Code Reference", desc: "View error codes and handling methods" },
+          { href: "/pricing", label: "Full Pricing", desc: "View pricing for all models" },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

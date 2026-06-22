@@ -35,15 +35,15 @@ export interface ModelsPageProps {
 }
 
 const categoryColors: Record<string, string> = {
-  "大语言模型": "#2563eb", "推理模型": "#dc2626", "多模态模型": "#7c3aed",
-  "编程模型": "#0891b2", "图像生成": "#db2777", "视频生成": "#f97316",
-  "向量模型": "#0f766e", "专业模型": "#64748b", "语音模型": "#7c2d12",
+  "LLM": "#2563eb", "Reasoning": "#dc2626", "Multimodal": "#7c3aed",
+  "Coding": "#0891b2", "Image Generation": "#db2777", "Video Generation": "#f97316",
+  "Embedding": "#0f766e", "Specialized": "#64748b", "Speech": "#7c2d12",
 };
 
 const protocolStyles: Record<string, { label: string; color: string; bg: string; border: string }> = {
   "openai/chat-completions": { label: "OpenAI", color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
   "anthropic/messages": { label: "Anthropic", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-  "google/generate-content": { label: "Gemini", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
+  "openai/responses": { label: "Responses", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
   "openai/embeddings": { label: "Embedding", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
   "openai/image-generations": { label: "Image", color: "#be185d", bg: "#fdf2f8", border: "#fbcfe8" },
   "openai/audio-speech": { label: "TTS", color: "#7c2d12", bg: "#fff7ed", border: "#fed7aa" },
@@ -58,7 +58,7 @@ function getProtocolBadges(model: AIModel) {
 export default function ModelsPage({ initialModels, initialProviders, initialCategories }: ModelsPageProps) {
   const [models, setModels] = useState<AIModel[]>(initialModels);
   const [providers, setProviders] = useState<string[]>(initialProviders);
-  const [selectedCategory, setSelectedCategory] = useState("全部");
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedProvider, setSelectedProvider] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("");
@@ -91,24 +91,24 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
       if (res.success) {
         setModels(res.data);
         setProviders(res.providers || []);
-        // 全局分类只在无筛选时更新，避免分类按钮消失
-        if (!selectedProvider && selectedCategory === "全部" && !search) {
+        // Only update global categories when no filter is active, to avoid category buttons disappearing
+        if (!selectedProvider && selectedCategory === "All" && !search) {
           setAllCategories(res.categories || []);
         }
       } else {
         setModels([]);
-        setError(res.message || "模型服务暂时不可用，请稍后重试");
+        setError(res.message || "The model service is temporarily unavailable, please try again later");
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
       setModels([]);
-      setError("无法连接模型服务，请确认后端服务已启动");
+      setError("Unable to connect to the model service, please make sure the backend service is running");
     } finally {
       setLoading(false);
     }
   }
 
-  // 当选了供应商时，只显示该供应商拥有的分类
+  // When a provider is selected, only show the categories that provider has
   const visibleCategories = selectedProvider
     ? [...new Set(models.map((m) => m.category))]
     : allCategories;
@@ -119,7 +119,7 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
 
   function formatTokens(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
-    if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
+    if (n >= 1024) return `${Math.round(n / 1024)}K`;
     return n.toString();
   }
 
@@ -129,15 +129,15 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
       <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
         <div className="section-label">Model Catalog</div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <h1 className="page-title" style={{ margin: 0 }}>模型列表</h1>
+          <h1 className="page-title" style={{ margin: 0 }}>Models</h1>
           {!loading && (
             <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", background: "var(--accent-bg)", padding: "3px 10px", borderRadius: 20, border: "1px solid var(--accent-border)" }}>
-              {models.length} 个模型
+              {models.length} models
             </span>
           )}
         </div>
         <p style={{ fontSize: 13.5, color: "var(--text-secondary)", maxWidth: 720, margin: 0 }}>
-          浏览全系列 AI 模型，涵盖文本、推理、视觉、编程、图像、视频、向量等类别
+          Browse the full range of AI models, covering text, reasoning, vision, coding, image, video, embedding and more
         </p>
       </div>
 
@@ -148,27 +148,27 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
             style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input className="input" style={{ paddingLeft: 36 }} placeholder="搜索模型..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="input" style={{ paddingLeft: 36 }} placeholder="Search models..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <select className="select" style={{ minWidth: 120 }} value={selectedProvider} onChange={(e) => { setSelectedProvider(e.target.value); setSelectedCategory("全部"); }}>
-          <option value="">所有供应商</option>
+        <select className="select" style={{ minWidth: 120 }} value={selectedProvider} onChange={(e) => { setSelectedProvider(e.target.value); setSelectedCategory("All"); }}>
+          <option value="">All providers</option>
           {providers.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
         <select className="select" style={{ minWidth: 120 }} value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="">默认排序</option>
-          <option value="price-asc">价格升序</option>
-          <option value="price-desc">价格降序</option>
-          <option value="context">上下文长度</option>
-          <option value="name">名称</option>
+          <option value="">Default order</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+          <option value="context">Context Length</option>
+          <option value="name">Name</option>
         </select>
       </div>
 
       {/* Category Pills */}
       <div className="model-output-tabs" style={{ display: "flex", gap: 7, marginBottom: 24, flexWrap: "wrap" }}>
-        {["全部", ...visibleCategories].map((cat) => {
+        {["All", ...visibleCategories].map((cat) => {
           const active = selectedCategory === cat;
-          const color = cat !== "全部" ? categoryColors[cat] || "var(--accent)" : "var(--accent)";
-          const count = cat === "全部" ? models.length : categoryCounts[cat] || 0;
+          const color = cat !== "All" ? categoryColors[cat] || "var(--accent)" : "var(--accent)";
+          const count = cat === "All" ? models.length : categoryCounts[cat] || 0;
           return (
             <button key={cat} className="model-filter-pill" onClick={() => setSelectedCategory(cat)} style={{
               padding: "6px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: active ? 650 : 560,
@@ -195,7 +195,7 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" style={{ opacity: 0.8, marginBottom: 12 }}>
             <circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/>
           </svg>
-          <div style={{ fontSize: 14, fontWeight: 650, color: "var(--text-primary)", marginBottom: 6 }}>模型列表加载失败</div>
+          <div style={{ fontSize: 14, fontWeight: 650, color: "var(--text-primary)", marginBottom: 6 }}>Failed to load models</div>
           <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>{error}</div>
           <button
             onClick={() => loadModels()}
@@ -210,7 +210,7 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
               cursor: "pointer",
             }}
           >
-            重试
+            Retry
           </button>
         </div>
       ) : models.length === 0 ? (
@@ -218,7 +218,7 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.3, marginBottom: 12 }}>
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <div style={{ fontSize: 14 }}>没有找到匹配的模型</div>
+          <div style={{ fontSize: 14 }}>No matching models found</div>
         </div>
       ) : (
         <div className="models-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))", gap: 12 }}>
@@ -284,24 +284,24 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
                   {(() => {
                     const isMedia = model.pricingType === "per-second" || model.pricingType === "per-image";
                     if (isMedia) {
-                      const unit = model.pricingType === "per-second" ? "/秒" : "/张";
+                      const unit = model.pricingType === "per-second" ? "/s" : "/image";
                       return [
-                        { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
-                        { label: "价格", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}${unit}`, color: "var(--success)" },
-                        { label: "计费", value: model.pricingType === "per-second" ? "按秒" : "按张", color: "var(--warning)" },
+                        { label: "Context", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
+                        { label: "Price", value: model.promptPrice === 0 ? "Free" : `$${model.promptPrice}${unit}`, color: "var(--success)" },
+                        { label: "Billing", value: model.pricingType === "per-second" ? "Per second" : "Per image", color: "var(--warning)" },
                       ];
                     }
                     if (model.tokenPricingTiers && model.tokenPricingTiers.length > 0) {
                       return [
-                        { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
-                        { label: "首阶输入", value: `¥${model.promptPrice}/M`, color: "var(--success)" },
-                        { label: "首阶输出", value: `¥${model.completionPrice}/M`, color: "var(--warning)" },
+                        { label: "Context", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
+                        { label: "Input (tier 1)", value: `$${model.promptPrice}/M`, color: "var(--success)" },
+                        { label: "Output (tier 1)", value: `$${model.completionPrice}/M`, color: "var(--warning)" },
                       ];
                     }
                     return [
-                      { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
-                      { label: "输入", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}/M`, color: "var(--success)" },
-                      { label: "输出", value: model.completionPrice === 0 ? "免费" : `¥${model.completionPrice}/M`, color: "var(--warning)" },
+                      { label: "Context", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
+                      { label: "Input", value: model.promptPrice === 0 ? "Free" : `$${model.promptPrice}/M`, color: "var(--success)" },
+                      { label: "Output", value: model.completionPrice === 0 ? "Free" : `$${model.completionPrice}/M`, color: "var(--warning)" },
                     ];
                   })().map((s) => (
                     <div key={s.label}>

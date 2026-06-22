@@ -22,7 +22,7 @@ router.post("/completions", async (req: Request, res: Response) => {
   if (!(await hasValidCredential(req))) {
     res.status(401).json({
       success: false,
-      message: "请使用有效的 API Key 或登录会话。",
+      message: "Please use a valid API Key or login session.",
       code: "invalid_credential",
     });
     return;
@@ -30,7 +30,7 @@ router.post("/completions", async (req: Request, res: Response) => {
 
   res.status(410).json({
     success: false,
-    message: "该旧接口已停用。API 调用请使用 /v1/chat/completions，Playground 请使用 /api/playground/chat/completions。",
+    message: "This legacy endpoint has been disabled. For API calls use /v1/chat/completions, for Playground use /api/playground/chat/completions.",
     code: "legacy_endpoint_disabled",
   });
 });

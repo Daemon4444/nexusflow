@@ -125,7 +125,7 @@ export default function RateLimitsPage() {
             <div className="usr-section-header">
               <h3>{t("defaultLimits")}</h3>
               <span style={{ fontSize: 11, color: "var(--text-tertiary)", fontWeight: 400 }}>
-                直接申请新的 QPM / TPM 配额
+                Apply for new QPM / TPM quotas directly
               </span>
             </div>
             <div className="usr-section-body" style={{ padding: "16px 20px" }}>
@@ -191,17 +191,17 @@ export default function RateLimitsPage() {
             }}>
               <div>
                 <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
-                  直接申请限额
+                  Apply for Limits
                 </h3>
                 <p style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
-                  填写模型、QPM 和 TPM 后直接提交给后台审批，不再走工单流程。
+                  Fill in the model, QPM, and TPM then submit for backend approval — no ticket workflow needed.
                 </p>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "var(--text-secondary)" }}>
-                  模型
+                  Model
                   <select value={model} onChange={(e) => setModel(e.target.value)} style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg)", color: "var(--text-primary)" }}>
-                    <option value="*">全部模型（默认限额）</option>
+                    <option value="*">All Models (default limits)</option>
                     {models.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.name} · {item.id}
@@ -218,8 +218,8 @@ export default function RateLimitsPage() {
                   <input value={requestedTpm} onChange={(e) => setRequestedTpm(e.target.value)} placeholder="1000000" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg)" }} />
                 </label>
                 <label style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 6, fontSize: 12, color: "var(--text-secondary)" }}>
-                  申请说明
-                  <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="说明用途、模型范围或申请原因" rows={3} style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg)", resize: "vertical" }} />
+                  Reason
+                  <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Describe your use case, model scope, or reason for the request" rows={3} style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg)", resize: "vertical" }} />
                 </label>
                 <button
                   onClick={submitRequest}
@@ -227,7 +227,7 @@ export default function RateLimitsPage() {
                   className="btn-primary"
                   style={{ fontSize: 13, padding: "9px 16px", alignSelf: "end", whiteSpace: "nowrap", opacity: submitting ? 0.7 : 1, gridColumn: "1 / -1" }}
                 >
-                  {submitting ? "提交中..." : "提交申请"}
+                  {submitting ? "Submitting..." : "Submit"}
                 </button>
               </div>
             </div>
@@ -235,17 +235,17 @@ export default function RateLimitsPage() {
 
           <div className="usr-section">
             <div className="usr-section-header">
-              <h3>我的申请</h3>
+              <h3>My Requests</h3>
             </div>
             <div className="usr-section-body" style={{ padding: 0 }}>
               {!data.requests || data.requests.length === 0 ? (
-                <div style={{ padding: 20, color: "var(--text-tertiary)", textAlign: "center" }}>暂无申请记录</div>
+                <div style={{ padding: 20, color: "var(--text-tertiary)", textAlign: "center" }}>No requests yet</div>
               ) : (
                 data.requests.map((request) => (
                   <div key={request.id} className="table-row" style={{ gridTemplateColumns: "1.1fr 0.7fr 0.7fr 0.8fr", alignItems: "start" }}>
                     <div>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" }}>{request.model}</div>
-                      <div style={{ marginTop: 4, fontSize: 11.5, color: "var(--text-tertiary)", lineHeight: 1.6 }}>{request.reason || "无备注"}</div>
+                      <div style={{ marginTop: 4, fontSize: 11.5, color: "var(--text-tertiary)", lineHeight: 1.6 }}>{request.reason || "No note"}</div>
                     </div>
                     <span style={{ fontSize: 12, color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>{request.requested_qpm.toLocaleString()}</span>
                     <span style={{ fontSize: 12, color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>{request.requested_tpm.toLocaleString()}</span>

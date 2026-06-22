@@ -7,67 +7,106 @@ const qwenModels = [
   {
     id: "qwen3.7-max",
     name: "Qwen3.7 Max",
-    desc: "通义千问3.7代旗舰模型，面向智能体时代，编程、办公、长周期自主执行能力全面提升。支持思考模式切换、函数调用和联网搜索。百万级上下文。",
+    desc: "Qwen 3.7-generation flagship model built for the agent era, with comprehensive improvements in coding, office work, and long-horizon autonomous execution. Supports thinking mode toggle, function calling, and web search. 1M context.",
     ctx: "1,000,000",
     maxOutput: "65,536",
-    inputPrice: "¥12",
-    outputPrice: "¥36",
-    tags: ["旗舰", "最新", "思考模式", "智能体"],
-    features: ["函数调用", "思考模式", "联网搜索", "百万上下文"],
+    inputPrice: "$12",
+    outputPrice: "$36",
+    tags: ["Flagship", "New", "Thinking Mode", "Agent"],
+    features: ["Function calling", "Thinking mode", "Web search", "1M context"],
+    isNew: true,
+    isFeatured: true,
+  },
+  {
+    id: "qwen3.7-plus",
+    name: "Qwen3.7 Plus",
+    desc: "Cost-effective Plus model in the Qwen3.7 series. On top of strong text capabilities, it comprehensively upgrades vision-language abilities: it can read the screen and operate a GUI, generate code from visual references, and retain full coding, tool-use, and productivity-workflow agent capabilities. 1M context.",
+    ctx: "1,000,000",
+    maxOutput: "65,536",
+    inputPrice: "$2",
+    outputPrice: "$8",
+    tags: ["Cost-effective", "New", "Multimodal", "Agent"],
+    features: ["Image input", "Function calling", "Thinking mode", "Web search", "1M context"],
     isNew: true,
     isFeatured: true,
   },
   {
     id: "qwen3.6-max-preview",
     name: "Qwen3.6 Max Preview",
-    desc: "Qwen3.6 系列最强预览模型，适合复杂推理、多步骤代码生成和工具型任务。",
+    desc: "The most powerful preview model in the Qwen3.6 series, ideal for complex reasoning, multi-step code generation, and tool-based tasks.",
     ctx: "262,144",
     maxOutput: "65,536",
-    inputPrice: "¥9",
-    outputPrice: "¥54",
-    tags: ["旗舰", "思考模式"],
-    features: ["函数调用", "复杂推理", "代码生成"],
+    inputPrice: "$9",
+    outputPrice: "$54",
+    tags: ["Flagship", "Thinking Mode"],
+    features: ["Function calling", "Complex reasoning", "Code generation"],
     isNew: true,
     isFeatured: true,
   },
   {
     id: "qwen3.6-plus",
     name: "Qwen3.6 Plus",
-    desc: "均衡旗舰模型，支持百万级上下文窗口、函数调用与内置工具，适合大多数生产场景。",
+    desc: "Balanced flagship model supporting a 1M-token context window, function calling, and built-in tools, ideal for most production scenarios.",
     ctx: "1,000,000",
     maxOutput: "65,536",
-    inputPrice: "¥2",
-    outputPrice: "¥12",
-    tags: ["推荐", "均衡"],
-    features: ["图像理解", "函数调用", "代码生成", "百万上下文"],
+    inputPrice: "$2",
+    outputPrice: "$12",
+    tags: ["Recommended", "Balanced"],
+    features: ["Image input", "Function calling", "Code generation", "1M context"],
     isNew: true,
     isFeatured: true,
   },
   {
     id: "qwen3.5-plus",
     name: "Qwen3.5 Plus",
-    desc: "均衡性能模型，适合大多数生产场景。中文能力优秀，响应速度快。",
+    desc: "Balanced performance model, ideal for most production scenarios. Strong language ability and fast responses.",
     ctx: "1,000,000",
     maxOutput: "65,536",
-    inputPrice: "¥0.8",
-    outputPrice: "¥4.8",
-    tags: ["推荐", "均衡"],
-    features: ["图像理解", "函数调用", "代码生成"],
+    inputPrice: "$0.8",
+    outputPrice: "$4.8",
+    tags: ["Recommended", "Balanced"],
+    features: ["Image input", "Function calling", "Code generation"],
     isNew: true,
     isFeatured: true,
   },
   {
     id: "qwen3.5-flash",
     name: "Qwen3.5 Flash",
-    desc: "高速响应模型，适合对延迟敏感的场景。性价比高。",
+    desc: "High-speed response model, ideal for latency-sensitive scenarios. Highly cost-effective.",
     ctx: "1,000,000",
     maxOutput: "65,536",
-    inputPrice: "¥0.2",
-    outputPrice: "¥2",
-    tags: ["快速", "经济"],
-    features: ["函数调用", "低成本"],
+    inputPrice: "$0.2",
+    outputPrice: "$2",
+    tags: ["Fast", "Economical"],
+    features: ["Function calling", "Low cost"],
     isNew: false,
     isFeatured: false,
+  },
+  {
+    id: "qwen3.5-omni-plus",
+    name: "Qwen3.5 Omni Plus",
+    desc: "Flagship omni-modal model supporting any combination of text, image, audio, and video input, with text and speech output. 113 input languages, 55 voices, with web search and voice cloning.",
+    ctx: "262,144",
+    maxOutput: "65,536",
+    inputPrice: "$7",
+    outputPrice: "$40",
+    tags: ["Flagship", "New", "Omni-modal"],
+    features: ["Audio input", "Audio output", "Video input", "Image input", "Web search"],
+    isNew: true,
+    isFeatured: true,
+  },
+  {
+    id: "qwen3.5-omni-flash",
+    name: "Qwen3.5 Omni Flash",
+    desc: "Lightweight omni-modal model supporting any combination of text, image, audio, and video input with text + speech output. A cost-effective omni-modal choice.",
+    ctx: "262,144",
+    maxOutput: "65,536",
+    inputPrice: "$2.2",
+    outputPrice: "$13.3",
+    tags: ["Recommended", "New", "Omni-modal"],
+    features: ["Audio input", "Audio output", "Video input", "Image input", "Web search"],
+    isNew: true,
+    isFeatured: true,
   },
 ];
 
@@ -92,28 +131,28 @@ export default function QwenModelsPage() {
           </div>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-              通义千问系列
+              Qwen Series
             </h1>
             <div style={{ fontSize: 14, color: "var(--text-tertiary)", marginTop: 4 }}>
-              by 阿里云
+              by Alibaba Cloud
             </div>
           </div>
         </div>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 700 }}>
-          通义千问是阿里云自研的大语言模型。当前这里优先展示 Qwen3.6 与 Qwen3.5 系列，
-          它们覆盖长文本、函数调用、代码生成和复杂推理等常见生产场景。文本类模型可通过 OpenAI Chat、Anthropic Messages 和 Gemini-compatible 三类公共协议接入。
+          Qwen is Alibaba Cloud's in-house large language model. This page currently features the Qwen3.6 and Qwen3.5 series,
+          which cover common production scenarios such as long text, function calling, code generation, and complex reasoning. Text models can be accessed via three public protocols: OpenAI Chat, Anthropic Messages, and Responses API.
         </p>
       </div>
 
       <section style={{ marginBottom: 40 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          接入协议
+          Protocols
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[
             { href: "/docs/api/chat", label: "OpenAI Chat", endpoint: "/v1/chat/completions" },
             { href: "/docs/api/anthropic", label: "Anthropic Messages", endpoint: "/v1/messages" },
-            { href: "/docs/api/gemini", label: "Gemini-compatible", endpoint: "/v1beta/models/{model}:generateContent" },
+            { href: "/docs/api/responses", label: "Responses API", endpoint: "/v1/responses" },
           ].map((item) => (
             <Link key={item.label} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{item.label}</div>
@@ -126,14 +165,14 @@ export default function QwenModelsPage() {
       {/* Key features */}
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          核心优势
+          Core Advantages
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {[
-            { icon: "🇨🇳", label: "中文优化", desc: "母语级理解" },
-            { icon: "📚", label: "长文本", desc: "百万上下文" },
-            { icon: "⚡", label: "高性价比", desc: "价格实惠" },
-            { icon: "🔗", label: "生态整合", desc: "阿里云无缝" },
+            { icon: "🌐", label: "Multilingual", desc: "Native-level understanding" },
+            { icon: "📚", label: "Long text", desc: "1M context" },
+            { icon: "⚡", label: "Cost-effective", desc: "Affordable pricing" },
+            { icon: "🔗", label: "Ecosystem", desc: "Seamless with Alibaba Cloud" },
           ].map((f) => (
             <div key={f.label} style={{
               padding: 16,
@@ -153,7 +192,7 @@ export default function QwenModelsPage() {
       {/* Models list */}
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          可用模型
+          Available Models
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {qwenModels.map((model) => (
@@ -184,7 +223,7 @@ export default function QwenModelsPage() {
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   {model.tags.map((tag) => (
-                    <span key={tag} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: tag === "推荐" ? "var(--accent-bg)" : "var(--bg-elevated)", color: tag === "推荐" ? "var(--accent)" : "var(--text-secondary)", fontWeight: 500 }}>
+                    <span key={tag} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, background: tag === "Recommended" ? "var(--accent-bg)" : "var(--bg-elevated)", color: tag === "Recommended" ? "var(--accent)" : "var(--text-secondary)", fontWeight: 500 }}>
                       {tag}
                     </span>
                   ))}
@@ -197,19 +236,19 @@ export default function QwenModelsPage() {
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 16 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>上下文窗口</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Context Window</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{model.ctx}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>最大输出</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Max Output</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>{model.maxOutput}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>输入价格</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Input Price</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--success)" }}>{model.inputPrice}/M</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>输出价格</div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>Output Price</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--success)" }}>{model.outputPrice}/M</div>
                 </div>
               </div>
@@ -229,7 +268,7 @@ export default function QwenModelsPage() {
       {/* Usage example */}
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          使用示例
+          Usage Example
         </h2>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto" }}>
           <DocsCodeBlock code={`from openai import OpenAI
@@ -239,12 +278,12 @@ client = OpenAI(
     base_url="https://nexusflow.hk/v1",
 )
 
-# 使用通义千问处理长文本
+# Use Qwen to process long text
 response = client.chat.completions.create(
     model="qwen3.6-plus",
     messages=[
-        {"role": "system", "content": "你是一个专业的文档分析助手。"},
-        {"role": "user", "content": "请总结以下长文档的主要内容...（此处可输入超长文本）"}
+        {"role": "system", "content": "You are a professional document analysis assistant."},
+        {"role": "user", "content": "Summarize the main points of the following long document... (you can paste very long text here)"}
     ],
     max_tokens=4096,
 )
@@ -256,13 +295,13 @@ print(response.choices[0].message.content)`} />
       {/* Related */}
       <section>
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
-          相关文档
+          Related Docs
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[
-            { href: "/docs/api/chat", label: "对话补全 API", desc: "API 调用方式" },
-            { href: "/docs/models/deepseek", label: "DeepSeek 系列", desc: "对比推理模型" },
-            { href: "/playground", label: "Playground", desc: "在线体验" },
+            { href: "/docs/api/chat", label: "Chat Completions API", desc: "How to call the API" },
+            { href: "/docs/models/deepseek", label: "DeepSeek Series", desc: "Compare reasoning models" },
+            { href: "/playground", label: "Playground", desc: "Try it online" },
           ].map((link) => (
             <Link key={link.href} href={link.href} style={{ padding: 16, background: "var(--bg-elevated)", borderRadius: 8, border: "1px solid var(--border)", textDecoration: "none" }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)", marginBottom: 4 }}>{link.label}</div>

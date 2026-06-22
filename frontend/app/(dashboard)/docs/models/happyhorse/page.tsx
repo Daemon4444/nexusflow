@@ -29,10 +29,10 @@ function Counter({ end, suffix = "", duration = 1200 }: { end: number; suffix?: 
 
 /* ─── Data ─── */
 const highlights = [
-  { value: 15, suffix: "s", label: "最长时长" },
-  { value: 1080, suffix: "p", label: "最高分辨率" },
-  { value: 3, suffix: " 种", label: "画面比例" },
-  { value: 0, suffix: "¥0.9起", label: "每秒价格" },
+  { value: 15, suffix: "s", label: "Max Duration" },
+  { value: 1080, suffix: "p", label: "Max Resolution" },
+  { value: 3, suffix: " ratios", label: "Aspect Ratios" },
+  { value: 0, suffix: "Starting at ¥0.9", label: "Per Second Price" },
 ];
 
 const capabilities = [
@@ -42,8 +42,8 @@ const capabilities = [
         <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
       </svg>
     ),
-    title: "文本生成视频",
-    desc: "用自然语言描述任何场景——电影级运镜、动态镜头推拉、氛围光影——即可在数秒内获得高质量视频片段。支持复杂叙事场景，从一句话到一段完整的视觉故事。",
+    title: "Text-to-Video",
+    desc: "Describe any scene in natural language — cinematic camera work, dynamic push/pull shots, atmospheric lighting — and get a high-quality video clip in seconds. Supports complex narrative scenarios, from a single sentence to a complete visual story.",
   },
   {
     icon: (
@@ -51,8 +51,8 @@ const capabilities = [
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
       </svg>
     ),
-    title: "图片生成视频",
-    desc: "让任何静态图片活起来。上传参考图片，HappyHorse 会赋予它自然的运动轨迹、符合物理规律的动态效果以及场景一致的光影变化。",
+    title: "Image-to-Video",
+    desc: "Bring any static image to life. Upload a reference image, and HappyHorse gives it natural motion trajectories, physics-compliant dynamic effects, and scene-consistent lighting changes.",
   },
   {
     icon: (
@@ -60,8 +60,8 @@ const capabilities = [
         <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
       </svg>
     ),
-    title: "视频编辑",
-    desc: "通过文字指令修改已有视频——更换背景、调整光线、添加或移除元素，同时保持画面时序连贯性。让后期编辑变得像写句话一样简单。",
+    title: "Video Editing",
+    desc: "Modify existing videos via text instructions — change backgrounds, adjust lighting, add or remove elements while maintaining temporal coherence. Making post-production editing as easy as writing a sentence.",
   },
   {
     icon: (
@@ -69,66 +69,66 @@ const capabilities = [
         <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
       </svg>
     ),
-    title: "精细化控制",
-    desc: "自定义时长（5-15 秒）、分辨率（720p/1080p）、画面比例、反向提示词与种子值，实现可复现的确定性输出，满足专业级创作需求。",
+    title: "Fine-Grained Control",
+    desc: "Customize duration (5-15 seconds), resolution (720p/1080p), aspect ratio, negative prompt words, and seed values, ensuring reproducible, deterministic output that meets professional creative needs.",
   },
 ];
 
 const techHighlights = [
   {
-    title: "物理感知运动引擎",
-    desc: "HappyHorse 内置深度物理模拟能力，生成的视频中物体运动轨迹、碰撞反弹、流体飘动等均符合真实世界的物理规律，告别 AI 味生硬感。",
+    title: "Physics-Aware Motion Engine",
+    desc: "HappyHorse has built-in deep physics simulation capabilities. Generated video object movement trajectories, collision bounces, and fluid drifts all follow real-world physics — goodbye to the stiff, artificial AI feel.",
   },
   {
-    title: "电影级画面质感",
-    desc: "采用业界领先的高保真渲染管线，支持浅景深、体积光、动态模糊等专业级视觉效果，输出画面可直接用于影视后期和商业宣传。",
+    title: "Cinematic-Level Visual Texture",
+    desc: "Uses an industry-leading high-fidelity rendering pipeline. Supports shallow depth of field, volumetric lighting, motion blur, and other professional visual effects. Output footage can be directly used for film post-production and commercial promotion.",
   },
   {
-    title: "超强时序一致性",
-    desc: "突破传统视频生成模型的帧间闪烁难题，HappyHorse 在时间维度上保持极高连贯性，面部、纹理、光影在整段视频中自然过渡。",
+    title: "Superior Temporal Consistency",
+    desc: "Breaks through the inter-frame flickering issue of traditional video generation models. HappyHorse maintains extremely high coherence across time dimensions — faces, textures, and lighting transition naturally throughout the entire video.",
   },
   {
-    title: "语义理解深度",
-    desc: "精准解析复杂的多层次文本描述，包括场景构图、镜头运动、情绪氛围和光线风格，做到所写即所见的高度对齐。",
+    title: "Deep Semantic Understanding",
+    desc: "Precisely parses complex multi-level text descriptions, including scene composition, camera movement, emotional atmosphere, and lighting style — achieving high alignment between what you write and what you see.",
   },
 ];
 
 const benchmarks = [
-  { metric: "视频综合质量（VBench）", score: "#1", note: "VBench 综合评分排名第一" },
-  { metric: "运动连贯性", score: "96.2", note: "业界领先的时序一致性表现" },
-  { metric: "文本对齐度", score: "94.8", note: "提示词到画面的精准映射" },
-  { metric: "物理真实感", score: "93.1", note: "自然运动轨迹与光影效果" },
+  { metric: "Video Overall Quality (VBench)", score: "#1", note: "Ranked #1 on VBench overall rating" },
+  { metric: "Motion Consistency", score: "96.2", note: "Industry-leading temporal consistency" },
+  { metric: "Text Alignment", score: "94.8", note: "Precise mapping from prompt to visuals" },
+  { metric: "Physical Realism", score: "93.1", note: "Natural motion trajectories and lighting effects" },
 ];
 
 const useCases = [
-  { title: "短视频 & 社交媒体", desc: "秒级生成高质量短视频内容，适配抖音、小红书、微信视频号等多平台比例，大幅降低内容创作门槛。" },
-  { title: "电商产品展示", desc: "将静态产品图一键转化为动态展示视频，自动生成旋转、特写、场景切换等电商常用运镜。" },
-  { title: "影视预览 & 分镜", desc: "导演和编剧可以用文字快速生成分镜预览视频，在正式拍摄前低成本验证创意方案。" },
-  { title: "教育 & 培训", desc: "将抽象概念可视化，自动生成教学动画、流程演示和科普内容，让知识传达更生动直观。" },
-  { title: "游戏 & 动画", desc: "快速原型化游戏过场动画和角色动态，辅助概念设计和动画预演，加速创意迭代。" },
-  { title: "广告 & 营销", desc: "批量生成多版本广告素材，A/B 测试不同视觉风格和叙事方式，用数据驱动创意优化。" },
+  { title: "Short Video & Social Media", desc: "Generate high-quality short video content in seconds, adapting to Douyin, Xiaohongshu, WeChat Video, and other multi-platform aspect ratios, significantly lowering the creative barrier." },
+  { title: "E-commerce Product Display", desc: "Transform static product images into dynamic display videos with one click. Automatically generate rotation, close-up, and scene-switching camera work commonly used in e-commerce." },
+  { title: "Film Preview & Storyboard", desc: "Directors and screenwriters can quickly generate storyboard preview videos to validate creative ideas at low cost before formal production." },
+  { title: "Education & Training", desc: "Visualize abstract concepts, automatically generate educational animations, process demonstrations, and science popularization content, making knowledge delivery more vivid and intuitive." },
+  { title: "Games & Animation", desc: "Quickly prototype game cutscene animations and character dynamics, assisting concept design and animation pre-visualization, accelerating creative iteration." },
+  { title: "Advertising & Marketing", desc: "Batch generate multi-version advertising materials, A/B testing different visual styles and narrative approaches, using data-driven creative optimization." },
 ];
 
 const publicUpdates = [
   {
     date: "2026-04-10",
-    title: "阿里巴巴确认 HappyHorse 归属",
-    desc: "财新报道，阿里巴巴已确认旗下团队为 HappyHorse 背后的开发者。模型目前处于内测阶段，API 将逐步开放。",
+    title: "Alibaba Confirms HappyHorse Ownership",
+    desc: "Caixin reports that Alibaba has confirmed the team under its umbrella as the developer behind HappyHorse. The model is currently in internal testing, with the API being gradually opened.",
     href: "https://www.caixinglobal.com/2026-04-10/alibaba-unveils-happyhorse-after-ai-model-tops-video-rankings-under-alias-102432775.html",
-    source: "财新全球",
+    source: "Caixin Global",
   },
   {
     date: "2026-03-23",
-    title: "阿里云公布视频生成能力范围",
-    desc: "官方文档列出文生视频、图生视频、参考图视频与视频编辑等完整生成路径，可作为平台接入参考。",
+    title: "Alibaba Cloud Publishes Video Generation Capability Range",
+    desc: "Official documentation lists Text-to-Video, Image-to-Video, Reference-to-Video, and Video Editing as complete generation pathways, serving as platform integration reference.",
     href: "https://www.alibabacloud.com/help/en/model-studio/use-video-generation",
-    source: "阿里云文档",
+    source: "Alibaba Cloud Docs",
   },
 ];
 
 const pricing = [
-  { tier: "720p", price: "¥0.9", unit: "/秒" },
-  { tier: "1080p", price: "¥1.6", unit: "/秒" },
+  { tier: "720p", price: "¥0.9", unit: "/second" },
+  { tier: "1080p", price: "¥1.6", unit: "/second" },
 ];
 
 export default function HappyHorseModelPage() {
@@ -167,13 +167,13 @@ export default function HappyHorseModelPage() {
               background: "linear-gradient(135deg, rgba(99,102,241,0.25), rgba(59,130,246,0.2))",
               color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.25)",
             }}>
-              AI 视频生成
+              AI Video Generation
             </span>
             <span style={{
               padding: "5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 700,
               background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.2)",
             }}>
-              VBench 全球第一
+              VBench World #1
             </span>
             <span style={{ fontSize: 12, color: "rgba(226,232,240,0.5)" }}>by Alibaba</span>
           </div>
@@ -192,13 +192,13 @@ export default function HappyHorseModelPage() {
             fontSize: 17, lineHeight: 1.75, margin: "0 0 10px",
             color: "rgba(226,232,240,0.8)", maxWidth: 640,
           }}>
-            阿里巴巴旗下顶尖 AI 视频生成模型。VBench 综合评分全球第一，具备电影级画面质感、物理感知的运动能力和精细化创作控制。
+            Alibaba's top-tier AI video generation model. VBench overall rating World's #1, featuring cinematic visual quality, physics-aware motion capability, and fine-grained creative control.
           </p>
           <p style={{
             fontSize: 14, lineHeight: 1.7, margin: "0 0 28px",
             color: "rgba(148,163,184,0.7)", maxWidth: 600,
           }}>
-            从文本描述到高品质视频，从静态图片到动态影像——重新定义 AI 视频创作的可能性。
+            From text descriptions to high-quality video, from static images to dynamic footage — redefining the possibilities of AI video creation.
           </p>
 
           {/* CTA */}
@@ -211,7 +211,7 @@ export default function HappyHorseModelPage() {
               boxShadow: "0 4px 16px rgba(99,102,241,0.3)",
               transition: "all 0.2s",
             }}>
-              在 Playground 体验
+              Try in Playground
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </Link>
             <Link href="/models" style={{
@@ -221,13 +221,13 @@ export default function HappyHorseModelPage() {
               color: "#e2e8f0", fontSize: 14, fontWeight: 500, textDecoration: "none",
               transition: "all 0.2s",
             }}>
-              查看所有模型
+              View All Models
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ═══ 核心数据 ═══ */}
+      {/* ═══ Core Data ═══ */}
       <section style={{
         display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 40,
       }}>
@@ -250,10 +250,10 @@ export default function HappyHorseModelPage() {
         ))}
       </section>
 
-      {/* ═══ 模型能力 ═══ */}
+      {/* ═══ Model Capabilities ═══ */}
       <section style={{ marginBottom: 44 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>模型能力</h2>
-        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse 支持多种视频生成与编辑方式，覆盖从创意到成片的完整流程。</p>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Model Capabilities</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse supports multiple video generation and editing modes, covering the complete workflow from creative concept to finished piece.</p>
         <div className="grid-2-responsive" style={{ display: "grid", gap: 14 }}>
           {capabilities.map((c) => (
             <div key={c.title} style={{
@@ -276,10 +276,10 @@ export default function HappyHorseModelPage() {
         </div>
       </section>
 
-      {/* ═══ 技术亮点 ═══ */}
+      {/* ═══ Technical Highlights ═══ */}
       <section style={{ marginBottom: 44 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>技术亮点</h2>
-        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse 在视频生成核心技术上的突破与创新。</p>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Technical Highlights</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse's breakthroughs and innovations in core video generation technology.</p>
         <div className="grid-2-responsive" style={{ display: "grid", gap: 14 }}>
           {techHighlights.map((t) => (
             <div key={t.title} style={{
@@ -293,10 +293,10 @@ export default function HappyHorseModelPage() {
         </div>
       </section>
 
-      {/* ═══ 评测数据 ═══ */}
+      {/* ═══ Benchmark Data ═══ */}
       <section style={{ marginBottom: 44 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>评测表现</h2>
-        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>在业界权威视频生成评测基准上的成绩。</p>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Benchmark Performance</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>Scores on industry-authoritative video generation benchmark standards.</p>
         <div style={{
           borderRadius: 16, overflow: "hidden",
           border: "1px solid var(--border)",
@@ -324,10 +324,10 @@ export default function HappyHorseModelPage() {
         </div>
       </section>
 
-      {/* ═══ 应用场景 ═══ */}
+      {/* ═══ Use Cases ═══ */}
       <section style={{ marginBottom: 44 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>应用场景</h2>
-        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse 正在改变这些领域的内容创作方式。</p>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Use Cases</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse is primarily transforming content creation workflows in these fields.</p>
         <div className="grid-3-responsive" style={{ display: "grid", gap: 14 }}>
           {useCases.map((u) => (
             <div key={u.title} style={{
@@ -341,10 +341,10 @@ export default function HappyHorseModelPage() {
         </div>
       </section>
 
-      {/* ═══ 定价 ═══ */}
+      {/* ═══ Pricing ═══ */}
       <section style={{ marginBottom: 44 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>模型定价</h2>
-        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>按生成视频时长计费，无隐藏费用。</p>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Model Pricing</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>Billed by generated video duration, with no hidden costs.</p>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
           {pricing.map((p) => (
             <div key={p.tier} style={{
@@ -370,10 +370,10 @@ export default function HappyHorseModelPage() {
         </div>
       </section>
 
-      {/* ═══ 公开动态 ═══ */}
+      {/* ═══ Public Updates ═══ */}
       <section style={{ marginBottom: 44 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>最新动态</h2>
-        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse 相关的公开资讯与进展。</p>
+        <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 6px" }}>Latest Updates</h2>
+        <p style={{ fontSize: 14, color: "var(--text-tertiary)", margin: "0 0 20px" }}>HappyHorse-related public information and progress.</p>
         <div style={{ display: "grid", gap: 12 }}>
           {publicUpdates.map((item) => (
             <a
@@ -401,13 +401,13 @@ export default function HappyHorseModelPage() {
         </div>
       </section>
 
-      {/* ═══ 相关链接 ═══ */}
+      {/* ═══ Related Links ═══ */}
       <section>
         <div className="grid-3-responsive" style={{ display: "grid", gap: 14 }}>
           {[
-            { href: "/docs/api/videos", label: "视频接入文档", desc: "查看统一视频任务接入方式" },
-            { href: "/docs/api/tasks", label: "异步任务 API", desc: "任务提交与状态轮询指南" },
-            { href: "/playground", label: "在线体验", desc: "在 Playground 中试用 HappyHorse" },
+            { href: "/docs/api/videos", label: "Video Integration Docs", desc: "View unified video task integration method" },
+            { href: "/docs/api/tasks", label: "Async Tasks API", desc: "Task submission and status polling guide" },
+            { href: "/playground", label: "Try Online", desc: "Try HappyHorse in Playground" },
           ].map((item) => (
             <Link
               key={item.href}
@@ -421,7 +421,7 @@ export default function HappyHorseModelPage() {
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>
               <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-tertiary)" }}>{item.desc}</div>
               <div style={{ marginTop: 10, fontSize: 12, color: "#6366f1", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                查看详情
+                View Details
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </div>
             </Link>

@@ -46,21 +46,21 @@ interface DashboardData {
 }
 
 const TIME_RANGES: { key: TimeRange; label: string }[] = [
-  { key: "1h", label: "1小时" },
-  { key: "3h", label: "3小时" },
-  { key: "6h", label: "6小时" },
-  { key: "24h", label: "24小时" },
-  { key: "7d", label: "7天" },
-  { key: "30d", label: "30天" },
+  { key: "1h", label: "1h" },
+  { key: "3h", label: "3h" },
+  { key: "6h", label: "6h" },
+  { key: "24h", label: "24h" },
+  { key: "7d", label: "7d" },
+  { key: "30d", label: "30d" },
 ];
 
 const RANGE_LABELS: Record<TimeRange, string> = {
-  "1h": "最近1小时",
-  "3h": "最近3小时",
-  "6h": "最近6小时",
-  "24h": "最近24小时",
-  "7d": "最近7天",
-  "30d": "最近30天",
+  "1h": "Last 1 hour",
+  "3h": "Last 3 hours",
+  "6h": "Last 6 hours",
+  "24h": "Last 24 hours",
+  "7d": "Last 7 days",
+  "30d": "Last 30 days",
 };
 
 const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#64748b"];
@@ -97,9 +97,9 @@ export default function AdminDashboard() {
     })
       .then((res: any) => {
         if (res.success) setData(res.data);
-        else setError(res.message || "加载失败");
+        else setError(res.message || "Failed to load");
       })
-      .catch(() => { if (!controller.signal.aborted) setError("网络错误"); })
+      .catch(() => { if (!controller.signal.aborted) setError("Network error"); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, []);
@@ -116,7 +116,7 @@ export default function AdminDashboard() {
     <>
       {/* Header with time range selector */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>监控大盘</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>Operations Dashboard</h1>
         <div style={{ display: "flex", gap: 4, background: "#f1f5f9", borderRadius: 10, padding: 3 }}>
           {TIME_RANGES.map((tr) => (
             <button
@@ -144,7 +144,7 @@ export default function AdminDashboard() {
 
       {loading ? (
         <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>
-          <div style={{ fontSize: 14 }}>加载监控数据中...</div>
+          <div style={{ fontSize: 14 }}>Loading monitoring data...</div>
         </div>
       ) : error ? (
         <div style={{ padding: 20, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, color: "#991b1b" }}>
@@ -177,12 +177,12 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
   }));
 
   const kpiCards = [
-    { label: `${rangeLabel}请求`, value: period.requests.toLocaleString(), sub: `总计 ${formatNumber(overview.totalRequests)}`, color: "#6366f1" },
-    { label: "成功率", value: `${period.successRate}%`, sub: `全局 ${overview.successRate}%`, color: period.successRate >= 95 ? "#22c55e" : "#f59e0b" },
-    { label: `${rangeLabel}收入`, value: formatCny(period.cost), sub: `总计 ${formatCny(overview.totalCost)}`, color: "#3b82f6" },
-    { label: "日活 DAU", value: activeUsers.dau, sub: `WAU ${activeUsers.wau}`, color: "#8b5cf6" },
-    { label: "周活 WAU", value: activeUsers.wau, sub: `MAU ${activeUsers.mau}`, color: "#ec4899" },
-    { label: "注册用户", value: activeUsers.totalUsers.toLocaleString(), sub: `活跃模型 ${overview.activeModels}`, color: "#14b8a6" },
+    { label: `${rangeLabel} Requests`, value: period.requests.toLocaleString(), sub: `Total ${formatNumber(overview.totalRequests)}`, color: "#6366f1" },
+    { label: "Success Rate", value: `${period.successRate}%`, sub: `Global ${overview.successRate}%`, color: period.successRate >= 95 ? "#22c55e" : "#f59e0b" },
+    { label: `${rangeLabel} Revenue`, value: formatCny(period.cost), sub: `Total ${formatCny(overview.totalCost)}`, color: "#3b82f6" },
+    { label: "DAU", value: activeUsers.dau, sub: `WAU ${activeUsers.wau}`, color: "#8b5cf6" },
+    { label: "WAU", value: activeUsers.wau, sub: `MAU ${activeUsers.mau}`, color: "#ec4899" },
+    { label: "Registered Users", value: activeUsers.totalUsers.toLocaleString(), sub: `Active Models ${overview.activeModels}`, color: "#14b8a6" },
   ];
 
   return (
@@ -202,7 +202,7 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
         {/* Request Trend */}
         <div style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 16 }}>请求趋势（{rangeLabel}）</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 16 }}>Request Trend ({rangeLabel})</div>
           {mounted ? (
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
@@ -217,8 +217,8 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
                 <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={40} allowDecimals={false} />
                 <Tooltip
                   contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-                  formatter={(value: any, name: any) => [Number(value).toLocaleString(), name === "requests" ? "请求数" : name === "errors" ? "错误数" : String(name)]}
-                  labelFormatter={(label: any) => isHourly ? `时间: ${label}` : `日期: ${label}`}
+                  formatter={(value: any, name: any) => [Number(value).toLocaleString(), name === "requests" ? "Requests" : name === "errors" ? "Errors" : String(name)]}
+                  labelFormatter={(label: any) => isHourly ? `Time: ${label}` : `Date: ${label}`}
                 />
                 <Area type="monotone" dataKey="requests" stroke="#6366f1" strokeWidth={2} fill="url(#reqGrad)" name="requests" />
               </AreaChart>
@@ -229,7 +229,7 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
         {/* Revenue Trend (only for daily ranges) */}
         <div style={{ ...cardStyle, padding: 20 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 16 }}>
-            {isHourly ? `请求错误（${rangeLabel}）` : `收入与消费（${rangeLabel}）`}
+            {isHourly ? `Request Errors (${rangeLabel})` : `Revenue & Consumption (${rangeLabel})`}
           </div>
           {mounted ? (
             isHourly ? (
@@ -246,8 +246,8 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
                   <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={40} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-                    formatter={(value: any) => [Number(value).toLocaleString(), "错误数"]}
-                    labelFormatter={(label: any) => `时间: ${label}`}
+                    formatter={(value: any) => [Number(value).toLocaleString(), "Errors"]}
+                    labelFormatter={(label: any) => `Time: ${label}`}
                   />
                   <Area type="monotone" dataKey="errors" stroke="#ef4444" strokeWidth={2} fill="url(#errGrad)" />
                 </AreaChart>
@@ -260,10 +260,10 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
                   <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={50} />
                   <Tooltip
                     contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-                    formatter={(value: any, name: any) => [formatCny(Number(value)), name === "recharge" ? "充值" : "消费"]}
-                    labelFormatter={(label: any) => `日期: ${label}`}
+                    formatter={(value: any, name: any) => [formatCny(Number(value)), name === "recharge" ? "Recharge" : "Consumption"]}
+                    labelFormatter={(label: any) => `Date: ${label}`}
                   />
-                  <Legend formatter={(v: any) => (v === "recharge" ? "充值" : "消费")} wrapperStyle={{ fontSize: 12 }} />
+                  <Legend formatter={(v: any) => (v === "recharge" ? "Recharge" : "Consumption")} wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="recharge" fill="#22c55e" radius={[4, 4, 0, 0]} name="recharge" />
                   <Bar dataKey="consumption" fill="#ef4444" radius={[4, 4, 0, 0]} name="consumption" />
                 </BarChart>
@@ -277,7 +277,7 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
         {/* Model Distribution */}
         <div style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 16 }}>模型分布（7天 Top 10）</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 16 }}>Model Distribution (7-day Top 10)</div>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             {mounted && modelDist.length > 0 ? (
               <>
@@ -299,7 +299,7 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
                     </Pie>
                     <Tooltip
                       contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-                      formatter={(value: any) => [Number(value).toLocaleString() + " 次", "请求数"]}
+                      formatter={(value: any) => [Number(value).toLocaleString() + " requests", "Requests"]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -314,14 +314,14 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
                 </div>
               </>
             ) : (
-              <div style={{ width: "100%", textAlign: "center", color: "#9ca3af", padding: 40, fontSize: 13 }}>暂无数据</div>
+              <div style={{ width: "100%", textAlign: "center", color: "#9ca3af", padding: 40, fontSize: 13 }}>No data available</div>
             )}
           </div>
         </div>
 
         {/* User Growth */}
         <div style={{ ...cardStyle, padding: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 16 }}>用户增长（30天）</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 16 }}>User Growth (30 days)</div>
           {mounted ? (
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={growthChartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
@@ -336,8 +336,8 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
                 <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={40} allowDecimals={false} />
                 <Tooltip
                   contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-                  formatter={(value: any, name: any) => [Number(value).toLocaleString(), name === "totalUsers" ? "累计用户" : "新增用户"]}
-                  labelFormatter={(label: any) => `日期: ${label}`}
+                  formatter={(value: any, name: any) => [Number(value).toLocaleString(), name === "totalUsers" ? "Total Users" : "New Users"]}
+                  labelFormatter={(label: any) => `Date: ${label}`}
                 />
                 <Area type="monotone" dataKey="totalUsers" stroke="#14b8a6" strokeWidth={2} fill="url(#growthGrad)" name="totalUsers" />
               </AreaChart>
@@ -349,9 +349,9 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
       {/* Row 3: Top Users */}
       <div style={{ ...cardStyle, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>用户排行 Top 10（{rangeLabel}）</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>Top 10 Users ({rangeLabel})</div>
           <div style={{ fontSize: 12, color: "#9ca3af" }}>
-            总充值 {formatCny(revenue.totalRecharge)} / 总消费 {formatCny(revenue.totalConsumption)}
+            Total Recharge {formatCny(revenue.totalRecharge)} / Total Consumption {formatCny(revenue.totalConsumption)}
           </div>
         </div>
         {topUsers.length > 0 ? (
@@ -368,11 +368,11 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
                 borderBottom: "1px solid #f1f5f9",
               }}>
                 <span>#</span>
-                <span>用户</span>
-                <span style={{ textAlign: "right" }}>请求数</span>
-                <span style={{ textAlign: "right" }}>消费</span>
+                <span>User</span>
+                <span style={{ textAlign: "right" }}>Requests</span>
+                <span style={{ textAlign: "right" }}>Cost</span>
                 <span style={{ textAlign: "right" }}>Tokens</span>
-                <span style={{ textAlign: "right" }}>成功率</span>
+                <span style={{ textAlign: "right" }}>Success Rate</span>
               </div>
               {topUsers.map((u, i) => (
                 <div
@@ -413,13 +413,13 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
             </div>
           ) : <div style={{ height: 200 }} />
         ) : (
-          <div style={{ textAlign: "center", color: "#9ca3af", padding: 40, fontSize: 13 }}>暂无用户数据</div>
+          <div style={{ textAlign: "center", color: "#9ca3af", padding: 40, fontSize: 13 }}>No user data available</div>
         )}
       </div>
 
       {/* Row 4: Success Rate Trend */}
       <div style={{ ...cardStyle, padding: 20, marginTop: 16 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 16 }}>成功率趋势（{rangeLabel}）</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "#111827", marginBottom: 16 }}>Success Rate Trend ({rangeLabel})</div>
         {mounted ? (
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={timeSeries} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
@@ -428,8 +428,8 @@ function DashboardContent({ data, range, rangeLabel, isHourly, mounted }: {
               <YAxis domain={[Math.min(80, ...timeSeries.map((t) => t.successRate)), 100]} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={40} unit="%" />
               <Tooltip
                 contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
-                formatter={(value: any) => [`${value}%`, "成功率"]}
-                labelFormatter={(label: any) => isHourly ? `时间: ${label}` : `日期: ${label}`}
+                formatter={(value: any) => [`${value}%`, "Success Rate"]}
+                labelFormatter={(label: any) => isHourly ? `Time: ${label}` : `Date: ${label}`}
               />
               <Area type="monotone" dataKey="successRate" stroke="#22c55e" strokeWidth={2} fill="#22c55e" fillOpacity={0.08} />
             </AreaChart>

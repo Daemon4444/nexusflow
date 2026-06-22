@@ -39,7 +39,7 @@ function LoginPageInner() {
     setError("");
     setInfo("");
     if (!isValidEmail) {
-      setError("请输入正确的邮箱地址");
+      setError("Please enter a valid email address");
       return;
     }
 
@@ -53,10 +53,10 @@ function LoginPageInner() {
         setCountdown(60);
         setInfo(res.message);
       } else {
-        setError(res.message || "发送失败");
+        setError(res.message || "Failed to send");
       }
     } catch {
-      setError("网络错误，请重试");
+      setError("Network error, please try again");
     } finally {
       setSendingCode(false);
     }
@@ -66,16 +66,16 @@ function LoginPageInner() {
     e.preventDefault();
     setError("");
     setInfo("");
-    if (!isValidEmail) { setError("请输入正确的邮箱地址"); return; }
+    if (!isValidEmail) { setError("Please enter a valid email address"); return; }
 
     setSubmitting(true);
     let result;
 
     if (mode === "code") {
-      if (!code || code.length < 4) { setError("请输入验证码"); setSubmitting(false); return; }
+      if (!code || code.length < 4) { setError("Please enter the verification code"); setSubmitting(false); return; }
       result = await login(email, code);
     } else {
-      if (!password || password.length < 6) { setError("密码至少 6 位"); setSubmitting(false); return; }
+      if (!password || password.length < 6) { setError("Password must be at least 6 characters"); setSubmitting(false); return; }
       result = await loginWithPassword(email, password);
     }
 
@@ -113,7 +113,7 @@ function LoginPageInner() {
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10 12L6 8l4-4" />
           </svg>
-          返回
+          Back
         </button>
 
         {/* Logo */}
@@ -122,20 +122,20 @@ function LoginPageInner() {
             <NexusflowLogo size={28} color="var(--text-primary)" />
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6, letterSpacing: "-0.3px" }}>
-            {isRegister ? "注册 nexusflow" : "登录 nexusflow"}
+            {isRegister ? "Sign up for nexusflow" : "Log in to nexusflow"}
           </h1>
           <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            {isRegister ? "输入邮箱，验证后即刻创建账户" : mode === "code" ? "使用邮箱验证码登录" : "使用邮箱和密码登录"}
+            {isRegister ? "Enter your email and verify to create an account instantly" : mode === "code" ? "Log in with email verification code" : "Log in with email and password"}
           </p>
         </div>
 
         <form onSubmit={handleLogin}>
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
 
-            {/* Mode Tabs — 注册语境只有验证码一种方式，隐藏切换 */}
+            {/* Mode Tabs — registration only supports verification code mode, hide toggle */}
             {!isRegister && (
             <div style={{ display: "flex", gap: 0, marginBottom: 20, background: "var(--bg-elevated)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
-              {([["code", "验证码登录"], ["password", "密码登录"]] as const).map(([m, label]) => (
+              {([["code", "Code login"], ["password", "Password login"]] as const).map(([m, label]) => (
                 <button
                   key={m}
                   type="button"
@@ -157,7 +157,7 @@ function LoginPageInner() {
 
             {/* Email */}
             <div style={{ marginBottom: 18 }}>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>邮箱</label>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>Email</label>
               <input
                 className="input"
                 type="email"
@@ -172,12 +172,12 @@ function LoginPageInner() {
             {/* Code or Password */}
             {mode === "code" ? (
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>验证码</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>Verification code</label>
                 <div className="login-code-row" style={{ display: "flex", gap: 8 }}>
                   <input
                     className="input"
                     type="text"
-                    placeholder="请输入验证码"
+                    placeholder="Enter verification code"
                     maxLength={6}
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
@@ -206,17 +206,17 @@ function LoginPageInner() {
                       transition: "all 0.15s",
                     }}
                   >
-                    {sendingCode ? "发送中..." : countdown > 0 ? `${countdown}s` : "获取验证码"}
+                    {sendingCode ? "Sending..." : countdown > 0 ? `${countdown}s` : "Get code"}
                   </button>
                 </div>
               </div>
             ) : (
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>密码</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>Password</label>
                 <input
                   className="input"
                   type="password"
-                  placeholder="请输入密码"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
@@ -258,13 +258,13 @@ function LoginPageInner() {
                 opacity: submitting ? 0.7 : 1,
               }}
             >
-              {isRegister ? (submitting ? "创建中..." : "创建账户") : submitting ? "登录中..." : "登录 / 注册"}
+              {isRegister ? (submitting ? "Creating..." : "Create account") : submitting ? "Logging in..." : "Log in / Sign up"}
             </button>
           </div>
         </form>
 
         <p style={{ textAlign: "center", marginTop: 16, fontSize: 11.5, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
-          {isRegister ? "已有账户？输入邮箱验证码即可直接登录" : mode === "code" ? "首次登录将自动创建账户" : "请先通过验证码登录并设置密码"}
+          {isRegister ? "Already have an account? Enter your email and verification code to log in directly" : mode === "code" ? "First-time login will automatically create an account" : "Please log in via verification code first and set a password"}
         </p>
       </div>
     </div>

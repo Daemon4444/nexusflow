@@ -1,10 +1,10 @@
 /**
  * PostgreSQL Service
  *
- * 替代 SQLite，支持：
- * - 连接池
- * - 更高并发写入
- * - 更丰富的查询能力
+ * Replaces SQLite, supporting:
+ * - Connection pooling
+ * - Higher concurrent writes
+ * - Richer query capabilities
  */
 
 import pg from "pg";
@@ -14,19 +14,19 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// PostgreSQL 连接池配置
+// PostgreSQL connection pool configuration
 const poolConfig = {
   host: process.env.PG_HOST || "localhost",
   port: parseInt(process.env.PG_PORT || "5432"),
   user: process.env.PG_USER || "quadrant",
   password: process.env.PG_PASSWORD || "quadrant_dev_password",
   database: process.env.PG_DATABASE || "quadrant",
-  max: 20, // 最大连接数
+  max: 20, // Maximum connections
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
 };
 
-// 创建连接池
+// Create connection pool
 let pool: pg.Pool | null = null;
 
 export function getPool(): pg.Pool {
@@ -34,17 +34,17 @@ export function getPool(): pg.Pool {
     pool = new Pool(poolConfig);
 
     pool.on("connect", () => {
-      console.log("[PostgreSQL] 新连接建立");
+      console.log("[PostgreSQL] New connection established");
     });
 
     pool.on("error", (err) => {
-      console.error("[PostgreSQL] 连接池错误:", err.message);
+      console.error("[PostgreSQL] Connection pool error:", err.message);
     });
   }
   return pool;
 }
 
-// 关闭连接池
+// Close connection pool
 export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end();
@@ -53,11 +53,11 @@ export async function closePool(): Promise<void> {
 }
 
 // ============================================================
-// 查询辅助函数
+// Query Helper Functions
 // ============================================================
 
 /**
- * 执行查询
+ * Execute query
  */
 export async function query(sql: string, params?: any[]): Promise<pg.QueryResult> {
   const client = getPool();
@@ -65,7 +65,7 @@ export async function query(sql: string, params?: any[]): Promise<pg.QueryResult
 }
 
 /**
- * 执行查询并返回单行
+ * Execute query and return single row
  */
 export async function queryOne<T = any>(sql: string, params?: any[]): Promise<T | null> {
   const result = await query(sql, params);
@@ -73,7 +73,7 @@ export async function queryOne<T = any>(sql: string, params?: any[]): Promise<T 
 }
 
 /**
- * 执行查询并返回多行
+ * Execute query and return multiple rows
  */
 export async function queryMany<T = any>(sql: string, params?: any[]): Promise<T[]> {
   const result = await query(sql, params);
@@ -81,7 +81,7 @@ export async function queryMany<T = any>(sql: string, params?: any[]): Promise<T
 }
 
 /**
- * 执行事务
+ * Execute transaction
  */
 export async function transaction<T>(
   callback: (client: pg.PoolClient) => Promise<T>
@@ -103,7 +103,7 @@ export async function transaction<T>(
 }
 
 // ============================================================
-// 数据访问层 - 用户
+// Data Access Layer - Users
 // ============================================================
 
 export interface UserRow {
@@ -136,7 +136,7 @@ export async function updateUserBalance(id: string, balance: number): Promise<vo
 }
 
 // ============================================================
-// 数据访问层 - API Keys
+// Data Access Layer - API Keys
 // ============================================================
 
 export interface ApiKeyRow {
@@ -188,7 +188,7 @@ export async function updateApiKeyUsage(id: string): Promise<void> {
 }
 
 // ============================================================
-// 数据访问层 - 交易流水
+// Data Access Layer - Transactions
 // ============================================================
 
 export interface TransactionRow {
@@ -235,7 +235,7 @@ export async function getTransactionsByUser(
 }
 
 // ============================================================
-// 数据访问层 - 使用日志
+// Data Access Layer - Usage Logs
 // ============================================================
 
 export interface UsageLogRow {
@@ -282,7 +282,7 @@ export async function getUsageLogsByUser(
 }
 
 // ============================================================
-// 数据访问层 - 异步任务
+// Data Access Layer - Async Tasks
 // ============================================================
 
 export interface AsyncTaskRow {
@@ -352,7 +352,7 @@ export async function failTaskPg(id: string, errorMessage: string): Promise<void
 }
 
 // ============================================================
-// 数据访问层 - Webhooks
+// Data Access Layer - Webhooks
 // ============================================================
 
 export interface WebhookRow {

@@ -10,7 +10,18 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/((?!_next/static|_next/image|favicon.ico).*)",
+        source: "/docs/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, s-maxage=3600, stale-while-revalidate=86400" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      {
+        source: "/((?!_next/static|_next/image|favicon.ico|docs).*)",
         headers: [
           { key: "Cache-Control", value: "no-cache" },
           { key: "X-Content-Type-Options", value: "nosniff" },
@@ -52,10 +63,6 @@ const nextConfig: NextConfig = {
       {
         source: "/v1/:path*",
         destination: `${backend}/v1/:path*`,
-      },
-      {
-        source: "/v1beta/:path*",
-        destination: `${backend}/v1beta/:path*`,
       },
     ];
   },

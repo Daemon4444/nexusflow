@@ -30,6 +30,9 @@ export interface ResolvedUpstream {
   baseUrl: string;
   /** 原生协议 base（图像/视频 /api/v1 风格），由 baseUrl 去掉 compatible-mode 后缀得到 */
   nativeBaseUrl: string;
+  /** Anthropic Messages 兼容协议 base，由 baseUrl 把 /compatible-mode/v1 换成 /apps/anthropic/v1 派生；
+   *  仅 dashscope 这类兼容平台才会设置。设置后 /v1/messages 透传到该端点而不是转换成 chat/completions。 */
+  anthropicCompatBaseUrl?: string;
   apiKey: string;
 }
 
@@ -39,6 +42,11 @@ export type ResolveUpstreamResult =
 
 function toNativeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/compatible-mode\/v1\/?$/, "");
+}
+
+function toAnthropicCompatBaseUrl(baseUrl: string): string | undefined {
+  if (!baseUrl.includes("/compatible-mode/v1")) return undefined;
+  return baseUrl.replace(/\/compatible-mode\/v1\/?$/, "/apps/anthropic/v1");
 }
 
 export async function resolveUpstream(
@@ -98,6 +106,7 @@ export async function resolveUpstream(
           region: channel.region || DEFAULT_REGION,
           baseUrl,
           nativeBaseUrl: toNativeBaseUrl(baseUrl),
+          anthropicCompatBaseUrl: toAnthropicCompatBaseUrl(baseUrl),
           apiKey: channel.api_key || getResolvedProviderApiKey(provider),
         },
       };
@@ -133,6 +142,7 @@ export async function resolveUpstream(
       region: provider.id === "dashscope" ? DEFAULT_REGION : "global",
       baseUrl,
       nativeBaseUrl: toNativeBaseUrl(baseUrl),
+      anthropicCompatBaseUrl: toAnthropicCompatBaseUrl(baseUrl),
       apiKey,
     },
   };

@@ -9,7 +9,7 @@ import { randomUUID } from "crypto";
 
 const router = Router();
 
-const DASHSCOPE_BASE = "https://dashscope.aliyuncs.com/api/v1";
+const DASHSCOPE_BASE = (process.env.DASHSCOPE_BASE_URL ? process.env.DASHSCOPE_BASE_URL.replace(/\/compatible-mode\/v1$/, "/api/v1") : "https://ws-n4w0z49s9nes8pgm.ap-southeast-1.maas.aliyuncs.com/api/v1");
 
 function extractToken(req: Request): string | null {
   const auth = req.headers.authorization;
@@ -22,7 +22,7 @@ function getDashScopePixVerseModel(model: string): string {
   return model === "pixverse-v6" ? "pixverse/pixverse-v6-t2v" : model;
 }
 
-// ── 创建视频生成任务 ──────────────────────────────────────────────
+// ── Create video generation task ──────────────────────────────────────────────
 async function handleVideoSynthesis(req: Request, res: Response) {
   const token = extractToken(req);
   const keyRecord = token ? await validateApiKey(token) : null;
@@ -31,7 +31,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
     return;
   }
 
-  // 余额检查
+  // Balance check
   if (keyRecord.user_id) {
     const owner = await getUserById(keyRecord.user_id);
     if (owner && owner.balance <= 0) {
@@ -48,7 +48,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
   const startTime = Date.now();
 
   if (channel.adapter === "pixverse") {
-    // ── 走 PixVerse 官方 API ──
+    // ── Use PixVerse official API ──
     const prompt = req.body.input?.prompt || req.body.prompt || "";
     const params = req.body.parameters || {};
     const adapted = adaptPixVerseRequest(channel.apiKey, {
@@ -84,7 +84,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
         return;
       }
 
-      // 返回 DashScope 兼容格式
+      // Return DashScope compatible format
       res.json({
         request_id: randomUUID(),
         output: {
@@ -97,7 +97,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
       res.status(500).json({ error: { message: `Upstream request failed: ${sanitizeUpstreamError(err)}` } });
     }
   } else {
-    // ── 走 DashScope（百炼）──
+    // ── Use DashScope (Bailian) ──
     const apiKey = channel.apiKey;
     if (!apiKey) {
       res.status(500).json({ error: { message: "DashScope API key not configured.", code: "upstream_error" } });
@@ -160,7 +160,7 @@ async function handleVideoSynthesis(req: Request, res: Response) {
 router.post("/text", handleVideoSynthesis);
 router.post("/video-synthesis", handleVideoSynthesis);
 
-// ── 图生视频（首帧）──────────────────────────────────────────────
+// ── Image-to-video (first frame) ───────────────────────────────────────────────
 async function handleImageToVideo(req: Request, res: Response) {
   const token = extractToken(req);
   const keyRecord = token ? await validateApiKey(token) : null;
@@ -173,7 +173,7 @@ async function handleImageToVideo(req: Request, res: Response) {
   const channel = await getPixVerseRuntimeChannel();
 
   if (channel.adapter === "pixverse") {
-    // 官方 API 暂时用文生视频端点 + img_url
+    // Official API temporarily uses text-to-video endpoint + img_url
     const prompt = req.body.input?.prompt || req.body.prompt || "";
     const imgUrl = req.body.input?.media?.[0]?.url || req.body.input?.image_url || req.body.image_url || "";
     const params = req.body.parameters || {};
@@ -242,7 +242,7 @@ async function handleImageToVideo(req: Request, res: Response) {
 
 router.post("/image", handleImageToVideo);
 
-// ── 查询任务状态 ─────────────────────────────────────────────────
+// ── Query task status ─────────────────────────────────────────────────
 router.get("/tasks/:taskId", async (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token || !await validateApiKey(token)) {
@@ -255,7 +255,7 @@ router.get("/tasks/:taskId", async (req: Request, res: Response) => {
 
   try {
     if (channel.adapter === "pixverse") {
-      // PixVerse 官方轮询
+      // PixVerse official polling
       const result = await pollPixVerseTask(channel.apiKey, taskId, channel.apiBaseUrl);
       if (result.status === "succeeded") {
         res.json({
@@ -285,7 +285,7 @@ router.get("/tasks/:taskId", async (req: Request, res: Response) => {
         });
       }
     } else {
-      // DashScope 轮询
+      // DashScope polling
       const response = await fetch(`${DASHSCOPE_BASE}/tasks/${taskId}`, {
         headers: { Authorization: `Bearer ${channel.apiKey}` },
       });
@@ -297,7 +297,7 @@ router.get("/tasks/:taskId", async (req: Request, res: Response) => {
   }
 });
 
-// 兼容旧路径
+// Compatible with legacy path
 router.get("/status/:taskId", async (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token || !await validateApiKey(token)) {

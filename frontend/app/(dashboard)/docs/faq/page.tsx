@@ -3,101 +3,103 @@
 import { useState } from "react";
 import Link from "next/link";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://nexusflow.vip";
+
 const faqs = [
   {
-    category: "入门问题",
+    category: "Getting Started",
     questions: [
       {
-        q: "nexusflow 是什么？",
-        a: "nexusflow 是一个统一的大模型 API 平台，整合了通义千问、DeepSeek、GLM、Kimi、MiniMax 等多家供应商的模型。您只需使用一个 API Key，即可访问所有模型，无需分别注册和管理多个账户。",
+        q: "What is NexusFlow?",
+        a: "NexusFlow is a unified AI model API platform that integrates models from Qwen, DeepSeek, GLM, Kimi, MiniMax, and other providers. You only need one API Key to access all models - no need to register and manage multiple accounts separately.",
       },
       {
-        q: "如何开始使用？",
-        a: "1. 注册账户并获取 API Key\n2. 安装 OpenAI SDK（pip install openai）\n3. 设置 base_url 为 https://nexusflow.hk/v1\n4. 使用您的 API Key 调用任意模型\n\n完整教程请查看「快速开始」文档。",
+        q: "How do I get started?",
+        a: "1. Register an account and get an API Key\n2. Install the OpenAI SDK (pip install openai)\n3. Set base_url to ${API_BASE_URL}/v1\n4. Use your API Key to call any model\n\nSee the Quick Start documentation for a complete tutorial.",
       },
       {
-        q: "支持哪些编程语言？",
-        a: "nexusflow 提供与 OpenAI 完全兼容的 API，因此支持所有 OpenAI SDK 支持的语言，包括：Python、Node.js/TypeScript、Go、Java、C#、Ruby、PHP 等。推荐使用官方 OpenAI SDK。",
+        q: "Which programming languages are supported?",
+        a: "NexusFlow provides a fully OpenAI-compatible API, so it supports all languages that the OpenAI SDK supports, including: Python, Node.js/TypeScript, Go, Java, C#, Ruby, PHP, and more. We recommend using the official OpenAI SDK.",
       },
     ],
   },
   {
-    category: "账户与计费",
+    category: "Account & Billing",
     questions: [
       {
-        q: "如何充值？",
-        a: "登录后在「账单管理」页面可以进行充值。当前支持支付宝支付，充值后余额可用于调用任意模型。",
+        q: "How do I add balance?",
+        a: "After logging in, go to the Billing page to add balance. Alipay payment is currently supported. Once added, your balance can be used to call any model.",
       },
       {
-        q: "计费方式是怎样的？",
-        a: "按实际使用量计费，以 Token 为单位。不同模型价格不同，输入和输出分别计价。价格单位为人民币/百万 Token。无最低消费，用多少付多少。",
+        q: "How does billing work?",
+        a: "Billing is based on actual usage, measured in Tokens. Different models have different prices, with input and output priced separately. Prices are in CNY per million Tokens. No minimum spend - pay only for what you use.",
       },
       {
-        q: "余额会过期吗？",
-        a: "不会。充值的余额永久有效，没有使用期限。",
+        q: "Does my balance expire?",
+        a: "No. Added balance is valid permanently with no expiration date.",
       },
       {
-        q: "如何获取发票？",
-        a: "在「账单管理」页面可以申请发票，支持增值税普通发票和专用发票。发票按月度消费金额开具。",
+        q: "How do I get an invoice?",
+        a: "You can request an invoice on the Billing page. Both general VAT invoices and special VAT invoices are supported. Invoices are issued based on monthly consumption.",
       },
     ],
   },
   {
-    category: "API 使用",
+    category: "API Usage",
     questions: [
       {
-        q: "API Key 如何获取？",
-        a: "登录后在「API 密钥」页面创建。建议为不同项目创建独立的 Key，便于管理和监控。注意保管好您的 Key，不要泄露。",
+        q: "How do I get an API Key?",
+        a: "After logging in, create one on the API Keys page. We recommend creating separate Keys for different projects for easier management and monitoring. Keep your Key secure and do not expose it.",
       },
       {
-        q: "请求失败如何处理？",
-        a: "1. 检查 API Key 是否正确\n2. 确认账户余额充足\n3. 查看错误码对应的原因（参考「错误码」文档）\n4. 对于 429 错误，实现重试机制\n5. 如问题持续，联系技术支持",
+        q: "What should I do if a request fails?",
+        a: "1. Check that your API Key is correct\n2. Confirm your account has sufficient balance\n3. Check the error code for the cause (see the Error Codes documentation)\n4. For 429 errors, implement a retry mechanism\n5. If the issue persists, contact technical support",
       },
       {
-        q: "支持流式输出吗？",
-        a: "支持。在请求中设置 stream: true 即可启用流式输出。响应会以 Server-Sent Events (SSE) 格式实时返回，适合聊天等需要即时反馈的场景。",
+        q: "Is streaming output supported?",
+        a: "Yes. Set stream: true in your request to enable streaming output. Responses are returned in real-time via Server-Sent Events (SSE) format, suitable for chat and other scenarios requiring immediate feedback.",
       },
       {
-        q: "有速率限制吗？",
-        a: "有。根据不同套餐有不同的 RPM（每分钟请求数）和 TPM（每分钟 Token 数）限制。详见「限流说明」文档。企业用户可申请更高配额。",
+        q: "Are there rate limits?",
+        a: "Yes. Different plans have different RPM (requests per minute) and TPM (tokens per minute) limits. See the Rate Limits documentation for details. Enterprise users can apply for higher quotas.",
       },
     ],
   },
   {
-    category: "模型选择",
+    category: "Model Selection",
     questions: [
       {
-        q: "应该选择哪个模型？",
-        a: "取决于您的需求：\n• 复杂推理/编程：Qwen3 Max\n• 日常对话/创作：Qwen3.5 Plus（推荐）\n• 中文内容处理：Qwen3.5 系列\n• 高性价比需求：DeepSeek V4 Flash / DeepSeek V3\n• 图像生成：Wan2.2 / Wan2.6 系列\n\n建议在 Playground 中试用后决定。",
+        q: "Which model should I choose?",
+        a: "It depends on your needs:\n• Complex reasoning/coding: Qwen3 Max\n• Daily conversation/creation: Qwen3.5 Plus (recommended)\n• Chinese content processing: Qwen3.5 series\n• High cost-efficiency: DeepSeek V4 Flash / DeepSeek V3\n• Image generation: Wan2.2 / Wan2.6 series\n\nWe recommend trying models in the Playground before deciding.",
       },
       {
-        q: "同一模型为什么有不同版本？",
-        a: "模型供应商会持续更新模型。版本号越高通常能力越强。建议优先使用当前稳定版本，如 qwen3.5-plus、deepseek-v4-flash、deepseek-v4-pro。我们会保留旧版本一段时间以便迁移。",
+        q: "Why are there different versions of the same model?",
+        a: "Model providers continuously update their models. Higher version numbers usually mean stronger capabilities. We recommend using the current stable version, such as qwen3.5-plus, deepseek-v4-flash, deepseek-v4-pro. Older versions are kept for a period to allow migration.",
       },
       {
-        q: "可以同时使用多个模型吗？",
-        a: "可以。您可以在同一个应用中调用任意多个模型，只需在请求中指定不同的 model ID。例如用 Qwen3 Max 做复杂推理，用 DeepSeek V4 Flash 做轻量任务以节省成本。",
+        q: "Can I use multiple models at the same time?",
+        a: "Yes. You can call as many models as you want in the same application by specifying different model IDs in your requests. For example, use Qwen3 Max for complex reasoning and DeepSeek V4 Flash for lightweight tasks to save costs.",
       },
     ],
   },
   {
-    category: "技术问题",
+    category: "Technical Questions",
     questions: [
       {
-        q: "支持 Function Calling 吗？",
-        a: "支持。大多数文本模型都支持 Function Calling / Tool Use。在请求中传入 tools 参数定义可用函数，模型会在需要时返回函数调用请求。",
+        q: "Is Function Calling supported?",
+        a: "Yes. Most text models support Function Calling / Tool Use. Pass the tools parameter in your request to define available functions, and the model will return function call requests when needed.",
       },
       {
-        q: "支持图像输入吗？",
-        a: "支持。Qwen VL 系列和部分多模态模型支持图像理解。在 messages 中使用 image_url 类型的 content 传入图片 URL 或 Base64 编码即可。",
+        q: "Is image input supported?",
+        a: "Yes. The Qwen VL series and some multimodal models support image understanding. Use image_url type content in messages to pass image URLs or Base64-encoded images.",
       },
       {
-        q: "如何处理长文本？",
-        a: "选择支持长上下文的模型：\n• Qwen3.5 Max：100 万 Token\n• Qwen3.5 Plus：100 万 Token\n• 其他主力模型：约 12-20 万 Token\n\n超长文本建议分段处理或使用向量检索。",
+        q: "How do I handle long text?",
+        a: "Choose a model that supports long context:\n• Qwen3.5 Max: 1 million Tokens\n• Qwen3.5 Plus: 1 million Tokens\n• Other mainstream models: approximately 120K-200K Tokens\n\nFor extremely long text, consider segmenting or using vector retrieval.",
       },
       {
-        q: "响应太慢怎么办？",
-        a: "1. 使用更快的模型（如 Haiku、Turbo 系列）\n2. 启用流式输出提升体验\n3. 减少 max_tokens 限制\n4. 优化 prompt 减少不必要的上下文\n5. 考虑使用缓存避免重复请求",
+        q: "What if responses are too slow?",
+        a: "1. Use a faster model (e.g., Haiku, Turbo series)\n2. Enable streaming output for better experience\n3. Reduce max_tokens limit\n4. Optimize prompt to remove unnecessary context\n5. Consider using caching to avoid repeated requests",
       },
     ],
   },
@@ -128,10 +130,10 @@ export default function FAQPage() {
           letterSpacing: "-0.5px",
           fontFamily: "var(--font-serif)",
         }}>
-          常见问题
+          FAQ
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-          在这里找到关于 nexusflow 的常见问题解答。如果没有找到您的问题，请联系技术支持。
+          Find answers to common questions about NexusFlow. If you don't find your question here, please contact technical support.
         </p>
       </div>
 
@@ -227,14 +229,14 @@ export default function FAQPage() {
         textAlign: "center",
       }}>
         <h3 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
-          还有其他问题？
+          Still have questions?
         </h3>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20 }}>
-          联系我们的技术支持团队，我们会尽快为您解答。
+          Contact our technical support team - we'll get back to you as soon as possible.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
           <a
-            href="mailto:support@nexusflow.hk"
+            href="mailto:support@nexusflow.vip"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -252,7 +254,7 @@ export default function FAQPage() {
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
               <polyline points="22,6 12,13 2,6"/>
             </svg>
-            发送邮件
+            Send Email
           </a>
           <Link
             href="/docs/api/errors"
@@ -270,7 +272,7 @@ export default function FAQPage() {
               fontWeight: 500,
             }}
           >
-            查看错误码
+            View Error Codes
           </Link>
         </div>
       </section>
