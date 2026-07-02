@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 interface PricingTier {
   label: string;
@@ -32,6 +33,7 @@ export interface PricingPageProps {
 }
 
 export default function PricingPage({ initialModels }: PricingPageProps) {
+  const { t } = useI18n();
   const [models] = useState<AIModel[]>(initialModels);
   const [selectedCategory, setSelectedCategory] = useState("all");
 
@@ -51,7 +53,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
     <div style={{ padding: "40px", maxWidth: 1100, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 48, textAlign: "center" }}>
-        <div className="section-label">Pricing</div>
+        <div className="section-label">{t("pricingLabel")}</div>
         <h1 style={{
           fontSize: 40,
           fontWeight: 700,
@@ -59,7 +61,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
           letterSpacing: "-1.5px",
           margin: "0 0 16px",
         }}>
-          模型定价
+          {t("pricingTitle")}
         </h1>
         <p style={{
           fontSize: 17,
@@ -68,7 +70,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
           margin: "0 auto 32px",
           lineHeight: 1.6,
         }}>
-          按量计费，无最低消费。文本按百万 token 计费，视频按秒计费（Seedance 系列按火山 token 用量换算，仅成功生成才计费），图像按张计费。
+          {t("pricingSubtitle")}
         </p>
 
         {/* Billing model highlights */}
@@ -80,9 +82,9 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
           marginBottom: 40,
         }}>
           {[
-            { icon: "⚡", label: "Pay as you go", desc: "No subscriptions required" },
-            { icon: "📊", label: "Real-time tracking", desc: "Monitor usage instantly" },
-            { icon: "🔄", label: "No lock-in", desc: "Switch models freely" },
+            { icon: "⚡", label: t("pricePayg"), desc: t("pricePaygDesc") },
+            { icon: "📊", label: t("priceRealtime"), desc: t("priceRealtimeDesc") },
+            { icon: "🔄", label: t("priceNoLockin"), desc: t("priceNoLockinDesc") },
           ].map((item) => (
             <div key={item.label} style={{
               padding: "20px 28px",
@@ -124,7 +126,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
               fontFamily: "inherit",
             }}
           >
-            {cat === "all" ? "All Models" : cat}
+            {cat === "all" ? t("allModels") : cat}
           </button>
         ))}
       </div>
@@ -148,7 +150,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                   fontWeight: 500,
                   color: "var(--text-tertiary)",
                 }}>
-                  {providerModels.length} models
+                  {providerModels.length} {t("modelsCountSuffix")}
                 </span>
               </h3>
 
@@ -171,9 +173,9 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
                 }}>
-                  <span>Model</span>
-                  <span style={{ textAlign: "right" }}>Category</span>
-                  <span style={{ textAlign: "right" }}>Pricing</span>
+                  <span>{t("thModel")}</span>
+                  <span style={{ textAlign: "right" }}>{t("thCategory")}</span>
+                  <span style={{ textAlign: "right" }}>{t("thPricing")}</span>
                 </div>
 
                 {/* Model rows */}
@@ -260,13 +262,13 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                         gap: 4,
                       }}>
                         {model.promptPrice === 0 && model.completionPrice === 0 ? (
-                          <span style={{ fontWeight: 550, color: "var(--success)" }}>Free</span>
+                          <span style={{ fontWeight: 550, color: "var(--success)" }}>{t("freeLabel")}</span>
                         ) : (
                           <>
-                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>输入</span>
+                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>{t("inputShort")}</span>
                             <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>¥{model.promptPrice}</span>
                             <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450, margin: "0 2px" }}>/</span>
-                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>输出</span>
+                            <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>{t("outputShort")}</span>
                             <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>¥{model.completionPrice}</span>
                           </>
                         )}
@@ -295,14 +297,14 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
           margin: "0 0 12px",
           letterSpacing: "-1px",
         }}>
-          Ready to start?
+          {t("ctaReady")}
         </h2>
         <p style={{
           fontSize: 15,
           color: "rgba(255,255,255,0.5)",
           margin: "0 0 28px",
         }}>
-          Create an account and get your API key in seconds.
+          {t("ctaReadyDesc")}
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
           <Link
@@ -318,7 +320,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
               transition: "transform 0.15s",
             }}
           >
-            Get Started Free
+            {t("getStartedFree")}
           </Link>
           <Link
             href="/docs"
@@ -334,7 +336,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
               transition: "border-color 0.15s, color 0.15s",
             }}
           >
-            Read the docs
+            {t("readDocs")}
           </Link>
         </div>
       </div>
@@ -350,7 +352,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
         color: "var(--text-secondary)",
         lineHeight: 1.7,
       }}>
-        <strong style={{ color: "var(--text-primary)" }}>Pricing Notes:</strong>
+        <strong style={{ color: "var(--text-primary)" }}>{t("pricingNotesTitle")}</strong>
         <ul style={{ margin: "12px 0 0", paddingLeft: 20 }}>
           <li>All prices are in CNY (¥), per million tokens unless otherwise noted</li>
           <li><strong>阶梯计费</strong>：通义千问、GLM 系列按单次请求输入 token 总量分档计费，长 prompt 自动适用更高档位价格</li>

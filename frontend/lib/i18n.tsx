@@ -226,6 +226,33 @@ const translations = {
   ticketCreated: { zh: "工单已创建", en: "Ticket created" },
   ticketCreateFailed: { zh: "创建工单失败", en: "Failed to create ticket" },
   reply: { zh: "回复", en: "Reply" },
+
+  // ======== Pricing Page ========
+  pricingLabel: { zh: "定价", en: "Pricing" },
+  pricingTitle: { zh: "模型定价", en: "Model Pricing" },
+  pricingSubtitle: {
+    zh: "按量计费，无最低消费。文本按百万 token 计费，视频按秒计费（Seedance 系列按火山 token 用量换算，仅成功生成才计费），图像按张计费。",
+    en: "Pay as you go, no minimum spend. Text is billed per million tokens, video per second (Seedance series is converted from Volcengine token usage and billed only on successful generation), images per generation.",
+  },
+  pricePayg: { zh: "按量计费", en: "Pay as you go" },
+  pricePaygDesc: { zh: "无需订阅", en: "No subscriptions required" },
+  priceRealtime: { zh: "实时用量追踪", en: "Real-time tracking" },
+  priceRealtimeDesc: { zh: "随时监控用量", en: "Monitor usage instantly" },
+  priceNoLockin: { zh: "自由切换", en: "No lock-in" },
+  priceNoLockinDesc: { zh: "随时更换模型", en: "Switch models freely" },
+  allModels: { zh: "全部模型", en: "All Models" },
+  thModel: { zh: "模型", en: "Model" },
+  thCategory: { zh: "类别", en: "Category" },
+  thPricing: { zh: "价格", en: "Pricing" },
+  modelsCountSuffix: { zh: "个模型", en: "models" },
+  freeLabel: { zh: "免费", en: "Free" },
+  inputShort: { zh: "输入", en: "In" },
+  outputShort: { zh: "输出", en: "Out" },
+  ctaReady: { zh: "准备好开始了吗？", en: "Ready to start?" },
+  ctaReadyDesc: { zh: "注册账号，几秒内获取 API 密钥。", en: "Create an account and get your API key in seconds." },
+  getStartedFree: { zh: "免费开始", en: "Get Started Free" },
+  readDocs: { zh: "查看文档", en: "Read the docs" },
+  pricingNotesTitle: { zh: "计费说明：", en: "Pricing Notes:" },
 } as const;
 
 type TransKey = keyof typeof translations;
