@@ -56,6 +56,8 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
     "qwen-plus",
     "qwen3-coder-plus",
     "qwen-vl-plus",
+    // Seedance 旗舰视频生成（系列最强，醒目展示）
+    "seedance-2.0",
   ];
   const byId = new Map(models.map((model) => [model.id, model]));
   const preferred = preferredIds

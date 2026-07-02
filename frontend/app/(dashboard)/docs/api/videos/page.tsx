@@ -14,6 +14,9 @@ const tabs: { key: TabKey; label: string }[] = [
 ];
 
 const supportedModels = [
+  { id: "seedance-2.0", provider: "Seedance / Volcengine", mode: "文生/首帧/首尾帧/多模态", price720: "¥0.99 / 秒", price1080: "¥2.48 / 秒" },
+  { id: "seedance-1.5-pro", provider: "Seedance / Volcengine", mode: "文生/首帧/首尾帧/样片", price720: "¥0.35 有声 / ¥0.17 无声", price1080: "¥0.78 有声 / ¥0.39 无声" },
+  { id: "seedance-1.0-pro-fast", provider: "Seedance / Volcengine", mode: "文生/首帧", price720: "¥0.09 / 秒", price1080: "¥0.20 / 秒" },
   { id: "wan2.6-t2v", provider: "Wan / Alibaba", mode: "文生视频", price720: "¥0.6 / 秒", price1080: "¥1 / 秒" },
   { id: "wan2.6-i2v", provider: "Wan / Alibaba", mode: "图生视频", price720: "¥0.6 / 秒", price1080: "¥1 / 秒" },
   { id: "happyhorse-1.0-t2v", provider: "HappyHorse / Alibaba", mode: "文生视频", price720: "¥0.9 / 秒", price1080: "¥1.6 / 秒" },
@@ -22,7 +25,7 @@ const supportedModels = [
 ];
 
 const requestParams: { name: string; type: string; required: boolean; desc: string }[] = [
-  { name: "model", type: "string", required: true, desc: "视频模型 ID，见上方「支持模型」表。例如 wan2.6-t2v、happyhorse-1.0-i2v、pixverse-v6。" },
+  { name: "model", type: "string", required: true, desc: "视频模型 ID，见上方「支持模型」表。例如 seedance-2.0（旗舰版，4K HDR 多模态参考）、wan2.6-t2v、happyhorse-1.0-i2v、pixverse-v6。Seedance 系列专属参数详见 /docs/api/seedance。" },
   { name: "prompt", type: "string", required: true, desc: "文本提示词，描述期望生成的视频内容。支持中英文，建议写清主体、动作、镜头与风格。" },
   { name: "resolution", type: "string", required: false, desc: "分辨率档位：720P（默认）或 1080P。不同档位对应不同计费价格。" },
   { name: "ratio", type: "string", required: false, desc: "宽高比。可选值：16:9（默认）、9:16、1:1、4:3、3:4。部分模型可能仅支持子集。" },

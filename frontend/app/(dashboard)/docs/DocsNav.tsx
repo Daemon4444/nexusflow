@@ -13,6 +13,14 @@ interface ProviderItem {
 
 const providers: ProviderItem[] = [
   {
+    key: "seedance",
+    label: "Seedance (火山方舟)",
+    children: [
+      { href: "/docs/models/seedance", label: "模型介绍" },
+      { href: "/docs/api/seedance", label: "API 用法" },
+    ],
+  },
+  {
     key: "qwen",
     label: "通义千问",
     children: [

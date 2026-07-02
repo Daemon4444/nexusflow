@@ -486,6 +486,266 @@ export function adaptHappyHorseRequest(
 }
 
 // ============================================================
+// Seedance Video Adapter (Volcengine Ark)
+// ============================================================
+
+const VOLCENGINE_ARK_BASE = "https://ark.cn-beijing.volces.com/api/v3";
+
+/**
+ * Seedance model ID mapping (nexusflow public ID → upstream model ID).
+ * Override per-ID via env: SEEDANCE_<ID>_MODEL_ID (e.g. SEEDANCE_2_0_MODEL_ID).
+ *
+ * seedance-2.0 / -fast / -mini route through the "volcengine-uaep1" provider
+ * (token.genvia.ai relay, see provider_capacity), whose upstream model IDs use
+ * the relay's own naming (seedance2.0-pro-uaep1 etc.), not the raw Ark model IDs.
+ * The other 3 (1.5-pro / 1.0-pro / 1.0-pro-fast) still route through the direct
+ * "volcengine-ark" provider and keep the real Ark model IDs (currently demo/no key).
+ */
+const SEEDANCE_MODEL_MAP: Record<string, string> = {
+  "seedance-2.0": "seedance2.0-pro-uaep1",
+  "seedance-2.0-fast": "seedance2.0-fast-uaep1",
+  "seedance-2.0-mini": "seedance2.0-mini-uaep1",
+  "seedance-1.5-pro": "doubao-seedance-1-5-pro-251215",
+  "seedance-1.0-pro": "doubao-seedance-1-0-pro-250528",
+  "seedance-1.0-pro-fast": "doubao-seedance-1-0-pro-fast-251015",
+};
+
+function getSeedanceUpstreamModel(modelId: string): string {
+  // 去掉 "seedance-" 前缀，使 env 名与文档一致：seedance-2.0 → SEEDANCE_2_0_MODEL_ID
+  const envKey = `SEEDANCE_${modelId.replace(/^seedance-/, "").toUpperCase().replace(/[.-]/g, "_")}_MODEL_ID`;
+  const envOverride = process.env[envKey];
+  if (envOverride) return envOverride;
+  return SEEDANCE_MODEL_MAP[modelId] || modelId;
+}
+
+/**
+ * Convert unified video request to Volcengine Seedance format.
+ *
+ * Unified body fields (nexusflow → Seedance):
+ * - prompt: text prompt (optional when media provided)
+ * - img_url: first frame image URL
+ * - img_end_url: last frame image URL (enables first+last frame mode)
+ * - img_urls: reference images (0-9, multi-modal ref, 2.0 only)
+ * - video_urls: reference videos (0-3, multi-modal ref, 2.0 only)
+ * - audio_urls: reference audios (0-3, multi-modal ref, 2.0 only)
+ * - resolution: 480p / 720p / 1080p / 4k
+ * - ratio: 16:9 / 4:3 / 1:1 / 3:4 / 9:16 / 21:9 / adaptive
+ * - duration: integer seconds
+ * - seed: integer (not supported on 2.0 series)
+ * - watermark: boolean
+ * - generate_audio | audio: boolean (2.0 and 1.5 Pro only, default true)
+ * - draft: boolean (1.5 Pro only)
+ * - return_last_frame: boolean
+ * - camera_fixed: boolean (not on 2.0, not with reference images)
+ * - service_tier: "default" | "flex" (not on 2.0)
+ * - callback_url: string
+ * - priority: 0-9 (2.0 only)
+ *
+ * Doc: https://www.volcengine.com/docs/82379/1520757
+ */
+export function adaptSeedanceRequest(
+  apiKey: string,
+  body: {
+    model: string;
+    prompt?: string;
+    resolution?: string;
+    ratio?: string;
+    duration?: number;
+    seed?: number;
+    watermark?: boolean;
+    img_url?: string;
+    img_end_url?: string;
+    img_urls?: string[];
+    video_urls?: string[];
+    audio_urls?: string[];
+    audio?: boolean;
+    generate_audio?: boolean;
+    draft?: boolean;
+    return_last_frame?: boolean;
+    camera_fixed?: boolean;
+    service_tier?: string;
+    callback_url?: string;
+    priority?: number;
+  },
+  apiBaseUrl: string = VOLCENGINE_ARK_BASE
+): AdapterResult {
+  const content: any[] = [];
+
+  if (body.prompt) {
+    content.push({ type: "text", text: body.prompt });
+  }
+
+  const isSeedance20 = body.model.startsWith("seedance-2.0");
+  const hasMultiModalRef =
+    isSeedance20 &&
+    ((body.img_urls && body.img_urls.length > 0) ||
+      (body.video_urls && body.video_urls.length > 0) ||
+      (body.audio_urls && body.audio_urls.length > 0));
+
+  if (hasMultiModalRef) {
+    for (const url of body.img_urls || []) {
+      content.push({
+        type: "image_url",
+        image_url: { url },
+        role: "reference_image",
+      });
+    }
+    for (const url of body.video_urls || []) {
+      content.push({
+        type: "video_url",
+        video_url: { url },
+        role: "reference_video",
+      });
+    }
+    for (const url of body.audio_urls || []) {
+      content.push({
+        type: "audio_url",
+        audio_url: { url },
+        role: "reference_audio",
+      });
+    }
+  } else if (body.img_url && body.img_end_url) {
+    content.push({
+      type: "image_url",
+      image_url: { url: body.img_url },
+      role: "first_frame",
+    });
+    content.push({
+      type: "image_url",
+      image_url: { url: body.img_end_url },
+      role: "last_frame",
+    });
+  } else if (body.img_url) {
+    content.push({
+      type: "image_url",
+      image_url: { url: body.img_url },
+      role: "first_frame",
+    });
+  }
+
+  if (content.length === 0) {
+    throw new Error("Seedance request requires at least a prompt or an image input");
+  }
+
+  const requestBody: any = {
+    model: getSeedanceUpstreamModel(body.model),
+    content,
+  };
+
+  if (body.resolution) requestBody.resolution = body.resolution;
+  if (body.ratio) requestBody.ratio = body.ratio;
+  if (body.duration !== undefined && body.duration !== null) {
+    requestBody.duration = body.duration;
+  }
+  if (body.seed !== undefined && body.seed !== null && !isSeedance20) {
+    requestBody.seed = body.seed;
+  }
+  if (body.watermark !== undefined) requestBody.watermark = body.watermark;
+  if (body.camera_fixed !== undefined && !isSeedance20) {
+    requestBody.camera_fixed = body.camera_fixed;
+  }
+  if (body.return_last_frame !== undefined) {
+    requestBody.return_last_frame = body.return_last_frame;
+  }
+  if (body.service_tier && !isSeedance20) {
+    requestBody.service_tier = body.service_tier;
+  }
+  if (body.callback_url) requestBody.callback_url = body.callback_url;
+
+  // generate_audio: only 2.0 series and 1.5 Pro
+  const supportsAudio = isSeedance20 || body.model === "seedance-1.5-pro";
+  if (supportsAudio) {
+    const genAudio =
+      typeof body.generate_audio === "boolean"
+        ? body.generate_audio
+        : typeof body.audio === "boolean"
+          ? body.audio
+          : true;
+    requestBody.generate_audio = genAudio;
+  }
+
+  // draft: 1.5 Pro only
+  if (body.model === "seedance-1.5-pro" && body.draft !== undefined) {
+    requestBody.draft = body.draft;
+  }
+
+  // priority: 2.0 only
+  if (isSeedance20 && body.priority !== undefined) {
+    requestBody.priority = body.priority;
+  }
+
+  return {
+    url: `${apiBaseUrl.replace(/\/$/, "")}/contents/generations/tasks`,
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: requestBody,
+    isAsync: true,
+  };
+}
+
+// ============================================================
+// Volcengine Ark Task Status Polling
+// ============================================================
+
+export async function pollVolcEngineTask(apiKey: string, taskId: string, apiBaseUrl: string = VOLCENGINE_ARK_BASE): Promise<TaskResult> {
+  const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/contents/generations/tasks/${taskId}`, {
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+    },
+  });
+
+  const data: any = await response.json();
+
+  if (!response.ok || data.error) {
+    return {
+      status: "failed",
+      error: data.error?.message || data.message || `Task query failed (HTTP ${response.status})`,
+    };
+  }
+
+  const statusMap: Record<string, TaskResult["status"]> = {
+    "queued": "pending",
+    "running": "running",
+    "succeeded": "succeeded",
+    "failed": "failed",
+    "expired": "failed",
+  };
+
+  const status = statusMap[data.status] || "pending";
+
+  const result: TaskResult = {
+    status,
+    usage: data.usage,
+  };
+
+  if (status === "succeeded") {
+    const content = data.content || {};
+    const output: any = { type: "video" };
+    if (content.video_url) output.video_url = content.video_url;
+    if (content.last_frame_url) output.last_frame_url = content.last_frame_url;
+    if (content.file_url) output.file_url = content.file_url;
+    if (data.duration !== undefined) output.duration = data.duration;
+    if (data.resolution) output.resolution = data.resolution;
+    if (data.ratio) output.ratio = data.ratio;
+    if (data.generate_audio !== undefined) output.generate_audio = data.generate_audio;
+    if (data.seed !== undefined) output.seed = data.seed;
+    if (data.frames !== undefined) output.frames = data.frames;
+    if (data.framespersecond !== undefined) output.framespersecond = data.framespersecond;
+    result.output = output;
+    result.progress = 100;
+  } else if (status === "failed") {
+    result.error = data.error?.message || "Task failed";
+  } else if (status === "running") {
+    result.progress = 50;
+  }
+
+  return result;
+}
+
+// ============================================================
 // Task Status Polling (DashScope)
 // ============================================================
 

@@ -850,6 +850,8 @@ function PlaygroundInner() {
       if (images.length === 1) body.img_url = images[0];
       else if (images.length > 1) body.img_urls = images;
       if (videos.length > 0) body.video_url = videos[0];
+      // Seedance 多模态参考生视频读取数组字段 video_urls（单图仍走首帧 i2v，多图已走 img_urls）
+      if (selectedModel.includes("seedance") && videos.length > 0) body.video_urls = videos;
 
       const res = await fetchAPI("/api/video/generate", {
         method: "POST",
@@ -1001,6 +1003,14 @@ function PlaygroundInner() {
       "wan2.6-r2v-flash": { maxImages: 1, maxVideos: 1, accept: "image/*,video/*", multiple: true, requiredImages: false },
       "wan2.6-t2v": { maxImages: 0, maxVideos: 0, accept: "", multiple: false },
       "wan2.6-t2i": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: false },
+      // Seedance 火山方舟 - 2.0 系列支持多模态参考生视频（0-9 图 + 0-3 视频），图片/视频均可选（文生视频可不传）
+      "seedance-2.0": { maxImages: 9, maxVideos: 3, accept: "image/*,video/*", multiple: true, requiredImages: false },
+      "seedance-2.0-fast": { maxImages: 9, maxVideos: 3, accept: "image/*,video/*", multiple: true, requiredImages: false },
+      "seedance-2.0-mini": { maxImages: 9, maxVideos: 3, accept: "image/*,video/*", multiple: true, requiredImages: false },
+      // Seedance 1.x - 图生视频首帧/首尾帧（最多 2 张），文生视频可不传
+      "seedance-1.5-pro": { maxImages: 2, maxVideos: 0, accept: "image/*", multiple: true, requiredImages: false },
+      "seedance-1.0-pro": { maxImages: 2, maxVideos: 0, accept: "image/*", multiple: true, requiredImages: false },
+      "seedance-1.0-pro-fast": { maxImages: 1, maxVideos: 0, accept: "image/*", multiple: false, requiredImages: false },
     };
     if (configs[modelId]) return configs[modelId];
 
@@ -1773,6 +1783,26 @@ function PlaygroundInner() {
                         <option value="720p">720p</option>
                         <option value="1080p">1080p</option>
                       </>
+                    ) : selectedModel.includes("seedance") ? (
+                      (selectedModel.includes("2.0-fast") || selectedModel.includes("2.0-mini")) ? (
+                        <>
+                          <option value="480p">480p</option>
+                          <option value="720p">720p</option>
+                        </>
+                      ) : selectedModel === "seedance-2.0" ? (
+                        <>
+                          <option value="480p">480p</option>
+                          <option value="720p">720p</option>
+                          <option value="1080p">1080p</option>
+                          <option value="4k">4K HDR</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="480p">480p</option>
+                          <option value="720p">720p</option>
+                          <option value="1080p">1080p</option>
+                        </>
+                      )
                     ) : (
                       <>
                         <option value="720p">720p</option>

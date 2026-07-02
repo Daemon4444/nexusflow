@@ -46,6 +46,17 @@ export const providers: ProviderConfig[] = [
       "happyhorse",
     ],
   },
+  // 火山方舟 (Volcengine Ark) - Seedance 视频生成
+  {
+    id: "volcengine-ark",
+    name: "火山方舟",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    apiKeyEnv: "ARK_API_KEY",
+    models: [
+      // Seedance 系列视频生成
+      "seedance",
+    ],
+  },
 ];
 
 export function findProvider(modelId: string): ProviderConfig | null {
@@ -89,7 +100,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
     contact_email: "ops@nexusflow.hk",
     status: "enabled",
   });
-  await ensureProvider({
+  const volcengineArk = await ensureProvider({
     id: "volcengine-ark",
     name: "火山方舟",
     slug: "volcengine-ark",
@@ -102,7 +113,14 @@ export async function ensureRoutingDefaults(): Promise<void> {
     status: "enabled",
   });
   for (const model of models) {
-    const routedProvider = model.id.startsWith("claude-") ? anthropic : dashscope;
+    let routedProvider: any;
+    if (model.id.startsWith("claude-")) {
+      routedProvider = anthropic;
+    } else if (model.id.startsWith("seedance-")) {
+      routedProvider = volcengineArk;
+    } else {
+      routedProvider = dashscope;
+    }
     if (await getCapacity(routedProvider.id, model.id)) continue;
     const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
     await upsertCapacity(routedProvider.id, model.id, {

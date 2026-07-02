@@ -23,7 +23,7 @@ const requestParams: Record<TabKey, { name: string; type: string; required: bool
     { name: "seed", type: "integer", required: false, desc: "随机种子，固定 seed 可提升可复现性。" },
   ],
   video: [
-    { name: "model", type: "string", required: true, desc: "模型 ID，例如 happyhorse-1.0-t2v。完整列表见模型文档。" },
+    { name: "model", type: "string", required: true, desc: "模型 ID，例如 seedance-2.0（旗舰视频，多模态参考/4K HDR/有声）、happyhorse-1.0-t2v。Seedance 专属参数详见 /docs/api/seedance，完整列表见模型文档。" },
     { name: "prompt", type: "string", required: true, desc: "文本提示词，描述期望生成的视频内容。支持中英文。" },
     { name: "resolution", type: "string", required: false, desc: "分辨率档位：720P（默认）或 1080P。影响计费。" },
     { name: "ratio", type: "string", required: false, desc: "宽高比，如 16:9（默认）、9:16、1:1、4:3、3:4。" },

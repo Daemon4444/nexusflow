@@ -18,10 +18,13 @@ type AsyncCostParams = {
   audio_setting?: unknown;
 };
 
-function normalizeResolution(params: AsyncCostParams): "360p" | "540p" | "720p" | "1080p" {
+function normalizeResolution(params: AsyncCostParams): "360p" | "480p" | "540p" | "720p" | "1080p" | "4k" {
   const raw = String(params.resolution || params.quality || "").toLowerCase();
+  if (raw.includes("4k") || raw.includes("2160")) return "4k";
   if (raw.includes("1080")) return "1080p";
   if (raw.includes("720")) return "720p";
+  if (raw.includes("540")) return "540p";
+  if (raw.includes("480")) return "480p";
   if (raw.includes("360")) return "360p";
   return "540p";
 }
@@ -68,6 +71,39 @@ function getVideoUnitPrice(modelId: string, params: AsyncCostParams): number {
 
   if (modelId.startsWith("happyhorse-1.0-")) {
     return resolution === "1080p" ? 1.6 : 0.9;
+  }
+
+  // ── Seedance 系列 (火山方舟 Volcengine Ark) ──
+  // 火山按 token 计费：token 用量 = 宽 × 高 × 24fps × 时长 / 1024（16:9）。
+  // 下列每秒成本价 = (该分辨率 tokens/秒) × (火山 token 单价 元/百万token) ÷ 1e6，
+  // 单价取在线推理价（来源：volcengine.com/docs/82379/1099320）。零毛利，按需自行加价。
+  // tokens/秒(16:9@24fps)：480p≈9607 / 540p≈12150 / 720p≈21600 / 1080p≈48600 / 4k≈194400
+  // Seedance 2.0 系列：音画同生内置，价格不随有无声变化，仅按分辨率（及是否含输入视频）区分。
+  if (modelId === "seedance-2.0") {
+    // 单价 46(480/720p)/51(1080p)/26(4k) 元/百万token（无输入视频）
+    return ({ "480p": 0.44, "540p": 0.56, "720p": 0.99, "1080p": 2.48, "4k": 5.05 } as Record<string, number>)[resolution] ?? 0.99;
+  }
+  if (modelId === "seedance-2.0-fast") {
+    // 单价 37 元/百万token（无 1080p/4k）
+    return ({ "480p": 0.36, "540p": 0.45, "720p": 0.80 } as Record<string, number>)[resolution] ?? 0.80;
+  }
+  if (modelId === "seedance-2.0-mini") {
+    // 单价 23 元/百万token（无 1080p/4k）
+    return ({ "480p": 0.22, "540p": 0.28, "720p": 0.50 } as Record<string, number>)[resolution] ?? 0.50;
+  }
+  if (modelId === "seedance-1.5-pro") {
+    // 单价 有声16/无声8 元/百万token
+    const silent: Record<string, number> = { "480p": 0.08, "540p": 0.10, "720p": 0.17, "1080p": 0.39 };
+    const voiced: Record<string, number> = { "480p": 0.15, "540p": 0.19, "720p": 0.35, "1080p": 0.78 };
+    return (audio ? voiced : silent)[resolution] ?? (audio ? 0.35 : 0.17);
+  }
+  if (modelId === "seedance-1.0-pro") {
+    // 单价 15 元/百万token（无声）
+    return ({ "480p": 0.14, "540p": 0.18, "720p": 0.32, "1080p": 0.73 } as Record<string, number>)[resolution] ?? 0.32;
+  }
+  if (modelId === "seedance-1.0-pro-fast") {
+    // 单价 4.2 元/百万token
+    return ({ "480p": 0.04, "540p": 0.05, "720p": 0.09, "1080p": 0.20 } as Record<string, number>)[resolution] ?? 0.09;
   }
 
   return 0;

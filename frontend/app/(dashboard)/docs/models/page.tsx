@@ -4,6 +4,16 @@ import Link from "next/link";
 
 const modelCategories = [
   {
+    name: "Seedance 专题",
+    provider: "火山方舟",
+    desc: "火山方舟豆包 Seedance 系列旗舰视频生成模型。系列最厉害的 Seedance 2.0 支持多模态参考生视频、4K HDR 10bit、有声视频与首尾帧控制，业界顶尖水平",
+    href: "/docs/models/seedance",
+    introHref: "/docs/models/seedance",
+    models: ["seedance-2.0 旗舰版", "seedance-2.0-fast", "seedance-1.5-pro", "seedance-1.0-pro-fast"],
+    color: "#7c3aed",
+    tag: "旗舰",
+  },
+  {
     name: "通义千问系列",
     provider: "阿里云",
     desc: "阿里云自研大模型，当前重点展示 Qwen3.6 与 Qwen3.5 系列，中文能力优秀，支持超长上下文",
@@ -173,9 +183,9 @@ export default function ModelsOverviewPage() {
                         fontWeight: 600,
                         padding: "2px 8px",
                         borderRadius: 4,
-                        background: cat.tag === "推荐" ? "var(--success-bg)" : cat.tag === "最新" ? "#dbeafe" : "var(--warning-bg)",
-                        color: cat.tag === "推荐" ? "var(--success)" : cat.tag === "最新" ? "#1d4ed8" : "var(--warning)",
-                        border: cat.tag === "推荐" ? "1px solid var(--success-border)" : cat.tag === "最新" ? "1px solid rgba(29,78,216,.16)" : "1px solid var(--warning-border)",
+                        background: cat.tag === "推荐" ? "var(--success-bg)" : cat.tag === "最新" ? "#dbeafe" : cat.tag === "旗舰" ? "#ede9fe" : "var(--warning-bg)",
+                        color: cat.tag === "推荐" ? "var(--success)" : cat.tag === "最新" ? "#1d4ed8" : cat.tag === "旗舰" ? "#6d28d9" : "var(--warning)",
+                        border: cat.tag === "推荐" ? "1px solid var(--success-border)" : cat.tag === "最新" ? "1px solid rgba(29,78,216,.16)" : cat.tag === "旗舰" ? "1px solid rgba(109,40,217,.18)" : "1px solid var(--warning-border)",
                       }}>
                         {cat.tag}
                       </span>

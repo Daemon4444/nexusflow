@@ -233,13 +233,109 @@ export default function LandingPage() {
           </div>
           <div className="nf-hero-metrics">
             <div><strong>{modelCount}+</strong><span>model options</span></div>
-            <div><strong>¥0.15/s</strong><span>video from</span></div>
-            <div><strong>VBench #1</strong><span>HappyHorse video</span></div>
+            <div><strong>4K HDR</strong><span>Seedance 2.0 video</span></div>
+            <div><strong>¥0.04/s</strong><span>video from</span></div>
           </div>
         </div>
 
         <div className="nf-cylinder-shell" aria-label="Unified model gateway">
           <CylinderCarousel items={carouselModels} />
+        </div>
+      </section>
+
+      {/* ═══ FLAGSHIP — Seedance 2.0（系列最厉害的模型，醒目主推） ═══ */}
+      <section style={{
+        position: "relative",
+        margin: "8px auto 0",
+        maxWidth: 1180,
+        padding: "48px clamp(24px, 5vw, 56px)",
+        borderRadius: 28,
+        overflow: "hidden",
+        background: "linear-gradient(135deg, #07091a 0%, #1e1b4b 46%, #312e81 100%)",
+        border: "1px solid rgba(129,140,248,0.28)",
+        boxShadow: "0 36px 90px rgba(10,12,30,0.45), inset 0 1px 0 rgba(255,255,255,0.07)",
+      }}>
+        <div style={{
+          position: "absolute", top: "-28%", right: "-6%", width: 460, height: 460,
+          borderRadius: "50%", background: "radial-gradient(circle, rgba(167,139,250,0.26), transparent 70%)",
+          filter: "blur(70px)", pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", bottom: "-30%", left: "0%", width: 380, height: 380,
+          borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.2), transparent 70%)",
+          filter: "blur(64px)", pointerEvents: "none",
+        }} />
+
+        <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 40, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ flex: "1 1 440px", minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+              <span style={{
+                padding: "6px 15px", borderRadius: 999, fontSize: 11, fontWeight: 800,
+                letterSpacing: "0.16em", textTransform: "uppercase",
+                background: "linear-gradient(135deg, rgba(167,139,250,0.32), rgba(129,140,248,0.24))",
+                color: "#c7d2fe", border: "1px solid rgba(167,139,250,0.38)",
+              }}>
+                Flagship Video
+              </span>
+              <span style={{
+                padding: "6px 13px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                background: "rgba(250,204,21,0.15)", color: "#fde68a", border: "1px solid rgba(250,204,21,0.3)",
+              }}>
+                系列最强
+              </span>
+              <span style={{ fontSize: 12, color: "rgba(226,232,240,0.5)" }}>by 火山方舟 Volcengine Ark</span>
+            </div>
+
+            <h2 style={{
+              fontSize: "clamp(36px, 5vw, 52px)", lineHeight: 1.05, fontWeight: 800,
+              letterSpacing: "-0.04em", margin: "0 0 16px",
+              background: "linear-gradient(135deg, #f8fafc 0%, #c7d2fe 48%, #a78bfa 100%)",
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+            }}>
+              豆包 Seedance 2.0
+            </h2>
+            <p style={{ fontSize: 16, lineHeight: 1.75, color: "rgba(226,232,240,0.85)", margin: "0 0 14px", maxWidth: 560 }}>
+              Seedance 系列最厉害的旗舰视频生成模型。多模态参考生视频（0-9 图 + 0-3 视频 + 0-3 音频）、4K HDR 10bit 输出、有声视频自动生成、首尾帧控制，业界顶尖水平——通过 NexusFlow 统一 <code style={{ fontFamily: "var(--font-mono, monospace)", color: "#c7d2fe" }}>/v1/tasks</code> 接口即可调用。
+            </p>
+            <p style={{ fontSize: 13.5, lineHeight: 1.7, color: "rgba(148,163,184,0.78)", margin: "0 0 28px", maxWidth: 540 }}>
+              从文本到电影级视频，从静态图片到动态影像，从多模态素材到融合成片。按火山 token 用量计费，与 wan2.6、HappyHorse、PixVerse 同协议，仅成功生成才计费。
+            </p>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <Link href="/docs/models/seedance" style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "13px 28px", borderRadius: 12,
+                background: "linear-gradient(135deg, #818cf8, #6366f1)",
+                color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none",
+                boxShadow: "0 6px 20px rgba(99,102,241,0.4)",
+              }}>
+                了解 Seedance
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </Link>
+              <Link href="/docs/api/seedance" style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "13px 24px", borderRadius: 12,
+                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)",
+                color: "#e2e8f0", fontSize: 14, fontWeight: 500, textDecoration: "none",
+              }}>
+                API 文档
+              </Link>
+            </div>
+          </div>
+
+          <div style={{ flex: "0 0 auto", display: "grid", gridTemplateColumns: "repeat(2, minmax(96px, auto))", gap: "16px 32px" }}>
+            {[
+              { v: "4K", l: "HDR 10bit 输出" },
+              { v: "15s", l: "最长视频时长" },
+              { v: "9+", l: "多模态参考图" },
+              { v: "♪", l: "有声视频自动生成" },
+            ].map((s) => (
+              <div key={s.l} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 30, fontWeight: 800, color: "#c7d2fe", letterSpacing: "-1px" }}>{s.v}</div>
+                <div style={{ fontSize: 11.5, color: "rgba(226,232,240,0.58)", marginTop: 4 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

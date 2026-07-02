@@ -39,11 +39,11 @@ const quickLinks = [
 ];
 
 const popularModels = [
-  { name: "Qwen3.5 Omni Plus", provider: "阿里云", desc: "旗舰全模态，支持音视频输入输出", tag: "最新" },
+  { name: "Seedance 2.0", provider: "火山方舟", desc: "Seedance 系列最厉害的旗舰模型，4K HDR 多模态参考生视频", tag: "旗舰" },
+  { name: "Seedance 1.5 Pro", provider: "火山方舟", desc: "样片模式 + adaptive 智能宽高比，性价比之选", tag: "最新" },
   { name: "HappyHorse 1.0", provider: "Alibaba", desc: "视频生成专题页与任务链路接入说明", tag: null },
   { name: "Qwen3 Max", provider: "阿里云", desc: "旗舰推理与复杂任务处理", tag: "推荐" },
-  { name: "Qwen3.5 Plus", provider: "阿里云", desc: "性价比之选，均衡高效", tag: "热门" },
-  { name: "DeepSeek R1", provider: "DeepSeek", desc: "开源推理，代码专长", tag: null },
+  { name: "Claude Opus 4.7", provider: "Anthropic", desc: "顶级推理与代码能力，百万上下文", tag: null },
 ];
 
 const apiEndpoints = [
@@ -77,9 +77,92 @@ export default function DocsPage() {
           nexusflow 开发者文档
         </h1>
         <p style={{ fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 600 }}>
-          一站式接入通义千问、DeepSeek、GLM、Kimi、HappyHorse 等模型。支持 OpenAI Chat、Anthropic Messages、Responses API 三类协议，统一计费、密钥和监控。
+          一站式接入通义千问、DeepSeek、GLM、Kimi、HappyHorse、Seedance 等模型。支持 OpenAI Chat、Anthropic Messages、Responses API 三类协议，统一计费、密钥和监控。
         </p>
       </div>
+
+      {/* Seedance 旗舰 Banner */}
+      <section style={{
+        position: "relative",
+        padding: "40px 36px",
+        borderRadius: 20,
+        marginBottom: 48,
+        overflow: "hidden",
+        background: "linear-gradient(135deg, #0a0e1a 0%, #1e1b4b 45%, #312e81 100%)",
+        border: "1px solid rgba(129,140,248,0.25)",
+        boxShadow: "0 24px 60px rgba(15,23,42,0.25), inset 0 1px 0 rgba(255,255,255,0.06)",
+      }}>
+        <div style={{
+          position: "absolute", top: "-20%", right: "-5%", width: 360, height: 360,
+          borderRadius: "50%", background: "radial-gradient(circle, rgba(129,140,248,0.22), transparent 70%)",
+          filter: "blur(60px)",
+        }} />
+        <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 32, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ flex: "1 1 380px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+              <span style={{
+                padding: "5px 14px", borderRadius: 999, fontSize: 11, fontWeight: 800,
+                letterSpacing: "0.14em", textTransform: "uppercase",
+                background: "linear-gradient(135deg, rgba(167,139,250,0.3), rgba(129,140,248,0.22))",
+                color: "#c7d2fe", border: "1px solid rgba(167,139,250,0.35)",
+              }}>
+                旗舰视频生成
+              </span>
+              <span style={{
+                padding: "5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                background: "rgba(250,204,21,0.14)", color: "#fde68a", border: "1px solid rgba(250,204,21,0.25)",
+              }}>
+                系列最强
+              </span>
+              <span style={{ fontSize: 12, color: "rgba(226,232,240,0.5)" }}>by 火山方舟</span>
+            </div>
+            <h2 style={{
+              fontSize: 32, fontWeight: 800, lineHeight: 1.1, letterSpacing: "-0.03em",
+              margin: "0 0 12px",
+              background: "linear-gradient(135deg, #f8fafc 0%, #c7d2fe 50%, #a78bfa 100%)",
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+            }}>
+              豆包 Seedance 2.0 旗舰版
+            </h2>
+            <p style={{ fontSize: 15, lineHeight: 1.7, color: "rgba(226,232,240,0.82)", margin: "0 0 20px", maxWidth: 540 }}>
+              Seedance 系列最厉害的模型。多模态参考生视频（0-9 图 + 0-3 视频 + 0-3 音频）、4K HDR 10bit 输出、有声视频自动生成、首尾帧图生视频，业界顶尖水平。
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Link href="/docs/models/seedance" style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "11px 22px", borderRadius: 10,
+                background: "linear-gradient(135deg, #818cf8, #6366f1)",
+                color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none",
+                boxShadow: "0 4px 16px rgba(99,102,241,0.35)",
+              }}>
+                查看模型介绍
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </Link>
+              <Link href="/docs/api/seedance" style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "11px 20px", borderRadius: 10,
+                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)",
+                color: "#e2e8f0", fontSize: 14, fontWeight: 500, textDecoration: "none",
+              }}>
+                API 接入文档
+              </Link>
+            </div>
+          </div>
+          <div style={{ flex: "0 0 auto", display: "grid", gridTemplateColumns: "repeat(2, auto)", gap: "10px 28px" }}>
+            {[
+              { v: "4K", l: "HDR 10bit" },
+              { v: "15s", l: "最长时长" },
+              { v: "9+", l: "参考图输入" },
+              { v: "✓", l: "有声视频" },
+            ].map((s) => (
+              <div key={s.l} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: "#c7d2fe", letterSpacing: "-0.5px" }}>{s.v}</div>
+                <div style={{ fontSize: 11, color: "rgba(226,232,240,0.55)", marginTop: 2 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section style={{ marginBottom: 56 }}>
         <div style={{
@@ -226,9 +309,9 @@ export default function DocsPage() {
                       fontWeight: 600,
                       padding: "2px 8px",
                       borderRadius: 4,
-                      background: model.tag === "推荐" ? "var(--success-bg)" : model.tag === "最新" ? "#dbeafe" : "var(--warning-bg)",
-                      color: model.tag === "推荐" ? "var(--success)" : model.tag === "最新" ? "#1d4ed8" : "var(--warning)",
-                      border: model.tag === "推荐" ? "1px solid var(--success-border)" : model.tag === "最新" ? "1px solid rgba(29,78,216,.16)" : "1px solid var(--warning-border)",
+                      background: model.tag === "推荐" ? "var(--success-bg)" : model.tag === "最新" ? "#dbeafe" : model.tag === "旗舰" ? "#ede9fe" : "var(--warning-bg)",
+                      color: model.tag === "推荐" ? "var(--success)" : model.tag === "最新" ? "#1d4ed8" : model.tag === "旗舰" ? "#6d28d9" : "var(--warning)",
+                      border: model.tag === "推荐" ? "1px solid var(--success-border)" : model.tag === "最新" ? "1px solid rgba(29,78,216,.16)" : model.tag === "旗舰" ? "1px solid rgba(109,40,217,.18)" : "1px solid var(--warning-border)",
                     }}>
                       {model.tag}
                     </span>
@@ -239,7 +322,7 @@ export default function DocsPage() {
                 </div>
               </div>
               <Link
-                href={`/docs/models/${model.name === "HappyHorse 1.0" ? "happyhorse" : model.provider === "阿里云" ? "qwen" : model.provider === "DeepSeek" ? "deepseek" : "other"}`}
+                href={`/docs/models/${model.name === "HappyHorse 1.0" ? "happyhorse" : model.name.startsWith("Seedance") ? "seedance" : model.provider === "阿里云" ? "qwen" : model.provider === "DeepSeek" ? "deepseek" : "other"}`}
                 style={{
                   fontSize: 13,
                   color: "var(--accent)",

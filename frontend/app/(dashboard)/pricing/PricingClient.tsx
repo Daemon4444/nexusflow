@@ -68,7 +68,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
           margin: "0 auto 32px",
           lineHeight: 1.6,
         }}>
-          按量计费，无最低消费。文本按百万token计费，视频按秒计费，图像按张计费。
+          按量计费，无最低消费。文本按百万 token 计费，视频按秒计费（Seedance 系列按火山 token 用量换算，仅成功生成才计费），图像按张计费。
         </p>
 
         {/* Billing model highlights */}

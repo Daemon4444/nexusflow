@@ -27,8 +27,10 @@ import {
   adaptVideoRequest,
   adaptHappyHorseRequest,
   adaptPixVerseRequest,
+  adaptSeedanceRequest,
   pollDashScopeTask,
   pollPixVerseTask,
+  pollVolcEngineTask,
 } from "../services/adapters";
 
 const router = Router();
@@ -93,10 +95,13 @@ async function canAccessTask(req: Request, taskUserId: string | null, taskApiKey
 // /v1/videos/generations for clients that expect an OpenAI-style video path.
 const handleGenerate = async (req: Request, res: Response) => {
   const startTime = Date.now();
-  const { 
+  const {
     model: modelId, prompt, duration, aspect_ratio, quality, negative_prompt, size,
-    img_url, img_urls, video_url, resolution, ratio, audio, audio_setting, seed, watermark,
-    style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend
+    img_url, img_end_url, img_urls, video_url, video_urls, audio_urls,
+    resolution, ratio, audio, audio_setting, generate_audio, draft,
+    return_last_frame, camera_fixed, service_tier, callback_url, priority,
+    seed, watermark, style, camera_movement, water_mark, audio_url,
+    shot_type, motion_mode, prompt_extend
   } = req.body;
 
   if (!modelId) {
@@ -104,9 +109,10 @@ const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
-  // HappyHorse video-edit doesn't strictly require prompt at creation
+  // HappyHorse video-edit and Seedance (image/video input optional) don't strictly require prompt
   const isHappyHorse = modelId.startsWith("happyhorse-");
-  if (!isHappyHorse && !prompt) {
+  const isSeedance = modelId.startsWith("seedance-");
+  if (!isHappyHorse && !isSeedance && !prompt) {
     res.status(400).json({ success: false, message: "请提供提示词" });
     return;
   }
@@ -164,6 +170,7 @@ const handleGenerate = async (req: Request, res: Response) => {
   }
 
   const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
+  const isVolcEngine = selected.apiBaseUrl.includes("volces.com") || selected.apiBaseUrl.includes("genvia.ai");
 
   // Create internal task record
   const task = await createTask({
@@ -172,7 +179,7 @@ const handleGenerate = async (req: Request, res: Response) => {
     type: "video",
     model: modelId,
     provider: selected.providerId,
-    input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_urls, video_url, resolution, ratio, audio, audio_setting, seed, watermark, style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend },
+    input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_end_url, img_urls, video_url, video_urls, audio_urls, resolution, ratio, audio, audio_setting, generate_audio, draft, return_last_frame, camera_fixed, service_tier, callback_url, priority, seed, watermark, style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend },
   });
 
   // Build request based on provider
@@ -193,6 +200,29 @@ const handleGenerate = async (req: Request, res: Response) => {
         camera_movement,
         water_mark: water_mark ?? watermark,
         audio,
+      }, selected.apiBaseUrl);
+    } else if (isSeedance) {
+      adapted = adaptSeedanceRequest(apiKey, {
+        model: modelId,
+        prompt: prompt || "",
+        resolution,
+        ratio,
+        duration,
+        seed,
+        watermark,
+        img_url,
+        img_end_url,
+        img_urls,
+        video_urls,
+        audio_urls,
+        audio,
+        generate_audio,
+        draft,
+        return_last_frame,
+        camera_fixed,
+        service_tier,
+        callback_url,
+        priority,
       }, selected.apiBaseUrl);
     } else if (isHappyHorse) {
       adapted = adaptHappyHorseRequest(apiKey, {
@@ -253,6 +283,37 @@ const handleGenerate = async (req: Request, res: Response) => {
       const upstreamId = data.Resp?.video_id || data.Resp?.task_id;
       if (upstreamId) {
         await setUpstreamTaskId(task.id, String(upstreamId));
+      }
+
+      res.json({
+        success: true,
+        data: {
+          task_id: task.id,
+          upstream_task_id: upstreamId,
+        },
+      });
+      return;
+    }
+
+    // Handle Volcengine Ark response: { id: "cgt-..." } on success, { error: {...} } on failure
+    if (isVolcEngine) {
+      if (!response.ok || data.error) {
+        const errorMsg = data.error?.message || data.message || `HTTP ${response.status}`;
+        recordFailure(selected.providerId, modelId, errorMsg);
+        await failTask(task.id, errorMsg);
+        await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+        res.status(response.status || 400).json({
+          success: false,
+          message: errorMsg,
+          detail: data,
+        });
+        return;
+      }
+
+      recordSuccess(selected.providerId, modelId, Date.now() - startTime);
+      const upstreamId = data.id;
+      if (upstreamId && typeof upstreamId === "string") {
+        await setUpstreamTaskId(task.id, upstreamId);
       }
 
       res.json({
@@ -347,11 +408,14 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
     try {
       let pollApiKey: string;
       let isPixVerseOfficialPoll: boolean;
+      let isVolcEnginePoll: boolean;
+      let pollApiBaseUrl: string | undefined;
 
       if (task.provider.includes(":")) {
         // Backward compatibility: old format "pixverse:channelId:adapter"
         const [, , adapter] = task.provider.split(":");
         isPixVerseOfficialPoll = adapter === "pixverse";
+        isVolcEnginePoll = false;
         pollApiKey = isPixVerseOfficialPoll ? getPixVerseKey() : getDashScopeKey();
       } else {
         const providerRecord = await getProviderById(task.provider);
@@ -360,12 +424,16 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
           return;
         }
         pollApiKey = providerRecord.api_key;
+        pollApiBaseUrl = providerRecord.api_base_url;
         isPixVerseOfficialPoll = providerRecord.api_base_url.includes("pixverse.ai");
+        isVolcEnginePoll = providerRecord.api_base_url.includes("volces.com") || providerRecord.api_base_url.includes("genvia.ai");
       }
 
       const result = isPixVerseOfficialPoll
         ? await pollPixVerseTask(pollApiKey, task.upstream_task_id)
-        : await pollDashScopeTask(pollApiKey, task.upstream_task_id);
+        : isVolcEnginePoll
+          ? await pollVolcEngineTask(pollApiKey, task.upstream_task_id, pollApiBaseUrl)
+          : await pollDashScopeTask(pollApiKey, task.upstream_task_id);
 
       if (result.status === "succeeded") {
         const model = models.find((m) => m.id === task.model);

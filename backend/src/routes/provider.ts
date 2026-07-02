@@ -78,11 +78,11 @@ async function ensureInternalProviders(): Promise<void> {
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
   });
-  await ensureProvider({
+  const volcengineArk = await ensureProvider({
     id: "volcengine-ark",
     name: "火山方舟",
     slug: "volcengine-ark",
-    description: "火山引擎方舟 OpenAI 兼容渠道，可在模型管理中按模型添加路由。",
+    description: "火山引擎方舟 OpenAI 兼容渠道，承载豆包 Seedance 系列视频生成模型。",
     website: "https://www.volcengine.com/product/ark",
     api_base_url: "https://ark.cn-beijing.volces.com/api/v3",
     api_key: process.env.ARK_API_KEY || "",
@@ -92,7 +92,14 @@ async function ensureInternalProviders(): Promise<void> {
   });
 
   for (const model of staticModels) {
-    const targetProvider = model.id.startsWith("claude-") ? anthropic : dashscope;
+    let targetProvider: any;
+    if (model.id.startsWith("claude-")) {
+      targetProvider = anthropic;
+    } else if (model.id.startsWith("seedance-")) {
+      targetProvider = volcengineArk;
+    } else {
+      targetProvider = dashscope;
+    }
     if (await getCapacity(targetProvider.id, model.id)) continue;
     const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
     await upsertCapacity(targetProvider.id, model.id, {

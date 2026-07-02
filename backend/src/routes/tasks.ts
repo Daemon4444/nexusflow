@@ -27,8 +27,10 @@ import {
   adaptVideoRequest,
   adaptHappyHorseRequest,
   adaptPixVerseRequest,
+  adaptSeedanceRequest,
   pollDashScopeTask,
   pollPixVerseTask,
+  pollVolcEngineTask,
 } from "../services/adapters";
 import { checkConsumerLimits, checkRPM, recordRequest } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
@@ -209,12 +211,15 @@ router.post("/", async (req: Request, res: Response) => {
 
     // Build upstream request
     const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
+    const isVolcEngine = selected.apiBaseUrl.includes("volces.com") || selected.apiBaseUrl.includes("genvia.ai");
     let adapted;
     try {
       if (modelType === "image") {
         adapted = adaptImageRequest(upstreamApiKey, { model: modelId, prompt, ...params });
       } else if (isPixVerseOfficial) {
         adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, selected.apiBaseUrl);
+      } else if (modelId.startsWith("seedance-")) {
+        adapted = adaptSeedanceRequest(upstreamApiKey, { model: modelId, prompt, ...params }, selected.apiBaseUrl);
       } else if (modelId.startsWith("happyhorse-")) {
         adapted = adaptHappyHorseRequest(upstreamApiKey, { model: modelId, prompt, ...params });
       } else {
@@ -240,7 +245,9 @@ router.post("/", async (req: Request, res: Response) => {
 
       const data: any = await response.json();
 
-      if (!response.ok || data.code || (data.ErrCode !== undefined && data.ErrCode !== 0)) {
+      // Volcengine Ark error format: { error: { message, code, ... } }
+      const volcEngineError = isVolcEngine && data.error;
+      if (!response.ok || data.code || (data.ErrCode !== undefined && data.ErrCode !== 0) || volcEngineError) {
         const errorMsg = data.message || data.error?.message || data.ErrMsg || `HTTP ${response.status}`;
         recordFailure(selected.providerId, modelId, errorMsg);
         await failTask(task.id, errorMsg);
@@ -293,6 +300,10 @@ router.post("/", async (req: Request, res: Response) => {
       }
       if (data.Resp?.task_id) {
         upstreamTaskId = String(data.Resp.task_id);
+      }
+      // Volcengine Ark format: { id: "cgt-..." } (direct Ark) or { id: "task_..." } (genvia relay)
+      if (isVolcEngine && data.id && typeof data.id === "string") {
+        upstreamTaskId = data.id;
       }
 
       if (upstreamTaskId) {
@@ -395,12 +406,14 @@ router.get("/:id", async (req: Request, res: Response) => {
   try {
     let pollApiKey: string;
     let isPixVerseOfficial: boolean;
+    let isVolcEngine: boolean;
     let pixVerseBaseUrl: string | undefined;
 
     // Backward compatibility: old tasks stored provider as "pixverse:channelId:adapter"
     if (task.provider.includes(":")) {
       const [, , adapter] = task.provider.split(":");
       isPixVerseOfficial = adapter === "pixverse";
+      isVolcEngine = false;
       pollApiKey = isPixVerseOfficial
         ? (process.env.PIXVERSE_API_KEY || "")
         : getApiKey();
@@ -416,12 +429,15 @@ router.get("/:id", async (req: Request, res: Response) => {
       }
       pollApiKey = providerRecord.api_key;
       isPixVerseOfficial = providerRecord.api_base_url.includes("pixverse.ai");
+      isVolcEngine = providerRecord.api_base_url.includes("volces.com") || providerRecord.api_base_url.includes("genvia.ai");
       pixVerseBaseUrl = providerRecord.api_base_url;
     }
 
     const result = isPixVerseOfficial
       ? await pollPixVerseTask(pollApiKey, task.upstream_task_id, pixVerseBaseUrl!)
-      : await pollDashScopeTask(pollApiKey, task.upstream_task_id);
+      : isVolcEngine
+        ? await pollVolcEngineTask(pollApiKey, task.upstream_task_id, pixVerseBaseUrl)
+        : await pollDashScopeTask(pollApiKey, task.upstream_task_id);
 
     // Update task based on result
     if (result.status === "succeeded") {
