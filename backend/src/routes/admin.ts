@@ -17,6 +17,15 @@ import { listUserModelDiscounts } from "../data/user-discounts";
 import { getUserById } from "../data/users";
 import { db } from "../db/client";
 import { getSlsClient } from "../services/sls";
+import { models, getStaticModels } from "../data/models";
+import {
+  sanitizeModelDoc,
+  listOverrides,
+  upsertOverride,
+  disableStaticModel,
+  deleteOverride,
+  refreshModels,
+} from "../data/model-overrides";
 
 const router = Router();
 
@@ -355,6 +364,78 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     res.json({ success: false, message: sanitizeError(err) });
+  }
+});
+
+// ========== 模型目录管理（叠加在静态目录之上，空表=零差异） ==========
+
+// GET /api/admin/models — 有效目录 + 覆盖行 + 静态 id 集合
+router.get("/models", async (_req: Request, res: Response) => {
+  try {
+    await refreshModels(); // always reflect current DB truth regardless of which instance serves
+    const overrides = await listOverrides();
+    const overrideMap = new Map(overrides.map((o) => [o.id, o]));
+    const staticIds = new Set(getStaticModels().map((m) => m.id));
+    const effective = models.map((m) => {
+      const ov = overrideMap.get(m.id);
+      const source = ov
+        ? (ov.action === "upsert" ? (staticIds.has(m.id) ? "overridden" : "added") : "static")
+        : "static";
+      return { ...m, _source: source };
+    });
+    res.json({
+      success: true,
+      data: {
+        models: effective,
+        overrides,
+        staticCount: staticIds.size,
+        disabledIds: overrides.filter((o) => o.action === "disable" && o.enabled).map((o) => o.id),
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: sanitizeError(err) });
+  }
+});
+
+// POST /api/admin/models — 新增或覆盖一个模型（全量 doc，严格校验）
+router.post("/models", async (req: Request, res: Response) => {
+  const session = (req as any).admin;
+  const result = sanitizeModelDoc(req.body);
+  if (!result.ok) {
+    res.status(400).json({ success: false, message: result.error });
+    return;
+  }
+  try {
+    await upsertOverride(result.model, session?.id || null);
+    await refreshModels();
+    res.json({ success: true, data: result.model, message: "模型已保存并生效" });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: sanitizeError(err) });
+  }
+});
+
+// POST /api/admin/models/:id/disable — 从目录中隐藏某个模型
+router.post("/models/:id/disable", async (req: Request, res: Response) => {
+  const session = (req as any).admin;
+  const id = String(req.params.id);
+  try {
+    await disableStaticModel(id, session?.id || null);
+    await refreshModels();
+    res.json({ success: true, message: `模型 ${id} 已下架` });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: sanitizeError(err) });
+  }
+});
+
+// DELETE /api/admin/models/:id — 删除覆盖行（恢复静态默认；新增的模型则被移除）
+router.delete("/models/:id", async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  try {
+    const removed = await deleteOverride(id);
+    await refreshModels();
+    res.json({ success: true, message: removed ? `已移除覆盖：${id}（恢复默认）` : `无覆盖可移除：${id}` });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: sanitizeError(err) });
   }
 });
 

@@ -52,7 +52,7 @@ export function calculateTokenCost(model: AIModel, promptTokens: number, complet
     + (Math.max(0, completionTokens || 0) / 1_000_000) * completionPrice;
 }
 
-export const models: AIModel[] = [
+const staticModels: AIModel[] = [
   // ========== 通义千问 Qwen 旗舰系列 ==========
   {
     id: "qwen3.7-plus",
@@ -1219,3 +1219,19 @@ export const models: AIModel[] = [
     supported: ["文本", "函数调用"]
   },
 ];
+
+/**
+ * Live model catalog consumed across the app (billing + display).
+ *
+ * Initialized as an exact clone of the static seed above, so before any DB
+ * refresh — and if the DB is empty or unreachable — behavior is identical to
+ * the hard-coded catalog. `refreshModels()` in data/model-overrides.ts mutates
+ * THIS array in place (never reassigns the reference) so every importer sees
+ * updates without changing their `import { models }` binding.
+ */
+export const models: AIModel[] = staticModels.map((m) => ({ ...m }));
+
+/** The immutable hard-coded seed catalog (never affected by DB overrides). */
+export function getStaticModels(): AIModel[] {
+  return staticModels;
+}

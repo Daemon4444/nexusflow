@@ -7,6 +7,7 @@ import type { CSSProperties } from "react";
 import { fetchAPI } from "@/lib/api";
 import { authHeaders, useAuth } from "@/lib/auth";
 import AdminDashboard from "./AdminDashboard";
+import ModelCatalogManager from "./ModelCatalogManager";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
 
@@ -479,7 +480,7 @@ function ModelCombobox({ value, onChange, options }: {
   );
 }
 
-type TabKey = "dashboard" | "overview" | "operations" | "users" | "approvals" | "providers" | "models" | "tickets" | "logs";
+type TabKey = "dashboard" | "overview" | "operations" | "users" | "approvals" | "providers" | "catalog" | "models" | "tickets" | "logs";
 
 const statusColors: Record<string, string> = {
   draft: "#d97706",
@@ -1265,6 +1266,7 @@ export default function AdminPage() {
     { key: "users", label: "用户管理" },
     { key: "approvals", label: "限额审批" },
     { key: "providers", label: "渠道控制台" },
+    { key: "catalog", label: "模型目录" },
     { key: "models", label: "模型管理" },
     { key: "tickets", label: "工单中心" },
     { key: "logs", label: "日志查询" },
@@ -2734,6 +2736,8 @@ export default function AdminPage() {
                 </>
                 )}
               </>
+            ) : activeTab === "catalog" ? (
+              <ModelCatalogManager />
             ) : activeTab === "models" ? (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>

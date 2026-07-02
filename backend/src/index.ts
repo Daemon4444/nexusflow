@@ -100,6 +100,7 @@ app.use("/api/admin", adminRouter);
 // Admin API (requires authentication)
 import { cleanExpiredSessions } from "./data/users";
 import { seedApiKeysIfNeeded } from "./data/apikeys";
+import { refreshModels, startModelRefreshLoop } from "./data/model-overrides";
 
 // Health check
 app.get("/api/health", (_req, res) => {
@@ -120,6 +121,14 @@ async function start() {
     const message = error instanceof Error ? error.message : String(error);
     console.warn(`[Quadrant API] 数据库维护任务跳过: ${message}`);
   }
+
+  // Load DB model overrides on top of the static catalog (no-op when table empty),
+  // then keep converging every 30s so all cluster instances pick up admin edits.
+  const refreshed = await refreshModels();
+  if (refreshed) {
+    console.log(`[Quadrant API] 模型目录已加载: ${refreshed.total} 个模型 (${refreshed.overrides} 条覆盖)`);
+  }
+  startModelRefreshLoop();
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`[Quadrant API] 服务已启动: http://0.0.0.0:${PORT}`);
