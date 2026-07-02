@@ -430,6 +430,8 @@ const staticModels: AIModel[] = [
     contextLength: 65536,
     promptPrice: 1.8,
     completionPrice: 6.9,
+    audioInputPrice: 15.8,
+    audioOutputPrice: 62.6,
     category: "多模态模型",
     tags: ["全能", "多模态", "音频输入", "音频输出", "视频输入", "思考模式"],
     isNew: false,
