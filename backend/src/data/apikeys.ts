@@ -34,17 +34,26 @@ export async function getKeysByUser(userId: string): Promise<ApiKey[]> {
 
 export async function validateApiKey(token: string): Promise<ApiKey | null> {
   const tokenHash = hashApiKey(token);
-  const key = await db.queryOne<ApiKey>(
-    "SELECT * FROM api_keys WHERE key_hash = ? OR key = ? LIMIT 1",
+  // join 用户状态：账号（及其主账号）非 active 时 key 立即失效（spec §5）
+  const key = await db.queryOne<ApiKey & { user_status: string | null; parent_status: string | null }>(
+    `SELECT k.*, u.status as user_status, p.status as parent_status
+       FROM api_keys k
+       LEFT JOIN users u ON u.id = k.user_id
+       LEFT JOIN users p ON p.id = u.parent_user_id
+      WHERE k.key_hash = ? OR k.key = ?
+      LIMIT 1`,
     [tokenHash, token]
   );
-  if (key) {
-    await db.execute("UPDATE api_keys SET last_used = ?, usage_count = usage_count + 1 WHERE id = ?", [
-      new Date().toISOString(),
-      key.id,
-    ]);
+  if (!key) return null;
+  if (key.user_id) {
+    if ((key.user_status || "active") !== "active") return null;
+    if (key.parent_status != null && key.parent_status !== "active") return null;
   }
-  return key || null;
+  await db.execute("UPDATE api_keys SET last_used = ?, usage_count = usage_count + 1 WHERE id = ?", [
+    new Date().toISOString(),
+    key.id,
+  ]);
+  return key;
 }
 
 export async function createApiKey(name: string, rateLimit = 60, userId?: string): Promise<ApiKey> {

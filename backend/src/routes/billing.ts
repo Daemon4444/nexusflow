@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { sanitizeError } from "../utils/sanitize-error";
-import { validateSession } from "../data/users";
-import { recharge, getTransactions, getBillingSummary, getMonthlyStats, getBillingUsageExport } from "../data/billing";
+import { validateSession, getUserById } from "../data/users";
+import { recharge, getTransactions, getBillingSummary, getMonthlyStats, getBillingUsageExport, getSubAccountBreakdown } from "../data/billing";
 import { listUserModelDiscounts, UserModelDiscount } from "../data/user-discounts";
 import {
   createPagePayment,
@@ -57,6 +57,8 @@ function toCsv(rows: Record<string, unknown>[]): string {
     "invoice_period_end",
     "usage_id",
     "occurred_at",
+    "account_id",
+    "account_name",
     "api_key_id",
     "api_key_name",
     "model_id",
@@ -141,6 +143,8 @@ router.get("/transactions", async (req: Request, res: Response) => {
       description: r.description,
       refId: r.ref_id,
       createdAt: r.created_at,
+      actorUserId: r.actor_user_id || null,
+      actorName: r.actor_username || r.actor_nickname || null,
       discountRate: r.discount_rate !== null && r.discount_rate !== undefined ? Number(r.discount_rate) : discountRate,
       discountAmountCny: r.discount_amount_cny !== null && r.discount_amount_cny !== undefined ? Number(r.discount_amount_cny) : discountAmountCny,
     };
@@ -175,6 +179,7 @@ router.get("/export.csv", async (req: Request, res: Response) => {
     const exportData = await getBillingUsageExport(userId, {
       startDate: typeof req.query.startDate === "string" ? req.query.startDate : undefined,
       endDate: typeof req.query.endDate === "string" ? req.query.endDate : undefined,
+      subAccountId: typeof req.query.subAccountId === "string" ? req.query.subAccountId : undefined,
     });
 
     const rows = exportData.rows.map((row) => ({
@@ -182,6 +187,8 @@ router.get("/export.csv", async (req: Request, res: Response) => {
       invoice_period_end: exportData.endDate,
       usage_id: row.usage_id,
       occurred_at: row.created_at,
+      account_id: row.account_id,
+      account_name: row.account_name,
       api_key_id: row.api_key_id,
       api_key_name: row.api_key_name,
       model_id: row.model,
@@ -219,6 +226,33 @@ router.get("/export.csv", async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/billing/sub-breakdown — 按子账号分账报表（仅主账号，spec §4.2）
+router.get("/sub-breakdown", async (req: Request, res: Response) => {
+  const userId = await requireAuth(req, res);
+  if (!userId) return;
+
+  const caller = await getUserById(userId);
+  if (!caller || caller.parent_user_id) {
+    res.status(403).json({ success: false, code: "sub_account_forbidden", message: "仅主账号可查看分账报表" });
+    return;
+  }
+
+  const now = new Date();
+  const defaultStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const startDate = typeof req.query.startDate === "string" && !Number.isNaN(new Date(req.query.startDate).getTime())
+    ? new Date(req.query.startDate)
+    : defaultStart;
+  const endDate = typeof req.query.endDate === "string" && !Number.isNaN(new Date(req.query.endDate).getTime())
+    ? new Date(new Date(req.query.endDate).setHours(23, 59, 59, 999))
+    : now;
+
+  const rows = await getSubAccountBreakdown(userId, startDate, endDate);
+  res.json({
+    success: true,
+    data: { rows, startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+  });
+});
+
 // GET /api/billing/payment/config — 支付配置状态（用于前端提示）
 router.get("/payment/config", async (req: Request, res: Response) => {
   const userId = await requireAuth(req, res);
@@ -231,6 +265,13 @@ router.get("/payment/config", async (req: Request, res: Response) => {
 router.post("/recharge", async (req: Request, res: Response) => {
   const userId = await requireAuth(req, res);
   if (!userId) return;
+
+  // 子账号不可充值：钱只存在于主账号（spec §3.1）
+  const rechargeUser = await getUserById(userId);
+  if (rechargeUser?.parent_user_id) {
+    res.status(403).json({ success: false, code: "sub_account_forbidden", message: "子账号不可充值，余额由主账号统一管理" });
+    return;
+  }
 
   const { amount, method } = req.body;
   const normalizedAmount = asAmount(amount);

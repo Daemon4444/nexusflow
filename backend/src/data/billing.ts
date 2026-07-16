@@ -6,6 +6,7 @@ import { AIModel, calculateTokenCost, getTokenPricingTier, models } from "./mode
 export interface Transaction {
   id: string;
   user_id: string;
+  actor_user_id: string | null;
   type: string;
   amount: number;
   balance_after: number;
@@ -18,6 +19,8 @@ export interface Transaction {
 
 export interface BillingUsageExportRow {
   usage_id: number;
+  account_id: string;
+  account_name: string;
   api_key_id: string | null;
   api_key_name: string | null;
   model: string;
@@ -106,6 +109,16 @@ function getModelBillingBreakdown(
   };
 }
 
+/** monthly 限额是否到了 lazy 重置时点（quota_reset_at 早于本月 1 号） */
+function isMonthlyQuotaResetDue(quotaResetAt: string | Date | null): boolean {
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  if (!quotaResetAt) return true;
+  const resetAt = new Date(quotaResetAt);
+  return Number.isNaN(resetAt.getTime()) || resetAt < monthStart;
+}
+
 export async function recharge(userId: string, amount: number, description?: string): Promise<Transaction | null> {
   if (amount <= 0) return null;
   const normalizedAmount = roundBalance(amount);
@@ -114,8 +127,12 @@ export async function recharge(userId: string, amount: number, description?: str
   const text = description || `充值 ¥${amount.toFixed(2)}`;
 
   return db.transaction(async (client) => {
-    const user = await client.queryOne<{ balance: number }>("SELECT balance FROM users WHERE id = ? FOR UPDATE", [userId]);
+    const user = await client.queryOne<{ balance: number; parent_user_id: string | null }>(
+      "SELECT balance, parent_user_id FROM users WHERE id = ? FOR UPDATE",
+      [userId]
+    );
     if (!user) return null;
+    if (user.parent_user_id) return null; // 子账号不可充值（钱只存在于主账号）
     const newBalance = roundBalance(Number(user.balance || 0) + normalizedAmount);
     await client.execute("UPDATE users SET balance = ?, updated_at = ? WHERE id = ?", [newBalance, now, userId]);
     const tx = await client.queryOne<Transaction>(
@@ -128,6 +145,12 @@ export async function recharge(userId: string, amount: number, description?: str
   });
 }
 
+/**
+ * 扣费（唯一入口，docs/sub-accounts-spec.md §3.2）。
+ * userId 是实际发起消费的账号（actor）；若为子账号，钱从主账号余额扣，
+ * 同事务内对子账号 quota 做原子条件更新（超限/停用则整体回滚）。
+ * 锁序固定：先主账号行 FOR UPDATE，再子账号条件 UPDATE，全局一致无死锁。
+ */
 export async function consume(
   userId: string,
   amount: number,
@@ -144,17 +167,52 @@ export async function consume(
   const savedDiscountAmount = discountAmountCny && discountAmountCny > 0 ? roundBalance(discountAmountCny) : null;
 
   return db.transaction(async (client) => {
-    const user = await client.queryOne<{ balance: number }>("SELECT balance FROM users WHERE id = ? FOR UPDATE", [userId]);
-    if (!user) return null;
-    const currentBalance = Number(user.balance || 0);
+    const actor = await client.queryOne<{
+      id: string;
+      parent_user_id: string | null;
+      status: string;
+      quota_limit: number | null;
+      quota_period: string | null;
+      quota_reset_at: string | null;
+    }>(
+      "SELECT id, parent_user_id, status, quota_limit, quota_period, quota_reset_at FROM users WHERE id = ?",
+      [userId]
+    );
+    if (!actor) return null;
+    const isSubAccount = !!actor.parent_user_id;
+    const billingOwnerId = actor.parent_user_id || userId;
+
+    // 锁计费主体（主账号）行
+    const owner = await client.queryOne<{ balance: number }>(
+      "SELECT balance FROM users WHERE id = ? FOR UPDATE",
+      [billingOwnerId]
+    );
+    if (!owner) return null;
+    const currentBalance = Number(owner.balance || 0);
     if (currentBalance < normalizedAmount) return null;
+
+    // 子账号：状态 + 限额（原子条件更新，0 行 = 停用或超限）
+    if (isSubAccount) {
+      if ((actor.status || "active") !== "active") return null;
+      if (actor.quota_period === "monthly" && isMonthlyQuotaResetDue(actor.quota_reset_at)) {
+        await client.execute("UPDATE users SET quota_used = 0, quota_reset_at = ? WHERE id = ?", [now, userId]);
+      }
+      const quotaOk = await client.execute(
+        `UPDATE users SET quota_used = quota_used + ?, updated_at = ?
+          WHERE id = ? AND status = 'active'
+            AND (quota_limit IS NULL OR quota_used + ? <= quota_limit)`,
+        [normalizedAmount, now, userId, normalizedAmount]
+      );
+      if (!quotaOk) return null;
+    }
+
     const newBalance = roundBalance(currentBalance - normalizedAmount);
-    await client.execute("UPDATE users SET balance = ?, updated_at = ? WHERE id = ?", [newBalance, now, userId]);
+    await client.execute("UPDATE users SET balance = ?, updated_at = ? WHERE id = ?", [newBalance, now, billingOwnerId]);
     const tx = await client.queryOne<Transaction>(
-      `INSERT INTO transactions (id, user_id, type, amount, balance_after, description, ref_id, created_at, discount_rate, discount_amount_cny)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO transactions (id, user_id, actor_user_id, type, amount, balance_after, description, ref_id, created_at, discount_rate, discount_amount_cny)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
-      [txId, userId, "consumption", normalizedAmount, newBalance, description, refId || null, now, savedDiscountRate, savedDiscountAmount]
+      [txId, billingOwnerId, userId, "consumption", normalizedAmount, newBalance, description, refId || null, now, savedDiscountRate, savedDiscountAmount]
     );
     return tx!;
   });
@@ -173,8 +231,12 @@ export async function adminAdjustBalance(params: {
   const description = params.description.trim() || `管理员调账 ${delta > 0 ? "+" : ""}${delta.toFixed(6)}`;
 
   return db.transaction(async (client) => {
-    const user = await client.queryOne<{ balance: number }>("SELECT balance FROM users WHERE id = ? FOR UPDATE", [params.userId]);
+    const user = await client.queryOne<{ balance: number; parent_user_id: string | null }>(
+      "SELECT balance, parent_user_id FROM users WHERE id = ? FOR UPDATE",
+      [params.userId]
+    );
     if (!user) return null;
+    if (user.parent_user_id) return null; // 子账号无余额，调账只对主账号
     const newBalance = roundBalance(Number(user.balance || 0) + delta);
     if (newBalance < 0) return null;
     await client.execute("UPDATE users SET balance = ?, updated_at = ? WHERE id = ?", [newBalance, now, params.userId]);
@@ -200,19 +262,107 @@ export async function adminAdjustBalance(params: {
 export async function hasSufficientBalance(userId: string | null | undefined, estimatedAmount: number): Promise<boolean> {
   if (!userId) return false;
   const normalizedAmount = roundBalance(Math.max(0, estimatedAmount));
-  if (normalizedAmount <= 0) return true;
   const user = await getUserById(userId);
   if (!user) return false;
-  return Number(user.balance || 0) >= normalizedAmount;
+  if (user.status !== "active") return false;
+
+  let balance = Number(user.balance || 0);
+  if (user.parent_user_id) {
+    // 子账号：看主账号余额 + 自身限额余量（预检；最终由 consume 事务内强校验）
+    const owner = await getUserById(user.parent_user_id);
+    if (!owner || owner.status !== "active") return false;
+    balance = Number(owner.balance || 0);
+    if (user.quota_limit != null) {
+      const used = user.quota_period === "monthly" && isMonthlyQuotaResetDue(user.quota_reset_at) ? 0 : user.quota_used;
+      if (used + normalizedAmount > user.quota_limit) return false;
+    }
+  }
+  if (normalizedAmount <= 0) return true;
+  return balance >= normalizedAmount;
 }
 
-export async function getTransactions(userId: string, limit = 20, offset = 0): Promise<{ rows: Transaction[]; total: number }> {
-  const rows = await db.queryMany<Transaction>(
-    "SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+export async function getTransactions(
+  userId: string,
+  limit = 20,
+  offset = 0
+): Promise<{ rows: (Transaction & { actor_username: string | null; actor_nickname: string | null })[]; total: number }> {
+  const rows = await db.queryMany<Transaction & { actor_username: string | null; actor_nickname: string | null }>(
+    `SELECT t.*, a.username as actor_username, a.nickname as actor_nickname
+       FROM transactions t
+       LEFT JOIN users a ON a.id = t.actor_user_id
+      WHERE t.user_id = ?
+      ORDER BY t.created_at DESC LIMIT ? OFFSET ?`,
     [userId, limit, offset]
   );
   const count = await db.queryOne<{ cnt: string | number }>("SELECT COUNT(*) as cnt FROM transactions WHERE user_id = ?", [userId]);
   return { rows, total: Number(count?.cnt || 0) };
+}
+
+export interface SubAccountBreakdownRow {
+  account_id: string;
+  username: string | null;
+  nickname: string;
+  is_owner: boolean;
+  amount_cny: number;
+  call_count: number;
+  total_tokens: number;
+  quota_limit: number | null;
+  quota_used: number;
+  quota_period: string | null;
+  status: string;
+}
+
+/** 分账报表（spec §4.2）：金额以 transactions 为准，调用/token 以 usage_logs 为准 */
+export async function getSubAccountBreakdown(
+  ownerId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<SubAccountBreakdownRow[]> {
+  // 家庭成员：主账号 + 全部子账号（含已删，历史要能看）
+  const members = await db.queryMany<any>(
+    `SELECT id, username, nickname, parent_user_id, status, quota_limit, quota_used, quota_period
+       FROM users WHERE id = ? OR parent_user_id = ?`,
+    [ownerId, ownerId]
+  );
+  const start = startDate.toISOString();
+  const end = endDate.toISOString();
+
+  // 金额：钱都记在主账号 transactions，按 actor 分组（历史数据 actor 为 NULL = 主账号自己）
+  const amounts = await db.queryMany<{ actor: string | null; amount: string | number }>(
+    `SELECT COALESCE(actor_user_id, user_id) as actor, COALESCE(SUM(amount), 0) as amount
+       FROM transactions
+      WHERE user_id = ? AND type = 'consumption' AND created_at >= ? AND created_at <= ?
+      GROUP BY COALESCE(actor_user_id, user_id)`,
+    [ownerId, start, end]
+  );
+  const amountByActor = new Map(amounts.map((r) => [r.actor, roundBalance(Number(r.amount || 0))]));
+
+  // 用量：usage_logs.user_id 即调用者
+  const usages = await db.queryMany<{ uid: string; calls: string | number; tokens: string | number }>(
+    `SELECT ul.user_id as uid, COUNT(*) as calls, COALESCE(SUM(ul.total_tokens), 0) as tokens
+       FROM usage_logs ul
+       JOIN users u ON u.id = ul.user_id
+      WHERE (u.id = ? OR u.parent_user_id = ?) AND ul.created_at >= ? AND ul.created_at <= ?
+      GROUP BY ul.user_id`,
+    [ownerId, ownerId, start, end]
+  );
+  const usageByUser = new Map(usages.map((r) => [r.uid, { calls: Number(r.calls || 0), tokens: Number(r.tokens || 0) }]));
+
+  return members
+    .map((m): SubAccountBreakdownRow => ({
+      account_id: m.id,
+      username: m.username || null,
+      nickname: m.nickname,
+      is_owner: !m.parent_user_id,
+      amount_cny: amountByActor.get(m.id) || 0,
+      call_count: usageByUser.get(m.id)?.calls || 0,
+      total_tokens: usageByUser.get(m.id)?.tokens || 0,
+      quota_limit: m.parent_user_id && m.quota_limit != null ? Number(m.quota_limit) : null,
+      quota_used: m.parent_user_id ? Number(m.quota_used || 0) : 0,
+      quota_period: m.parent_user_id ? m.quota_period || null : null,
+      status: m.status || "active",
+    }))
+    .sort((a, b) => (a.is_owner ? -1 : b.is_owner ? 1 : b.amount_cny - a.amount_cny));
 }
 
 export async function getBillingSummary(userId: string) {
@@ -247,7 +397,10 @@ export async function getMonthlyStats(userId: string) {
   );
 }
 
-export async function getBillingUsageExport(userId: string, params: { startDate?: string; endDate?: string } = {}): Promise<{
+export async function getBillingUsageExport(
+  userId: string,
+  params: { startDate?: string; endDate?: string; subAccountId?: string } = {}
+): Promise<{
   rows: BillingUsageExportRow[];
   startDate: string;
   endDate: string;
@@ -260,9 +413,30 @@ export async function getBillingUsageExport(userId: string, params: { startDate?
     throw new Error("startDate must be earlier than or equal to endDate");
   }
 
+  // 导出范围（spec §4.2）：主账号默认=自己+全部子账号，可用 subAccountId 过滤到某个子账号；子账号只能导出自己
+  const caller = await getUserById(userId);
+  let scopeCondition = "ul.user_id = ?";
+  let scopeParams: any[] = [userId];
+  if (caller && !caller.parent_user_id) {
+    if (params.subAccountId) {
+      const sub = await db.queryOne<{ id: string }>(
+        "SELECT id FROM users WHERE id = ? AND (id = ? OR parent_user_id = ?)",
+        [params.subAccountId, userId, userId]
+      );
+      if (!sub) throw new Error("subAccountId not found under this account");
+      scopeCondition = "ul.user_id = ?";
+      scopeParams = [params.subAccountId];
+    } else {
+      scopeCondition = "(u.id = ? OR u.parent_user_id = ?)";
+      scopeParams = [userId, userId];
+    }
+  }
+
   const rawRows = await db.queryMany<any>(
     `SELECT
        ul.id as usage_id,
+       ul.user_id as account_id,
+       COALESCE(u.username, u.nickname) as account_name,
        ul.api_key_id,
        ak.name as api_key_name,
        ul.model,
@@ -275,12 +449,13 @@ export async function getBillingUsageExport(userId: string, params: { startDate?
        ul.status,
        ul.created_at
      FROM usage_logs ul
+     LEFT JOIN users u ON u.id = ul.user_id
      LEFT JOIN api_keys ak ON ak.id = ul.api_key_id
-     WHERE ul.user_id = ?
+     WHERE ${scopeCondition}
        AND ul.created_at >= ?
        AND ul.created_at <= ?
      ORDER BY ul.created_at ASC, ul.id ASC`,
-    [userId, startDate.toISOString(), endDate.toISOString()]
+    [...scopeParams, startDate.toISOString(), endDate.toISOString()]
   );
 
   const modelById = new Map(models.map((model) => [model.id, model]));
@@ -294,6 +469,8 @@ export async function getBillingUsageExport(userId: string, params: { startDate?
     const breakdown = getModelBillingBreakdown(model, promptTokens, completionTokens, billedAmount, cachedTokens, cacheCreationTokens);
     return {
       usage_id: Number(row.usage_id),
+      account_id: row.account_id || "",
+      account_name: row.account_name || "",
       api_key_id: row.api_key_id || null,
       api_key_name: row.api_key_name || null,
       model: row.model,

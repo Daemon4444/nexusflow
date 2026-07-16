@@ -11,6 +11,14 @@ export interface User {
   password_hash: string | null;
   created_at: string;
   updated_at: string;
+  // 子账号体系（docs/sub-accounts-spec.md）
+  parent_user_id: string | null;
+  username: string | null;
+  status: string; // 'active' | 'suspended' | 'deleted'
+  quota_limit: number | null;
+  quota_used: number;
+  quota_period: string | null; // 'total' | 'monthly'
+  quota_reset_at: string | null;
 }
 
 export interface Session {
@@ -26,6 +34,13 @@ function normalizeUser<T extends User | null>(user: T): T {
   return {
     ...user,
     balance: Number(user.balance || 0),
+    parent_user_id: user.parent_user_id || null,
+    username: user.username || null,
+    status: user.status || "active",
+    quota_limit: user.quota_limit == null ? null : Number(user.quota_limit),
+    quota_used: Number(user.quota_used || 0),
+    quota_period: user.quota_period || null,
+    quota_reset_at: user.quota_reset_at || null,
   };
 }
 
@@ -52,6 +67,20 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function getUserById(id: string): Promise<User | null> {
   return normalizeUser(await db.queryOne<User>("SELECT * FROM users WHERE id = ?", [id]));
+}
+
+export async function getUserByUsername(username: string): Promise<User | null> {
+  return normalizeUser(await db.queryOne<User>("SELECT * FROM users WHERE username = ?", [username.toLowerCase()]));
+}
+
+/** 计费主体：子账号 → 主账号 id；主账号 → 自己 */
+export async function resolveBillingOwnerId(userId: string | null | undefined): Promise<string | null> {
+  if (!userId) return null;
+  const row = await db.queryOne<{ owner_id: string }>(
+    "SELECT COALESCE(parent_user_id, id) as owner_id FROM users WHERE id = ?",
+    [userId]
+  );
+  return row?.owner_id || null;
 }
 
 export async function createUser(phone: string): Promise<User> {
@@ -96,15 +125,25 @@ export async function loginByPhone(phone: string, _code: string): Promise<{ user
 
 export async function loginByEmail(email: string): Promise<{ user: User; token: string } | null> {
   const user = (await getUserByEmail(email)) || (await createUserByEmail(email));
+  if (user.status !== "active") return null;
+  return createSession(user);
+}
+
+export async function loginByUsername(username: string, password: string): Promise<{ user: User; token: string } | null> {
+  const user = await getUserByUsername(username);
+  if (!user || !user.password_hash) return null;
+  if (user.status !== "active") return null;
+  if (!verifyPassword(password, user.password_hash)) return null;
   return createSession(user);
 }
 
 export async function validateSession(token: string): Promise<(User & { sessionToken: string }) | null> {
   const row = await db.queryOne<any>(
-    `SELECT s.*, u.phone, u.nickname, u.balance, u.email, u.password_hash, u.created_at as user_created_at, u.updated_at as user_updated_at
+    `SELECT s.*, u.phone, u.nickname, u.balance, u.email, u.password_hash, u.created_at as user_created_at, u.updated_at as user_updated_at,
+            u.parent_user_id, u.username, u.status, u.quota_limit, u.quota_used, u.quota_period, u.quota_reset_at
        FROM sessions s
        JOIN users u ON s.user_id = u.id
-      WHERE s.token = ? AND s.expires_at > NOW()`,
+      WHERE s.token = ? AND s.expires_at > NOW() AND u.status = 'active'`,
     [token]
   );
   if (!row) return null;
@@ -117,8 +156,19 @@ export async function validateSession(token: string): Promise<(User & { sessionT
     password_hash: row.password_hash || null,
     created_at: row.user_created_at || row.created_at,
     updated_at: row.user_updated_at || row.user_created_at || row.created_at,
+    parent_user_id: row.parent_user_id || null,
+    username: row.username || null,
+    status: row.status || "active",
+    quota_limit: row.quota_limit == null ? null : Number(row.quota_limit),
+    quota_used: Number(row.quota_used || 0),
+    quota_period: row.quota_period || null,
+    quota_reset_at: row.quota_reset_at || null,
     sessionToken: token,
   };
+}
+
+export async function deleteSessionsByUserId(userId: string): Promise<void> {
+  await db.execute("DELETE FROM sessions WHERE user_id = ?", [userId]);
 }
 
 export async function logout(token: string): Promise<void> {
@@ -160,6 +210,7 @@ export async function updateNickname(userId: string, nickname: string): Promise<
 export async function loginByPassword(email: string, password: string): Promise<{ user: User; token: string } | null> {
   const user = await getUserByEmail(email);
   if (!user || !user.password_hash) return null;
+  if (user.status !== "active") return null;
   if (!verifyPassword(password, user.password_hash)) return null;
   return createSession(user);
 }

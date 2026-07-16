@@ -26,6 +26,7 @@ import tasksRouter from "./routes/tasks";
 import audioRouter from "./routes/audio";
 import rateLimitsRouter from "./routes/ratelimits";
 import ticketsRouter from "./routes/tickets";
+import subAccountsRouter from "./routes/sub-accounts";
 import { errorHandler, notFoundHandler } from "./middleware/error";
 
 const app = express();
@@ -95,6 +96,7 @@ app.use("/api/upload", uploadRouter);
 app.use("/api/uploads", uploadRouter);
 app.use("/api/rate-limits", rateLimitsRouter);
 app.use("/api/tickets", ticketsRouter);
+app.use("/api/sub-accounts", subAccountsRouter);
 app.use("/api/admin", adminRouter);
 
 // Admin API (requires authentication)

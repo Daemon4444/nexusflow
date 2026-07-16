@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { NexusflowLogo } from "@/components/QuadrantLogo";
 
-type LoginMode = "code" | "password";
+type LoginMode = "code" | "password" | "username";
 
 function LoginPageInner() {
   const searchParams = useSearchParams();
@@ -15,12 +15,13 @@ function LoginPageInner() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const { login, loginWithPassword, user } = useAuth();
+  const { login, loginWithPassword, loginWithUsername, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -66,7 +67,7 @@ function LoginPageInner() {
     e.preventDefault();
     setError("");
     setInfo("");
-    if (!isValidEmail) { setError("请输入正确的邮箱地址"); return; }
+    if (mode !== "username" && !isValidEmail) { setError("请输入正确的邮箱地址"); return; }
 
     setSubmitting(true);
     let result;
@@ -74,6 +75,10 @@ function LoginPageInner() {
     if (mode === "code") {
       if (!code || code.length < 4) { setError("请输入验证码"); setSubmitting(false); return; }
       result = await login(email, code);
+    } else if (mode === "username") {
+      if (!username || username.length < 3) { setError("请输入用户名"); setSubmitting(false); return; }
+      if (!password || password.length < 6) { setError("密码至少 6 位"); setSubmitting(false); return; }
+      result = await loginWithUsername(username, password);
     } else {
       if (!password || password.length < 6) { setError("密码至少 6 位"); setSubmitting(false); return; }
       result = await loginWithPassword(email, password);
@@ -125,7 +130,7 @@ function LoginPageInner() {
             {isRegister ? "注册 nexusflow" : "登录 nexusflow"}
           </h1>
           <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            {isRegister ? "输入邮箱，验证后即刻创建账户" : mode === "code" ? "使用邮箱验证码登录" : "使用邮箱和密码登录"}
+            {isRegister ? "输入邮箱，验证后即刻创建账户" : mode === "code" ? "使用邮箱验证码登录" : mode === "username" ? "使用子账号用户名和密码登录" : "使用邮箱和密码登录"}
           </p>
         </div>
 
@@ -135,7 +140,7 @@ function LoginPageInner() {
             {/* Mode Tabs — 注册语境只有验证码一种方式，隐藏切换 */}
             {!isRegister && (
             <div style={{ display: "flex", gap: 0, marginBottom: 20, background: "var(--bg-elevated)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
-              {([["code", "验证码登录"], ["password", "密码登录"]] as const).map(([m, label]) => (
+              {([["code", "验证码"], ["password", "密码"], ["username", "子账号"]] as const).map(([m, label]) => (
                 <button
                   key={m}
                   type="button"
@@ -155,7 +160,21 @@ function LoginPageInner() {
             </div>
             )}
 
-            {/* Email */}
+            {/* Email or Username */}
+            {mode === "username" ? (
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>用户名</label>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="子账号用户名"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.trim())}
+                  autoComplete="username"
+                  style={{ fontSize: 16 }}
+                />
+              </div>
+            ) : (
             <div style={{ marginBottom: 18 }}>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>邮箱</label>
               <input
@@ -168,6 +187,7 @@ function LoginPageInner() {
                 style={{ fontSize: 16 }}
               />
             </div>
+            )}
 
             {/* Code or Password */}
             {mode === "code" ? (
@@ -264,7 +284,7 @@ function LoginPageInner() {
         </form>
 
         <p style={{ textAlign: "center", marginTop: 16, fontSize: 11.5, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
-          {isRegister ? "已有账户？输入邮箱验证码即可直接登录" : mode === "code" ? "首次登录将自动创建账户" : "请先通过验证码登录并设置密码"}
+          {isRegister ? "已有账户？输入邮箱验证码即可直接登录" : mode === "code" ? "首次登录将自动创建账户" : mode === "username" ? "子账号由主账号创建并分发，忘记密码请联系主账号重置" : "请先通过验证码登录并设置密码"}
         </p>
       </div>
     </div>

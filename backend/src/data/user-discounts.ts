@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/client";
 import { AIModel, calculateTokenCost } from "./models";
+import { resolveBillingOwnerId } from "./users";
 
 export interface UserModelDiscount {
   id: string;
@@ -40,6 +41,11 @@ function normalizeDiscount(row: UserModelDiscount): UserModelDiscount {
 
 export async function getUserModelDiscount(userId: string | null | undefined, modelId: string): Promise<UserModelDiscount | null> {
   if (!userId || !modelId) return null;
+
+  // 子账号计费折扣以主账号为准（spec §3.4）
+  const ownerId = await resolveBillingOwnerId(userId);
+  if (!ownerId) return null;
+  userId = ownerId;
 
   // 1. Exact match (highest priority)
   const exact = await db.queryOne<UserModelDiscount>(

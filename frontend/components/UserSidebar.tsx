@@ -17,6 +17,7 @@ const icons: Record<string, React.ReactNode> = {
   ticket:    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 1 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 1 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg>,
   user:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   play:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>,
+  team:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
 };
 
 export default function UserSidebar() {
@@ -27,6 +28,8 @@ export default function UserSidebar() {
   const quietDashboard = true;
 
   if (!user) return null;
+
+  const isSub = user.accountType === "sub";
 
   const nav = [
     {
@@ -39,6 +42,8 @@ export default function UserSidebar() {
         { href: "/settings",    label: t("sidebarProfile"), icon: "user"      },
         { href: "/rate-limits", label: t("sidebarRateLimits"), icon: "gauge"  },
         { href: "/tickets",     label: t("sidebarTickets"), icon: "ticket"    },
+        // 子账号管理：仅主账号可见（docs/sub-accounts-spec.md §5）
+        ...(!isSub ? [{ href: "/sub-accounts", label: "子账号", icon: "team" }] : []),
       ],
     },
     {
@@ -89,11 +94,22 @@ export default function UserSidebar() {
       {/* User card */}
       <div className="usr-sidebar-footer">
         {quietDashboard ? (
+          isSub ? (
+            <div className="quiet-sidebar-balance">
+              <span>{user.quota?.limit != null ? "剩余额度" : "子账号"}</span>
+              <strong>
+                {user.quota?.limit != null
+                  ? formatCny(Math.max(0, user.quota.limit - user.quota.used))
+                  : "由主账号管理"}
+              </strong>
+            </div>
+          ) : (
           <div className="quiet-sidebar-balance">
             <span>Balance</span>
             <strong>{formatCny(user.balance ?? 0)}</strong>
             <Link href="/billing">Add credit <span>＋</span></Link>
           </div>
+          )
         ) : (
           <div className="usr-sidebar-user">
             <div className="usr-sidebar-avatar">{user.nickname.slice(0, 2)}</div>

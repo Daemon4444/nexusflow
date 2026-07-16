@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { loginByEmail, loginByPassword, setUserPassword, hasPassword, validateSession, logout, getUserById, updateNickname, verifyPassword } from "../data/users";
+import { loginByEmail, loginByPassword, loginByUsername, setUserPassword, hasPassword, validateSession, logout, getUserById, updateNickname, verifyPassword } from "../data/users";
 import { sendEmailCode, verifyEmailCode } from "../services/email";
 import { validateBody, SendCodeSchema, LoginSchema } from "../middleware/validation";
 import { z } from "zod";
@@ -92,6 +92,41 @@ router.post("/login-password", validateBody(PasswordLoginSchema), async (req: Re
   });
 });
 
+// POST /api/auth/login-username — 用户名 + 密码登录（子账号，docs/sub-accounts-spec.md §2.3）
+const UsernameLoginSchema = z.object({
+  username: z.string().min(3).max(32),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+router.post("/login-username", validateBody(UsernameLoginSchema), async (req: Request, res: Response) => {
+  const { username, password } = req.body;
+
+  const result = await loginByUsername(username, password);
+  if (!result) {
+    // 统一报错，不区分用户名不存在/密码错误/已停用（防枚举）
+    res.status(401).json({ success: false, message: "用户名或密码错误" });
+    return;
+  }
+
+  res.json({
+    success: true,
+    data: {
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        username: result.user.username,
+        nickname: result.user.nickname,
+        balance: result.user.parent_user_id ? 0 : result.user.balance,
+        accountType: result.user.parent_user_id ? "sub" : "main",
+        hasPassword: !!result.user.password_hash,
+        createdAt: result.user.created_at,
+      },
+      token: result.token,
+    },
+    message: "登录成功",
+  });
+});
+
 // POST /api/auth/set-password — 设置/修改密码（需要登录）
 const SetPasswordSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters").max(128),
@@ -140,13 +175,20 @@ router.get("/me", async (req: Request, res: Response) => {
     return;
   }
 
+  const isSub = !!user.parent_user_id;
   res.json({
     success: true,
     data: {
       id: user.id,
       email: user.email,
+      username: user.username,
       nickname: user.nickname,
-      balance: user.balance,
+      // 子账号无独立余额（钱在主账号，spec §4.3：不向子账号暴露主账号余额）
+      balance: isSub ? 0 : user.balance,
+      accountType: isSub ? "sub" : "main",
+      quota: isSub
+        ? { limit: user.quota_limit, used: user.quota_used, period: user.quota_period }
+        : null,
       hasPassword: !!user.password_hash,
       createdAt: user.created_at,
     },
