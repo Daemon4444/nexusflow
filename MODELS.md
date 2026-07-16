@@ -115,17 +115,17 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
 | `qwen3.6-35b-a3b` | Qwen3.6 35B-A3B | 262K | 32K | ¥1.8/M | ¥10.8/M | MoE 35B/3B，思考模式 |
-| `qwen3-235b-a22b` | Qwen3 235B-A22B | 131K | 8K | ¥1/M | ¥4/M | MoE架构，思考模式 |
-| `qwen3-32b` | Qwen3 32B | 131K | 8K | ¥0.5/M | ¥2/M | 开源密集模型 |
-| `qwen3-8b` | Qwen3 8B | 131K | 8K | **免费** | **免费** | 轻量边缘部署 |
+| `qwen3-235b-a22b` | Qwen3 235B-A22B | 131K | 8K | ¥2/M | ¥8/M | MoE架构，思考模式 |
+| `qwen3-32b` | Qwen3 32B | 131K | 8K | ¥2/M | ¥8/M | 开源密集模型 |
+| `qwen3-8b` | Qwen3 8B | 131K | 8K | ¥0.5/M | ¥2/M | 轻量边缘部署 |
 
 ### DeepSeek 系列
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
-| `deepseek-v4-flash` | DeepSeek V4 Flash | 131K | 16K | ¥1/M | ¥4/M | 高速低延迟 |
-| `deepseek-v3.2` | DeepSeek V3.2 | 131K | 16K | ¥1/M | ¥4/M | 最新通用 |
-| `deepseek-v3` | DeepSeek V3 | 65K | 8K | ¥0.5/M | ¥2/M | MoE架构 |
+| `deepseek-v4-flash` | DeepSeek V4 Flash | 1M | 16K | ¥1/M | ¥2/M | 高速低延迟 |
+| `deepseek-v3.2` | DeepSeek V3.2 | 131K | 16K | ¥2/M | ¥3/M | 最新通用 |
+| `deepseek-v3` | DeepSeek V3 | 65K | 8K | ¥2/M | ¥8/M | MoE架构 |
 
 ### 智谱 GLM 系列
 
@@ -156,9 +156,9 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
-| `qwq-plus` | QwQ Plus | 131K | 16K | ¥1/M | ¥4/M | 思考链，数学逻辑 |
-| `deepseek-v4-pro` | DeepSeek V4 Pro | 131K | 16K | ¥4/M | ¥16/M | V4旗舰推理 |
-| `deepseek-r1` | DeepSeek R1 | 65K | 8K | ¥2/M | ¥8/M | 思考链，数学编程 |
+| `qwq-plus` | QwQ Plus | 131K | 16K | ¥1.6/M | ¥4/M | 思考链，数学逻辑 |
+| `deepseek-v4-pro` | DeepSeek V4 Pro | 1M | 16K | ¥12/M | ¥24/M | V4旗舰推理 |
+| `deepseek-r1` | DeepSeek R1 | 131K | 16K | ¥4/M | ¥16/M | 思考链，数学编程 |
 | `qwen-math-plus` | Qwen Math Plus | 4K | 4K | ¥4/M | ¥12/M | 数学专用，LaTeX |
 
 ---
@@ -167,12 +167,12 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 支持输入 |
 |---------|------|------------|----------|----------|----------|----------|
-| `qwen-vl-max` | Qwen VL Max | 32K | 8K | ¥3/M | ¥9/M | 文本、图像 |
-| `qwen-vl-plus` | Qwen VL Plus | 32K | 8K | ¥1.5/M | ¥4.5/M | 文本、图像 |
+| `qwen-vl-max` | Qwen VL Max | 131K | 8K | ¥1.6/M | ¥4/M | 文本、图像 |
+| `qwen-vl-plus` | Qwen VL Plus | 131K | 8K | ¥0.8/M | ¥2/M | 文本、图像 |
 | `qwen3-vl-plus` | Qwen3 VL Plus | 262K | 8K | ¥1/M | ¥10/M | 文本、图像(高分辨率) |
-| `qwen3-vl-flash` | Qwen3 VL Flash | 131K | 8K | **免费** | **免费** | 文本、图像 |
+| `qwen3-vl-flash` | Qwen3 VL Flash | 262K | 8K | ¥0.15/M | ¥1.5/M | 文本、图像 |
 | `qwen3-omni-flash` | Qwen3 Omni Flash | 65K | 8K | ¥1.8/M | ¥6.9/M | 文本、图像、视频 |
-| `qwen3.7-plus` | Qwen3.7 Plus | **1M** | 64K | ¥2/M | ¥8/M | 文本、图像，智能体，思考模式 |
+| `qwen3.7-plus` | Qwen3.7 Plus | **1M** | 64K | ¥4/M | ¥16/M | 文本、图像，智能体，思考模式 |
 
 ---
 
@@ -181,7 +181,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
 | `qwen3-coder-plus` | Qwen3 Coder Plus | 1M | 16K | ¥4/M | ¥16/M | 百万上下文，工具调用 |
-| `qwen3-coder-flash` | Qwen3 Coder Flash | 131K | 8K | **免费** | **免费** | 快速补全 |
+| `qwen3-coder-flash` | Qwen3 Coder Flash | 1M | 8K | ¥1/M | ¥4/M | 快速补全 |
 
 ---
 
@@ -190,7 +190,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
 | `qwen-mt-plus` | Qwen MT Plus | 16K | 8K | ¥1.8/M | ¥5.4/M | 92语种翻译 |
-| `tongyi-intent-detect-v3` | 通义意图识别 V3 | 8K | 1K | ¥0.42/M | ¥1.04/M | 百毫秒级意图识别 |
+| `tongyi-intent-detect-v3` | 通义意图识别 V3 | 8K | 1K | ¥0.4/M | ¥1/M | 百毫秒级意图识别 |
 
 ---
 

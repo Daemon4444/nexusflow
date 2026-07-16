@@ -59,7 +59,10 @@ export async function calculateOpenAiCacheAwareCost(params: {
   const tier = getTokenPricingTier(params.model, promptTokens);
   const promptPrice = tier?.promptPrice ?? params.model.promptPrice;
   const completionPrice = tier?.completionPrice ?? params.model.completionPrice;
-  const cacheReadMultiplier = params.explicitCache ? 0.1 : 0.2;
+  // Use explicit per-model/per-tier cache price when available (e.g. GLM-5.2 = ¥2/M).
+  // Fall back to DashScope standard multipliers: explicit cache=10%, implicit cache=20%.
+  const modelCacheReadPrice = tier?.cacheReadPrice ?? params.model.cacheReadPrice;
+  const cacheReadPrice = modelCacheReadPrice ?? (promptPrice * (params.explicitCache ? 0.1 : 0.2));
 
   // Modality split for omni models: DashScope returns audio/text token breakdown
   // in *_tokens_details. When the model has audio prices and the request actually
@@ -83,7 +86,7 @@ export async function calculateOpenAiCacheAwareCost(params: {
   const inputAmount =
     (uncachedTextPrompt / 1_000_000) * promptPrice +
     (effCreation / 1_000_000) * promptPrice * 1.25 +
-    (effCached / 1_000_000) * promptPrice * cacheReadMultiplier +
+    (effCached / 1_000_000) * cacheReadPrice +
     (audioPromptTokens / 1_000_000) * (audioInputPrice || 0);
 
   // When audio is produced, official 百炼 pricing charges audio output and the

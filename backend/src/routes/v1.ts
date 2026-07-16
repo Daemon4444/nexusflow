@@ -553,17 +553,6 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  if (messages.length > 200) {
-    res.status(400).json({
-      error: {
-        message: "Too many messages: maximum 200 messages per request.",
-        type: "invalid_request_error",
-        code: "invalid_request",
-      },
-    });
-    return;
-  }
-
   const model = models.find((m) => m.id === modelId);
   if (!model) {
     res.status(404).json({
