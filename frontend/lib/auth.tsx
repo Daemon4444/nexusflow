@@ -3,11 +3,20 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { fetchAPI } from "@/lib/api";
 
+interface UserQuota {
+  limit: number | null;
+  used: number;
+  period: string | null;
+}
+
 interface User {
   id: string;
-  email: string;
+  email: string | null;
+  username?: string | null;
   nickname: string;
   balance: number;
+  accountType?: "main" | "sub";
+  quota?: UserQuota | null;
   hasPassword: boolean;
   createdAt: string;
 }
@@ -17,6 +26,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, code: string) => Promise<{ success: boolean; message: string }>;
   loginWithPassword: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  loginWithUsername: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -26,6 +36,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => ({ success: false, message: "" }),
   loginWithPassword: async () => ({ success: false, message: "" }),
+  loginWithUsername: async () => ({ success: false, message: "" }),
   logout: async () => {},
   refreshUser: async () => {},
 });
@@ -120,6 +131,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithUsername = async (username: string, password: string) => {
+    try {
+      const res = await fetchAPI("/api/auth/login-username", {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      });
+      if (res.success) {
+        setToken(res.data.token);
+        setUser(res.data.user);
+        return { success: true, message: res.message };
+      }
+      return { success: false, message: res.message || "登录失败" };
+    } catch {
+      return { success: false, message: "网络错误，请重试" };
+    }
+  };
+
   const logout = async () => {
     const token = getToken();
     if (token) {
@@ -135,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithPassword, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithPassword, loginWithUsername, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

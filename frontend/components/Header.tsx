@@ -225,7 +225,11 @@ export default function Header() {
                   }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                  {formatCny(user.balance ?? 0)}
+                  {user.accountType === "sub"
+                    ? user.quota?.limit != null
+                      ? `额度 ${formatCny(Math.max(0, user.quota.limit - user.quota.used))}`
+                      : "子账号"
+                    : formatCny(user.balance ?? 0)}
                 </Link>
                 <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 8px" }} />
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

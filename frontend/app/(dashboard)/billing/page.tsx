@@ -54,6 +54,9 @@ export default function BillingPage() {
   const [exportError, setExportError] = useState("");
   const missingConfigKeys = Array.isArray(paymentConfig?.missing) ? paymentConfig!.missing : [];
   const { shouldShow: showOnboarding, markCompleted } = useOnboarding();
+  // 子账号视角：无充值入口，余额卡替换为限额视图（docs/sub-accounts-spec.md §4.3）
+  const isSub = user?.accountType === "sub";
+  const quota = user?.quota || null;
 
   useEffect(() => {
     if (!user) return;
@@ -219,19 +222,41 @@ export default function BillingPage() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
             {exportingCsv ? "导出中..." : "导出 CSV"}
           </button>
+          {!isSub && (
           <button className="btn-primary" onClick={() => setShowRecharge(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             {t("topUp")}
           </button>
+          )}
         </div>
       </div>
 
       <div className="usr-hero-dark">
+        {!isSub && (
         <BalanceWarning
           balance={summary?.balance || user?.balance || 0}
           threshold={10}
           onRecharge={() => setShowRecharge(true)}
         />
+        )}
+        {isSub ? (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div>
+              <div className="usr-hero-label">{quota?.limit != null ? "剩余可用额度" : "子账号"}</div>
+              <div className="usr-hero-value">
+                {quota?.limit != null ? formatCny(Math.max(0, quota.limit - quota.used)) : "余额由主账号统一管理"}
+              </div>
+            </div>
+            <div className="usr-hero-stats">
+              {quota?.limit != null && (
+                <>
+                  <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">限额{quota.period === "monthly" ? "（每月）" : "（累计）"}</div><div className="usr-hero-stat-value">{formatCny(quota.limit)}</div></div>
+                  <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">已用</div><div className="usr-hero-stat-value">{formatCny(quota.used)}</div></div>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
             <div className="usr-hero-label">{t("availableBalance")}</div>
@@ -243,6 +268,7 @@ export default function BillingPage() {
             <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("apiCalls")}</div><div className="usr-hero-stat-value">{summary?.totalCalls || 0}</div></div>
           </div>
         </div>
+        )}
       </div>
 
       <div className="usr-section" style={{ marginBottom: 20 }}>
@@ -268,7 +294,7 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {showRecharge && (
+      {showRecharge && !isSub && (
       <div className="usr-section animate-fadeIn" style={{ marginBottom: 20 }}>
           <div className="usr-section-header">
             <h3>{t("topUp")}</h3>
