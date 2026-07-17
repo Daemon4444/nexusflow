@@ -12,7 +12,7 @@ import SmartRecharge from "@/components/SmartRechargeRecommendation";
 import { ErrorState, LoadingState } from "@/components/AppState";
 
 interface BillingSummary { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; }
-interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; discountRate?: number; discountAmountCny?: number; }
+interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; discountRate?: number; discountAmountCny?: number; actorUserId?: string | null; actorName?: string | null; }
 interface ApiKeyInfo { id: string; key: string; name: string; }
 type PayMethod = "mock" | "alipay";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
@@ -116,7 +116,7 @@ export default function BillingPage() {
   async function handleRecharge() {
     const amount = parseFloat(rechargeAmount);
     if (!amount || amount <= 0) { setRechargeMsg({ type: "error", text: t("invalidAmount") }); return; }
-    if (amount > 10000) { setRechargeMsg({ type: "error", text: t("maxAmount") }); return; }
+    if (amount > 200000) { setRechargeMsg({ type: "error", text: t("maxAmount") }); return; }
     setRecharging(true); setRechargeMsg(null); setPaymentFormHtml(null);
     try {
       const body: Record<string, unknown> = { amount };
@@ -203,7 +203,24 @@ export default function BillingPage() {
     return tx.refId?.startsWith("playground:") || tx.description?.startsWith("Playground");
   }
 
-  const presetAmounts = [10, 50, 100, 500];
+  const presetAmounts = [10000, 50000, 100000, 200000];
+
+  // 仅主账号、且流水里确实有子账号发起的消费时，才显示“发起账号”列（普通用户零变化）
+  const showActorColumn = !isSub && transactions.some((tx) => tx.actorUserId && tx.actorUserId !== user?.id);
+  const txGridColumns = showActorColumn
+    ? "80px 1fr 120px 100px 100px 150px"
+    : "80px 1fr 100px 100px 150px";
+
+  const modalOverlay: React.CSSProperties = {
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100,
+    display: "flex", alignItems: "flex-start", justifyContent: "center",
+    padding: 20, overflowY: "auto",
+  };
+  const modalBox: React.CSSProperties = {
+    width: "100%", maxWidth: 480, background: "var(--bg-card)", borderRadius: 14,
+    border: "1px solid var(--border)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)",
+    margin: "auto", maxHeight: "90vh", overflowY: "auto",
+  };
 
   return (
     <UserLayout>
@@ -295,73 +312,92 @@ export default function BillingPage() {
       </div>
 
       {showRecharge && !isSub && (
-      <div className="usr-section animate-fadeIn" style={{ marginBottom: 20 }}>
-          <div className="usr-section-header">
-            <h3>{t("topUp")}</h3>
-            <button onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 18, lineHeight: 1 }}>×</button>
-          </div>
-          <div className="usr-section-body">
-            {/* Smart recommendations */}
-            {summary && (
-              <SmartRecharge
-                stats={{
-                  monthlyCost: summary.totalConsumption,
-                  avgDailyCost: summary.totalConsumption / 30,
-                  balance: summary.balance,
-                }}
-                onSelect={(amount) => setRechargeAmount(String(amount))}
-                selectedAmount={rechargeAmount}
-              />
-            )}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>{t("selectAmount")}</label>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-                {presetAmounts.map((a) => {
-                  const selected = rechargeAmount === String(a);
-                  return (<button key={a} onClick={() => setRechargeAmount(String(a))} style={{ padding: "12px 0", borderRadius: 8, border: selected ? "2px solid #111" : "1px solid var(--border)", background: selected ? "rgba(0,0,0,0.03)" : "var(--bg-card)", cursor: "pointer", fontSize: 15, fontWeight: 700, color: selected ? "#111" : "var(--text-secondary)", transition: "all 0.15s", fontFamily: "inherit" }}>¥{a}</button>);
-                })}
+        <div
+          style={modalOverlay}
+          onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }}
+        >
+          <div style={modalBox} onClick={(e) => e.stopPropagation()} className="animate-fadeIn">
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, background: "var(--bg-card)", borderTopLeftRadius: 14, borderTopRightRadius: 14, zIndex: 1 }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{t("topUp")}</h3>
+                <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>当前余额 {formatCny(summary?.balance || user?.balance || 0)}</div>
               </div>
+              <button onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 22, lineHeight: 1 }}>×</button>
             </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>{t("customAmount")}</label>
-              <input className="input" type="number" placeholder={t("enterAmount")} step="0.01" min="0.01" max="10000" value={rechargeAmount} onChange={(e) => setRechargeAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRecharge()} style={{ fontSize: 13 }} />
+
+            {/* Body */}
+            <div style={{ padding: "20px 22px" }}>
+              {/* Smart recommendations */}
+              {summary && (
+                <SmartRecharge
+                  stats={{
+                    monthlyCost: summary.totalConsumption,
+                    avgDailyCost: summary.totalConsumption / 30,
+                    balance: summary.balance,
+                  }}
+                  onSelect={(amount) => setRechargeAmount(String(amount))}
+                  selectedAmount={rechargeAmount}
+                />
+              )}
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>{t("selectAmount")}</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                  {presetAmounts.map((a) => {
+                    const selected = rechargeAmount === String(a);
+                    const wan = a % 10000 === 0 ? `¥${a / 10000}万` : `¥${a.toLocaleString()}`;
+                    return (<button key={a} onClick={() => setRechargeAmount(String(a))} style={{ padding: "12px 0", borderRadius: 10, border: selected ? "2px solid var(--accent, #111)" : "1px solid var(--border)", background: selected ? "rgba(37,99,235,0.06)" : "var(--bg-card)", cursor: "pointer", fontSize: 16, fontWeight: 700, color: selected ? "var(--accent, #111)" : "var(--text-secondary)", transition: "all 0.15s", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                      <span>{wan}</span>
+                      <span style={{ fontSize: 10.5, fontWeight: 400, color: "var(--text-tertiary)" }}>¥{a.toLocaleString()}</span>
+                    </button>);
+                  })}
+                </div>
+              </div>
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>{t("customAmount")}</label>
+                <input className="input" type="number" placeholder={t("enterAmount")} step="0.01" min="0.01" max="200000" value={rechargeAmount} onChange={(e) => setRechargeAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRecharge()} style={{ fontSize: 13 }} />
+              </div>
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>{t("paymentMethod")}</label>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {([
+                    ...(paymentConfig?.mockEnabled ? [{ key: "mock" as PayMethod, label: t("testMode"), desc: t("testModeDesc"), icon: "⚡" }] : []),
+                    { key: "alipay" as PayMethod, label: "Alipay", desc: t("alipayDesc"), icon: "💳" },
+                  ]).map((pm) => (
+                    <button key={pm.key} onClick={() => setPayMethod(pm.key)} style={{ flex: 1, padding: "12px 14px", borderRadius: 10, cursor: "pointer", border: payMethod === pm.key ? "2px solid var(--accent, #111)" : "1px solid var(--border)", background: payMethod === pm.key ? "rgba(37,99,235,0.04)" : "var(--bg-card)", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s" }}>
+                      <div style={{ fontSize: 16, marginBottom: 4 }}>{pm.icon}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{pm.label}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 1 }}>{pm.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {payMethod === "alipay" && paymentConfig && !paymentConfig.configured && (
+                <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--warning-bg)", border: "1px solid var(--warning-border)", color: "var(--warning)" }}>
+                  支付宝尚未完成配置，当前会进入模拟支付。请在后端 `.env` 填写：{missingConfigKeys.length > 0 ? missingConfigKeys.join(", ") : "ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY"}
+                </div>
+              )}
+              {payMethod === "alipay" && (
+                <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                  💳 点击充值后将跳转到支付宝页面完成支付
+                </div>
+              )}
+              {rechargeMsg && (
+                <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 7, fontSize: 12.5, background: rechargeMsg.type === "success" ? "var(--success-bg)" : "var(--danger-bg)", border: `1px solid ${rechargeMsg.type === "success" ? "var(--success-border)" : "var(--danger-border)"}`, color: rechargeMsg.type === "success" ? "var(--success)" : "var(--danger)" }}>
+                  {rechargeMsg.text}
+                </div>
+              )}
+              {payMethod === "mock" && (
+                <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", padding: "8px 12px", background: "var(--bg-elevated)", borderRadius: 6 }}>{t("testModeNote")}</div>
+              )}
             </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>{t("paymentMethod")}</label>
-              <div style={{ display: "flex", gap: 10 }}>
-                {([
-                  ...(paymentConfig?.mockEnabled ? [{ key: "mock" as PayMethod, label: t("testMode"), desc: t("testModeDesc"), icon: "⚡" }] : []),
-                  { key: "alipay" as PayMethod, label: "Alipay", desc: t("alipayDesc"), icon: "💳" },
-                ]).map((pm) => (
-                  <button key={pm.key} onClick={() => setPayMethod(pm.key)} style={{ flex: 1, padding: "12px 14px", borderRadius: 8, cursor: "pointer", border: payMethod === pm.key ? "2px solid #111" : "1px solid var(--border)", background: payMethod === pm.key ? "rgba(0,0,0,0.02)" : "var(--bg-card)", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s" }}>
-                    <div style={{ fontSize: 16, marginBottom: 4 }}>{pm.icon}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{pm.label}</div>
-                    <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 1 }}>{pm.desc}</div>
-                  </button>
-                ))}
-              </div>
+
+            {/* Footer */}
+            <div style={{ padding: "16px 22px", borderTop: "1px solid var(--border)", position: "sticky", bottom: 0, background: "var(--bg-card)", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
+              <button className="btn-primary" onClick={handleRecharge} disabled={recharging || !rechargeAmount || pollOrderId !== null} style={{ width: "100%", padding: "12px 24px", fontSize: 14, fontWeight: 600 }}>
+                {recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} ¥${rechargeAmount || "0"}`}
+              </button>
             </div>
-            {payMethod === "alipay" && paymentConfig && !paymentConfig.configured && (
-              <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--warning-bg)", border: "1px solid var(--warning-border)", color: "var(--warning)" }}>
-                支付宝尚未完成配置，当前会进入模拟支付。请在后端 `.env` 填写：{missingConfigKeys.length > 0 ? missingConfigKeys.join(", ") : "ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY"}
-              </div>
-            )}
-            {payMethod === "alipay" && (
-              <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                💳 点击充值后将跳转到支付宝页面完成支付
-              </div>
-            )}
-            <button className="btn-primary" onClick={handleRecharge} disabled={recharging || !rechargeAmount || pollOrderId !== null} style={{ padding: "9px 24px", fontSize: 13 }}>
-              {recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} ¥${rechargeAmount || "0"}`}
-            </button>
-            {rechargeMsg && (
-              <div style={{ marginTop: 14, padding: "9px 12px", borderRadius: 7, fontSize: 12.5, background: rechargeMsg.type === "success" ? "var(--success-bg)" : "var(--danger-bg)", border: `1px solid ${rechargeMsg.type === "success" ? "var(--success-border)" : "var(--danger-border)"}`, color: rechargeMsg.type === "success" ? "var(--success)" : "var(--danger)" }}>
-                {rechargeMsg.text}
-              </div>
-            )}
-            {payMethod === "mock" && (
-              <div style={{ marginTop: 12, fontSize: 11.5, color: "var(--text-tertiary)", padding: "8px 12px", background: "var(--bg-elevated)", borderRadius: 6 }}>{t("testModeNote")}</div>
-            )}
           </div>
         </div>
       )}
@@ -379,14 +415,14 @@ export default function BillingPage() {
           {transactions.length === 0 ? (
             <div style={{ textAlign: "center", padding: 60, color: "var(--text-tertiary)", fontSize: 13 }}>{t("noTransactions")}</div>
           ) : (
-            <>
-              <div className="table-row" style={{ gridTemplateColumns: "80px 1fr 100px 100px 150px", fontWeight: 600, color: "var(--text-tertiary)", fontSize: 11, textTransform: "uppercase" as const, background: "var(--bg-elevated)" }}>
-                <span>{t("txType")}</span><span>{t("txDescription")}</span><span style={{ textAlign: "right" }}>{t("txAmount")}</span><span style={{ textAlign: "right" }}>{t("txBalance")}</span><span style={{ textAlign: "right" }}>{t("txTime")}</span>
+            <div className="tx-table">
+              <div className="table-row tx-head" style={{ gridTemplateColumns: txGridColumns, fontWeight: 600, color: "var(--text-tertiary)", fontSize: 11, textTransform: "uppercase" as const, background: "var(--bg-elevated)" }}>
+                <span>{t("txType")}</span><span>{t("txDescription")}</span>{showActorColumn && <span>{t("txAccount")}</span>}<span style={{ textAlign: "right" }}>{t("txAmount")}</span><span style={{ textAlign: "right" }}>{t("txBalance")}</span><span style={{ textAlign: "right" }}>{t("txTime")}</span>
               </div>
               {transactions.map((tx) => (
-                <div key={tx.id} className="table-row" style={{ gridTemplateColumns: "80px 1fr 100px 100px 150px" }}>
-                  <span><span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 9999, fontSize: 11, fontWeight: 500, background: `${typeColor(tx.type)}12`, color: typeColor(tx.type), border: `1px solid ${typeColor(tx.type)}25` }}>{typeLabel(tx.type)}</span></span>
-                  <span style={{ color: "var(--text-primary)", fontSize: 12.5, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <div key={tx.id} className="table-row tx-body-row" style={{ gridTemplateColumns: txGridColumns }}>
+                  <span data-label={t("txType")}><span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 9999, fontSize: 11, fontWeight: 500, background: `${typeColor(tx.type)}12`, color: typeColor(tx.type), border: `1px solid ${typeColor(tx.type)}25` }}>{typeLabel(tx.type)}</span></span>
+                  <span data-label={t("txDescription")} style={{ color: "var(--text-primary)", fontSize: 12.5, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description || "-"}</span>
                     {isPlaygroundTx(tx) && (
                       <span style={{ flex: "0 0 auto", padding: "2px 7px", borderRadius: 9999, fontSize: 10.5, fontWeight: 600, color: "#2563eb", background: "rgba(37, 99, 235, 0.09)", border: "1px solid rgba(37, 99, 235, 0.18)" }}>
@@ -394,7 +430,18 @@ export default function BillingPage() {
                       </span>
                     )}
                   </span>
-                  <span style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  {showActorColumn && (
+                    <span data-label={t("txAccount")} style={{ fontSize: 12, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {tx.actorUserId && tx.actorUserId !== user?.id ? (
+                        <span style={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "2px 7px", borderRadius: 9999, fontWeight: 600, color: "#7c3aed", background: "rgba(124, 58, 237, 0.09)", border: "1px solid rgba(124, 58, 237, 0.18)", verticalAlign: "middle" }}>
+                          {tx.actorName || tx.actorUserId}
+                        </span>
+                      ) : (
+                        <span style={{ color: "var(--text-tertiary)" }}>{t("txSelf")}</span>
+                      )}
+                    </span>
+                  )}
+                  <span data-label={t("txAmount")} style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                     {tx.type !== "recharge" && tx.discountRate !== undefined && tx.discountRate < 1 && tx.discountAmountCny !== undefined && (
                       <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                         <span style={{ color: "var(--text-tertiary)", textDecoration: "line-through", fontSize: 10.5, fontWeight: 400 }}>{formatCnyPrecise(Number(tx.amount) + tx.discountAmountCny)}</span>
@@ -405,8 +452,8 @@ export default function BillingPage() {
                     )}
                     <span>{tx.type === "recharge" ? "+" : "-"}{formatCnyPrecise(tx.amount)}</span>
                   </span>
-                  <span style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCnyPrecise(tx.balanceAfter)}</span>
-                  <span style={{ textAlign: "right", color: "var(--text-tertiary)", fontSize: 12 }}>{formatDate(tx.createdAt)}</span>
+                  <span data-label={t("txBalance")} style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCnyPrecise(tx.balanceAfter)}</span>
+                  <span data-label={t("txTime")} style={{ textAlign: "right", color: "var(--text-tertiary)", fontSize: 12 }}>{formatDate(tx.createdAt)}</span>
                 </div>
               ))}
               {txTotal > 20 && (
@@ -416,7 +463,7 @@ export default function BillingPage() {
                   <button className="btn-secondary" style={{ padding: "6px 16px", fontSize: 12 }} disabled={txOffset + 20 >= txTotal} onClick={() => loadTransactions(txOffset + 20)}>{t("next")}</button>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       )}

@@ -19,6 +19,7 @@ export interface User {
   quota_used: number;
   quota_period: string | null; // 'total' | 'monthly'
   quota_reset_at: string | null;
+  allowed_models: string | null; // JSON 数组；NULL=不限；子账号模型权限（migration 009）
 }
 
 export interface Session {
@@ -41,6 +42,7 @@ function normalizeUser<T extends User | null>(user: T): T {
     quota_used: Number(user.quota_used || 0),
     quota_period: user.quota_period || null,
     quota_reset_at: user.quota_reset_at || null,
+    allowed_models: user.allowed_models ?? null,
   };
 }
 
@@ -140,7 +142,7 @@ export async function loginByUsername(username: string, password: string): Promi
 export async function validateSession(token: string): Promise<(User & { sessionToken: string }) | null> {
   const row = await db.queryOne<any>(
     `SELECT s.*, u.phone, u.nickname, u.balance, u.email, u.password_hash, u.created_at as user_created_at, u.updated_at as user_updated_at,
-            u.parent_user_id, u.username, u.status, u.quota_limit, u.quota_used, u.quota_period, u.quota_reset_at
+            u.parent_user_id, u.username, u.status, u.quota_limit, u.quota_used, u.quota_period, u.quota_reset_at, u.allowed_models
        FROM sessions s
        JOIN users u ON s.user_id = u.id
       WHERE s.token = ? AND s.expires_at > NOW() AND u.status = 'active'`,
@@ -163,6 +165,7 @@ export async function validateSession(token: string): Promise<(User & { sessionT
     quota_used: Number(row.quota_used || 0),
     quota_period: row.quota_period || null,
     quota_reset_at: row.quota_reset_at || null,
+    allowed_models: row.allowed_models ?? null,
     sessionToken: token,
   };
 }

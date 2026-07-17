@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { requireAdmin } from "../middleware/admin";
 import { sanitizeError } from "../utils/sanitize-error";
 import { getAdminUserLimitSummaries, getUserLimitsOverview } from "../data/ratelimits";
-import { adminAdjustBalance, getBillingUsageExport, getTransactions } from "../data/billing";
+import { adminAdjustBalance, getBillingUsageExport, getTransactions, getBillingSummary, getSubAccountBreakdown } from "../data/billing";
 import { getByModel, getOverview, getRecent, getUsageSummary } from "../data/usage";
 import {
   getDashboardDailyStats,
@@ -14,7 +14,7 @@ import {
   getModelDistribution,
 } from "../data/dashboard";
 import { listUserModelDiscounts } from "../data/user-discounts";
-import { getUserById } from "../data/users";
+import { getUserById, getAllUsers } from "../data/users";
 import { db } from "../db/client";
 import { getSlsClient } from "../services/sls";
 import { models, getStaticModels } from "../data/models";
@@ -276,6 +276,109 @@ router.post("/users/:id/balance-adjust", async (req: Request, res: Response) => 
     return;
   }
   res.json({ success: true, data: tx, message: "余额已调整" });
+});
+
+// ========== 账单（全局总览 + 单用户下钻，只读） ==========
+
+router.get("/billing/overview", async (_req: Request, res: Response) => {
+  try {
+    const users = await getAllUsers();
+    const rows = await Promise.all(
+      users.map(async (user) => {
+        const summary = await getBillingSummary(user.id);
+        const isSub = !!user.parent_user_id;
+        return {
+          id: user.id,
+          nickname: user.nickname,
+          email: user.email,
+          username: user.username,
+          accountType: isSub ? "sub" : "main",
+          status: user.status || "active",
+          balance: summary.balance,
+          totalRecharge: summary.totalRecharge,
+          totalConsumption: summary.totalConsumption,
+          totalCalls: summary.totalCalls,
+        };
+      })
+    );
+
+    const totals = rows.reduce(
+      (acc, r) => {
+        acc.balance += r.balance;
+        acc.totalRecharge += r.totalRecharge;
+        acc.totalConsumption += r.totalConsumption;
+        acc.totalCalls += r.totalCalls;
+        return acc;
+      },
+      { balance: 0, totalRecharge: 0, totalConsumption: 0, totalCalls: 0 }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        totals: {
+          balance: Math.round(totals.balance * 1_000_000) / 1_000_000,
+          totalRecharge: Math.round(totals.totalRecharge * 1_000_000) / 1_000_000,
+          totalConsumption: Math.round(totals.totalConsumption * 1_000_000) / 1_000_000,
+          totalCalls: totals.totalCalls,
+          userCount: rows.length,
+        },
+        users: rows,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: sanitizeError(error) });
+  }
+});
+
+router.get("/billing/users/:id", async (req: Request, res: Response) => {
+  const userId = String(req.params.id);
+  const user = await getUserById(userId);
+  if (!user) {
+    res.status(404).json({ success: false, message: "用户不存在" });
+    return;
+  }
+
+  try {
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const offset = Math.max(0, Number(req.query.offset) || 0);
+
+    const now = new Date();
+    const defaultStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const startDate =
+      typeof req.query.startDate === "string" && !Number.isNaN(new Date(req.query.startDate).getTime())
+        ? new Date(req.query.startDate)
+        : defaultStart;
+    const endDate =
+      typeof req.query.endDate === "string" && !Number.isNaN(new Date(req.query.endDate).getTime())
+        ? new Date(new Date(req.query.endDate).setHours(23, 59, 59, 999))
+        : now;
+
+    const [summary, transactions] = await Promise.all([
+      getBillingSummary(userId),
+      getTransactions(userId, limit, offset),
+    ]);
+    const subBreakdown = user.parent_user_id ? [] : await getSubAccountBreakdown(userId, startDate, endDate);
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: user.id,
+          nickname: user.nickname,
+          email: user.email,
+          username: user.username,
+          accountType: user.parent_user_id ? "sub" : "main",
+          status: user.status || "active",
+        },
+        summary,
+        transactions,
+        subBreakdown,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: sanitizeError(error) });
+  }
 });
 
 // ========== 日志查询端点（Admin 全局可见） ==========

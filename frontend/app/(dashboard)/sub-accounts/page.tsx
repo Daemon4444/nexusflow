@@ -19,6 +19,25 @@ interface SubAccount {
   created_at: string;
   key_count: number;
   last_active: string | null;
+  allowed_models: string | null; // JSON 数组；NULL=不限
+}
+
+interface ModelOption {
+  id: string;
+  name: string;
+  provider: string;
+  category: string;
+}
+
+/** 解析 allowed_models 原始字符串：NULL→null（不限），否则 string[]（[]=全禁） */
+function parseAllowed(raw: string | null): string[] | null {
+  if (raw == null) return null;
+  try {
+    const a = JSON.parse(raw);
+    return Array.isArray(a) ? a.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 interface BreakdownRow {
@@ -45,20 +64,80 @@ const badgeStyle = (bg: string, color: string): React.CSSProperties => ({
   fontSize: 11.5, fontWeight: 600, background: bg, color,
 });
 
+function ModelPicker({ options, value, onChange }: { options: ModelOption[]; value: string[]; onChange: (next: string[]) => void }) {
+  const [q, setQ] = useState("");
+  const filtered = options.filter((m) => {
+    const kw = q.trim().toLowerCase();
+    if (!kw) return true;
+    return m.name.toLowerCase().includes(kw) || m.id.toLowerCase().includes(kw);
+  });
+  const groups = filtered.reduce<Record<string, ModelOption[]>>((acc, m) => {
+    const cat = m.category || "其他";
+    (acc[cat] = acc[cat] || []).push(m);
+    return acc;
+  }, {});
+  const selected = new Set(value);
+  const toggle = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    onChange([...next]);
+  };
+  const filteredIds = filtered.map((m) => m.id);
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", padding: 8, borderBottom: "1px solid var(--border)" }}>
+        <input className="input" style={{ fontSize: 13, flex: 1 }} placeholder="搜索模型名称或 ID" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button type="button" className="btn-ghost" style={{ fontSize: 12, padding: "6px 10px", whiteSpace: "nowrap" }}
+          onClick={() => {
+            if (allFilteredSelected) onChange(value.filter((id) => !filteredIds.includes(id)));
+            else onChange([...new Set([...value, ...filteredIds])]);
+          }}>
+          {allFilteredSelected ? "清空当前" : "全选当前"}
+        </button>
+      </div>
+      <div style={{ maxHeight: 260, overflowY: "auto", padding: 8 }}>
+        {filtered.length === 0 ? (
+          <div style={{ padding: 16, textAlign: "center", color: "var(--text-tertiary)", fontSize: 13 }}>没有匹配的模型</div>
+        ) : (
+          Object.entries(groups).map(([cat, list]) => (
+            <div key={cat} style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", margin: "4px 2px" }}>{cat}</div>
+              {list.map((m) => (
+                <label key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", borderRadius: 6, cursor: "pointer", fontSize: 12.5 }}>
+                  <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggle(m.id)} />
+                  <span style={{ color: "var(--text-primary)" }}>{m.name}</span>
+                  <span style={{ color: "var(--text-tertiary)", fontSize: 11, marginLeft: "auto", fontFamily: "var(--font-mono)" }}>{m.id}</span>
+                </label>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+      <div style={{ padding: "6px 10px", borderTop: "1px solid var(--border)", fontSize: 11.5, color: "var(--text-tertiary)" }}>
+        已选 {value.length} 个模型{value.length === 0 ? "（子账号将无法调用任何模型）" : ""}
+      </div>
+    </div>
+  );
+}
+
 export default function SubAccountsPage() {
   const { user, loading } = useAuth();
   const [rows, setRows] = useState<SubAccount[]>([]);
   const [breakdown, setBreakdown] = useState<BreakdownRow[]>([]);
+  const [models, setModels] = useState<ModelOption[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ username: "", password: genPassword(), nickname: "", quotaLimit: "", quotaPeriod: "total" });
+  const [form, setForm] = useState<{ username: string; password: string; nickname: string; quotaLimit: string; quotaPeriod: string; allowedModels: string[] }>({ username: "", password: genPassword(), nickname: "", quotaLimit: "", quotaPeriod: "total", allowedModels: [] });
   const [creating, setCreating] = useState(false);
   const [createdCred, setCreatedCred] = useState<{ username: string; password: string } | null>(null);
   const [actionMsg, setActionMsg] = useState("");
   const [editQuota, setEditQuota] = useState<SubAccount | null>(null);
   const [quotaInput, setQuotaInput] = useState("");
   const [quotaPeriodInput, setQuotaPeriodInput] = useState("total");
+  const [editModels, setEditModels] = useState<SubAccount | null>(null);
+  const [editModelsValue, setEditModelsValue] = useState<string[]>([]);
   const [resetTarget, setResetTarget] = useState<SubAccount | null>(null);
   const [resetPassword, setResetPasswordValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<SubAccount | null>(null);
@@ -67,13 +146,17 @@ export default function SubAccountsPage() {
     setDataLoading(true);
     setError("");
     try {
-      const [listRes, bdRes] = await Promise.all([
+      const [listRes, bdRes, modelsRes] = await Promise.all([
         fetchAPI("/api/sub-accounts", { headers: authHeaders(), signal }),
         fetchAPI("/api/billing/sub-breakdown", { headers: authHeaders(), signal }),
+        fetchAPI("/api/models", { signal }),
       ]);
       if (listRes.success) setRows(listRes.data);
       else setError(listRes.message || "加载失败");
       if (bdRes.success) setBreakdown(bdRes.data.rows);
+      if (modelsRes.success) {
+        setModels(((modelsRes.data || []) as ModelOption[]).map((m) => ({ id: m.id, name: m.name, provider: m.provider, category: m.category })));
+      }
     } catch {
       setError("无法连接服务，请稍后重试");
     } finally {
@@ -102,12 +185,13 @@ export default function SubAccountsPage() {
           nickname: form.nickname.trim() || undefined,
           quotaLimit: form.quotaLimit === "" ? null : Number(form.quotaLimit),
           quotaPeriod: form.quotaLimit === "" ? null : form.quotaPeriod,
+          allowedModels: form.allowedModels,
         }),
       });
       if (res.success) {
         setCreatedCred({ username: res.data.username, password: form.password });
         setShowCreate(false);
-        setForm({ username: "", password: genPassword(), nickname: "", quotaLimit: "", quotaPeriod: "total" });
+        setForm({ username: "", password: genPassword(), nickname: "", quotaLimit: "", quotaPeriod: "total", allowedModels: [] });
         await load();
       } else {
         setError(res.message || "创建失败");
@@ -223,14 +307,14 @@ export default function SubAccountsPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                    {["用户名", "昵称", "状态", "限额", "已用", "密钥数", "最近活跃", "操作"].map((h) => (
+                    {["用户名", "昵称", "状态", "限额", "已用", "密钥数", "可用模型", "最近活跃", "操作"].map((h) => (
                       <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 && (
-                    <tr><td colSpan={8} style={{ padding: "28px 14px", textAlign: "center", color: "var(--text-tertiary)" }}>还没有子账号，点右上角创建</td></tr>
+                    <tr><td colSpan={9} style={{ padding: "28px 14px", textAlign: "center", color: "var(--text-tertiary)" }}>还没有子账号，点右上角创建</td></tr>
                   )}
                   {rows.map((r) => (
                     <tr key={r.id} style={{ borderBottom: "1px solid var(--border)" }}>
@@ -255,6 +339,14 @@ export default function SubAccountsPage() {
                         )}
                       </td>
                       <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{r.key_count}</td>
+                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                        {(() => {
+                          const a = parseAllowed(r.allowed_models);
+                          if (a == null) return <span style={badgeStyle("rgba(16,185,129,0.1)", "#059669")}>全部</span>;
+                          if (a.length === 0) return <span style={badgeStyle("rgba(239,68,68,0.08)", "var(--danger)")}>无</span>;
+                          return <span style={{ color: "var(--text-secondary)" }}>{a.length} 个</span>;
+                        })()}
+                      </td>
                       <td style={{ padding: "10px 14px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>
                         {r.last_active ? new Date(r.last_active).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
                       </td>
@@ -263,6 +355,10 @@ export default function SubAccountsPage() {
                           <button className="btn-ghost" style={{ fontSize: 12, padding: "4px 8px" }}
                             onClick={() => { setEditQuota(r); setQuotaInput(r.quota_limit == null ? "" : String(r.quota_limit)); setQuotaPeriodInput(r.quota_period || "total"); }}>
                             限额
+                          </button>
+                          <button className="btn-ghost" style={{ fontSize: 12, padding: "4px 8px" }}
+                            onClick={() => { setEditModels(r); setEditModelsValue(parseAllowed(r.allowed_models) ?? []); }}>
+                            模型权限
                           </button>
                           <button className="btn-ghost" style={{ fontSize: 12, padding: "4px 8px" }}
                             onClick={() => { setResetTarget(r); setResetPasswordValue(genPassword()); }}>
@@ -332,7 +428,7 @@ export default function SubAccountsPage() {
       {/* 创建弹窗 */}
       {showCreate && (
         <div style={modalOverlay} onClick={() => setShowCreate(false)}>
-          <div style={modalBox} onClick={(e) => e.stopPropagation()}>
+          <div style={{ ...modalBox, maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>创建子账号</h3>
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>用户名（3-32 位字母/数字/_-，用于登录）</label>
@@ -363,6 +459,10 @@ export default function SubAccountsPage() {
                   <option value="monthly">每月</option>
                 </select>
               </div>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>可用模型（默认无，需勾选授权后子账号方可调用）</label>
+              <ModelPicker options={models} value={form.allowedModels} onChange={(next) => setForm({ ...form, allowedModels: next })} />
             </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button className="btn-ghost" style={{ padding: "9px 16px", fontSize: 13 }} onClick={() => setShowCreate(false)}>取消</button>
@@ -428,6 +528,27 @@ export default function SubAccountsPage() {
                     ...(quotaInput !== "" ? { quotaPeriod: quotaPeriodInput } : {}),
                   }, "限额已更新");
                   setEditQuota(null);
+                }}>
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 模型权限编辑 */}
+      {editModels && (
+        <div style={modalOverlay} onClick={() => setEditModels(null)}>
+          <div style={{ ...modalBox, maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>模型权限 — {editModels.username}</h3>
+            <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 14 }}>勾选后该子账号方可调用对应模型；不勾选则无法调用。改动即时生效。</p>
+            <ModelPicker options={models} value={editModelsValue} onChange={setEditModelsValue} />
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
+              <button className="btn-ghost" style={{ padding: "9px 16px", fontSize: 13 }} onClick={() => setEditModels(null)}>取消</button>
+              <button className="btn-primary" style={{ padding: "9px 16px", fontSize: 13 }}
+                onClick={async () => {
+                  await patchSub(editModels.id, { allowedModels: editModelsValue }, "模型权限已更新");
+                  setEditModels(null);
                 }}>
                 保存
               </button>

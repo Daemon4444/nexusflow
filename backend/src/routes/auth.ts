@@ -3,6 +3,7 @@ import { loginByEmail, loginByPassword, loginByUsername, setUserPassword, hasPas
 import { sendEmailCode, verifyEmailCode } from "../services/email";
 import { validateBody, SendCodeSchema, LoginSchema } from "../middleware/validation";
 import { z } from "zod";
+import { parseAllowedModels } from "../data/model-access";
 
 const router = Router();
 
@@ -189,6 +190,7 @@ router.get("/me", async (req: Request, res: Response) => {
       quota: isSub
         ? { limit: user.quota_limit, used: user.quota_used, period: user.quota_period }
         : null,
+      allowedModels: isSub ? parseAllowedModels(user.allowed_models) : null,
       hasPassword: !!user.password_hash,
       createdAt: user.created_at,
     },

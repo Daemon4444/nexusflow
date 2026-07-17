@@ -32,11 +32,12 @@ export async function getKeysByUser(userId: string): Promise<ApiKey[]> {
   return db.queryMany<ApiKey>("SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC", [userId]);
 }
 
-export async function validateApiKey(token: string): Promise<ApiKey | null> {
+export async function validateApiKey(token: string): Promise<(ApiKey & { parent_user_id: string | null; allowed_models: string | null }) | null> {
   const tokenHash = hashApiKey(token);
-  // join 用户状态：账号（及其主账号）非 active 时 key 立即失效（spec §5）
-  const key = await db.queryOne<ApiKey & { user_status: string | null; parent_status: string | null }>(
-    `SELECT k.*, u.status as user_status, p.status as parent_status
+  // join 用户状态 + 子账号模型权限：账号（及其主账号）非 active 时 key 立即失效（spec §5）
+  const key = await db.queryOne<ApiKey & { user_status: string | null; parent_status: string | null; parent_user_id: string | null; allowed_models: string | null }>(
+    `SELECT k.*, u.status as user_status, p.status as parent_status,
+            u.parent_user_id as parent_user_id, u.allowed_models as allowed_models
        FROM api_keys k
        LEFT JOIN users u ON u.id = k.user_id
        LEFT JOIN users p ON p.id = u.parent_user_id

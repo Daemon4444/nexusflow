@@ -5,6 +5,7 @@ import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
 import { getEffectiveRateLimit } from "../data/ratelimits";
+import { isModelAllowed } from "../data/model-access";
 import { detectModelType } from "../services/adapters";
 import { getRequestedRegion, resolveUpstream } from "../services/upstream";
 import { checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
@@ -106,6 +107,11 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   if (detectModelType(model.category) !== "chat") {
     openAiError(res, 400, `Model '${modelId}' does not support chat completions.`, "unsupported_model");
+    return;
+  }
+
+  if (!isModelAllowed(session.parent_user_id, session.allowed_models, modelId)) {
+    openAiError(res, 403, `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`, "model_not_allowed");
     return;
   }
 

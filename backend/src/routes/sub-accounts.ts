@@ -7,6 +7,7 @@ import {
   resetSubAccountPassword,
   softDeleteSubAccount,
 } from "../data/sub-accounts";
+import { parseAllowedModels } from "../data/model-access";
 
 // docs/sub-accounts-spec.md §6 — 全部接口要求：已登录 + 发起者是主账号
 const router = Router();
@@ -34,7 +35,7 @@ router.post("/", async (req: Request, res: Response) => {
   const owner = await requireMainAccount(req, res);
   if (!owner) return;
 
-  const { username, password, nickname, quotaLimit, quotaPeriod } = req.body || {};
+  const { username, password, nickname, quotaLimit, quotaPeriod, allowedModels } = req.body || {};
   if (!username || !password) {
     res.status(400).json({ success: false, message: "用户名和密码不能为空" });
     return;
@@ -47,6 +48,7 @@ router.post("/", async (req: Request, res: Response) => {
     nickname: nickname ? String(nickname) : undefined,
     quotaLimit,
     quotaPeriod,
+    allowedModels: Array.isArray(allowedModels) ? allowedModels : undefined,
   });
   if ("error" in result) {
     res.status(result.status).json({ success: false, message: result.error });
@@ -62,6 +64,7 @@ router.post("/", async (req: Request, res: Response) => {
       status: result.user.status,
       quotaLimit: result.user.quota_limit,
       quotaPeriod: result.user.quota_period,
+      allowedModels: parseAllowedModels(result.user.allowed_models),
       createdAt: result.user.created_at,
     },
     message: "子账号创建成功",
@@ -81,12 +84,13 @@ router.patch("/:id", async (req: Request, res: Response) => {
   const owner = await requireMainAccount(req, res);
   if (!owner) return;
 
-  const { nickname, quotaLimit, quotaPeriod, status } = req.body || {};
+  const { nickname, quotaLimit, quotaPeriod, status, allowedModels } = req.body || {};
   const result = await updateSubAccount(owner.id, req.params.id as string, {
     ...(nickname !== undefined ? { nickname } : {}),
     ...(quotaLimit !== undefined ? { quotaLimit } : {}),
     ...(quotaPeriod !== undefined ? { quotaPeriod } : {}),
     ...(status !== undefined ? { status } : {}),
+    ...(allowedModels !== undefined ? { allowedModels: Array.isArray(allowedModels) ? allowedModels : [] } : {}),
   });
   if ("error" in result) {
     res.status(result.status).json({ success: false, message: result.error });
@@ -102,6 +106,7 @@ router.patch("/:id", async (req: Request, res: Response) => {
       quotaLimit: result.user.quota_limit,
       quotaUsed: result.user.quota_used,
       quotaPeriod: result.user.quota_period,
+      allowedModels: parseAllowedModels(result.user.allowed_models),
     },
     message: "更新成功",
   });

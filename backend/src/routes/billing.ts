@@ -279,8 +279,8 @@ router.post("/recharge", async (req: Request, res: Response) => {
     res.status(400).json({ success: false, message: "充值金额必须大于 0" });
     return;
   }
-  if (normalizedAmount > 10000) {
-    res.status(400).json({ success: false, message: "单次充值金额不能超过 10000 元" });
+  if (normalizedAmount > 200000) {
+    res.status(400).json({ success: false, message: "单次充值金额不能超过 200000 元" });
     return;
   }
 

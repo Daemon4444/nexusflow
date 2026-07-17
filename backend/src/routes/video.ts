@@ -22,6 +22,7 @@ import { selectProvider, acquireConcurrency, recordSuccess, recordFailure } from
 import { getProviderById } from "../data/providers";
 import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
 import { getEffectiveRateLimit } from "../data/ratelimits";
+import { isModelAllowed } from "../data/model-access";
 import { checkRPM } from "../services/rate-limiter";
 import {
   adaptVideoRequest,
@@ -38,6 +39,8 @@ const router = Router();
 type Caller = {
   userId: string | null;
   apiKeyId: string | null;
+  parentUserId: string | null;
+  allowedModels: string | null;
   errorIdentity: { id: string | null; user_id: string | null } | null;
 };
 
@@ -64,6 +67,8 @@ async function authenticateCaller(req: Request): Promise<Caller | null> {
     return {
       userId: apiKeyRecord.user_id,
       apiKeyId: apiKeyRecord.id,
+      parentUserId: apiKeyRecord.parent_user_id,
+      allowedModels: apiKeyRecord.allowed_models,
       errorIdentity: apiKeyRecord,
     };
   }
@@ -73,6 +78,8 @@ async function authenticateCaller(req: Request): Promise<Caller | null> {
     return {
       userId: session.id,
       apiKeyId: null,
+      parentUserId: session.parent_user_id,
+      allowedModels: session.allowed_models,
       errorIdentity: { id: null, user_id: session.id },
     };
   }
@@ -126,6 +133,11 @@ const handleGenerate = async (req: Request, res: Response) => {
   const model = models.find((m) => m.id === modelId);
   if (!model || model.category !== "视频生成") {
     res.status(404).json({ success: false, message: "视频生成模型不存在" });
+    return;
+  }
+
+  if (!isModelAllowed(caller.parentUserId, caller.allowedModels, modelId)) {
+    res.status(403).json({ success: false, message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。` });
     return;
   }
 

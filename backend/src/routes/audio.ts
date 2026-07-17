@@ -17,6 +17,7 @@ import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
 import { applyUserModelDiscount } from "../data/user-discounts";
+import { isModelAllowed } from "../data/model-access";
 import { checkRPM, recordRequest } from "../services/rate-limiter";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
@@ -111,6 +112,12 @@ router.post("/speech", async (req: Request, res: Response) => {
     // 4. Balance check
     const charCount = typeof text === "string" ? text.length : 0;
     const estimatedCost = (charCount / 1_000_000) * model.promptPrice;
+    if (!isModelAllowed(caller.parent_user_id, caller.allowed_models, modelId)) {
+      res.status(403).json({
+        error: { message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`, type: "invalid_request_error", code: "model_not_allowed" },
+      });
+      return;
+    }
     const { finalAmount: discountedCost } = await applyUserModelDiscount(caller.user_id, modelId, estimatedCost);
     if (!(await hasSufficientBalance(caller.user_id, discountedCost))) {
       res.status(402).json({
@@ -324,6 +331,13 @@ router.post("/transcriptions", audioUpload.single("file"), async (req: Request, 
 
     // 4. Balance & rate check
     const estimatedCost = (60 / 1_000_000) * model.promptPrice;
+    if (!isModelAllowed(caller.parent_user_id, caller.allowed_models, modelId)) {
+      cleanupUploadedFile(req.file);
+      res.status(403).json({
+        error: { message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`, type: "invalid_request_error", code: "model_not_allowed" },
+      });
+      return;
+    }
     const { finalAmount: discountedCost } = await applyUserModelDiscount(caller.user_id, modelId, estimatedCost);
     if (!(await hasSufficientBalance(caller.user_id, discountedCost))) {
       cleanupUploadedFile(req.file);

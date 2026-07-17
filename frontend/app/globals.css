@@ -3824,3 +3824,56 @@ body:has(.quiet-console-layout) .header-status { margin-left: 16px; }
   border-color: #0d9488 !important;
   box-shadow: 0 0 0 3px rgba(13,148,136,.12) !important;
 }
+
+/* ====== Mobile: transactions table -> stacked cards ====== */
+@media (max-width: 640px) {
+  .tx-table .tx-head {
+    display: none !important;
+  }
+  .tx-table .tx-body-row {
+    display: block !important;
+    grid-template-columns: none !important;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin: 10px 12px;
+    background: var(--bg-card);
+  }
+  .tx-table .tx-body-row:hover {
+    background: var(--bg-card);
+  }
+  /* each cell becomes a label:value row */
+  .tx-table .tx-body-row > span {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: auto !important;
+    min-width: 0;
+    text-align: right !important;
+    padding: 4px 0;
+    white-space: normal !important;
+    overflow: visible !important;
+  }
+  .tx-table .tx-body-row > span + span {
+    border-top: 1px dashed var(--border);
+  }
+  .tx-table .tx-body-row > span::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    text-align: left;
+    white-space: nowrap;
+  }
+  /* description can wrap and align left */
+  .tx-table .tx-body-row > span[data-label] > span:first-child {
+    overflow: visible !important;
+    white-space: normal !important;
+    text-align: right;
+    word-break: break-word;
+  }
+}

@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/client";
 import { User, hashPassword, deleteSessionsByUserId } from "./users";
+import { models } from "./models";
+import { normalizeAllowedModels } from "./model-access";
 
 // docs/sub-accounts-spec.md §2
 
@@ -9,6 +11,14 @@ const RESERVED_USERNAMES = new Set([
   "admin", "administrator", "root", "system", "api", "support", "billing",
   "nexusflow", "quadrant", "official", "help", "service", "test",
 ]);
+
+/** 规整并校验 allowedModels：仅保留存在于目录中的模型 id。null 表示"不设置/不限"。 */
+function sanitizeAllowedModels(input: unknown): string[] | null {
+  const normalized = normalizeAllowedModels(input);
+  if (normalized == null) return null;
+  const valid = new Set(models.map((m) => m.id));
+  return normalized.filter((id) => valid.has(id));
+}
 
 export function getSubAccountLimit(): number {
   const parsed = Number(process.env.SUB_ACCOUNT_LIMIT || 20);
@@ -33,6 +43,7 @@ export interface SubAccountSummary {
   created_at: string;
   key_count: number;
   last_active: string | null;
+  allowed_models: string | null; // JSON 数组；NULL=不限
 }
 
 function normalizeQuota(value: unknown): number | null {
@@ -57,6 +68,7 @@ export async function createSubAccount(params: {
   nickname?: string;
   quotaLimit?: number | null;
   quotaPeriod?: string | null;
+  allowedModels?: string[] | null;
 }): Promise<{ user: User } | { error: string; status: number }> {
   const username = params.username.toLowerCase();
   const usernameError = validateUsername(username);
@@ -66,6 +78,9 @@ export async function createSubAccount(params: {
   const quotaLimit = normalizeQuota(params.quotaLimit);
   const quotaPeriod = params.quotaPeriod === "monthly" ? "monthly" : params.quotaPeriod === "total" ? "total" : null;
   if (quotaPeriod && quotaLimit == null) return { error: "设置限额周期时必须提供限额金额", status: 400 };
+
+  // 新建子账号默认无任何模型权限（[]），须主账号显式授权
+  const allowed = sanitizeAllowedModels(params.allowedModels) ?? [];
 
   const existing = await db.queryOne<{ id: string }>("SELECT id FROM users WHERE username = ?", [username]);
   if (existing) return { error: "用户名已被占用", status: 409 };
@@ -78,11 +93,12 @@ export async function createSubAccount(params: {
   const nickname = (params.nickname || username).slice(0, 20);
   const user = await db.queryOne<User>(
     `INSERT INTO users (id, phone, email, nickname, balance, password_hash, parent_user_id, username, status,
-                        quota_limit, quota_used, quota_period, quota_reset_at, created_at, updated_at)
-     VALUES (?, NULL, NULL, ?, 0, ?, ?, ?, 'active', ?, 0, ?, ?, ?, ?)
+                        quota_limit, quota_used, quota_period, quota_reset_at, allowed_models, created_at, updated_at)
+     VALUES (?, NULL, NULL, ?, 0, ?, ?, ?, 'active', ?, 0, ?, ?, ?, ?, ?)
      RETURNING *`,
     [id, nickname, hashPassword(params.password), params.ownerId, username,
-     quotaLimit, quotaLimit != null ? (quotaPeriod || "total") : null, quotaPeriod === "monthly" ? now : null, now, now]
+     quotaLimit, quotaLimit != null ? (quotaPeriod || "total") : null, quotaPeriod === "monthly" ? now : null,
+     JSON.stringify(allowed), now, now]
   );
   return { user: user! };
 }
@@ -90,14 +106,14 @@ export async function createSubAccount(params: {
 export async function listSubAccounts(ownerId: string): Promise<SubAccountSummary[]> {
   const rows = await db.queryMany<any>(
     `SELECT u.id, u.username, u.nickname, u.email, u.status,
-            u.quota_limit, u.quota_used, u.quota_period, u.created_at,
+            u.quota_limit, u.quota_used, u.quota_period, u.created_at, u.allowed_models,
             COUNT(k.id)::int as key_count,
             MAX(k.last_used) as last_active
        FROM users u
        LEFT JOIN api_keys k ON k.user_id = u.id
       WHERE u.parent_user_id = ? AND u.status != 'deleted'
       GROUP BY u.id, u.username, u.nickname, u.email, u.status,
-               u.quota_limit, u.quota_used, u.quota_period, u.created_at
+               u.quota_limit, u.quota_used, u.quota_period, u.created_at, u.allowed_models
       ORDER BY u.created_at ASC`,
     [ownerId]
   );
@@ -115,6 +131,7 @@ export async function listSubAccounts(ownerId: string): Promise<SubAccountSummar
     last_active: row.last_active
       ? (row.last_active instanceof Date ? row.last_active.toISOString() : String(row.last_active))
       : null,
+    allowed_models: row.allowed_models ?? null,
   }));
 }
 
@@ -128,7 +145,7 @@ export async function getSubAccountForOwner(ownerId: string, subId: string): Pro
 export async function updateSubAccount(
   ownerId: string,
   subId: string,
-  patch: { nickname?: string; quotaLimit?: number | null; quotaPeriod?: string | null; status?: string }
+  patch: { nickname?: string; quotaLimit?: number | null; quotaPeriod?: string | null; status?: string; allowedModels?: string[] | null }
 ): Promise<{ user: User } | { error: string; status: number }> {
   const sub = await getSubAccountForOwner(ownerId, subId);
   if (!sub) return { error: "子账号不存在", status: 404 };
@@ -167,6 +184,11 @@ export async function updateSubAccount(
     if (!["active", "suspended"].includes(patch.status)) return { error: "状态须为 active 或 suspended", status: 400 };
     sets.push("status = ?");
     values.push(patch.status);
+  }
+  if (patch.allowedModels !== undefined) {
+    const allowed = sanitizeAllowedModels(patch.allowedModels) ?? [];
+    sets.push("allowed_models = ?");
+    values.push(JSON.stringify(allowed));
   }
 
   if (!sets.length) return { error: "没有可更新的字段", status: 400 };

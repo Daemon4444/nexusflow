@@ -48,10 +48,17 @@ async function proxyRequest(
       return NextResponse.json(data, { status: res.status });
     }
 
-    const text = await res.text();
-    return new NextResponse(text, {
+    // Non-JSON (e.g. CSV/binary downloads): pass raw bytes through untouched so
+    // the UTF-8 BOM and multi-byte characters (中文) survive intact.
+    const buffer = await res.arrayBuffer();
+    const passthroughHeaders: Record<string, string> = {
+      "Content-Type": contentType || "application/octet-stream",
+    };
+    const disposition = res.headers.get("content-disposition");
+    if (disposition) passthroughHeaders["Content-Disposition"] = disposition;
+    return new NextResponse(buffer, {
       status: res.status,
-      headers: { "Content-Type": contentType || "text/plain; charset=utf-8" },
+      headers: passthroughHeaders,
     });
   } catch {
     return NextResponse.json(

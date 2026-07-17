@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#ffffff"/>
+  <g fill="none" stroke="#111111" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
+    <!-- two input flows converging into the central hub, then one flow out -->
+    <path d="M132 160 C 200 160, 214 256, 268 256"/>
+    <path d="M132 352 C 200 352, 214 256, 268 256"/>
+    <path d="M312 256 L 380 256"/>
+  </g>
+  <g fill="#111111">
+    <!-- input nodes -->
+    <circle cx="132" cy="160" r="28"/>
+    <circle cx="132" cy="352" r="28"/>
+    <!-- output node -->
+    <circle cx="392" cy="256" r="28"/>
+  </g>
+  <!-- central hub (nexus) -->
+  <circle cx="290" cy="256" r="44" fill="#ffffff" stroke="#111111" stroke-width="32"/>
+</svg>

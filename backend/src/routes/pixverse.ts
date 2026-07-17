@@ -3,6 +3,7 @@ import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { getUserById } from "../data/users";
+import { isModelAllowed } from "../data/model-access";
 import { getPixVerseRuntimeChannel } from "../services/pixverse-channel";
 import { adaptPixVerseRequest, pollPixVerseTask } from "../services/adapters";
 import { randomUUID } from "crypto";
@@ -43,6 +44,10 @@ async function handleVideoSynthesis(req: Request, res: Response) {
   }
 
   const model = req.body.model || "pixverse-v6";
+  if (!isModelAllowed(keyRecord.parent_user_id, keyRecord.allowed_models, model)) {
+    res.status(403).json({ error: { message: `当前账号无权使用模型 '${model}'，请联系主账号授权。`, code: "model_not_allowed" } });
+    return;
+  }
   const channel = await getPixVerseRuntimeChannel();
 
   const startTime = Date.now();
@@ -170,6 +175,10 @@ async function handleImageToVideo(req: Request, res: Response) {
   }
 
   const model = req.body.model || "pixverse-v6";
+  if (!isModelAllowed(keyRecord.parent_user_id, keyRecord.allowed_models, model)) {
+    res.status(403).json({ error: { message: `当前账号无权使用模型 '${model}'，请联系主账号授权。`, code: "model_not_allowed" } });
+    return;
+  }
   const channel = await getPixVerseRuntimeChannel();
 
   if (channel.adapter === "pixverse") {

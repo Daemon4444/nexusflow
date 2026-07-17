@@ -480,7 +480,58 @@ function ModelCombobox({ value, onChange, options }: {
   );
 }
 
-type TabKey = "dashboard" | "overview" | "operations" | "users" | "approvals" | "providers" | "catalog" | "models" | "tickets" | "logs";
+interface BillingOverviewRow {
+  id: string;
+  nickname: string;
+  email: string | null;
+  username: string | null;
+  accountType: "main" | "sub";
+  status: string;
+  balance: number;
+  totalRecharge: number;
+  totalConsumption: number;
+  totalCalls: number;
+}
+
+interface BillingOverview {
+  totals: { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; userCount: number };
+  users: BillingOverviewRow[];
+}
+
+interface AdminBillingTx {
+  id: string;
+  type: string;
+  amount: number;
+  balance_after: number;
+  description: string;
+  created_at: string;
+  actor_user_id: string | null;
+  actor_username: string | null;
+  actor_nickname: string | null;
+}
+
+interface SubBreakdownRow {
+  account_id: string;
+  username: string | null;
+  nickname: string;
+  is_owner: boolean;
+  amount_cny: number;
+  call_count: number;
+  total_tokens: number;
+  quota_limit: number | null;
+  quota_used: number;
+  quota_period: string | null;
+  status: string;
+}
+
+interface BillingUserDetail {
+  user: { id: string; nickname: string; email: string | null; username: string | null; accountType: "main" | "sub"; status: string };
+  summary: { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number };
+  transactions: { rows: AdminBillingTx[]; total: number };
+  subBreakdown: SubBreakdownRow[];
+}
+
+type TabKey = "dashboard" | "overview" | "operations" | "users" | "billing" | "approvals" | "providers" | "catalog" | "models" | "tickets" | "logs";
 
 const statusColors: Record<string, string> = {
   draft: "#d97706",
@@ -556,6 +607,13 @@ export default function AdminPage() {
   const [rateLimitForm, setRateLimitForm] = useState<{ model: string; qpm: string; tpm: string } | null>(null);
   const [rateLimitFormTarget, setRateLimitFormTarget] = useState<string | null>(null); // model being edited
   const [balanceForm, setBalanceForm] = useState<{ amount: string; description: string } | null>(null);
+  const [billingOverview, setBillingOverview] = useState<BillingOverview | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingUserId, setBillingUserId] = useState("");
+  const [billingDetail, setBillingDetail] = useState<BillingUserDetail | null>(null);
+  const [billingDetailLoading, setBillingDetailLoading] = useState(false);
+  const [billingTxOffset, setBillingTxOffset] = useState(0);
+  const [billingSearch, setBillingSearch] = useState("");
   const [discountForm, setDiscountForm] = useState<{ modelId: string; rate: string; notes: string; enabled: boolean; editId?: string } | null>(null);
   const [defaultLimitForm, setDefaultLimitForm] = useState<{ qpm: string; tpm: string } | null>(null);
   const [providerForm, setProviderForm] = useState({
@@ -676,6 +734,13 @@ export default function AdminPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (activeTab === "billing" && !billingOverview && !billingLoading) {
+      loadBillingOverview();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   async function loadProviderDetail(providerId: string) {
     setDetailLoading(true);
@@ -1125,27 +1190,44 @@ export default function AdminPage() {
     });
   }
 
-  async function handleExportUserBilling(userId: string) {
-    const now = new Date();
-    const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-    const defaultEnd = now.toISOString().slice(0, 10);
-    const startDate = prompt("账单开始日期 YYYY-MM-DD", defaultStart);
-    if (!startDate) return;
-    const endDate = prompt("账单结束日期 YYYY-MM-DD", defaultEnd);
-    if (!endDate) return;
-    if (startDate > endDate) {
-      setNotice("开始日期不能晚于结束日期");
-      return;
+  async function loadBillingOverview() {
+    setBillingLoading(true);
+    try {
+      const res = await fetchAPI("/api/admin/billing/overview", { headers: authHeaders() });
+      if (res.success) setBillingOverview(res.data);
+      else setNotice(res.message || "账单总览加载失败");
+    } catch {
+      setNotice("账单总览加载失败");
+    } finally {
+      setBillingLoading(false);
     }
+  }
 
+  async function openBillingUser(userId: string, offset = 0) {
+    setBillingUserId(userId);
+    setBillingTxOffset(offset);
+    setBillingDetailLoading(true);
+    try {
+      const res = await fetchAPI(`/api/admin/billing/users/${userId}?limit=20&offset=${offset}`, { headers: authHeaders() });
+      if (res.success) setBillingDetail(res.data);
+      else setNotice(res.message || "用户账单加载失败");
+    } catch {
+      setNotice("用户账单加载失败");
+    } finally {
+      setBillingDetailLoading(false);
+    }
+  }
+
+  async function handleExportBillingUser(userId: string) {
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const endDate = now.toISOString().slice(0, 10);
     try {
       const params = new URLSearchParams({ startDate, endDate });
       const res = await fetch(`${API_BASE}/api/admin/users/${userId}/billing-export.csv?${params.toString()}`, {
         headers: authHeaders(),
       });
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
+      if (!res.ok) throw new Error(await res.text());
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -1264,6 +1346,7 @@ export default function AdminPage() {
     { key: "overview", label: "总览" },
     { key: "operations", label: "供应商运营" },
     { key: "users", label: "用户管理" },
+    { key: "billing", label: "账单" },
     { key: "approvals", label: "限额审批" },
     { key: "providers", label: "渠道控制台" },
     { key: "catalog", label: "模型目录" },
@@ -1812,18 +1895,13 @@ export default function AdminPage() {
                             <div style={{ textAlign: "right" }}>
                               <div style={{ fontSize: 26, fontWeight: 700, color: "#10b981" }}>¥{Number(selectedUser.balance || 0).toFixed(2)}</div>
                               <div style={{ fontSize: 12, color: "#6b7280" }}>账户余额</div>
+                              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>账单明细见「账单」标签页</div>
                               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10, flexWrap: "wrap" }}>
                                 <button
                                   onClick={() => { setBalanceForm(null); openBalanceForm(selectedUser.id); }}
                                   style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                                 >
                                   调整余额
-                                </button>
-                                <button
-                                  onClick={() => handleExportUserBilling(selectedUser.id)}
-                                  style={{ border: "1px solid #bfdbfe", background: "#eff6ff", color: "#1d4ed8", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
-                                >
-                                  导出账单
                                 </button>
                               </div>
                             </div>
@@ -2134,23 +2212,6 @@ export default function AdminPage() {
                           ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无 API 调用明细</div>}
                         </div>
 
-                        {/* ── Transactions ── */}
-                        <div style={{ ...cardStyle, padding: 20 }}>
-                          <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>最近账务流水</h3>
-                          {selectedUserDetail?.transactions?.rows?.length ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                              {selectedUserDetail.transactions.rows.slice(0, 8).map((tx) => (
-                                <div key={tx.id} style={{ display: "grid", gridTemplateColumns: "110px 1fr 90px 90px", gap: 10, padding: 11, border: "1px solid #e5e7eb", borderRadius: 10, alignItems: "center" }}>
-                                  <div style={{ fontSize: 12, color: "#6b7280" }}>{tx.type}</div>
-                                  <div style={{ minWidth: 0, fontSize: 12.5, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description}</div>
-                                  <div style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: Number(tx.amount) >= 0 ? "#059669" : "#dc2626" }}>¥{Number(tx.amount || 0).toFixed(6)}</div>
-                                  <div style={{ textAlign: "right", fontSize: 12, color: "#4b5563" }}>¥{Number(tx.balance_after || 0).toFixed(2)}</div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无账务流水</div>}
-                        </div>
-
                         {/* ── All requests history ── */}
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>限额申请历史</h3>
@@ -2189,6 +2250,211 @@ export default function AdminPage() {
                     )}
                   </div>
                 </div>
+              </>
+            ) : activeTab === "billing" ? (
+              <>
+                <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 6 }}>账单</h1>
+                <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>全站余额、充值、消费总览，可下钻查看单用户流水与子账号分账</div>
+
+                {billingLoading && !billingOverview ? (
+                  <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>加载中...</div>
+                ) : (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
+                      {[
+                        { label: "总余额", value: `¥${Number(billingOverview?.totals.balance || 0).toFixed(2)}`, color: "#10b981" },
+                        { label: "总充值", value: `¥${Number(billingOverview?.totals.totalRecharge || 0).toFixed(2)}`, color: "#2563eb" },
+                        { label: "总消费", value: `¥${Number(billingOverview?.totals.totalConsumption || 0).toFixed(2)}`, color: "#ef4444" },
+                        { label: "消费笔数", value: Number(billingOverview?.totals.totalCalls || 0).toLocaleString(), color: "#111827" },
+                      ].map((item) => (
+                        <div key={item.label} style={{ ...cardStyle, padding: 20 }}>
+                          <div style={{ fontSize: 26, fontWeight: 700, color: item.color, fontVariantNumeric: "tabular-nums" }}>{item.value}</div>
+                          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>{item.label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 16, alignItems: "start" }}>
+                      {/* Left: user summary list */}
+                      <div style={{ ...cardStyle, overflow: "hidden" }}>
+                        <div style={{ padding: 14, borderBottom: "1px solid #f3f4f6" }}>
+                          <input
+                            value={billingSearch}
+                            onChange={(e) => setBillingSearch(e.target.value)}
+                            placeholder="搜索昵称 / 邮箱 / 用户名 / ID"
+                            style={{ width: "100%", padding: "8px 10px", borderRadius: 7, border: "1px solid #d1d5db", fontSize: 13 }}
+                          />
+                        </div>
+                        <div style={{ maxHeight: 640, overflowY: "auto" }}>
+                          {(billingOverview?.users || [])
+                            .filter((row) => {
+                              const q = billingSearch.trim().toLowerCase();
+                              if (!q) return true;
+                              return [row.nickname, row.email || "", row.username || "", row.id].some((v) => String(v).toLowerCase().includes(q));
+                            })
+                            .map((row) => (
+                              <button
+                                key={row.id}
+                                onClick={() => openBillingUser(row.id)}
+                                style={{
+                                  width: "100%", textAlign: "left", border: "none", borderBottom: "1px solid #f3f4f6", cursor: "pointer",
+                                  background: billingUserId === row.id ? "#eff6ff" : "#fff", padding: "11px 14px", fontFamily: "inherit",
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                                  <div style={{ minWidth: 0 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                      <span style={{ fontSize: 13, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.nickname}</span>
+                                      {row.accountType === "sub" && (
+                                        <span style={{ flex: "0 0 auto", fontSize: 10, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 9999, padding: "1px 6px" }}>子账号</span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.email || row.username || row.id}</div>
+                                  </div>
+                                  <div style={{ textAlign: "right", flex: "0 0 auto" }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>¥{Number(row.balance || 0).toFixed(2)}</div>
+                                    <div style={{ fontSize: 10.5, color: "#9ca3af" }}>消费 ¥{Number(row.totalConsumption || 0).toFixed(2)}</div>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          {(billingOverview?.users || []).length === 0 && (
+                            <div style={{ padding: 30, textAlign: "center", color: "#6b7280", fontSize: 13 }}>暂无用户数据</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: drill-down */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {!billingUserId ? (
+                          <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>选择左侧用户查看账单明细</div>
+                        ) : billingDetailLoading ? (
+                          <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>加载中...</div>
+                        ) : billingDetail ? (
+                          <>
+                            {/* Summary */}
+                            <div style={{ ...cardStyle, padding: 20 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                    <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: 0 }}>{billingDetail.user.nickname}</h2>
+                                    {billingDetail.user.accountType === "sub" && (
+                                      <span style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 9999, padding: "2px 8px" }}>子账号</span>
+                                    )}
+                                  </div>
+                                  <div style={{ marginTop: 4, fontSize: 12, color: "#9ca3af" }}>{billingDetail.user.email || billingDetail.user.username || billingDetail.user.id}</div>
+                                </div>
+                                <button
+                                  onClick={() => handleExportBillingUser(billingDetail.user.id)}
+                                  style={{ border: "1px solid #bfdbfe", background: "#eff6ff", color: "#1d4ed8", borderRadius: 8, padding: "7px 12px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
+                                >
+                                  导出 CSV（本月）
+                                </button>
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 16 }}>
+                                {[
+                                  { label: "余额", value: `¥${Number(billingDetail.summary.balance || 0).toFixed(2)}`, color: "#10b981" },
+                                  { label: "累计充值", value: `¥${Number(billingDetail.summary.totalRecharge || 0).toFixed(2)}`, color: "#2563eb" },
+                                  { label: "累计消费", value: `¥${Number(billingDetail.summary.totalConsumption || 0).toFixed(2)}`, color: "#ef4444" },
+                                  { label: "消费笔数", value: Number(billingDetail.summary.totalCalls || 0).toLocaleString(), color: "#111827" },
+                                ].map((item) => (
+                                  <div key={item.label} style={{ padding: 12, border: "1px solid #e5e7eb", borderRadius: 10 }}>
+                                    <div style={{ fontSize: 16, fontWeight: 700, color: item.color, fontVariantNumeric: "tabular-nums" }}>{item.value}</div>
+                                    <div style={{ fontSize: 11.5, color: "#6b7280", marginTop: 2 }}>{item.label}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Sub-account breakdown */}
+                            {billingDetail.subBreakdown.length > 0 && (
+                              <div style={{ ...cardStyle, padding: 20 }}>
+                                <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>子账号分账（本月）</h3>
+                                <div style={{ fontSize: 11.5, color: "#9ca3af", marginBottom: 14 }}>金额以流水为准，调用/Token 以用量为准</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 0.9fr 1fr 1fr 0.8fr", gap: 8, padding: "8px 10px", background: "#f9fafb", borderRadius: 8, fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase" }}>
+                                  <span>账号</span>
+                                  <span style={{ textAlign: "right" }}>消费</span>
+                                  <span style={{ textAlign: "right" }}>调用</span>
+                                  <span style={{ textAlign: "right" }}>Tokens</span>
+                                  <span style={{ textAlign: "right" }}>限额</span>
+                                  <span style={{ textAlign: "right" }}>状态</span>
+                                </div>
+                                {billingDetail.subBreakdown.map((row) => (
+                                  <div key={row.account_id} style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 0.9fr 1fr 1fr 0.8fr", gap: 8, padding: "10px", borderBottom: "1px solid #f3f4f6", alignItems: "center" }}>
+                                    <span style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}>
+                                      <span style={{ fontSize: 12.5, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.username || row.nickname}</span>
+                                      {row.is_owner && <span style={{ flex: "0 0 auto", fontSize: 10, fontWeight: 600, color: "#0891b2", background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: 9999, padding: "1px 6px" }}>主</span>}
+                                    </span>
+                                    <span style={{ textAlign: "right", fontSize: 12.5, fontWeight: 600, color: "#ef4444", fontVariantNumeric: "tabular-nums" }}>¥{Number(row.amount_cny || 0).toFixed(2)}</span>
+                                    <span style={{ textAlign: "right", fontSize: 12.5, color: "#4b5563", fontVariantNumeric: "tabular-nums" }}>{Number(row.call_count || 0).toLocaleString()}</span>
+                                    <span style={{ textAlign: "right", fontSize: 12.5, color: "#4b5563", fontVariantNumeric: "tabular-nums" }}>{Number(row.total_tokens || 0).toLocaleString()}</span>
+                                    <span style={{ textAlign: "right", fontSize: 12, color: "#6b7280", fontVariantNumeric: "tabular-nums" }}>
+                                      {row.is_owner ? "—" : row.quota_limit != null ? `¥${Number(row.quota_used || 0).toFixed(2)}/${Number(row.quota_limit).toFixed(2)}` : "不限"}
+                                    </span>
+                                    <span style={{ textAlign: "right", fontSize: 11, color: row.status === "active" ? "#166534" : "#b91c1c" }}>{row.status === "active" ? "正常" : row.status === "suspended" ? "停用" : row.status}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Transactions */}
+                            <div style={{ ...cardStyle, padding: 20 }}>
+                              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>账务流水</h3>
+                              {billingDetail.transactions.rows.length ? (
+                                <>
+                                  <div style={{ display: "grid", gridTemplateColumns: "90px 1fr 110px 100px 100px 140px", gap: 8, padding: "8px 10px", background: "#f9fafb", borderRadius: 8, fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase" }}>
+                                    <span>类型</span>
+                                    <span>描述</span>
+                                    <span>发起</span>
+                                    <span style={{ textAlign: "right" }}>金额</span>
+                                    <span style={{ textAlign: "right" }}>余额</span>
+                                    <span style={{ textAlign: "right" }}>时间</span>
+                                  </div>
+                                  {billingDetail.transactions.rows.map((tx) => {
+                                    const bySub = tx.actor_user_id && tx.actor_user_id !== billingDetail.user.id;
+                                    return (
+                                      <div key={tx.id} style={{ display: "grid", gridTemplateColumns: "90px 1fr 110px 100px 100px 140px", gap: 8, padding: "10px", borderBottom: "1px solid #f3f4f6", alignItems: "center" }}>
+                                        <span style={{ fontSize: 12, color: "#6b7280" }}>{tx.type}</span>
+                                        <span style={{ minWidth: 0, fontSize: 12.5, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description}</span>
+                                        <span style={{ fontSize: 11.5, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          {bySub ? (
+                                            <span style={{ color: "#7c3aed", fontWeight: 600 }}>{tx.actor_username || tx.actor_nickname || tx.actor_user_id}</span>
+                                          ) : (
+                                            <span style={{ color: "#9ca3af" }}>本人</span>
+                                          )}
+                                        </span>
+                                        <span style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: tx.type === "recharge" ? "#059669" : "#dc2626", fontVariantNumeric: "tabular-nums" }}>{tx.type === "recharge" ? "+" : "-"}¥{Math.abs(Number(tx.amount || 0)).toFixed(6)}</span>
+                                        <span style={{ textAlign: "right", fontSize: 12, color: "#4b5563", fontVariantNumeric: "tabular-nums" }}>¥{Number(tx.balance_after || 0).toFixed(2)}</span>
+                                        <span style={{ textAlign: "right", fontSize: 11.5, color: "#9ca3af" }}>{new Date(tx.created_at).toLocaleString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                                      </div>
+                                    );
+                                  })}
+                                  {billingDetail.transactions.total > 20 && (
+                                    <div style={{ display: "flex", justifyContent: "center", gap: 12, paddingTop: 14 }}>
+                                      <button
+                                        disabled={billingTxOffset === 0}
+                                        onClick={() => openBillingUser(billingUserId, Math.max(0, billingTxOffset - 20))}
+                                        style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "6px 14px", fontSize: 12, cursor: billingTxOffset === 0 ? "not-allowed" : "pointer", opacity: billingTxOffset === 0 ? 0.5 : 1 }}
+                                      >上一页</button>
+                                      <span style={{ fontSize: 12, color: "#6b7280", lineHeight: "30px" }}>{billingTxOffset + 1}–{Math.min(billingTxOffset + 20, billingDetail.transactions.total)} / {billingDetail.transactions.total}</span>
+                                      <button
+                                        disabled={billingTxOffset + 20 >= billingDetail.transactions.total}
+                                        onClick={() => openBillingUser(billingUserId, billingTxOffset + 20)}
+                                        style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "6px 14px", fontSize: 12, cursor: billingTxOffset + 20 >= billingDetail.transactions.total ? "not-allowed" : "pointer", opacity: billingTxOffset + 20 >= billingDetail.transactions.total ? 0.5 : 1 }}
+                                      >下一页</button>
+                                    </div>
+                                  )}
+                                </>
+                              ) : <div style={{ color: "#6b7280", fontSize: 13 }}>暂无账务流水</div>}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>加载失败</div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             ) : activeTab === "approvals" ? (
               <>

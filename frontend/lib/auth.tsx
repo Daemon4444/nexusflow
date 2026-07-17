@@ -17,6 +17,7 @@ interface User {
   balance: number;
   accountType?: "main" | "sub";
   quota?: UserQuota | null;
+  allowedModels?: string[] | null;
   hasPassword: boolean;
   createdAt: string;
 }

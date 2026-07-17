@@ -16,6 +16,7 @@ import { consume, hasSufficientBalance } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimits, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
+import { isModelAllowed, parseAllowedModels } from "../data/model-access";
 import { detectModelType, adaptImageRequest, pollDashScopeTask } from "../services/adapters";
 import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
 import { getSupportedProtocols } from "../utils/model-protocols";
@@ -198,7 +199,8 @@ function rejectUserRateLimit(res: Response, message: string): void {
 // GET /v1/models — OpenAI compatible model list
 router.get("/models", async (req: Request, res: Response) => {
   const token = extractToken(req);
-  if (!token || !(await validateApiKey(token))) {
+  const keyRecord = token ? await validateApiKey(token) : null;
+  if (!keyRecord) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -209,7 +211,11 @@ router.get("/models", async (req: Request, res: Response) => {
     return;
   }
 
-  const data = models.map((m) => ({
+  // 子账号：仅返回被授权的模型（NULL=不限→全部；[]=全禁→空）
+  const allowed = keyRecord.parent_user_id ? parseAllowedModels(keyRecord.allowed_models) : null;
+  const visibleModels = allowed == null ? models : models.filter((m) => allowed.includes(m.id));
+
+  const data = visibleModels.map((m) => ({
     id: m.id,
     object: "model",
     created: Math.floor(new Date("2025-01-01").getTime() / 1000),
@@ -331,6 +337,17 @@ router.post("/images/generations", async (req: Request, res: Response) => {
         message: "This API key is not associated with a user account. Please use a key created from your dashboard.",
         type: "invalid_request_error",
         code: "anonymous_key_not_allowed",
+      },
+    });
+    return;
+  }
+
+  if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
+    res.status(403).json({
+      error: {
+        message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`,
+        type: "invalid_request_error",
+        code: "model_not_allowed",
       },
     });
     return;
@@ -611,6 +628,17 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   }
 
   const estimatedChatTokens = estimateChatTokens(model, messages, max_tokens);
+
+  if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
+    res.status(403).json({
+      error: {
+        message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`,
+        type: "invalid_request_error",
+        code: "model_not_allowed",
+      },
+    });
+    return;
+  }
 
   // Per-model user-level rate limit check
   const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
@@ -1130,6 +1158,17 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   }
 
   const estimatedEmbeddingTokens = Math.max(1, roughTokenCount(input));
+
+  if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
+    res.status(403).json({
+      error: {
+        message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`,
+        type: "invalid_request_error",
+        code: "model_not_allowed",
+      },
+    });
+    return;
+  }
 
   const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
   const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);

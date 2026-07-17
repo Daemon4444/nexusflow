@@ -44,6 +44,9 @@ export async function getUserLimitsOverview(userId: string) {
   return {
     defaultQpm: wildcard?.qpm ?? DEFAULT_QPM,
     defaultTpm: wildcard?.tpm ?? DEFAULT_TPM,
+    systemDefaultQpm: DEFAULT_QPM,
+    systemDefaultTpm: DEFAULT_TPM,
+    hasUserDefault: !!wildcard,
     customLimits: customs,
     requests,
     pendingRequests: requests.filter((item) => item.status === "pending"),

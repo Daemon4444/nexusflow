@@ -15,6 +15,7 @@ import { consume, hasSufficientBalance } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimits, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
+import { isModelAllowed } from "../data/model-access";
 import { detectModelType } from "../services/adapters";
 import { getRequestedRegion, resolveUpstream } from "../services/upstream";
 import { buildApiDescription } from "../utils/cache-billing";
@@ -173,6 +174,16 @@ router.post("/", async (req: Request, res: Response) => {
 
   // Per-model rate limit
   if (apiKeyRecord.user_id) {
+    if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
+      res.status(403).json({
+        type: "error",
+        error: {
+          type: "permission_error",
+          message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`,
+        },
+      });
+      return;
+    }
     const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
     const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
     if (!rpmCheck.allowed) {
