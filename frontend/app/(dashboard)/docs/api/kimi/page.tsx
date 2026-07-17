@@ -95,6 +95,7 @@ export default function KimiApiPage() {
           <code style={{ fontSize: 14 }}>{API_BASE}/v1/chat/completions</code>
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
+          注意：<code style={{ fontSize: 11 }}>kimi/kimi-k3</code> 目前仅支持 OpenAI Chat Completions 协议（上游 Anthropic 兼容端点暂未接入 K3，K2 系列不受影响）。
           这是默认示例端点。多协议调用方式见 <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>多协议支持</Link>、
           <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> 和
           <Link href="/docs/api/responses" style={{ color: "var(--accent)" }}> Responses API</Link>。

@@ -11,6 +11,10 @@ export type SupportedProtocol =
   | "openai/audio-transcriptions"
   | "nexusflow/tasks";
 
+// DashScope /apps/anthropic 兼容端点尚未接入的模型（实测返回 model does not exist）：
+// 暂不宣告 anthropic/messages，待上游接入后移除
+const ANTHROPIC_COMPAT_UNSUPPORTED = new Set(["kimi/kimi-k3"]);
+
 export function getSupportedProtocols(model: AIModel): SupportedProtocol[] {
   const modelType = detectModelType(model.category);
 
@@ -19,11 +23,14 @@ export function getSupportedProtocols(model: AIModel): SupportedProtocol[] {
   }
 
   if (modelType === "chat") {
-    return [
+    const protocols: SupportedProtocol[] = [
       "openai/chat-completions",
       "anthropic/messages",
       "openai/responses",
     ];
+    return ANTHROPIC_COMPAT_UNSUPPORTED.has(model.id)
+      ? protocols.filter((p) => p !== "anthropic/messages")
+      : protocols;
   }
 
   if (modelType === "embedding") {
