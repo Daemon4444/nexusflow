@@ -13,7 +13,7 @@ const fallbackModelRows = [
   { model: "Qwen3.7 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
   { model: "GLM 5.2", provider: "Zhipu AI", context: "1M", price: "input ¥8 / output ¥28 per 1M" },
   { model: "DeepSeek V4 Pro", provider: "DeepSeek", context: "1M", price: "input ¥12 / output ¥24 per 1M" },
-  { model: "Seedance 2.0", provider: "Volcengine Ark", context: "Async video", price: "from ¥0.04 / second" },
+  { model: "Seedance 2.0", provider: "Volcengine Ark", context: "Async video", price: "from ¥0.44 / second" },
 ];
 
 const capabilities = [

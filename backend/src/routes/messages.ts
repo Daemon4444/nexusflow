@@ -434,6 +434,11 @@ router.post("/", async (req: Request, res: Response) => {
         route: "anthropic-passthrough",
       });
 
+      // 流式中途出错时 SSE 头已发出，只能终止连接，不能再写状态码
+      if (res.headersSent) {
+        try { res.end(); } catch { /* 连接可能已断 */ }
+        return;
+      }
       res.status(500).json({
         type: "error",
         error: {
@@ -606,6 +611,11 @@ router.post("/", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
       route: "anthropic-bridge",
     });
+    // 流式中途出错时 SSE 头已发出，只能终止连接，不能再写状态码
+    if (res.headersSent) {
+      try { res.end(); } catch { /* 连接可能已断 */ }
+      return;
+    }
     res.status(500).json({
       type: "error",
       error: {

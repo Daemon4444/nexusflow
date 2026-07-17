@@ -19,11 +19,16 @@ export function getSupportedProtocols(model: AIModel): SupportedProtocol[] {
   }
 
   if (modelType === "chat") {
-    return [
+    const protocols: SupportedProtocol[] = [
       "openai/chat-completions",
       "anthropic/messages",
-      "openai/responses",
     ];
+    // DashScope Responses 端点实测仅支持通义千问系；
+    // kimi/glm/deepseek/minimax 均返回 "Unsupported model"，不宣告避免误导
+    if (model.id.startsWith("qwen") || model.id.startsWith("qwq") || model.provider === "通义千问") {
+      protocols.push("openai/responses");
+    }
+    return protocols;
   }
 
   if (modelType === "embedding") {
