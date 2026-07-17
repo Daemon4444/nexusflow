@@ -29,7 +29,8 @@ export interface ModelOverrideRow {
 
 // ============ Validation ============
 
-const ID_RE = /^[A-Za-z0-9._:\-]+$/;
+// 允许斜杠：DashScope 第三方模型 ID 带厂商前缀（如 kimi/kimi-k3）
+const ID_RE = /^[A-Za-z0-9._:\-\/]+$/;
 const PRICING_TYPES = new Set(["token", "per-image", "per-second"]);
 
 function isFiniteNonNegative(v: unknown): v is number {
@@ -55,7 +56,7 @@ export function sanitizeModelDoc(input: unknown): ValidationResult {
 
   const id = typeof o.id === "string" ? o.id.trim() : "";
   if (!id) return { ok: false, error: "id 必填" };
-  if (id.length > 128 || !ID_RE.test(id)) return { ok: false, error: "id 仅允许字母数字和 . _ : - ，且不超过 128 字符" };
+  if (id.length > 128 || !ID_RE.test(id)) return { ok: false, error: "id 仅允许字母数字和 . _ : - / ，且不超过 128 字符" };
 
   const name = typeof o.name === "string" ? o.name.trim() : "";
   if (!name || name.length > 200) return { ok: false, error: "name 必填且不超过 200 字符" };
@@ -99,6 +100,16 @@ export function sanitizeModelDoc(input: unknown): ValidationResult {
     model.pricingType = o.pricingType as AIModel["pricingType"];
   }
 
+  if (o.cacheReadPrice !== undefined && o.cacheReadPrice !== null) {
+    const v = Number(o.cacheReadPrice);
+    if (!isFiniteNonNegative(v)) return { ok: false, error: "cacheReadPrice 必须是 ≥0 的数字" };
+    model.cacheReadPrice = v;
+  }
+
+  if (o.anthropicPassThrough !== undefined && o.anthropicPassThrough !== null) {
+    model.anthropicPassThrough = !!o.anthropicPassThrough;
+  }
+
   if (o.audioInputPrice !== undefined && o.audioInputPrice !== null) {
     const v = Number(o.audioInputPrice);
     if (!isFiniteNonNegative(v)) return { ok: false, error: "audioInputPrice 必须是 ≥0 的数字" };
@@ -135,7 +146,14 @@ export function sanitizeModelDoc(input: unknown): ValidationResult {
       if (!isFiniteNonNegative(maxTokens)) return { ok: false, error: "tokenPricingTiers[].maxTokens 必须是 ≥0 的数字" };
       if (!isFiniteNonNegative(pp)) return { ok: false, error: "tokenPricingTiers[].promptPrice 必须是 ≥0 的数字" };
       if (!isFiniteNonNegative(cp)) return { ok: false, error: "tokenPricingTiers[].completionPrice 必须是 ≥0 的数字" };
-      tiers.push({ label, maxTokens: Math.floor(maxTokens), promptPrice: pp, completionPrice: cp });
+      const tier: { label: string; maxTokens: number; promptPrice: number; completionPrice: number; cacheReadPrice?: number } =
+        { label, maxTokens: Math.floor(maxTokens), promptPrice: pp, completionPrice: cp };
+      if (t?.cacheReadPrice !== undefined && t?.cacheReadPrice !== null) {
+        const crp = Number(t.cacheReadPrice);
+        if (!isFiniteNonNegative(crp)) return { ok: false, error: "tokenPricingTiers[].cacheReadPrice 必须是 ≥0 的数字" };
+        tier.cacheReadPrice = crp;
+      }
+      tiers.push(tier);
     }
     if (tiers.length > 0) model.tokenPricingTiers = tiers;
   }

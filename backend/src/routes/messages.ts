@@ -21,7 +21,6 @@ import { getRequestedRegion, resolveUpstream } from "../services/upstream";
 import { buildApiDescription } from "../utils/cache-billing";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
-import { isAnthropicPassThroughUnsupported } from "../utils/model-protocols";
 import {
   anthropicToOpenAiPayload,
   openAiResponseToAnthropic,
@@ -243,8 +242,10 @@ router.post("/", async (req: Request, res: Response) => {
 
   try {
 
+  // anthropicPassThrough 可由后台「模型目录」按模型覆盖：false = 上游 anthropic
+  // 兼容端点未接入该模型，走平台内协议转换（anthropic-openai-bridge）
   const usePassThrough = upstream.providerId === "anthropic"
-    || (upstream.anthropicCompatBaseUrl && !isAnthropicPassThroughUnsupported(modelId));
+    || (upstream.anthropicCompatBaseUrl && model.anthropicPassThrough !== false);
 
   if (usePassThrough) {
     const passThroughBase = upstream.anthropicCompatBaseUrl || upstream.baseUrl;

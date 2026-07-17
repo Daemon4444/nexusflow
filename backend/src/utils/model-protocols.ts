@@ -11,15 +11,6 @@ export type SupportedProtocol =
   | "openai/audio-transcriptions"
   | "nexusflow/tasks";
 
-// DashScope /apps/anthropic 兼容端点尚未接入的模型（实测返回 model does not exist）：
-// /v1/messages 对这些模型走平台内协议转换（anthropic-openai-bridge）而非直通，
-// 上游接入后可从集合移除、恢复直通
-const ANTHROPIC_COMPAT_UNSUPPORTED = new Set(["kimi/kimi-k3"]);
-
-export function isAnthropicPassThroughUnsupported(modelId: string): boolean {
-  return ANTHROPIC_COMPAT_UNSUPPORTED.has(modelId);
-}
-
 export function getSupportedProtocols(model: AIModel): SupportedProtocol[] {
   const modelType = detectModelType(model.category);
 

@@ -22,6 +22,7 @@ export interface AIModel {
   audioInputPrice?: number;  // per 1M tokens (CNY) for audio input (omni models); falls back to promptPrice if unset
   audioOutputPrice?: number; // per 1M tokens (CNY) for audio output (omni models); text output is free when audio is produced
   cacheReadPrice?: number;   // per 1M tokens (CNY) for cache hit; when set, used instead of the default DashScope multiplier (0.1/0.2)
+  anthropicPassThrough?: boolean; // /v1/messages 路由方式：缺省/true=直通上游 anthropic 兼容端点；false=上游未接入该模型，走平台内 anthropic-openai-bridge 协议转换
   pricingType?: "token" | "per-image" | "per-second"; // default: "token"
   pricingTiers?: PricingTier[];  // resolution-based pricing for video/image
   tokenPricingTiers?: TokenPricingTier[]; // input-token-based tier pricing for text models
@@ -1202,6 +1203,7 @@ const staticModels: AIModel[] = [
     promptPrice: 20,
     completionPrice: 100,
     cacheReadPrice: 2,
+    anthropicPassThrough: false,
     category: "大语言模型",
     tags: ["旗舰", "推理", "长程编程", "视觉理解", "思考模式", "百万上下文", "开源"],
     isFeatured: true,

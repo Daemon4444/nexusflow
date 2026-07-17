@@ -329,6 +329,8 @@ NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Mess
 
 对 GLM / DeepSeek / Kimi / MiniMax 调用 `/v1/responses` 时，会返回 `Unsupported model` 错误。请改用 `/v1/chat/completions` 或 `/v1/messages`。
 
+> 运维：`/v1/messages` 按模型字段 `anthropicPassThrough` 决定路由——缺省/`true` 直通上游 Anthropic 兼容端点；`false` 走平台内 Anthropic↔OpenAI 协议转换桥（用于上游 `/apps/anthropic` 未接入的模型，如 `kimi/kimi-k3`）。该字段可在 admin「模型目录」按模型覆盖，10 秒内全节点生效，无需发版；上游接入后把该模型的字段改回 `true`（或删除覆盖行恢复静态默认）即恢复直通。
+
 ---
 
 ## API 端点
