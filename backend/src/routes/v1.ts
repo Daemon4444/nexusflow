@@ -59,10 +59,12 @@ function normalizeOpenAiStreamLine(line: string, logId: string): string {
   const hasCarriageReturn = line.endsWith("\r");
   const content = hasCarriageReturn ? line.slice(0, -1) : line;
   const trimmed = content.trim();
-  if (!trimmed.startsWith("data: ") || trimmed === "data: [DONE]") return line;
+  if (!trimmed.startsWith("data:")) return line; // SSE 规范里 data: 后空格可选
+  const payload = trimmed.slice(5).trimStart();
+  if (payload === "[DONE]") return line;
 
   try {
-    const event = JSON.parse(trimmed.slice(6));
+    const event = JSON.parse(payload);
     if (event && typeof event === "object") {
       event.id = logId;
       if (event.usage && typeof event.usage === "object") {
@@ -102,9 +104,11 @@ function parseSseEvents(payload: string): any[] {
   const events: any[] = [];
   for (const line of payload.split(/\r?\n/)) {
     const trimmed = line.trim();
-    if (!trimmed.startsWith("data: ") || trimmed === "data: [DONE]") continue;
+    if (!trimmed.startsWith("data:")) continue;
+    const dataPayload = trimmed.slice(5).trimStart();
+    if (dataPayload === "[DONE]") continue;
     try {
-      events.push(JSON.parse(trimmed.slice(6)));
+      events.push(JSON.parse(dataPayload));
     } catch {
       continue;
     }
@@ -772,6 +776,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       };
       try {
         if (reader && typeof reader[Symbol.asyncIterator] === "function") {
+          const iterDecoder = new TextDecoder();
           for await (const chunk of reader) {
             const now = Date.now();
             if (chunkCount === 0) {
@@ -780,7 +785,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
             }
             lastChunkTime = now;
             chunkCount++;
-            const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+            const text = typeof chunk === "string" ? chunk : iterDecoder.decode(chunk, { stream: true });
             forwardStreamText(text);
           }
         } else if (reader && reader.getReader) {
@@ -815,12 +820,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         const lines = fullResponse.split("\n");
         for (let i = lines.length - 1; i >= 0; i--) {
           const line = lines[i].trim();
-          if (line.startsWith("data: ") && line !== "data: [DONE]") {
-            const json = JSON.parse(line.slice(6));
-            if (json.usage) {
-              streamTokens = json.usage;
-              break;
-            }
+          if (!line.startsWith("data:")) continue;
+          const dataPayload = line.slice(5).trimStart();
+          if (dataPayload === "[DONE]") continue;
+          const json = JSON.parse(dataPayload);
+          if (json.usage) {
+            streamTokens = json.usage;
+            break;
           }
         }
       } catch {}
@@ -1071,13 +1077,18 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
     });
 
-    res.status(500).json({
-      error: {
-        message: sanitizeError(err),
-        type: "server_error",
-        code: "upstream_error",
-      },
-    });
+    // 流式响应已 end 后（如计费段 DB 异常）不能再写状态码
+    if (res.headersSent) {
+      try { res.end(); } catch { /* 连接可能已断 */ }
+    } else {
+      res.status(500).json({
+        error: {
+          message: sanitizeError(err),
+          type: "server_error",
+          code: "upstream_error",
+        },
+      });
+    }
   } finally {
     releaseConcurrency(upstream.providerId, modelId);
   }

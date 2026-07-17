@@ -72,6 +72,14 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
+  // 匿名 key（无归属用户）不允许创建任务：会绕过余额与白名单（与 /v1/chat 口径一致）
+  if (!apiKeyRecord.user_id) {
+    res.status(403).json({
+      error: { message: "This API key is not associated with a user account.", type: "invalid_request_error", code: "anonymous_key_not_allowed" },
+    });
+    return;
+  }
+
   // Rate limit check
   const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {

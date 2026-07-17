@@ -129,7 +129,7 @@ export async function resolveUpstream(
       ok: false,
       status: 500,
       code: "provider_not_configured",
-      message: `Provider '${provider.name}' API key not configured. Please add ${provider.apiKeyEnv} to environment.`,
+      message: `Provider '${provider.name}' is not configured. Please contact the platform administrator.`,
     };
   }
 

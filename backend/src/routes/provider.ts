@@ -992,7 +992,9 @@ router.get("/admin/capacity", async (_req: Request, res: Response) => {
 });
 
 // GET /api/provider/:providerId/capacity — 获取供应商的容量配置
-router.get("/:providerId/capacity", async (req: Request, res: Response) => {
+// 注意：这三条 capacity 路由注册在文末的 router.use("/:providerId", requireAdmin) 之前，
+// 必须逐条挂 requireAdmin，否则匿名可读/改/删限流与路由配置（曾是线上真实漏洞）
+router.get("/:providerId/capacity", requireAdmin, async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   await ensureInternalProviders();
   const provider = await getProviderById(providerId);
@@ -1019,7 +1021,7 @@ router.get("/:providerId/capacity", async (req: Request, res: Response) => {
 });
 
 // PUT /api/provider/:providerId/capacity/:modelId — 设置/更新容量配置
-router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
+router.put("/:providerId/capacity/:modelId", requireAdmin, async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const modelId = req.params.modelId as string;
 
@@ -1070,7 +1072,7 @@ router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response)
 });
 
 // DELETE /api/provider/:providerId/capacity/:modelId — 删除容量配置
-router.delete("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
+router.delete("/:providerId/capacity/:modelId", requireAdmin, async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   await ensureInternalProviders();
   const provider = await getProviderById(providerId);

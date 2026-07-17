@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/client";
+import { logToSLS } from "../services/sls";
 import { getUserById } from "./users";
 import { AIModel, calculateTokenCost, getTokenPricingTier, models } from "./models";
 
@@ -189,7 +190,13 @@ export async function consume(
     );
     if (!owner) return null;
     const currentBalance = Number(owner.balance || 0);
-    if (currentBalance < normalizedAmount) return null;
+    if (currentBalance < normalizedAmount) {
+      // 服务已交付但余额不足以结算（并发击穿预检/实际费用超预估）：
+      // 平台承担该笔上游成本。必须留痕，否则账实不符且无法发现。
+      console.error(`[billing] consume shortfall: user=${userId} owner=${billingOwnerId} amount=${normalizedAmount} balance=${currentBalance} desc="${description}"`);
+      logToSLS({ event: "consume_shortfall", userId, billingOwnerId, amount: normalizedAmount, balance: currentBalance, description, refId });
+      return null;
+    }
 
     // 子账号：状态 + 限额（原子条件更新，0 行 = 停用或超限）
     if (isSubAccount) {

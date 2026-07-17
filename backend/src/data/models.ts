@@ -45,12 +45,14 @@ export function calculateTokenCost(model: AIModel, promptTokens: number, complet
   const tier = getTokenPricingTier(model, promptTokens);
   const promptPrice = tier?.promptPrice ?? model.promptPrice;
   const completionPrice = tier?.completionPrice ?? model.completionPrice;
+  // 缓存命中价与实扣路径(cache-billing)对齐：优先档位/模型显式配置，缺省按输入价 10%
+  const cacheReadPrice = tier?.cacheReadPrice ?? model.cacheReadPrice ?? (promptPrice * 0.1);
   const totalPrompt = Math.max(0, promptTokens || 0);
   const effectiveCached = Math.min(Math.max(0, cachedTokens || 0), totalPrompt);
   const effectiveCreation = Math.min(Math.max(0, cacheCreationTokens || 0), totalPrompt - effectiveCached);
   const nonCachedPrompt = Math.max(0, totalPrompt - effectiveCached - effectiveCreation);
   return (nonCachedPrompt / 1_000_000) * promptPrice
-    + (effectiveCached / 1_000_000) * promptPrice * 0.1
+    + (effectiveCached / 1_000_000) * cacheReadPrice
     + (effectiveCreation / 1_000_000) * promptPrice * 1.25
     + (Math.max(0, completionTokens || 0) / 1_000_000) * completionPrice;
 }

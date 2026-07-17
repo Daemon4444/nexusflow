@@ -8,7 +8,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { models } from "../data/models";
+import { models, getTokenPricingTier } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
@@ -44,12 +44,14 @@ function extractAnthropicToken(req: Request): string | null {
 }
 
 
-/** Parse SSE events from upstream OpenAI streaming response */
+/** Parse SSE events from upstream streaming response（SSE 规范里 data: 后的空格可选） */
 function parseSseEvent(line: string): any | null {
   const trimmed = line.trim();
-  if (!trimmed.startsWith("data: ") || trimmed === "data: [DONE]") return null;
+  if (!trimmed.startsWith("data:")) return null;
+  const payload = trimmed.slice(5).trimStart();
+  if (payload === "[DONE]") return null;
   try {
-    return JSON.parse(trimmed.slice(6));
+    return JSON.parse(payload);
   } catch {
     return null;
   }
@@ -85,19 +87,34 @@ function rejectInsufficientBalance(res: Response): void {
   });
 }
 
-async function calculateAnthropicUsageCost(userId: string | null | undefined, model: any, usage: any) {
+async function calculateAnthropicUsageCost(
+  userId: string | null | undefined,
+  model: any,
+  usage: any,
+  // Anthropic 语义(直通上游，实测含 DashScope /apps/anthropic)：input_tokens 与缓存 token 互斥；
+  // OpenAI 语义(转换桥，openAiUsageToAnthropic 产出)：input_tokens=prompt_tokens 已含缓存部分
+  opts: { inputIncludesCache: boolean }
+) {
   const inputTokens = usage?.input_tokens || 0;
   const outputTokens = usage?.output_tokens || 0;
   const cacheCreationTokens = usage?.cache_creation_input_tokens || 0;
   const cacheReadTokens = usage?.cache_read_input_tokens || 0;
-  const baseInputTokens = Math.max(0, inputTokens - cacheCreationTokens - cacheReadTokens);
+  const baseInputTokens = opts.inputIncludesCache
+    ? Math.max(0, inputTokens - cacheCreationTokens - cacheReadTokens)
+    : inputTokens;
+  const totalInputTokens = baseInputTokens + cacheCreationTokens + cacheReadTokens;
 
-  // 缓存命中价优先用模型显式配置（如 kimi/kimi-k3=¥2/M、glm-5.2=¥2/M），否则按输入价 10%
-  const cacheReadPrice = model.cacheReadPrice ?? (model.promptPrice * 0.1);
-  const listAmount = (baseInputTokens / 1_000_000) * model.promptPrice
-    + (cacheCreationTokens / 1_000_000) * model.promptPrice * 1.25
+  // 分层定价与 v1 chat 实扣口径对齐（qwen3.7-plus/glm-5.x 等按输入总量取档）
+  const tier = getTokenPricingTier(model, totalInputTokens);
+  const promptPrice = tier?.promptPrice ?? model.promptPrice;
+  const completionPrice = tier?.completionPrice ?? model.completionPrice;
+  // 缓存命中价优先用档位/模型显式配置（如 kimi/kimi-k3=¥2/M、glm-5.2=¥2/M），否则按输入价 10%
+  const cacheReadPrice = tier?.cacheReadPrice ?? model.cacheReadPrice ?? (promptPrice * 0.1);
+
+  const listAmount = (baseInputTokens / 1_000_000) * promptPrice
+    + (cacheCreationTokens / 1_000_000) * promptPrice * 1.25
     + (cacheReadTokens / 1_000_000) * cacheReadPrice
-    + (outputTokens / 1_000_000) * model.completionPrice;
+    + (outputTokens / 1_000_000) * completionPrice;
   const discounted = await applyUserModelDiscount(userId, model.id, listAmount);
   return { ...discounted, cachedTokens: cacheReadTokens, cacheCreationTokens };
 }
@@ -159,6 +176,18 @@ router.post("/", async (req: Request, res: Response) => {
       error: {
         type: "invalid_request_error",
         message: `Model '${modelId}' does not support messages.`,
+      },
+    });
+    return;
+  }
+
+  // 与 /v1/chat/completions 口径一致：匿名 key（无归属用户）不允许使用公开推理端点
+  if (!apiKeyRecord.user_id) {
+    res.status(403).json({
+      type: "error",
+      error: {
+        type: "permission_error",
+        message: "This API key is not associated with a user account. Please use a key created from your dashboard.",
       },
     });
     return;
@@ -293,6 +322,8 @@ router.post("/", async (req: Request, res: Response) => {
         let lastChunkTime = 0;
 
         const reader = response.body as any;
+        // 单实例 decoder + stream:true：多字节 UTF-8 跨 TCP 分片时不产生乱码
+        const decoder = new TextDecoder();
         const writeChunk = (chunk: any) => {
           const now = Date.now();
           if (chunkCount === 0) {
@@ -301,8 +332,9 @@ router.post("/", async (req: Request, res: Response) => {
           }
           lastChunkTime = now;
           chunkCount++;
-          const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-          const rewritten = text.replace(/"id":"[^"]*"/, `"id":"msg_${logId}"`);
+          const text = typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
+          // 只重写 Anthropic 事件 id（msg_ 前缀），避免误伤正文中的 JSON 示例
+          const rewritten = text.replace(/"id":"msg_[^"]*"/, `"id":"msg_${logId}"`);
           fullResponse += rewritten;
           res.write(rewritten);
         };
@@ -335,7 +367,7 @@ router.post("/", async (req: Request, res: Response) => {
           output_tokens: outputTokens,
           cache_creation_input_tokens: cacheCreationInputTokens,
           cache_read_input_tokens: cacheReadInputTokens,
-        });
+        }, { inputIncludesCache: false });
         const totalTokens = inputTokens + outputTokens;
         const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
         const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
@@ -382,7 +414,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       const usage = data.usage || {};
-      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage);
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false });
       const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
       await logUsage({
         region: upstream.region,
@@ -467,9 +499,15 @@ router.post("/", async (req: Request, res: Response) => {
     if (stream) {
       if (!response.ok) {
         const errText = await response.text();
+        // 上游 4xx 的错误说明对客户端有用（参数错/超长等），透传摘要；5xx 才收敛为通用文案
+        let upstreamMsg = "Upstream API error";
+        try { upstreamMsg = JSON.parse(errText)?.error?.message || upstreamMsg; } catch { /* 保持通用文案 */ }
         res.status(response.status).json({
           type: "error",
-          error: { type: "api_error", message: sanitizeUpstreamError(errText) },
+          error: {
+            type: response.status === 429 ? "rate_limit_error" : response.status < 500 ? "invalid_request_error" : "api_error",
+            message: response.status < 500 ? upstreamMsg : sanitizeUpstreamError(errText),
+          },
         });
         return;
       }
@@ -483,6 +521,7 @@ router.post("/", async (req: Request, res: Response) => {
       let firstChunkTime = 0;
       let lastChunkTime = 0;
       const translator = createAnthropicStreamTranslator(`msg_${logId}`, modelId, (text) => res.write(text));
+      const decoder = new TextDecoder();
       const feed = (chunk: any) => {
         const now = Date.now();
         if (chunkCount === 0) {
@@ -491,7 +530,7 @@ router.post("/", async (req: Request, res: Response) => {
         }
         lastChunkTime = now;
         chunkCount++;
-        translator.feed(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
+        translator.feed(typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true }));
       };
 
       const reader = response.body as any;
@@ -509,7 +548,7 @@ router.post("/", async (req: Request, res: Response) => {
       res.end();
 
       const latencyMs = Date.now() - startTime;
-      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage);
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: true });
       const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = (usage.output_tokens || 0) > 1 ? streamDuration / (usage.output_tokens - 1) : 0;
@@ -550,11 +589,12 @@ router.post("/", async (req: Request, res: Response) => {
 
     const data: any = await response.json();
     if (!response.ok) {
+      const upstreamMsg = typeof data?.error?.message === "string" && data.error.message ? data.error.message : "Upstream API error";
       res.status(response.status).json({
         type: "error",
         error: {
-          type: response.status === 429 ? "rate_limit_error" : "api_error",
-          message: sanitizeUpstreamError(data?.error?.message || JSON.stringify(data)),
+          type: response.status === 429 ? "rate_limit_error" : response.status < 500 ? "invalid_request_error" : "api_error",
+          message: response.status < 500 ? upstreamMsg : sanitizeUpstreamError(data?.error),
         },
       });
       return;
@@ -562,7 +602,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     const anthropicResponse = openAiResponseToAnthropic(data, `msg_${logId}`, modelId);
     const usage = anthropicResponse.usage || openAiUsageToAnthropic(data?.usage);
-    const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage);
+    const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: true });
     const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
     await logUsage({
       region: upstream.region,

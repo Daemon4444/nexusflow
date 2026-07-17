@@ -213,10 +213,15 @@ export default function ModelDetailPage() {
 
   useEffect(() => {
     async function load() {
-      const id = Array.isArray(params.id) ? params.id.join("/") : params.id;
-      const res = await fetchAPI(`/api/models/${encodeURIComponent(decodeURIComponent(id || ""))}`);
-      if (res.success) setModel(res.data);
-      setLoading(false);
+      try {
+        const id = Array.isArray(params.id) ? params.id.join("/") : params.id;
+        const res = await fetchAPI(`/api/models/${encodeURIComponent(decodeURIComponent(id || ""))}`);
+        if (res.success) setModel(res.data);
+      } catch {
+        // 网络错误/超时/非法 % 序列：落到「模型不存在」兜底，不能永久卡在加载中
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [params.id]);

@@ -35,15 +35,18 @@ export async function getKeysByUser(userId: string): Promise<ApiKey[]> {
 export async function validateApiKey(token: string): Promise<(ApiKey & { parent_user_id: string | null; allowed_models: string | null }) | null> {
   const tokenHash = hashApiKey(token);
   // join 用户状态 + 子账号模型权限：账号（及其主账号）非 active 时 key 立即失效（spec §5）
+  // 安全：只允许 sha256 哈希比对。key 列存的是脱敏预览串，绝不能参与鉴权
+  // （历史上 `OR k.key = ?` 会让脱敏串本身成为有效凭据——脱敏是幂等的，
+  //  dashboard 展示的预览与库中 key 列逐字节相等）。生产已核实全部 key 均有 key_hash。
   const key = await db.queryOne<ApiKey & { user_status: string | null; parent_status: string | null; parent_user_id: string | null; allowed_models: string | null }>(
     `SELECT k.*, u.status as user_status, p.status as parent_status,
             u.parent_user_id as parent_user_id, u.allowed_models as allowed_models
        FROM api_keys k
        LEFT JOIN users u ON u.id = k.user_id
        LEFT JOIN users p ON p.id = u.parent_user_id
-      WHERE k.key_hash = ? OR k.key = ?
+      WHERE k.key_hash = ?
       LIMIT 1`,
-    [tokenHash, token]
+    [tokenHash]
   );
   if (!key) return null;
   if (key.user_id) {

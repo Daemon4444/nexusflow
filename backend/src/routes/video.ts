@@ -136,6 +136,12 @@ const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
+  // 匿名 key（无归属用户）不允许创建任务：会绕过余额与白名单
+  if (!caller.userId) {
+    res.status(403).json({ success: false, message: "此 API Key 未关联用户账号，无法使用该接口。" });
+    return;
+  }
+
   if (!isModelAllowed(caller.parentUserId, caller.allowedModels, modelId)) {
     res.status(403).json({ success: false, message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。` });
     return;

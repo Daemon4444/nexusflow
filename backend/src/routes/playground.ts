@@ -10,6 +10,7 @@ import { detectModelType } from "../services/adapters";
 import { getRequestedRegion, resolveUpstream } from "../services/upstream";
 import { checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
+import { calculateOpenAiCacheAwareCost } from "../utils/cache-billing";
 
 const router = Router();
 const UPSTREAM_TIMEOUT = 600000; // 10分钟
@@ -259,7 +260,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const usage = parseSseUsage(fullResponse);
       const playgroundCached = usage.prompt_tokens_details?.cached_tokens || 0;
       const playgroundCreation = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
-      const totalCost = (await calculateDiscountedTokenCost(session.id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, playgroundCached, playgroundCreation)).finalAmount;
+      // 与 /v1/chat 实扣同一函数：分层价 + per-model/档位 cacheReadPrice + omni 分模态
+      const totalCost = (await calculateOpenAiCacheAwareCost({ userId: session.id, model, usage, explicitCache: false })).finalAmount;
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = usage.completion_tokens > 1 ? streamDuration / (usage.completion_tokens - 1) : 0;
 
@@ -300,7 +302,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     const usage = data.usage || {};
     const playgroundCachedNS = usage.prompt_tokens_details?.cached_tokens || 0;
     const playgroundCreationNS = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
-    const totalCost = (await calculateDiscountedTokenCost(session.id, model, usage.prompt_tokens || 0, usage.completion_tokens || 0, playgroundCachedNS, playgroundCreationNS)).finalAmount;
+    // 与 /v1/chat 实扣同一函数：分层价 + per-model/档位 cacheReadPrice + omni 分模态
+    const totalCost = (await calculateOpenAiCacheAwareCost({ userId: session.id, model, usage, explicitCache: false })).finalAmount;
 
     await logUsage({
       region: upstream.region,

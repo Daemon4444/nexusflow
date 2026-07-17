@@ -31,6 +31,11 @@ async function handleVideoSynthesis(req: Request, res: Response) {
     res.status(401).json({ error: { message: "Invalid API key.", code: "invalid_api_key" } });
     return;
   }
+  // 匿名 key（无归属用户）会绕过余额与白名单，统一拒绝
+  if (!keyRecord.user_id) {
+    res.status(403).json({ error: { message: "This API key is not associated with a user account.", code: "anonymous_key_not_allowed" } });
+    return;
+  }
 
   // 余额检查
   if (keyRecord.user_id) {
@@ -171,6 +176,11 @@ async function handleImageToVideo(req: Request, res: Response) {
   const keyRecord = token ? await validateApiKey(token) : null;
   if (!token || !keyRecord) {
     res.status(401).json({ error: { message: "Invalid API key.", code: "invalid_api_key" } });
+    return;
+  }
+  // 匿名 key（无归属用户）会绕过余额与白名单，统一拒绝
+  if (!keyRecord.user_id) {
+    res.status(403).json({ error: { message: "This API key is not associated with a user account.", code: "anonymous_key_not_allowed" } });
     return;
   }
 

@@ -74,10 +74,15 @@ export function anthropicToOpenAiPayload(body: AnyRecord): AnyRecord {
         const img = imageBlockToOpenAi(block);
         if (img) parts.push(img);
       } else if (block?.type === "tool_result") {
+        // 只提取文本；图片块以占位符表示，避免把整段 base64 塞进 tool 消息（请求体膨胀数 MB）
+        const resultText = blockText(block.content);
+        const hasImage = Array.isArray(block.content) && block.content.some((b: AnyRecord) => b?.type === "image");
         openAiMessages.push({
           role: "tool",
           tool_call_id: block.tool_use_id,
-          content: blockText(block.content) || JSON.stringify(block.content ?? ""),
+          content: resultText
+            ? (hasImage ? `${resultText}\n[image content omitted]` : resultText)
+            : (hasImage ? "[image content omitted]" : JSON.stringify(block.content ?? "")),
         });
       }
     }
@@ -105,6 +110,7 @@ export function anthropicToOpenAiPayload(body: AnyRecord): AnyRecord {
   const choice = body.tool_choice;
   if (choice?.type === "auto") payload.tool_choice = "auto";
   else if (choice?.type === "any") payload.tool_choice = "required";
+  else if (choice?.type === "none") payload.tool_choice = "none";
   else if (choice?.type === "tool" && choice.name) payload.tool_choice = { type: "function", function: { name: choice.name } };
 
   if (body.thinking?.type === "enabled") {
@@ -248,18 +254,27 @@ export function createAnthropicStreamTranslator(msgId: string, modelId: string, 
     }
   };
 
+  const processLine = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) return; // SSE 规范里 data: 后空格可选
+    const payload = trimmed.slice(5).trimStart();
+    if (payload === "[DONE]") return;
+    try { handleChunk(JSON.parse(payload)); } catch { /* 忽略残缺分片 */ }
+  };
+
   return {
     feed(text: string) {
       buffer += text;
       const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() || "";
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data: ") || trimmed === "data: [DONE]") continue;
-        try { handleChunk(JSON.parse(trimmed.slice(6))); } catch { /* 忽略残缺分片 */ }
-      }
+      for (const line of lines) processLine(line);
     },
     finish(): StreamTranslateResult {
+      // 冲刷残留 buffer：上游最后一行（常含 usage）可能没有尾随换行
+      if (buffer) {
+        processLine(buffer);
+        buffer = "";
+      }
       ensureStarted();
       closeBlock();
       const anthropicUsage = openAiUsageToAnthropic(usage);

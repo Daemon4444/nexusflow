@@ -23,6 +23,51 @@ import { detectModelType } from "../services/adapters";
 import { calculateOpenAiCacheAwareCost, buildApiDescription } from "../utils/cache-billing";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
+import { db } from "../db/client";
+
+/** 记录 response 归属（POST 成功后调用）。失败不影响主流程，但会导致该 response 后续不可检索（fail-closed）。 */
+async function recordResponseOwnership(responseId: string | null | undefined, userId: string | null): Promise<void> {
+  if (!responseId || !userId) return;
+  try {
+    await db.execute(
+      "INSERT INTO response_ownership (response_id, user_id) VALUES (?, ?) ON CONFLICT (response_id) DO NOTHING",
+      [responseId, userId]
+    );
+  } catch (err) {
+    console.error("[responses] record ownership failed:", err);
+  }
+}
+
+/** 归属校验：非本人（或无记录）一律 404，不泄露资源存在性。查询异常按拒绝处理（fail-closed）。 */
+async function assertResponseOwnership(responseId: string, userId: string | null, res: Response): Promise<boolean> {
+  try {
+    const row = await db.queryOne<{ user_id: string | null }>(
+      "SELECT user_id FROM response_ownership WHERE response_id = ?",
+      [responseId]
+    );
+    if (row && userId && row.user_id === userId) return true;
+  } catch (err) {
+    console.error("[responses] ownership lookup failed:", err);
+  }
+  res.status(404).json({
+    error: { message: `Response '${responseId}' not found.`, type: "invalid_request_error", code: "response_not_found" },
+  });
+  return false;
+}
+
+/** 从流式响应中提取 response id（response.created 事件） */
+function extractResponseIdFromStream(fullResponse: string): string | null {
+  for (const line of fullResponse.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) continue;
+    try {
+      const json = JSON.parse(trimmed.slice(5));
+      const id = json?.response?.id;
+      if (typeof id === "string" && id) return id;
+    } catch { /* 忽略残缺行 */ }
+  }
+  return null;
+}
 
 const router = Router();
 const UPSTREAM_TIMEOUT = 600000;
@@ -236,8 +281,9 @@ router.post("/", async (req: Request, res: Response) => {
 
       try {
         if (reader && typeof reader[Symbol.asyncIterator] === "function") {
+          const iterDecoder = new TextDecoder();
           for await (const chunk of reader) {
-            const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+            const text = typeof chunk === "string" ? chunk : iterDecoder.decode(chunk, { stream: true });
             fullResponse += text;
             res.write(text);
           }
@@ -260,6 +306,7 @@ router.post("/", async (req: Request, res: Response) => {
 
       // Extract usage from the response.completed event for billing
       const usage = extractUsageFromStream(fullResponse);
+      await recordResponseOwnership(extractResponseIdFromStream(fullResponse), apiKeyRecord.user_id);
       await billAndLog(usage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens,
       });
@@ -270,6 +317,7 @@ router.post("/", async (req: Request, res: Response) => {
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
       res.json(data);
 
+      await recordResponseOwnership(data?.id, apiKeyRecord.user_id);
       // Bill based on response usage
       const usage = data?.usage || {};
       await billAndLog(usage, {
@@ -290,13 +338,18 @@ router.post("/", async (req: Request, res: Response) => {
       status: "error",
       latencyMs: Date.now() - startTime,
     });
-    res.status(500).json({
-      error: {
-        message: sanitizeUpstreamError(err),
-        type: "server_error",
-        code: "upstream_error",
-      },
-    });
+    // 流式响应已 end 后（如计费段 DB 异常）不能再写状态码
+    if (res.headersSent) {
+      try { res.end(); } catch { /* 连接可能已断 */ }
+    } else {
+      res.status(500).json({
+        error: {
+          message: sanitizeUpstreamError(err),
+          type: "server_error",
+          code: "upstream_error",
+        },
+      });
+    }
   } finally {
     releaseConcurrency(upstream.providerId, modelId);
   }
@@ -313,7 +366,9 @@ router.get("/:id", async (req: Request, res: Response) => {
     return;
   }
 
-  const responseId = req.params.id;
+  const responseId = String(req.params.id);
+  // 归属校验：上游所有用户的 response 存在平台同一账号下，必须校验本人才可读（IDOR 防护）
+  if (!(await assertResponseOwnership(responseId, apiKeyRecord.user_id, res))) return;
   // Must resolve a provider to get the upstream URL. Use a default qwen model for routing.
   const resolvedUpstream = await resolveUpstream("qwen-plus", { region: getRequestedRegion(req) });
   if (!resolvedUpstream.ok) {
@@ -348,7 +403,8 @@ router.delete("/:id", async (req: Request, res: Response) => {
     return;
   }
 
-  const responseId = req.params.id;
+  const responseId = String(req.params.id);
+  if (!(await assertResponseOwnership(responseId, apiKeyRecord.user_id, res))) return;
   const resolvedUpstream = await resolveUpstream("qwen-plus", { region: getRequestedRegion(req) });
   if (!resolvedUpstream.ok) {
     res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
@@ -363,6 +419,9 @@ router.delete("/:id", async (req: Request, res: Response) => {
       signal: AbortSignal.timeout(30000),
     });
     const data = await response.json();
+    if (response.ok) {
+      try { await db.execute("DELETE FROM response_ownership WHERE response_id = ?", [responseId]); } catch { /* 清理失败不影响主流程 */ }
+    }
     res.status(response.status).json(data);
   } catch (err: any) {
     res.status(500).json({
@@ -382,7 +441,8 @@ router.get("/:id/input_items", async (req: Request, res: Response) => {
     return;
   }
 
-  const responseId = req.params.id;
+  const responseId = String(req.params.id);
+  if (!(await assertResponseOwnership(responseId, apiKeyRecord.user_id, res))) return;
   const resolvedUpstream = await resolveUpstream("qwen-plus", { region: getRequestedRegion(req) });
   if (!resolvedUpstream.ok) {
     res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });

@@ -987,7 +987,7 @@ export default function AdminPage() {
     const enabled = prompt("是否启用：true / false", String(current?.isEnabled ?? true));
     if (enabled === null) return;
 
-    const res = await fetchAPI(`/api/provider/${selectedProviderId}/capacity/${modelId}`, {
+    const res = await fetchAPI(`/api/provider/${selectedProviderId}/capacity/${encodeURIComponent(modelId)}`, {
       method: "PUT",
       headers: authHeaders(),
       body: JSON.stringify({
@@ -1035,7 +1035,7 @@ export default function AdminPage() {
     const enabled = prompt("是否启用：true / false", String(route?.isEnabled ?? true));
     if (enabled === null) return;
 
-    const res = await fetchAPI(`/api/provider/${providerId}/capacity/${model.modelId}`, {
+    const res = await fetchAPI(`/api/provider/${providerId}/capacity/${encodeURIComponent(model.modelId)}`, {
       method: "PUT",
       headers: authHeaders(),
       body: JSON.stringify({
