@@ -49,7 +49,7 @@ const translations = {
   sidebarAnalytics: { zh: "分析", en: "Analytics" },
   sidebarProfile: { zh: "个人资料", en: "Profile" },
   sidebarApiKeys: { zh: "API 密钥", en: "API Keys" },
-  sidebarCredits: { zh: "余额", en: "Credits" },
+  sidebarCredits: { zh: "账单", en: "Billing" },
   sidebarActivity: { zh: "使用统计", en: "Activity" },
   sidebarPerformance: { zh: "性能监控", en: "Performance" },
   sidebarRateLimits: { zh: "速率限制", en: "Rate Limits" },
@@ -95,7 +95,7 @@ const translations = {
   active: { zh: "活跃", en: "Active" },
 
   // ======== Billing / Credits Page ========
-  creditsTitle: { zh: "余额", en: "Credits" },
+  creditsTitle: { zh: "账单", en: "Billing" },
   creditsDesc: { zh: "管理余额和查看交易记录", en: "Manage your balance and view transaction history" },
   topUp: { zh: "充值", en: "Top up" },
   availableBalance: { zh: "可用余额", en: "Available Balance" },
