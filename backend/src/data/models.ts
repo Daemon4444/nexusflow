@@ -1194,6 +1194,22 @@ const staticModels: AIModel[] = [
     supported: ["文本", "函数调用"]
   },
   {
+    id: "kimi/kimi-k3",
+    name: "Kimi K3",
+    provider: "月之暗面",
+    description: "Kimi 迄今能力最强的旗舰模型，拥有 2.8 万亿参数，基于 KDA 混合线性注意力机制（Kimi Delta Attention）和注意力残差（Attention Residuals）技术构建，原生支持视觉理解，并拥有 100 万 token 上下文窗口。全球首个开源的 3 万亿级别模型，面向长程编程、知识工作和推理等前沿智能场景而设计。",
+    contextLength: 1048576,
+    promptPrice: 20,
+    completionPrice: 100,
+    cacheReadPrice: 2,
+    category: "大语言模型",
+    tags: ["旗舰", "推理", "长程编程", "视觉理解", "思考模式", "百万上下文", "开源"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 1048576,
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
+  },
+  {
     id: "MiniMax-M2.1",
     name: "MiniMax M2.1",
     provider: "MiniMax",

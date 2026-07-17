@@ -7,6 +7,7 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
+  { id: "kimi/kimi-k3", context: "1M", input: 20, output: 100, desc: "K3 最强旗舰，2.8万亿参数，原生视觉理解+深度思考，缓存命中 ¥2/M" },
   { id: "kimi-k2.6", context: "256K", input: 6.5, output: 27, desc: "K2.6 旗舰，长文本创意写作" },
   { id: "kimi-k2.5", context: "256K", input: 4, output: 21, desc: "K2.5 均衡模型" },
 ];
@@ -15,7 +16,7 @@ const curlExample = `curl ${API_BASE}/v1/chat/completions \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "kimi-k2.6",
+    "model": "kimi/kimi-k3",
     "messages": [
       {"role": "user", "content": "帮我把这篇3000字的文章概括成300字的摘要"}
     ],
@@ -30,7 +31,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="kimi-k2.6",
+    model="kimi/kimi-k3",
     messages=[
         {"role": "user", "content": "帮我把这篇3000字的文章概括成300字的摘要"}
     ],
@@ -40,6 +41,30 @@ response = client.chat.completions.create(
 for chunk in response:
     if chunk.choices[0].delta.content:
         print(chunk.choices[0].delta.content, end="")`;
+
+const visionExample = `from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-air-your-key",
+    base_url="${API_BASE}/v1",
+)
+
+completion = client.chat.completions.create(
+    model="kimi/kimi-k3",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "https://example.com/image.jpg"},
+                },
+                {"type": "text", "text": "请仅输出图像中的文本内容。"},
+            ],
+        },
+    ],
+)
+print(completion.choices[0].message.content)`;
 
 export default function KimiApiPage() {
   const [codeLang, setCodeLang] = useState<"curl" | "python">("curl");
@@ -57,7 +82,7 @@ export default function KimiApiPage() {
           Kimi 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          月之暗面 Kimi 系列模型，擅长长文本理解、多轮对话和创意写作。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Responses API 协议调用。
+          月之暗面 Kimi 系列模型，擅长长文本理解、多轮对话和创意写作。最新旗舰 Kimi K3 原生支持视觉理解与深度思考，拥有 100 万 token 上下文窗口。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Responses API 协议调用。
         </p>
       </div>
 
@@ -120,6 +145,16 @@ export default function KimiApiPage() {
         </div>
         <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
           <DocsCodeBlock code={codeLang === "curl" ? curlExample : pythonExample} />
+        </div>
+      </section>
+
+      <section style={{ marginBottom: 36 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>视觉理解（Kimi K3）</h2>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 12 }}>
+          Kimi K3 原生支持图像输入，可用于 OCR、图表理解、界面截图分析等场景。图像以 <code style={{ fontSize: 12 }}>image_url</code> 内容块传入：
+        </p>
+        <div style={{ background: "#111827", borderRadius: 8, padding: 18, overflow: "auto" }}>
+          <DocsCodeBlock code={visionExample} />
         </div>
       </section>
 

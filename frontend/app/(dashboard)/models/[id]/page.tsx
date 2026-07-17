@@ -290,7 +290,7 @@ export default function ModelDetailPage() {
   async function loadModel() {
     setLoading(true);
     try {
-      const res = await fetchAPI(`/api/models/${modelId}`);
+      const res = await fetchAPI(`/api/models/${encodeURIComponent(decodeURIComponent(modelId))}`);
       if (res.success) {
         setModel(res.data);
       }

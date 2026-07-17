@@ -45,6 +45,7 @@ const MIXED_THINKING_DEFAULT_ON = new Set([
   "glm-5.1",
   "glm-5",
   "glm-4.7",
+  "kimi/kimi-k3",
 ]);
 
 const MIXED_THINKING_DEFAULT_OFF = new Set([
@@ -78,6 +79,12 @@ const PRESERVE_THINKING_MODELS = new Set([
   "qwen3.6-max-preview",
   "qwen3.6-plus",
   "kimi-k2.6",
+  "kimi/kimi-k3",
+]);
+
+// 官方模型卡明确标注支持联网搜索、但不属于 qwen/deepseek/minimax 判定分支的模型
+const SEARCH_ENABLED_MODELS = new Set([
+  "kimi/kimi-k3",
 ]);
 
 function hasAny(value: string[], needles: string[]): boolean {
@@ -136,7 +143,8 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
   const supportsSearch =
     (isQwenChat && !model.id.includes("math") && !model.id.includes("mt")) ||
     isDeepSeek ||
-    isMiniMax;
+    isMiniMax ||
+    SEARCH_ENABLED_MODELS.has(model.id);
 
   return {
     model_type: modelType || "unknown",

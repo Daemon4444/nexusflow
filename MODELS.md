@@ -142,6 +142,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 |---------|------|------------|----------|----------|----------|------|
 | `kimi-k2.5` | Kimi K2.5 | 131K | 8K | ¥4/M | ¥21/M | 长文本理解 |
 | `kimi-k2.6` | Kimi K2.6 | 262K | 16K | ¥6.5/M | ¥27/M | 旗舰长文本 |
+| `kimi/kimi-k3` | Kimi K3 | **1M** | **1M** | ¥20/M (缓存命中 ¥2/M) | ¥100/M | 最强旗舰、2.8万亿参数、原生视觉理解、深度思考、开源 |
 
 ### MiniMax 系列
 
@@ -426,7 +427,7 @@ Authorization: Bearer YOUR_API_KEY
 | 拍我AI (PixVerse) | 1 | PixVerse V6 |
 | 阿里巴巴 (Alibaba) | 4 | HappyHorse 系列 |
 | 智谱AI | 4 | GLM 4.7、GLM 5、GLM 5.1、GLM 5.2 |
-| 月之暗面 | 2 | Kimi K2.5、Kimi K2.6 |
+| 月之暗面 | 3 | Kimi K3、Kimi K2.6、Kimi K2.5 |
 | MiniMax | 2 | M2.1、M2.5 |
 | Anthropic | 3 | Claude Opus 4.7、Sonnet 4.6、Haiku 4.5 |
 

@@ -290,7 +290,7 @@ nexusflow/
 | 分类 | 说明 | 包含模型 |
 |------|------|----------|
 | `ALWAYS_THINKING` | 始终返回 reasoning_content，不能关闭 | qwq-plus, deepseek-r1 |
-| `MIXED_THINKING_DEFAULT_ON` | 默认开启思考，可通过 `enable_thinking=false` 关闭 | qwen3.7-max, qwen3.6-max-preview, qwen3.6-plus, qwen3.6-flash, qwen3.5-plus, qwen3.5-flash, deepseek-v4-pro, deepseek-v4-flash, glm-5.1, glm-5, glm-4.7 |
+| `MIXED_THINKING_DEFAULT_ON` | 默认开启思考，可通过 `enable_thinking=false` 关闭 | qwen3.7-max, qwen3.6-max-preview, qwen3.6-plus, qwen3.6-flash, qwen3.5-plus, qwen3.5-flash, deepseek-v4-pro, deepseek-v4-flash, glm-5.1, glm-5, glm-4.7, kimi/kimi-k3 |
 | `MIXED_THINKING_DEFAULT_OFF` | 默认不思考，可通过 `enable_thinking=true` 开启 | qwen3-max, qwen3-plus, qwen3-flash, qwen3-turbo, qwen3-32b, qwen3-8b, deepseek-v3.2, kimi-k2.6, kimi-k2.5 |
 
 ### 特殊参数透传范围
@@ -299,7 +299,7 @@ nexusflow/
 |------|----------|
 | `enable_thinking` | thinking_mode = mixed 或 always |
 | `thinking_budget` | ID 前缀为 `qwen3.7-` / `qwen3.6-` / `qwen3.5-` / `qwen3-vl-` / `qwen3-` 且有思考模式 |
-| `preserve_thinking` | qwen3.7-max, qwen3.6-max-preview, qwen3.6-plus, kimi-k2.6 |
+| `preserve_thinking` | qwen3.7-max, qwen3.6-max-preview, qwen3.6-plus, kimi-k2.6, kimi/kimi-k3 |
 | `enable_search` / `search_options` | 通义千问文本类模型（非 VL / math / mt 系列） |
 | `seed`, `top_k`, `logprobs`, `repetition_penalty` | 通义千问文本类模型 |
 | `parallel_tool_calls` | 通义千问 + DeepSeek + GLM + Anthropic |
@@ -387,7 +387,7 @@ docker exec quadrant-postgres psql -U quadrant -d quadrant \
 
 **编程模型**：qwen3-coder-plus, qwen3-coder-flash
 
-**大语言模型（其他厂商）**：deepseek-v4-pro, deepseek-v4-flash, deepseek-v3.2, deepseek-v3, glm-5.1, glm-5, glm-4.7, kimi-k2.6, kimi-k2.5, MiniMax-M2.5, MiniMax-M2.1, claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5
+**大语言模型（其他厂商）**：deepseek-v4-pro, deepseek-v4-flash, deepseek-v3.2, deepseek-v3, glm-5.1, glm-5, glm-4.7, kimi/kimi-k3, kimi-k2.6, kimi-k2.5, MiniMax-M2.5, MiniMax-M2.1, claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5
 
 **嵌入**：text-embedding-v4
 
@@ -471,7 +471,7 @@ docker exec quadrant-postgres psql -U quadrant -d quadrant \
 - Overview 统计区显示「缓存命中」总 token 数
 - 新建 `/docs/api/cache` 文档页，包含模型支持矩阵和计费说明
 
-**支持显式缓存的模型**：qwen3.7-max, qwen3.6系列, qwen3.5系列, qwen3-coder系列, qwen3-vl系列, deepseek-v4系列, deepseek-v3.2, glm-5.1, kimi-k2.6, kimi-k2.5, MiniMax-M2.5
+**支持显式缓存的模型**：qwen3.7-max, qwen3.6系列, qwen3.5系列, qwen3-coder系列, qwen3-vl系列, deepseek-v4系列, deepseek-v3.2, glm-5.1, kimi/kimi-k3, kimi-k2.6, kimi-k2.5, MiniMax-M2.5
 
 **影响文件**：`backend/src/data/usage.ts`, `backend/src/routes/v1.ts`, `frontend/app/(dashboard)/activity/page.tsx`, `frontend/app/(dashboard)/docs/api/cache/page.tsx`
 

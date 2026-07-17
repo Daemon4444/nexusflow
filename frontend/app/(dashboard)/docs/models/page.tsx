@@ -56,12 +56,12 @@ const modelCategories = [
   {
     name: "Kimi 系列",
     provider: "月之暗面",
-    desc: "月之暗面旗下大模型，强大的长文本理解和推理能力",
+    desc: "月之暗面旗下大模型，旗舰 K3 原生视觉理解+深度思考+百万上下文，强大的长文本理解和推理能力",
     href: "/docs/api/kimi",
     introHref: "/docs/api/kimi",
-    models: ["Kimi K2.6", "Kimi K2.5"],
+    models: ["Kimi K3", "Kimi K2.6", "Kimi K2.5"],
     color: "#6366f1",
-    tag: null,
+    tag: "最新",
   },
   {
     name: "MiniMax 系列",
@@ -111,6 +111,7 @@ const pricingTable = [
   { model: "glm-5.2", ctx: "1M", input: "¥8", output: "¥28", category: "长程旗舰" },
   { model: "glm-5.1", ctx: "198K", input: "¥6", output: "¥24", category: "旗舰" },
   { model: "glm-5", ctx: "198K", input: "¥4", output: "¥18", category: "均衡" },
+  { model: "kimi/kimi-k3", ctx: "1M", input: "¥20", output: "¥100", category: "旗舰" },
   { model: "kimi-k2.6", ctx: "256K", input: "¥6.5", output: "¥27", category: "推理" },
   { model: "kimi-k2.5", ctx: "256K", input: "¥4", output: "¥21", category: "均衡" },
   { model: "MiniMax-M2.5", ctx: "192K", input: "¥2.1", output: "¥8.4", category: "均衡" },

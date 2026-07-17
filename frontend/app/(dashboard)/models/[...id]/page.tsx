@@ -214,7 +214,7 @@ export default function ModelDetailPage() {
   useEffect(() => {
     async function load() {
       const id = Array.isArray(params.id) ? params.id.join("/") : params.id;
-      const res = await fetchAPI(`/api/models/${id}`);
+      const res = await fetchAPI(`/api/models/${encodeURIComponent(decodeURIComponent(id || ""))}`);
       if (res.success) setModel(res.data);
       setLoading(false);
     }
