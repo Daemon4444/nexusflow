@@ -1,5 +1,7 @@
 # NexusFlow — 项目说明文档
 
+> **⚡ 上线新模型？先读 [`docs/MODEL_ONBOARDING.md`](docs/MODEL_ONBOARDING.md)** —— 完整的改动清单、已知坑（斜杠 ID / 缓存计费 / 协议实测 / 代理层）、验证清单与部署 runbook。验证必须走浏览器真实路径，不能只 curl 后端。
+
 ## 项目概述
 
 NexusFlow 是一个 AI 模型聚合路由平台，提供统一的多协议 API 接口，将多个上游 AI 服务商整合为一个入口。
