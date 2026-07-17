@@ -30,7 +30,9 @@ async function proxyRequest(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const apiPath = "/" + path.join("/");
+  // Next 已对每段做过 URL 解码，拼回时必须逐段重新编码，
+  // 否则带斜杠的模型 ID（如 kimi%2Fkimi-k3）会被还原成多段路径导致后端 404
+  const apiPath = "/" + path.map(encodeURIComponent).join("/");
   const search = request.nextUrl.search;
 
   try {
