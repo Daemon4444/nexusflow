@@ -34,6 +34,7 @@ export async function logUsage(params: {
   cachedTokens?: number;
   cacheCreationTokens?: number;
   region?: string | null;
+  route?: string; // 上游路由方式标记（仅 SLS，如 anthropic-passthrough / anthropic-bridge）
   requestBody?: any;
   responseBody?: any;
 }): Promise<string> {
@@ -74,6 +75,7 @@ export async function logUsage(params: {
     latencyMs: params.latencyMs,
     cachedTokens: params.cachedTokens,
     cacheCreationTokens: params.cacheCreationTokens,
+    route: params.route,
     request: params.requestBody,
     response: params.responseBody,
   });

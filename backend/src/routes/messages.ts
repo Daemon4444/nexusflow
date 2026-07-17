@@ -355,6 +355,7 @@ router.post("/", async (req: Request, res: Response) => {
           tpotMs,
           cachedTokens: cacheReadInputTokens,
           cacheCreationTokens: cacheCreationInputTokens,
+          route: "anthropic-passthrough",
         });
         recordProviderTokens(upstream.providerId, modelId, totalTokens);
         if (apiKeyRecord.user_id) {
@@ -396,6 +397,7 @@ router.post("/", async (req: Request, res: Response) => {
         latencyMs: Date.now() - startTime,
         cachedTokens: usage.cache_read_input_tokens || 0,
         cacheCreationTokens: usage.cache_creation_input_tokens || 0,
+        route: "anthropic-passthrough",
       });
       recordProviderTokens(upstream.providerId, modelId, totalTokens);
       if (apiKeyRecord.user_id) {
@@ -429,6 +431,7 @@ router.post("/", async (req: Request, res: Response) => {
         cost: 0,
         status: "error",
         latencyMs: Date.now() - startTime,
+        route: "anthropic-passthrough",
       });
 
       res.status(500).json({
@@ -521,6 +524,7 @@ router.post("/", async (req: Request, res: Response) => {
         tpotMs,
         cachedTokens: usage.cache_read_input_tokens || 0,
         cacheCreationTokens: usage.cache_creation_input_tokens || 0,
+        route: "anthropic-bridge",
       });
       recordProviderTokens(upstream.providerId, modelId, totalTokens);
       if (apiKeyRecord.user_id) {
@@ -568,6 +572,7 @@ router.post("/", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
       cachedTokens: usage.cache_read_input_tokens || 0,
       cacheCreationTokens: usage.cache_creation_input_tokens || 0,
+      route: "anthropic-bridge",
     });
     recordProviderTokens(upstream.providerId, modelId, totalTokens);
     if (apiKeyRecord.user_id) {
@@ -599,6 +604,7 @@ router.post("/", async (req: Request, res: Response) => {
       cost: 0,
       status: "error",
       latencyMs: Date.now() - startTime,
+      route: "anthropic-bridge",
     });
     res.status(500).json({
       type: "error",
