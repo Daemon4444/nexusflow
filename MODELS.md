@@ -323,7 +323,7 @@ NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Mess
 | 通义千问 Qwen 系列 | ✅ | ✅ | ✅ |
 | DeepSeek 系列 | ✅ | ✅ | ❌ |
 | 智谱 GLM 系列 (含 GLM 5.2) | ✅ | ✅ | ❌ |
-| Kimi 系列 | ✅ | ✅（`kimi/kimi-k3` 暂 ❌，上游未接入） | ❌ |
+| Kimi 系列 | ✅ | ✅（`kimi/kimi-k3` 经平台协议转换支持） | ❌ |
 | MiniMax 系列 | ✅ | ✅ | ❌ |
 | Anthropic Claude 系列 | ✅ | ✅ | ✅ |
 

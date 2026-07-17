@@ -96,6 +96,18 @@ export function getMemoryPgAdapter() {
     impure: true,
   });
   db.public.registerFunction({
+    name: "replace",
+    args: ["text" as any, "text" as any, "text" as any],
+    returns: "text" as any,
+    implementation: (value: string, from: string, to: string) => String(value ?? "").split(String(from)).join(String(to)),
+  });
+  db.public.registerFunction({
+    name: "length",
+    args: ["text" as any],
+    returns: "integer" as any,
+    implementation: (value: string) => String(value ?? "").length,
+  });
+  db.public.registerFunction({
     name: "to_char",
     args: ["timestamptz" as any, "text" as any],
     returns: "text" as any,

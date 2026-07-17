@@ -21,6 +21,13 @@ import { getRequestedRegion, resolveUpstream } from "../services/upstream";
 import { buildApiDescription } from "../utils/cache-billing";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
+import { isAnthropicPassThroughUnsupported } from "../utils/model-protocols";
+import {
+  anthropicToOpenAiPayload,
+  openAiResponseToAnthropic,
+  openAiUsageToAnthropic,
+  createAnthropicStreamTranslator,
+} from "../utils/anthropic-openai-bridge";
 
 const router = Router();
 
@@ -86,9 +93,11 @@ async function calculateAnthropicUsageCost(userId: string | null | undefined, mo
   const cacheReadTokens = usage?.cache_read_input_tokens || 0;
   const baseInputTokens = Math.max(0, inputTokens - cacheCreationTokens - cacheReadTokens);
 
+  // 缓存命中价优先用模型显式配置（如 kimi/kimi-k3=¥2/M、glm-5.2=¥2/M），否则按输入价 10%
+  const cacheReadPrice = model.cacheReadPrice ?? (model.promptPrice * 0.1);
   const listAmount = (baseInputTokens / 1_000_000) * model.promptPrice
     + (cacheCreationTokens / 1_000_000) * model.promptPrice * 1.25
-    + (cacheReadTokens / 1_000_000) * model.promptPrice * 0.1
+    + (cacheReadTokens / 1_000_000) * cacheReadPrice
     + (outputTokens / 1_000_000) * model.completionPrice;
   const discounted = await applyUserModelDiscount(userId, model.id, listAmount);
   return { ...discounted, cachedTokens: cacheReadTokens, cacheCreationTokens };
@@ -234,7 +243,10 @@ router.post("/", async (req: Request, res: Response) => {
 
   try {
 
-  if (upstream.providerId === "anthropic" || upstream.anthropicCompatBaseUrl) {
+  const usePassThrough = upstream.providerId === "anthropic"
+    || (upstream.anthropicCompatBaseUrl && !isAnthropicPassThroughUnsupported(modelId));
+
+  if (usePassThrough) {
     const passThroughBase = upstream.anthropicCompatBaseUrl || upstream.baseUrl;
     try {
       const headers: Record<string, string> = {
@@ -427,6 +439,174 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
+  }
+
+  // OpenAI 转换回退：上游 Anthropic 兼容端点未接入该模型（或不存在）时，
+  // 把 Anthropic 请求转成 OpenAI 格式打 compatible-mode，响应再转回 Anthropic 格式
+  try {
+    const payload = anthropicToOpenAiPayload(req.body);
+    const response = await fetch(`${upstream.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${upstreamApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
+    });
+
+    if (stream) {
+      if (!response.ok) {
+        const errText = await response.text();
+        res.status(response.status).json({
+          type: "error",
+          error: { type: "api_error", message: sanitizeUpstreamError(errText) },
+        });
+        return;
+      }
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      let ttftMs = 0;
+      let chunkCount = 0;
+      let firstChunkTime = 0;
+      let lastChunkTime = 0;
+      const translator = createAnthropicStreamTranslator(`msg_${logId}`, modelId, (text) => res.write(text));
+      const feed = (chunk: any) => {
+        const now = Date.now();
+        if (chunkCount === 0) {
+          ttftMs = now - startTime;
+          firstChunkTime = now;
+        }
+        lastChunkTime = now;
+        chunkCount++;
+        translator.feed(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
+      };
+
+      const reader = response.body as any;
+      if (reader && typeof reader[Symbol.asyncIterator] === "function") {
+        for await (const chunk of reader) feed(chunk);
+      } else if (reader && reader.getReader) {
+        const r = reader.getReader();
+        while (true) {
+          const { done, value } = await r.read();
+          if (done) break;
+          feed(value);
+        }
+      }
+      const { usage } = translator.finish();
+      res.end();
+
+      const latencyMs = Date.now() - startTime;
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage);
+      const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+      const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
+      const tpotMs = (usage.output_tokens || 0) > 1 ? streamDuration / (usage.output_tokens - 1) : 0;
+
+      await logUsage({
+        region: upstream.region,
+        apiKeyId: apiKeyRecord.id,
+        userId: apiKeyRecord.user_id,
+        model: modelId,
+        promptTokens: usage.input_tokens || 0,
+        completionTokens: usage.output_tokens || 0,
+        totalTokens,
+        cost: billing.finalAmount,
+        status: "success",
+        latencyMs,
+        ttftMs,
+        tpotMs,
+        cachedTokens: usage.cache_read_input_tokens || 0,
+        cacheCreationTokens: usage.cache_creation_input_tokens || 0,
+      });
+      recordProviderTokens(upstream.providerId, modelId, totalTokens);
+      if (apiKeyRecord.user_id) {
+        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
+      }
+      if (apiKeyRecord.user_id && billing.finalAmount > 0) {
+        await consume(
+          apiKeyRecord.user_id,
+          billing.finalAmount,
+          buildApiDescription(modelId, totalTokens, usage.cache_read_input_tokens || 0, true),
+          apiKeyRecord.id,
+          billing.discountRate,
+          billing.discountAmount,
+        );
+      }
+      return;
+    }
+
+    const data: any = await response.json();
+    if (!response.ok) {
+      res.status(response.status).json({
+        type: "error",
+        error: {
+          type: response.status === 429 ? "rate_limit_error" : "api_error",
+          message: sanitizeUpstreamError(data?.error?.message || JSON.stringify(data)),
+        },
+      });
+      return;
+    }
+
+    const anthropicResponse = openAiResponseToAnthropic(data, `msg_${logId}`, modelId);
+    const usage = anthropicResponse.usage || openAiUsageToAnthropic(data?.usage);
+    const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage);
+    const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+    await logUsage({
+      region: upstream.region,
+      apiKeyId: apiKeyRecord.id,
+      userId: apiKeyRecord.user_id,
+      model: modelId,
+      promptTokens: usage.input_tokens || 0,
+      completionTokens: usage.output_tokens || 0,
+      totalTokens,
+      cost: billing.finalAmount,
+      status: "success",
+      latencyMs: Date.now() - startTime,
+      cachedTokens: usage.cache_read_input_tokens || 0,
+      cacheCreationTokens: usage.cache_creation_input_tokens || 0,
+    });
+    recordProviderTokens(upstream.providerId, modelId, totalTokens);
+    if (apiKeyRecord.user_id) {
+      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
+    }
+    if (apiKeyRecord.user_id && billing.finalAmount > 0) {
+      await consume(
+        apiKeyRecord.user_id,
+        billing.finalAmount,
+        buildApiDescription(modelId, totalTokens, usage.cache_read_input_tokens || 0),
+        apiKeyRecord.id,
+        billing.discountRate,
+        billing.discountAmount,
+      );
+    }
+
+    res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+    res.json(anthropicResponse);
+    return;
+  } catch (err: any) {
+    await logUsage({
+      region: upstream.region,
+      apiKeyId: apiKeyRecord.id,
+      userId: apiKeyRecord.user_id,
+      model: modelId,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      cost: 0,
+      status: "error",
+      latencyMs: Date.now() - startTime,
+    });
+    res.status(500).json({
+      type: "error",
+      error: {
+        type: "api_error",
+        message: `Upstream request failed: ${sanitizeUpstreamError(err)}`,
+      },
+    });
+    return;
   }
 
   } finally {
