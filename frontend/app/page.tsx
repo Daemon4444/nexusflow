@@ -9,11 +9,11 @@ import { fetchAPI } from "@/lib/api";
 import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
 
 const fallbackModelRows = [
-  { model: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", context: "262K", price: "input ¥9 / output ¥54 per 1M" },
-  { model: "DeepSeek V3.2", provider: "DeepSeek", context: "131K", price: "input ¥2 / output ¥3 per 1M" },
-  { model: "GLM 5.2", provider: "Zhipu AI", context: "1M", price: "input ¥8 / output ¥28 per 1M" },
   { model: "Kimi K3", provider: "Moonshot AI", context: "1M", price: "input ¥20 / output ¥100 per 1M" },
-  { model: "PixVerse V4.5", provider: "PixVerse", context: "Async video", price: "from ¥0.15 / second" },
+  { model: "Qwen3.7 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
+  { model: "GLM 5.2", provider: "Zhipu AI", context: "1M", price: "input ¥8 / output ¥28 per 1M" },
+  { model: "DeepSeek V4 Pro", provider: "DeepSeek", context: "1M", price: "input ¥12 / output ¥24 per 1M" },
+  { model: "Seedance 2.0", provider: "Volcengine Ark", context: "Async video", price: "from ¥0.04 / second" },
 ];
 
 const capabilities = [
@@ -43,7 +43,8 @@ const workflow = [
 ];
 
 const fallbackCarouselModels = [
-  { name: "Qwen3.6 Max Preview", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥9 · Out ¥54", badge: "Flagship", tone: "blue" },
+  { name: "Kimi K3", provider: "Moonshot AI", ctx: "1M context", price: "In ¥20 · Out ¥100", badge: "New", tone: "teal" },
+  { name: "Qwen3.7 Max", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥12 · Out ¥36", badge: "Flagship", tone: "blue" },
   { name: "Qwen3 Max", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥2.5 · Out ¥10", badge: "Stable", tone: "blue" },
   { name: "Qwen Long", provider: "Tongyi Qianwen", ctx: "10M context", price: "In ¥0.5 · Out ¥2", badge: "Long", tone: "teal" },
   { name: "Qwen3.6 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥2 · Out ¥12", badge: "Popular", tone: "blue" },
@@ -53,11 +54,9 @@ const fallbackCarouselModels = [
   { name: "Qwen3.5 Omni Flash", provider: "Tongyi Qianwen", ctx: "262K omni", price: "In ¥2.2 · Out ¥13.3", badge: "Omni", tone: "violet" },
   { name: "Qwen VL Flash", provider: "Tongyi Qianwen", ctx: "262K vision", price: "In ¥0.15 · Out ¥1.5", badge: "Vision", tone: "violet" },
   { name: "Qwen Coder Flash", provider: "Tongyi Qianwen", ctx: "1M code", price: "In ¥1 · Out ¥4", badge: "Code", tone: "slate" },
+  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "1M context", price: "In ¥12 · Out ¥24", badge: "Reasoning", tone: "red" },
   { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },
-  { name: "DeepSeek R1", provider: "DeepSeek", ctx: "64K context", price: "In ¥4 · Out ¥16", badge: "Reasoning", tone: "red" },
   { name: "GLM 5.2", provider: "Zhipu AI", ctx: "1M context", price: "In ¥8 · Out ¥28", badge: "Flagship", tone: "violet" },
-  { name: "Kimi K3", provider: "Moonshot AI", ctx: "1M context", price: "In ¥20 · Out ¥100", badge: "Flagship", tone: "teal" },
-  { name: "Kimi K2.5", provider: "Moonshot AI", ctx: "131K context", price: "In ¥4 · Out ¥21", badge: "Writing", tone: "teal" },
   { name: "Text Embedding V4", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
   { name: "Qwen Image Max", provider: "Tongyi Qianwen", ctx: "Image", price: "per image", badge: "Image", tone: "orange" },
   { name: "PixVerse V4.5", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
@@ -219,6 +218,20 @@ export default function LandingPage() {
 
       <section className="nf-hero">
         <div className="nf-hero-copy">
+          <Link href="/models/kimi/kimi-k3" style={{
+            display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 14,
+            padding: "6px 14px", borderRadius: 999, textDecoration: "none",
+            background: "linear-gradient(135deg, rgba(45,212,191,0.14), rgba(34,211,238,0.1))",
+            border: "1px solid rgba(45,212,191,0.35)", fontSize: 12.5, fontWeight: 600,
+            color: "var(--text-primary)",
+          }}>
+            <span style={{
+              padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 800,
+              letterSpacing: "0.08em", background: "#0d9488", color: "#fff",
+            }}>NEW</span>
+            Kimi K3 is live — 2.8T params · native vision · 1M context
+            <span aria-hidden style={{ fontWeight: 700 }}>→</span>
+          </Link>
           <div className="nf-eyebrow">One API, every leading AI model</div>
           <h1>NexusFlow</h1>
           <p className="nf-hero-lead">
@@ -234,8 +247,8 @@ export default function LandingPage() {
           </div>
           <div className="nf-hero-metrics">
             <div><strong>{modelCount}+</strong><span>model options</span></div>
+            <div><strong>2.8T</strong><span>Kimi K3 flagship</span></div>
             <div><strong>4K HDR</strong><span>Seedance 2.0 video</span></div>
-            <div><strong>¥0.04/s</strong><span>video from</span></div>
           </div>
         </div>
 
@@ -244,7 +257,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ FLAGSHIP — Seedance 2.0（系列最厉害的模型，醒目主推） ═══ */}
+      {/* ═══ FLAGSHIP — Kimi K3（最新上线旗舰，醒目主推；上一任主推 Seedance 2.0 保留在 hero 指标） ═══ */}
       <section style={{
         position: "relative",
         margin: "8px auto 0",
@@ -252,18 +265,18 @@ export default function LandingPage() {
         padding: "48px clamp(24px, 5vw, 56px)",
         borderRadius: 28,
         overflow: "hidden",
-        background: "linear-gradient(135deg, #07091a 0%, #1e1b4b 46%, #312e81 100%)",
-        border: "1px solid rgba(129,140,248,0.28)",
-        boxShadow: "0 36px 90px rgba(10,12,30,0.45), inset 0 1px 0 rgba(255,255,255,0.07)",
+        background: "linear-gradient(135deg, #04070d 0%, #0b1f24 48%, #114b4f 100%)",
+        border: "1px solid rgba(45,212,191,0.28)",
+        boxShadow: "0 36px 90px rgba(4,16,20,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
       }}>
         <div style={{
           position: "absolute", top: "-28%", right: "-6%", width: 460, height: 460,
-          borderRadius: "50%", background: "radial-gradient(circle, rgba(167,139,250,0.26), transparent 70%)",
+          borderRadius: "50%", background: "radial-gradient(circle, rgba(45,212,191,0.24), transparent 70%)",
           filter: "blur(70px)", pointerEvents: "none",
         }} />
         <div style={{
           position: "absolute", bottom: "-30%", left: "0%", width: 380, height: 380,
-          borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.2), transparent 70%)",
+          borderRadius: "50%", background: "radial-gradient(circle, rgba(34,211,238,0.18), transparent 70%)",
           filter: "blur(64px)", pointerEvents: "none",
         }} />
 
@@ -273,47 +286,47 @@ export default function LandingPage() {
               <span style={{
                 padding: "6px 15px", borderRadius: 999, fontSize: 11, fontWeight: 800,
                 letterSpacing: "0.16em", textTransform: "uppercase",
-                background: "linear-gradient(135deg, rgba(167,139,250,0.32), rgba(129,140,248,0.24))",
-                color: "#c7d2fe", border: "1px solid rgba(167,139,250,0.38)",
+                background: "linear-gradient(135deg, rgba(45,212,191,0.3), rgba(34,211,238,0.22))",
+                color: "#99f6e4", border: "1px solid rgba(45,212,191,0.38)",
               }}>
-                Flagship Video
+                Flagship LLM
               </span>
               <span style={{
                 padding: "6px 13px", borderRadius: 999, fontSize: 11, fontWeight: 700,
                 background: "rgba(250,204,21,0.15)", color: "#fde68a", border: "1px solid rgba(250,204,21,0.3)",
               }}>
-                系列最强
+                最新上线
               </span>
-              <span style={{ fontSize: 12, color: "rgba(226,232,240,0.5)" }}>by 火山方舟 Volcengine Ark</span>
+              <span style={{ fontSize: 12, color: "rgba(226,232,240,0.5)" }}>by 月之暗面 Moonshot AI</span>
             </div>
 
             <h2 style={{
               fontSize: "clamp(36px, 5vw, 52px)", lineHeight: 1.05, fontWeight: 800,
               letterSpacing: "-0.04em", margin: "0 0 16px",
-              background: "linear-gradient(135deg, #f8fafc 0%, #c7d2fe 48%, #a78bfa 100%)",
+              background: "linear-gradient(135deg, #f8fafc 0%, #99f6e4 48%, #2dd4bf 100%)",
               WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
             }}>
-              豆包 Seedance 2.0
+              Kimi K3
             </h2>
             <p style={{ fontSize: 16, lineHeight: 1.75, color: "rgba(226,232,240,0.85)", margin: "0 0 14px", maxWidth: 560 }}>
-              Seedance 系列最厉害的旗舰视频生成模型。多模态参考生视频（0-9 图 + 0-3 视频 + 0-3 音频）、4K HDR 10bit 输出、有声视频自动生成、首尾帧控制，业界顶尖水平——通过 NexusFlow 统一 <code style={{ fontFamily: "var(--font-mono, monospace)", color: "#c7d2fe" }}>/v1/tasks</code> 接口即可调用。
+              Kimi 迄今能力最强的旗舰模型：2.8 万亿参数，基于 KDA 混合线性注意力与注意力残差架构，原生视觉理解 + 深度思考，100 万 token 上下文。面向长程编程、知识工作与推理场景——OpenAI 与 Anthropic 协议均可直接调用 <code style={{ fontFamily: "var(--font-mono, monospace)", color: "#99f6e4" }}>kimi/kimi-k3</code>。
             </p>
             <p style={{ fontSize: 13.5, lineHeight: 1.7, color: "rgba(148,163,184,0.78)", margin: "0 0 28px", maxWidth: 540 }}>
-              从文本到电影级视频，从静态图片到动态影像，从多模态素材到融合成片。按火山 token 用量计费，与 wan2.6、HappyHorse、PixVerse 同协议，仅成功生成才计费。
+              全球首个开源的 3 万亿级别模型。输入 ¥20/M、输出 ¥100/M、缓存命中低至 ¥2/M，与 Qwen、GLM、DeepSeek 共用同一个 API Key 与计费体系。
             </p>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <Link href="/docs/models/seedance" style={{
+              <Link href="/models/kimi/kimi-k3" style={{
                 display: "inline-flex", alignItems: "center", gap: 8,
                 padding: "13px 28px", borderRadius: 12,
-                background: "linear-gradient(135deg, #818cf8, #6366f1)",
+                background: "linear-gradient(135deg, #2dd4bf, #0d9488)",
                 color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none",
-                boxShadow: "0 6px 20px rgba(99,102,241,0.4)",
+                boxShadow: "0 6px 20px rgba(13,148,136,0.4)",
               }}>
-                了解 Seedance
+                了解 Kimi K3
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </Link>
-              <Link href="/docs/api/seedance" style={{
+              <Link href="/docs/api/kimi" style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "13px 24px", borderRadius: 12,
                 background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)",
@@ -326,13 +339,13 @@ export default function LandingPage() {
 
           <div style={{ flex: "0 0 auto", display: "grid", gridTemplateColumns: "repeat(2, minmax(96px, auto))", gap: "16px 32px" }}>
             {[
-              { v: "4K", l: "HDR 10bit 输出" },
-              { v: "15s", l: "最长视频时长" },
-              { v: "9+", l: "多模态参考图" },
-              { v: "♪", l: "有声视频自动生成" },
+              { v: "2.8T", l: "万亿级参数" },
+              { v: "1M", l: "Token 上下文窗口" },
+              { v: "1M", l: "最大输出长度" },
+              { v: "¥2/M", l: "缓存命中输入价" },
             ].map((s) => (
               <div key={s.l} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 30, fontWeight: 800, color: "#c7d2fe", letterSpacing: "-1px" }}>{s.v}</div>
+                <div style={{ fontSize: 30, fontWeight: 800, color: "#99f6e4", letterSpacing: "-1px" }}>{s.v}</div>
                 <div style={{ fontSize: 11.5, color: "rgba(226,232,240,0.58)", marginTop: 4 }}>{s.l}</div>
               </div>
             ))}

@@ -44,19 +44,20 @@ export function formatModelPrice(model: ModelSummary) {
 
 export function getRecommendedModels(models: ModelSummary[], limit = 6) {
   const preferredIds = [
+    // Kimi K3 最新旗舰（首页主推）
+    "kimi/kimi-k3",
     "claude-sonnet-4-6",
     "qwen3.7-max",
     "qwen3.7-plus",
     "deepseek-v4-pro",
-    "qwen3.6-max-preview",
+    "glm-5.2",
     "qwen3.6-plus",
     "claude-haiku-4-5",
     "qwen3-max",
     "deepseek-r1",
-    "qwen-plus",
     "qwen3-coder-plus",
     "qwen-vl-plus",
-    // Seedance 旗舰视频生成（系列最强，醒目展示）
+    // Seedance 旗舰视频生成
     "seedance-2.0",
   ];
   const byId = new Map(models.map((model) => [model.id, model]));
