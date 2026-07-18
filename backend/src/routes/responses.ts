@@ -24,6 +24,7 @@ import { calculateOpenAiCacheAwareCost, buildApiDescription } from "../utils/cac
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { db } from "../db/client";
+import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
 
 /** 记录 response 归属（POST 成功后调用）。失败不影响主流程，但会导致该 response 后续不可检索（fail-closed）。 */
 async function recordResponseOwnership(responseId: string | null | undefined, userId: string | null): Promise<void> {
@@ -307,8 +308,16 @@ router.post("/", async (req: Request, res: Response) => {
       // Extract usage from the response.completed event for billing
       const usage = extractUsageFromStream(fullResponse);
       await recordResponseOwnership(extractResponseIdFromStream(fullResponse), apiKeyRecord.user_id);
-      await billAndLog(usage, {
-        upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens,
+      // 断流兜底：上游在 response.completed（含 usage）发出前断开 → usage 为空，按已收内容估费
+      let estimated = false;
+      let billableUsage = usage;
+      if (isUsageMissing(usage) && fullResponse.length > 0) {
+        const est = estimateStreamUsage(fullResponse, req.body.input);
+        billableUsage = { input_tokens: est.prompt_tokens, output_tokens: est.completion_tokens, total_tokens: est.total_tokens };
+        estimated = true;
+      }
+      await billAndLog(billableUsage, {
+        upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, estimated,
       });
     } else {
       // Non-streaming: parse response and return
@@ -321,7 +330,7 @@ router.post("/", async (req: Request, res: Response) => {
       // Bill based on response usage
       const usage = data?.usage || {};
       await billAndLog(usage, {
-        upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens,
+        upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, estimated: false,
       });
     }
   } catch (err: any) {
@@ -496,9 +505,10 @@ async function billAndLog(
     model: any;
     startTime: number;
     estimatedTokens: number;
+    estimated?: boolean;
   },
 ): Promise<void> {
-  const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens } = ctx;
+  const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, estimated } = ctx;
   const latencyMs = Date.now() - startTime;
   const inputTokens = usage.input_tokens || 0;
   const outputTokens = usage.output_tokens || 0;
@@ -533,6 +543,7 @@ async function billAndLog(
     status: "success",
     latencyMs,
     cachedTokens: billing.cachedTokens,
+    estimated,
   });
   recordProviderTokens(upstream.providerId, modelId, totalTokens);
   await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedTokens, totalTokens);

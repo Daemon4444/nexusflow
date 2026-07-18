@@ -22,6 +22,7 @@ import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../servi
 import { getSupportedProtocols } from "../utils/model-protocols";
 import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
+import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
 import { calculateOpenAiCacheAwareCost, buildApiDescription, getOpenAiPromptCacheUsage, hasCacheControl } from "../utils/cache-billing";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
@@ -816,6 +817,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       // Parse SSE data to extract usage for billing
       let streamTokens: any = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      let estimatedBilling = false;
       try {
         const lines = fullResponse.split("\n");
         for (let i = lines.length - 1; i >= 0; i--) {
@@ -830,6 +832,12 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           }
         }
       } catch {}
+
+      // 断流兜底：上游在 usage 块发出前断开（超时/中断），按已收内容估费，不记 0
+      if (isUsageMissing(streamTokens) && fullResponse.length > 0) {
+        streamTokens = estimateStreamUsage(fullResponse, messages);
+        estimatedBilling = true;
+      }
 
       // Log usage and bill
       const latencyMs = Date.now() - startTime;
@@ -862,6 +870,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs,
         cachedTokens: billing.cachedTokens,
         cacheCreationTokens: billing.cacheCreationTokens,
+        estimated: estimatedBilling,
         requestBody: req.body,
         responseBody: fullResponse,
       });

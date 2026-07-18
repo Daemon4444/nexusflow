@@ -27,6 +27,7 @@ import {
   openAiUsageToAnthropic,
   createAnthropicStreamTranslator,
 } from "../utils/anthropic-openai-bridge";
+import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
 
 const router = Router();
 
@@ -361,6 +362,16 @@ router.post("/", async (req: Request, res: Response) => {
           cacheReadInputTokens = usage.cache_read_input_tokens ?? cacheReadInputTokens;
         }
 
+        // 断流兜底：上游在 message_delta（含 usage）发出前断开 → usage 全 0。
+        // 按已转发的 Anthropic SSE 估费，避免平台承担全部上游成本而记 0。
+        let estimatedBilling = false;
+        if (isUsageMissing({ input_tokens: inputTokens, output_tokens: outputTokens }) && fullResponse.length > 0) {
+          const est = estimateStreamUsage(fullResponse, req.body.messages);
+          inputTokens = est.prompt_tokens;
+          outputTokens = est.completion_tokens;
+          estimatedBilling = true;
+        }
+
         const latencyMs = Date.now() - startTime;
         const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, {
           input_tokens: inputTokens,
@@ -388,6 +399,7 @@ router.post("/", async (req: Request, res: Response) => {
           cachedTokens: cacheReadInputTokens,
           cacheCreationTokens: cacheCreationInputTokens,
           route: "anthropic-passthrough",
+          estimated: estimatedBilling,
         });
         recordProviderTokens(upstream.providerId, modelId, totalTokens);
         if (apiKeyRecord.user_id) {
@@ -522,6 +534,7 @@ router.post("/", async (req: Request, res: Response) => {
       let lastChunkTime = 0;
       const translator = createAnthropicStreamTranslator(`msg_${logId}`, modelId, (text) => res.write(text));
       const decoder = new TextDecoder();
+      let rawUpstream = ""; // 累积上游原始 OpenAI SSE，供断流时估费
       const feed = (chunk: any) => {
         const now = Date.now();
         if (chunkCount === 0) {
@@ -530,7 +543,9 @@ router.post("/", async (req: Request, res: Response) => {
         }
         lastChunkTime = now;
         chunkCount++;
-        translator.feed(typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true }));
+        const text = typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
+        rawUpstream += text;
+        translator.feed(text);
       };
 
       const reader = response.body as any;
@@ -547,28 +562,43 @@ router.post("/", async (req: Request, res: Response) => {
       const { usage } = translator.finish();
       res.end();
 
+      // 断流兜底：上游在末尾 usage 块发出前断开 → usage 全 0，按已收 OpenAI SSE 估费
+      let estimatedBilling = false;
+      let billingUsage = usage;
+      if (isUsageMissing(usage) && rawUpstream.length > 0) {
+        const est = estimateStreamUsage(rawUpstream, req.body.messages);
+        billingUsage = {
+          input_tokens: est.prompt_tokens,
+          output_tokens: est.completion_tokens,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        };
+        estimatedBilling = true;
+      }
+
       const latencyMs = Date.now() - startTime;
-      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: true });
-      const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, billingUsage, { inputIncludesCache: true });
+      const totalTokens = (billingUsage.input_tokens || 0) + (billingUsage.output_tokens || 0);
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
-      const tpotMs = (usage.output_tokens || 0) > 1 ? streamDuration / (usage.output_tokens - 1) : 0;
+      const tpotMs = (billingUsage.output_tokens || 0) > 1 ? streamDuration / (billingUsage.output_tokens - 1) : 0;
 
       await logUsage({
         region: upstream.region,
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
-        promptTokens: usage.input_tokens || 0,
-        completionTokens: usage.output_tokens || 0,
+        promptTokens: billingUsage.input_tokens || 0,
+        completionTokens: billingUsage.output_tokens || 0,
         totalTokens,
         cost: billing.finalAmount,
         status: "success",
         latencyMs,
         ttftMs,
         tpotMs,
-        cachedTokens: usage.cache_read_input_tokens || 0,
-        cacheCreationTokens: usage.cache_creation_input_tokens || 0,
+        cachedTokens: billingUsage.cache_read_input_tokens || 0,
+        cacheCreationTokens: billingUsage.cache_creation_input_tokens || 0,
         route: "anthropic-bridge",
+        estimated: estimatedBilling,
       });
       recordProviderTokens(upstream.providerId, modelId, totalTokens);
       if (apiKeyRecord.user_id) {

@@ -35,6 +35,7 @@ export async function logUsage(params: {
   cacheCreationTokens?: number;
   region?: string | null;
   route?: string; // 上游路由方式标记（仅 SLS，如 anthropic-passthrough / anthropic-bridge）
+  estimated?: boolean; // 是否为断流兜底估费（仅 SLS，真实 usage 缺失时按已收内容估算）
   requestBody?: any;
   responseBody?: any;
 }): Promise<string> {
@@ -76,6 +77,7 @@ export async function logUsage(params: {
     cachedTokens: params.cachedTokens,
     cacheCreationTokens: params.cacheCreationTokens,
     route: params.route,
+    estimated: params.estimated,
     request: params.requestBody,
     response: params.responseBody,
   });
