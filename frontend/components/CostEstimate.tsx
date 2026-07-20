@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { formatCnyAuto } from "@/lib/money";
 
 interface ModelInfo {
   id: string;
@@ -66,13 +67,8 @@ export default function CostEstimate({
 
   if (!estimate || !inputText) return null;
 
-  // Format cost with appropriate precision
-  const formatCost = (cost: number) => {
-    if (cost < 0.0001) return "¥0";
-    if (cost < 0.01) return `¥${cost.toFixed(4)}`;
-    if (cost < 1) return `¥${cost.toFixed(3)}`;
-    return `¥${cost.toFixed(2)}`;
-  };
+  // Format cost with appropriate precision (shared helper for consistency)
+  const formatCost = formatCnyAuto;
 
   return (
     <div style={{

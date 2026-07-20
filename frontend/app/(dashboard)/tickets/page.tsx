@@ -35,6 +35,7 @@ export default function TicketsPage() {
   const [requestedQpm, setRequestedQpm] = useState("");
   const [requestedTpm, setRequestedTpm] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -45,9 +46,16 @@ export default function TicketsPage() {
   async function loadTickets(signal?: AbortSignal) {
     try {
       const res = await fetchAPI("/api/tickets", { headers: authHeaders(), signal });
-      if (res.success) setTickets(res.data);
-    } catch {
+      if (res.success) {
+        setTickets(res.data);
+        setLoadError(null);
+      } else {
+        setLoadError(res.message || "加载工单失败");
+      }
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       console.error("Failed to load tickets");
+      setLoadError("加载工单失败，请稍后重试");
     } finally {
       setLoading(false);
     }
@@ -77,9 +85,12 @@ export default function TicketsPage() {
         setRequestedTpm("");
         setShowForm(false);
         await loadTickets();
+      } else {
+        setLoadError(res.message || "提交工单失败");
       }
     } catch {
       console.error("Failed to create ticket");
+      setLoadError("提交工单失败，请稍后重试");
     } finally {
       setSubmitting(false);
     }
@@ -128,6 +139,12 @@ export default function TicketsPage() {
           {t("newTicket")}
         </button>
       </div>
+
+      {loadError && (
+        <div style={{ margin: "0 0 16px", padding: "10px 14px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: 13 }}>
+          {loadError}
+        </div>
+      )}
 
       {/* Create form */}
       {showForm && (

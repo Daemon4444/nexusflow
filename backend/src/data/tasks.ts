@@ -89,25 +89,20 @@ export async function updateTaskStatus(taskId: string, status: string, progress:
   ]);
 }
 
-export async function completeTask(taskId: string, output: any, cost: number = 0): Promise<void> {
+export async function completeTask(taskId: string, output: any, cost: number = 0): Promise<boolean> {
   const now = new Date().toISOString();
-  await db.execute("UPDATE async_tasks SET status = ?, output = ?, progress = ?, cost = ?, updated_at = ?, completed_at = ? WHERE id = ?", [
-    "succeeded",
-    JSON.stringify(output),
-    100,
-    cost,
-    now,
-    now,
-    taskId,
-  ]);
+  const changed = await db.execute(
+    "UPDATE async_tasks SET status = 'succeeded', output = ?, progress = 100, cost = ?, updated_at = ?, completed_at = ? WHERE id = ? AND status IN ('pending', 'running')",
+    [JSON.stringify(output), cost, now, now, taskId]
+  );
+  return changed > 0;
 }
 
-export async function failTask(taskId: string, errorMessage: string): Promise<void> {
+export async function failTask(taskId: string, errorMessage: string): Promise<boolean> {
   const now = new Date().toISOString();
-  await db.execute("UPDATE async_tasks SET status = 'failed', error_message = ?, updated_at = ?, completed_at = ? WHERE id = ?", [
-    errorMessage,
-    now,
-    now,
-    taskId,
-  ]);
+  const changed = await db.execute(
+    "UPDATE async_tasks SET status = 'failed', error_message = ?, updated_at = ?, completed_at = ? WHERE id = ? AND status NOT IN ('succeeded', 'failed')",
+    [errorMessage, now, now, taskId]
+  );
+  return changed > 0;
 }

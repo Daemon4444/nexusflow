@@ -2,10 +2,52 @@ import { Router, Request, Response } from "express";
 import { loginByEmail, loginByPassword, loginByUsername, setUserPassword, hasPassword, validateSession, logout, getUserById, updateNickname, verifyPassword } from "../data/users";
 import { sendEmailCode, verifyEmailCode } from "../services/email";
 import { validateBody, SendCodeSchema, LoginSchema } from "../middleware/validation";
+import { getRedis } from "../services/redis";
 import { z } from "zod";
 import { parseAllowedModels } from "../data/model-access";
 
 const router = Router();
+
+// ── 登录爆破防护（Redis 失败计数 + 锁定）──
+const LOGIN_MAX_FAILURES = 5;
+const LOGIN_WINDOW_SEC = 15 * 60; // 15 分钟窗口，达到阈值即锁定该窗口剩余时间
+
+function getClientIp(req: Request): string {
+  const xff = req.headers["x-forwarded-for"];
+  if (typeof xff === "string" && xff.length > 0) return xff.split(",")[0].trim();
+  return req.ip || req.socket?.remoteAddress || "unknown";
+}
+
+function loginFailKey(identity: string, ip: string): string {
+  return `login:fail:${identity.toLowerCase()}:${ip}`;
+}
+
+async function isLoginLocked(identity: string, ip: string): Promise<boolean> {
+  if (!process.env.REDIS_HOST) return false;
+  try {
+    const n = parseInt((await getRedis().get(loginFailKey(identity, ip))) || "0", 10);
+    return n >= LOGIN_MAX_FAILURES;
+  } catch {
+    return false; // Redis 不可用时放行，避免误伤正常登录
+  }
+}
+
+async function recordLoginFailure(identity: string, ip: string): Promise<void> {
+  if (!process.env.REDIS_HOST) return;
+  try {
+    const client = getRedis();
+    const key = loginFailKey(identity, ip);
+    const n = await client.incr(key);
+    if (n === 1) await client.expire(key, LOGIN_WINDOW_SEC);
+  } catch { /* 计数失败不阻断登录流程 */ }
+}
+
+async function clearLoginFailures(identity: string, ip: string): Promise<void> {
+  if (!process.env.REDIS_HOST) return;
+  try {
+    await getRedis().del(loginFailKey(identity, ip));
+  } catch { /* 清理失败无副作用 */ }
+}
 
 /** 从请求头提取 session token */
 function extractSessionToken(req: Request): string | null {
@@ -69,12 +111,20 @@ const PasswordLoginSchema = z.object({
 
 router.post("/login-password", validateBody(PasswordLoginSchema), async (req: Request, res: Response) => {
   const { email, password } = req.body;
+  const ip = getClientIp(req);
+
+  if (await isLoginLocked(email, ip)) {
+    res.status(429).json({ success: false, message: "登录尝试过于频繁，请 15 分钟后再试" });
+    return;
+  }
 
   const result = await loginByPassword(email, password);
   if (!result) {
+    await recordLoginFailure(email, ip);
     res.status(401).json({ success: false, message: "邮箱或密码错误" });
     return;
   }
+  await clearLoginFailures(email, ip);
 
   res.json({
     success: true,
@@ -101,13 +151,21 @@ const UsernameLoginSchema = z.object({
 
 router.post("/login-username", validateBody(UsernameLoginSchema), async (req: Request, res: Response) => {
   const { username, password } = req.body;
+  const ip = getClientIp(req);
+
+  if (await isLoginLocked(`u:${username}`, ip)) {
+    res.status(429).json({ success: false, message: "登录尝试过于频繁，请 15 分钟后再试" });
+    return;
+  }
 
   const result = await loginByUsername(username, password);
   if (!result) {
+    await recordLoginFailure(`u:${username}`, ip);
     // 统一报错，不区分用户名不存在/密码错误/已停用（防枚举）
     res.status(401).json({ success: false, message: "用户名或密码错误" });
     return;
   }
+  await clearLoginFailures(`u:${username}`, ip);
 
   res.json({
     success: true,

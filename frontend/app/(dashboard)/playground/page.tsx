@@ -9,6 +9,7 @@ import PlaygroundHistory, { saveToHistory, HistoryEntry } from "@/components/Pla
 import PromptTemplates from "@/components/PromptTemplates";
 import ErrorSuggestion, { ApiError } from "@/components/ErrorSuggestion";
 import { pickDefaultPlaygroundModel } from "@/lib/models";
+import { formatCnyAuto } from "@/lib/money";
 
 interface AIModel {
   id: string;
@@ -45,7 +46,7 @@ interface AIModel {
   };
   allowed_parameters?: string[];
 }
-interface Message { role: "user" | "assistant" | "system"; content: string; reasoningContent?: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
+interface Message { id?: string; role: "user" | "assistant" | "system"; content: string; reasoningContent?: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
 interface UsageInfo { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost: string; }
 type ModelMode = "chat" | "image" | "video" | "audio";
 
@@ -307,6 +308,7 @@ function PlaygroundInner() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const uploadedFilesRef = useRef<UploadedFile[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploadingCount, setUploadingCount] = useState(0);
   const [lastError, setLastError] = useState<ApiError | string | null>(null);
@@ -346,11 +348,7 @@ function PlaygroundInner() {
     const promptPrice = tier?.promptPrice ?? model.promptPrice;
     const completionPrice = tier?.completionPrice ?? model.completionPrice;
     const cost = (promptTokens / 1_000_000) * promptPrice + (completionTokens / 1_000_000) * completionPrice;
-    if (cost <= 0) return "¥0";
-    if (cost < 0.0001) return "<¥0.0001";
-    if (cost < 0.01) return `¥${cost.toFixed(4)}`;
-    if (cost < 1) return `¥${cost.toFixed(3)}`;
-    return `¥${cost.toFixed(2)}`;
+    return formatCnyAuto(cost);
   }
 
   function getChatRequestOptions(): Record<string, unknown> {
@@ -388,10 +386,13 @@ function PlaygroundInner() {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
-      // Clean up object URLs for uploaded files
-      uploadedFiles.forEach(f => URL.revokeObjectURL(f.preview));
+      // Clean up object URLs for uploaded files (use ref to avoid stale closure)
+      uploadedFilesRef.current.forEach(f => URL.revokeObjectURL(f.preview));
     };
   }, [requestedModel]);
+
+  // 保持 ref 与最新 uploadedFiles 同步，供卸载时正确释放 ObjectURL
+  useEffect(() => { uploadedFilesRef.current = uploadedFiles; }, [uploadedFiles]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -723,9 +724,10 @@ function PlaygroundInner() {
       return;
     }
 
+    const genId = `gen-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setMessages((p) => [...p,
       { role: "user", content: input.trim(), type: "text" },
-      { role: "assistant", content: "正在生成图片...", type: "image", status: "pending" }
+      { id: genId, role: "assistant", content: "正在生成图片...", type: "image", status: "pending" }
     ]);
     setInput("");
     setSending(true);
@@ -744,7 +746,7 @@ function PlaygroundInner() {
       });
 
       if (res.success && res.data.task_id) {
-        pollImageStatus(res.data.task_id, messages.length + 1);
+        pollImageStatus(res.data.task_id, genId);
       } else {
         updateLastMessage({ content: `错误: ${res.message || "图片生成失败"}`, status: "error" });
         setSending(false);
@@ -755,12 +757,12 @@ function PlaygroundInner() {
     }
   }
 
-  function pollImageStatus(taskId: string, idx: number) {
+  function pollImageStatus(taskId: string, messageId: string) {
     let n = 0;
     pollingRef.current = setInterval(async () => {
       if (++n > 60) {
         clearInterval(pollingRef.current!);
-        updateMessageAt(idx, { content: "超时，请重试", status: "error" });
+        updateMessageById(messageId, { content: "超时，请重试", status: "error" });
         setSending(false);
         return;
       }
@@ -772,7 +774,7 @@ function PlaygroundInner() {
         if (res.success) {
           if (res.data.task_status === "SUCCEEDED") {
             clearInterval(pollingRef.current!);
-            updateMessageAt(idx, {
+            updateMessageById(messageId, {
               content: "图片生成完成",
               mediaUrl: res.data.results?.[0]?.url,
               status: "done",
@@ -780,10 +782,10 @@ function PlaygroundInner() {
             setSending(false);
           } else if (res.data.task_status === "FAILED") {
             clearInterval(pollingRef.current!);
-            updateMessageAt(idx, { content: "生成失败", status: "error" });
+            updateMessageById(messageId, { content: "生成失败", status: "error" });
             setSending(false);
           } else {
-            updateMessageAt(idx, {
+            updateMessageById(messageId, {
               content: `正在生成... (${res.data.task_status})`,
               status: "processing",
             });
@@ -831,9 +833,10 @@ function PlaygroundInner() {
       return;
     }
 
+    const genId = `gen-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setMessages((p) => [...p,
       { role: "user", content: input.trim(), type: "text" },
-      { role: "assistant", content: "正在生成视频...", type: "video", status: "pending" }
+      { id: genId, role: "assistant", content: "正在生成视频...", type: "video", status: "pending" }
     ]);
     setInput("");
     setSending(true);
@@ -860,7 +863,7 @@ function PlaygroundInner() {
       });
 
       if (res.success && res.data.task_id) {
-        pollVideoStatus(res.data.task_id, messages.length + 1);
+        pollVideoStatus(res.data.task_id, genId);
       } else {
         updateLastMessage({ content: `错误: ${res.message || "视频生成失败"}`, status: "error" });
         setSending(false);
@@ -871,12 +874,12 @@ function PlaygroundInner() {
     }
   }
 
-  function pollVideoStatus(taskId: string, idx: number) {
+  function pollVideoStatus(taskId: string, messageId: string) {
     let n = 0;
     pollingRef.current = setInterval(async () => {
       if (++n > 120) {
         clearInterval(pollingRef.current!);
-        updateMessageAt(idx, { content: "超时，请重试", status: "error" });
+        updateMessageById(messageId, { content: "超时，请重试", status: "error" });
         setSending(false);
         return;
       }
@@ -889,7 +892,7 @@ function PlaygroundInner() {
           const s = res.data.status;
           if (s === "successful") {
             clearInterval(pollingRef.current!);
-            updateMessageAt(idx, {
+            updateMessageById(messageId, {
               content: "视频生成完成",
               mediaUrl: res.data.video_url,
               status: "done",
@@ -897,10 +900,10 @@ function PlaygroundInner() {
             setSending(false);
           } else if (s === "failed") {
             clearInterval(pollingRef.current!);
-            updateMessageAt(idx, { content: "生成失败", status: "error" });
+            updateMessageById(messageId, { content: "生成失败", status: "error" });
             setSending(false);
           } else {
-            updateMessageAt(idx, {
+            updateMessageById(messageId, {
               content: `正在生成... (${s || "processing"})`,
               status: "processing",
             });
@@ -924,16 +927,16 @@ function PlaygroundInner() {
     });
   }
 
-  function updateMessageAt(i: number, u: Partial<Message>) {
-    setMessages((p) => {
-      const n = [...p];
-      if (n[i]) n[i] = { ...n[i], ...u };
-      return n;
-    });
+  function updateMessageById(id: string, u: Partial<Message>) {
+    setMessages((p) => p.map((m) => (m.id === id ? { ...m, ...u } : m)));
   }
 
   function handleSend() {
     setLastError(null); // Clear previous error
+    if (!selectedModel) {
+      showInlineError("请先选择模型（模型列表可能还在加载或加载失败）。");
+      return;
+    }
     if (mode === "chat") {
       // Save to history before sending
       if (messages.length > 0) {
@@ -977,7 +980,7 @@ function PlaygroundInner() {
     setMessages([]);
     setUsage(null);
     setSending(false);
-    setUploadedFiles([]);
+    setUploadedFiles((prev) => { prev.forEach(f => URL.revokeObjectURL(f.preview)); return []; });
     setLastError(null);
   }
 

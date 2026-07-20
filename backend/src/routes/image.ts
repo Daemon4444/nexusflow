@@ -244,8 +244,8 @@ router.post("/generate", async (req: Request, res: Response) => {
       }).filter(Boolean);
 
       if (results.length > 0) {
-        await completeTask(task.id, { type: "image", results }, estimatedCost);
-        await billAsyncSuccess(task, model, estimatedCost, Date.now() - startTime);
+        const won = await completeTask(task.id, { type: "image", results }, estimatedCost);
+        if (won) await billAsyncSuccess(task, model, estimatedCost, Date.now() - startTime);
         res.json({
           success: true,
           data: {
@@ -255,8 +255,8 @@ router.post("/generate", async (req: Request, res: Response) => {
           },
         });
       } else {
-        await failTask(task.id, "No image generated");
-        await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+        const won = await failTask(task.id, "No image generated");
+        if (won) await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
         res.status(500).json({
           success: false,
           message: "图像生成失败，未返回结果",
@@ -341,8 +341,8 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
       if (result.status === "succeeded") {
         const model = models.find((m) => m.id === task.model);
         const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
-        await completeTask(task.id, result.output, cost);
-        if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+        const won = await completeTask(task.id, result.output, cost);
+        if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {
@@ -352,8 +352,8 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
           },
         });
       } else if (result.status === "failed") {
-        await failTask(task.id, result.error || "Task failed");
-        await billAsyncError(task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
+        const won = await failTask(task.id, result.error || "Task failed");
+        if (won) await billAsyncError(task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {

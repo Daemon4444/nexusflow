@@ -13,12 +13,12 @@ import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
-import { checkConsumerLimits, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
+import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
 import { detectModelType } from "../services/adapters";
 import { getRequestedRegion, resolveUpstream } from "../services/upstream";
-import { buildApiDescription } from "../utils/cache-billing";
+import { buildApiDescription, type AnthropicUsage } from "../utils/cache-billing";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import {
@@ -91,7 +91,7 @@ function rejectInsufficientBalance(res: Response): void {
 async function calculateAnthropicUsageCost(
   userId: string | null | undefined,
   model: any,
-  usage: any,
+  usage: AnthropicUsage | null | undefined,
   // Anthropic 语义(直通上游，实测含 DashScope /apps/anthropic)：input_tokens 与缓存 token 互斥；
   // OpenAI 语义(转换桥，openAiUsageToAnthropic 产出)：input_tokens=prompt_tokens 已含缓存部分
   opts: { inputIncludesCache: boolean }
@@ -247,7 +247,7 @@ router.post("/", async (req: Request, res: Response) => {
     }
   }
 
-  const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
     res.status(429).json({
       type: "error",
@@ -269,6 +269,18 @@ router.post("/", async (req: Request, res: Response) => {
   const logId = require("crypto").randomUUID();
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
   acquireConcurrency(upstream.providerId, modelId);
+
+  // 预占 TPM 归还：正常路径按实际 usage 归还，异常/上游错误路径由 finally 兜底释放，且仅一次。
+  let tokensReconciled = false;
+  const reconcileOnce = async (actualTokens: number) => {
+    if (tokensReconciled) return;
+    tokensReconciled = true;
+    if (apiKeyRecord.user_id) {
+      try {
+        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, actualTokens);
+      } catch { /* 归还失败仅影响 60s 窗口 */ }
+    }
+  };
 
   try {
 
@@ -402,9 +414,7 @@ router.post("/", async (req: Request, res: Response) => {
           estimated: estimatedBilling,
         });
         recordProviderTokens(upstream.providerId, modelId, totalTokens);
-        if (apiKeyRecord.user_id) {
-          await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
-        }
+        await reconcileOnce(totalTokens);
 
         if (apiKeyRecord.user_id && billing.finalAmount > 0) {
           await consume(
@@ -444,9 +454,7 @@ router.post("/", async (req: Request, res: Response) => {
         route: "anthropic-passthrough",
       });
       recordProviderTokens(upstream.providerId, modelId, totalTokens);
-      if (apiKeyRecord.user_id) {
-        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
-      }
+      await reconcileOnce(totalTokens);
 
       if (apiKeyRecord.user_id && billing.finalAmount > 0) {
         await consume(
@@ -601,9 +609,7 @@ router.post("/", async (req: Request, res: Response) => {
         estimated: estimatedBilling,
       });
       recordProviderTokens(upstream.providerId, modelId, totalTokens);
-      if (apiKeyRecord.user_id) {
-        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
-      }
+      await reconcileOnce(totalTokens);
       if (apiKeyRecord.user_id && billing.finalAmount > 0) {
         await consume(
           apiKeyRecord.user_id,
@@ -650,9 +656,7 @@ router.post("/", async (req: Request, res: Response) => {
       route: "anthropic-bridge",
     });
     recordProviderTokens(upstream.providerId, modelId, totalTokens);
-    if (apiKeyRecord.user_id) {
-      await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, totalTokens);
-    }
+    await reconcileOnce(totalTokens);
     if (apiKeyRecord.user_id && billing.finalAmount > 0) {
       await consume(
         apiKeyRecord.user_id,
@@ -697,6 +701,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   } finally {
+    await reconcileOnce(0);
     releaseConcurrency(upstream.providerId, modelId);
   }
 });

@@ -1,8 +1,9 @@
 import ModelsClient from "./ModelsClient";
 
 async function getModels() {
+  const backend = process.env.BACKEND_URL || "http://127.0.0.1:3001";
   try {
-    const res = await fetch("http://127.0.0.1:3001/api/models", {
+    const res = await fetch(`${backend}/api/models`, {
       next: { revalidate: 300 },
     });
     if (!res.ok) return { data: [], providers: [], categories: [] };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { fetchAPI } from "@/lib/api";
 import { authHeaders } from "@/lib/auth";
 import UserLayout from "@/components/UserLayout";
@@ -249,7 +249,7 @@ export default function ActivityPage() {
           <div className="usr-section" style={{ marginTop: 16 }}>
             <div className="usr-section-header"><h3>{t("recentRequests")}</h3></div>
             <div>
-              <div className="table-row" style={{
+              <div className="table-row table-head" style={{
                 gridTemplateColumns: "0.7fr 1.2fr 1fr 0.8fr 0.4fr",
                 fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const,
                 color: "var(--text-tertiary)", background: "var(--bg-elevated)",
@@ -329,6 +329,7 @@ function LogAnalysis() {
   const [detail, setDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailNote, setDetailNote] = useState("");
+  const detailReqRef = useRef(0);
 
   async function handleSearch() {
     setLoading(true);
@@ -345,11 +346,13 @@ function LogAnalysis() {
 
   async function loadDetail(logId: string) {
     if (expandedId === logId) { setExpandedId(null); return; }
+    const reqId = ++detailReqRef.current;
     setExpandedId(logId);
     setDetailLoading(true);
     setDetail(null);
     setDetailNote("");
     const res = await fetchAPI(`/api/usage/logs/${logId}/detail`, { headers: authHeaders() });
+    if (reqId !== detailReqRef.current) return; // 已被更新的点击取代，丢弃过期结果
     if (res.success) {
       setDetail(res.data);
       if (res.note) setDetailNote(res.note);

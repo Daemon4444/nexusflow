@@ -15,7 +15,7 @@ import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
-import { checkConsumerLimits, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
+import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
 import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
@@ -72,6 +72,14 @@ function extractResponseIdFromStream(fullResponse: string): string | null {
 
 const router = Router();
 const UPSTREAM_TIMEOUT = 600000;
+
+// 允许透传给上游的内置工具类型白名单（文档所列 + function）。
+// 拒绝未知类型，避免用户注入非预期工具影响上游计费/行为。
+const ALLOWED_RESPONSE_TOOL_TYPES = new Set([
+  "web_search", "web_search_preview", "web_extractor", "code_interpreter",
+  "file_search", "image_search", "web_search_image", "mcp", "function",
+]);
+const MAX_RESPONSE_TOOLS = 32;
 
 function extractToken(req: Request): string | null {
   const auth = req.headers.authorization;
@@ -171,8 +179,34 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
+  // Validate tools (reject unknown tool types, cap count) before forwarding upstream
+  if (req.body.tools !== undefined) {
+    if (!Array.isArray(req.body.tools) || req.body.tools.length > MAX_RESPONSE_TOOLS) {
+      res.status(400).json({
+        error: {
+          message: `Invalid 'tools': must be an array of at most ${MAX_RESPONSE_TOOLS} items.`,
+          type: "invalid_request_error",
+          code: "invalid_request",
+        },
+      });
+      return;
+    }
+    for (const tool of req.body.tools) {
+      if (!tool || typeof tool.type !== "string" || !ALLOWED_RESPONSE_TOOL_TYPES.has(tool.type)) {
+        res.status(400).json({
+          error: {
+            message: `Unsupported tool type: ${tool?.type ?? "unknown"}.`,
+            type: "invalid_request_error",
+            code: "unsupported_tool",
+          },
+        });
+        return;
+      }
+    }
+  }
+
   // Rate limiting
-  const estimatedTokens = roughTokenCount(req.body.input);
+  const estimatedTokens = roughTokenCount(req.body.input) + roughTokenCount(req.body.tools);
   if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
     res.status(403).json({
       error: {
@@ -206,7 +240,7 @@ router.post("/", async (req: Request, res: Response) => {
     });
     return;
   }
-  const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
     res.status(429).json({
       error: {
@@ -237,6 +271,10 @@ router.post("/", async (req: Request, res: Response) => {
 
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
   acquireConcurrency(upstream.providerId, modelId);
+
+  // 预占的 TPM 必须在所有出口恰好归还一次；billAndLog 内 reconcile 后置 true，
+  // 上游错误/异常路径由 finally 兜底释放。
+  let tokensReconciled = false;
 
   try {
     // Build upstream request — pass through body directly, upstream is DashScope Responses API
@@ -318,6 +356,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
       await billAndLog(billableUsage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, estimated,
+        onReconciled: () => { tokensReconciled = true; },
       });
     } else {
       // Non-streaming: parse response and return
@@ -331,6 +370,7 @@ router.post("/", async (req: Request, res: Response) => {
       const usage = data?.usage || {};
       await billAndLog(usage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, estimated: false,
+        onReconciled: () => { tokensReconciled = true; },
       });
     }
   } catch (err: any) {
@@ -360,6 +400,11 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
   } finally {
+    if (!tokensReconciled) {
+      try {
+        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedTokens, 0);
+      } catch { /* 归还失败仅影响 60s 窗口，不阻断 */ }
+    }
     releaseConcurrency(upstream.providerId, modelId);
   }
 });
@@ -460,8 +505,14 @@ router.get("/:id/input_items", async (req: Request, res: Response) => {
 
   const upstream = resolvedUpstream.upstream;
   try {
-    // Forward query params (after, limit, order)
-    const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
+    // Forward only whitelisted query params (after, limit, order)
+    const allowedParams = ["after", "limit", "order"] as const;
+    const forwarded = new URLSearchParams();
+    for (const name of allowedParams) {
+      const value = req.query[name];
+      if (typeof value === "string" && value.length > 0) forwarded.set(name, value);
+    }
+    const queryString = forwarded.toString();
     const url = `${upstream.baseUrl}/responses/${responseId}/input_items${queryString ? `?${queryString}` : ""}`;
     const response = await fetch(url, {
       method: "GET",
@@ -506,6 +557,7 @@ async function billAndLog(
     startTime: number;
     estimatedTokens: number;
     estimated?: boolean;
+    onReconciled?: () => void;
   },
 ): Promise<void> {
   const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, estimated } = ctx;
@@ -547,6 +599,7 @@ async function billAndLog(
   });
   recordProviderTokens(upstream.providerId, modelId, totalTokens);
   await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedTokens, totalTokens);
+  ctx.onReconciled?.();
 
   if (billing.finalAmount > 0) {
     await consume(

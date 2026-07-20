@@ -192,10 +192,10 @@ export async function consume(
     const currentBalance = Number(owner.balance || 0);
     if (currentBalance < normalizedAmount) {
       // 服务已交付但余额不足以结算（并发击穿预检/实际费用超预估）：
-      // 平台承担该笔上游成本。必须留痕，否则账实不符且无法发现。
-      console.error(`[billing] consume shortfall: user=${userId} owner=${billingOwnerId} amount=${normalizedAmount} balance=${currentBalance} desc="${description}"`);
+      // 照常扣费（允许余额变负）并写流水，保证账实一致、可追溯；
+      // 欠款靠 hasSufficientBalance 预检挡住该用户的下一次请求，故欠款上限≈单次超支。
+      console.error(`[billing] consume shortfall (billed into negative): user=${userId} owner=${billingOwnerId} amount=${normalizedAmount} balance=${currentBalance} desc="${description}"`);
       logToSLS({ event: "consume_shortfall", userId, billingOwnerId, amount: normalizedAmount, balance: currentBalance, description, refId });
-      return null;
     }
 
     // 子账号：状态 + 限额（原子条件更新，0 行 = 停用或超限）

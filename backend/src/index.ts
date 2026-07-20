@@ -44,13 +44,12 @@ app.use((_req, res, next) => {
   next();
 });
 
+const allowedOrigins = process.env.NODE_ENV === "production"
+  ? ["https://nexusflow.hk", "https://www.nexusflow.hk"]
+  : ["http://localhost:3000", "http://127.0.0.1:3000", "https://nexusflow.hk"];
+
 app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://nexusflow.hk",
-    "http://nexusflow.hk",
-  ],
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(express.json({ limit: "1mb" })); // 限制请求体大小，防止内存溢出
@@ -114,6 +113,20 @@ app.use(notFoundHandler);
 
 // 统一错误处理
 app.use(errorHandler);
+
+// 进程级兜底：async 路由里未捕获的 promise rejection 在 Node 会导致 worker 崩溃退出
+// （疑似频繁重启根因）。未处理的 rejection 记录但不退出（多为上游/断流的瞬时错误）；
+// 真正的 uncaughtException 记录后退出，交给 PM2 拉起。
+process.on("unhandledRejection", (reason) => {
+  const message = reason instanceof Error ? reason.stack || reason.message : String(reason);
+  console.error(`[Quadrant API] Unhandled promise rejection: ${message}`);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error(`[Quadrant API] Uncaught exception: ${error.stack || error.message}`);
+  // 给日志/连接一点 flush 时间后退出，PM2 会重启该实例
+  setTimeout(() => process.exit(1), 100);
+});
 
 async function start() {
   try {

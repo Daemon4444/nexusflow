@@ -39,7 +39,13 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFil
   ];
   const allowedExts = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".mp4", ".mov", ".webm", ".avi"];
   const ext = path.extname(file.originalname).toLowerCase();
-  if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
+  // 双条件：扩展名必须在白名单（挡住 .html/.svg 等可执行脚本的类型），
+  // 且 mimetype 是图片/视频（挡住把 .jpg 当任意二进制分发）。任一不满足即拒绝。
+  const extOk = allowedExts.includes(ext);
+  const mimeOk = allowedMimes.includes(file.mimetype)
+    || file.mimetype.startsWith("image/")
+    || file.mimetype.startsWith("video/");
+  if (extOk && mimeOk) {
     cb(null, true);
   } else {
     cb(new Error("不支持的文件格式。支持: JPG, PNG, WebP, GIF, BMP, MP4, MOV, WebM"));
@@ -175,6 +181,10 @@ router.get("/:filename", (req, res) => {
     return;
   }
 
+  // 纵深防御：即便存在历史遗留的可执行内容（HTML/SVG），也禁止其加载脚本/资源，
+  // 且禁止浏览器嗅探类型。图片仍可正常内联显示。
+  res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.sendFile(filePath);
 });
 

@@ -36,6 +36,9 @@ export async function logUsage(params: {
   region?: string | null;
   route?: string; // 上游路由方式标记（仅 SLS，如 anthropic-passthrough / anthropic-bridge）
   estimated?: boolean; // 是否为断流兜底估费（仅 SLS，真实 usage 缺失时按已收内容估算）
+  finishReason?: string; // 仅 SLS
+  clientIp?: string; // 仅 SLS，来自 nginx X-Real-IP
+  errorReason?: string; // 仅 SLS，失败/拒绝原因
   requestBody?: any;
   responseBody?: any;
 }): Promise<string> {
@@ -78,6 +81,9 @@ export async function logUsage(params: {
     cacheCreationTokens: params.cacheCreationTokens,
     route: params.route,
     estimated: params.estimated,
+    finishReason: params.finishReason,
+    clientIp: params.clientIp,
+    errorReason: params.errorReason,
     request: params.requestBody,
     response: params.responseBody,
   });

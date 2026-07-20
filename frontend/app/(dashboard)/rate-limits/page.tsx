@@ -56,6 +56,7 @@ export default function RateLimitsPage() {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [modelSearch, setModelSearch] = useState("");
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -71,7 +72,12 @@ export default function RateLimitsPage() {
         fetchAPI("/api/rate-limits", { headers: authHeaders(), signal }),
         fetchAPI("/api/models", { signal }),
       ]);
-      if (res.success) setData(res.data);
+      if (res.success) {
+        setData(res.data);
+        setLoadError(null);
+      } else {
+        setLoadError(res.message || "加载限流配置失败");
+      }
       if (modelsRes.success) {
         setModels(((modelsRes.data || []) as ModelOption[]).map((item) => ({
           id: item.id,
@@ -83,6 +89,7 @@ export default function RateLimitsPage() {
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
       console.error("Failed to load rate limits");
+      setLoadError("加载限流配置失败，请稍后重试");
     } finally {
       setLoading(false);
     }
@@ -105,9 +112,14 @@ export default function RateLimitsPage() {
         setRequestedQpm("");
         setRequestedTpm("");
         setReason("");
+        setLoadError(null);
         const latest = await fetchAPI("/api/rate-limits", { headers: authHeaders() });
         if (latest.success) setData(latest.data);
+      } else {
+        setLoadError(res.message || "提交申请失败");
       }
+    } catch {
+      setLoadError("提交申请失败，请稍后重试");
     } finally {
       setSubmitting(false);
     }
@@ -160,6 +172,12 @@ export default function RateLimitsPage() {
         <h1>{t("rateLimitsTitle")}</h1>
         <p>{t("rateLimitsDesc")}</p>
       </div>
+
+      {loadError && (
+        <div style={{ margin: "0 0 16px", padding: "10px 14px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: 13 }}>
+          {loadError}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: "center", padding: 60, color: "var(--text-tertiary)" }}>{t("loading")}</div>

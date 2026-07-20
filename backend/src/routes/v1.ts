@@ -14,7 +14,7 @@ import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
-import { checkConsumerLimits, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
+import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed, parseAllowedModels } from "../data/model-access";
 import { detectModelType, adaptImageRequest, pollDashScopeTask } from "../services/adapters";
@@ -26,6 +26,7 @@ import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-us
 import { calculateOpenAiCacheAwareCost, buildApiDescription, getOpenAiPromptCacheUsage, hasCacheControl } from "../utils/cache-billing";
 import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
+import { logToSLS } from "../services/sls";
 
 const router = Router();
 
@@ -365,7 +366,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     return;
   }
 
-  const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
     res.status(429).json({
       error: {
@@ -564,6 +565,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     audio,
   } = req.body;
 
+  const clientIp = (req.headers["x-real-ip"] as string) || req.socket?.remoteAddress || undefined;
+
   if (!modelId || !messages || !Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({
       error: {
@@ -649,18 +652,21 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
   const rpmCheck2 = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
   if (!rpmCheck2.allowed) {
+    logToSLS({ apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "rejected", errorReason: "qpm_limit", clientIp });
     rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck2.resetMs / 1000)}s.`);
     return;
   }
   const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, estimatedChatTokens);
   if (!tpmCheck.allowed) {
+    logToSLS({ apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "rejected", errorReason: "tpm_limit", clientIp });
     rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${userLimits.tpm} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`);
     return;
   }
 
   // Rate limit check
-  const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
+    logToSLS({ apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "rejected", errorReason: "rate_limit", clientIp });
     res.status(429).json({
       error: {
         message: rateCheck.reason,
@@ -673,6 +679,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   const estimatedChatCost = await estimateChatMaxCost(apiKeyRecord.user_id, model, messages, max_tokens);
   if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedChatCost)) {
+    logToSLS({ apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "rejected", errorReason: "insufficient_balance", clientIp });
     rejectInsufficientBalance(res);
     return;
   }
@@ -722,6 +729,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
   acquireConcurrency(upstream.providerId, modelId);
 
+  // 预占的 TPM（checkTPM 已 INCRBY estimatedChatTokens）必须在所有出口恰好归还一次。
+  // 正常路径 reconcile 后置 true；异常/上游错误路径由 finally 兜底释放，避免 60s 内虚占。
+  let tokensReconciled = false;
+
   try {
     // Streaming
     if (effectiveStream) {
@@ -741,6 +752,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           const errJson = await response.json() as any;
           upstreamMsg = errJson?.error?.message || upstreamMsg;
         } catch { /* non-JSON response, use default */ }
+        logToSLS({ logId, apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "error", errorReason: `upstream_${response.status}: ${upstreamMsg}`, clientIp, latencyMs: Date.now() - startTime });
         res.status(response.status).json({
           error: { message: upstreamMsg, type: "upstream_error", code: "upstream_error" },
         });
@@ -818,6 +830,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       // Parse SSE data to extract usage for billing
       let streamTokens: any = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
       let estimatedBilling = false;
+      let streamFinishReason = "";
+      let foundUsage = false;
       try {
         const lines = fullResponse.split("\n");
         for (let i = lines.length - 1; i >= 0; i--) {
@@ -826,10 +840,14 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           const dataPayload = line.slice(5).trimStart();
           if (dataPayload === "[DONE]") continue;
           const json = JSON.parse(dataPayload);
-          if (json.usage) {
+          if (!foundUsage && json.usage) {
             streamTokens = json.usage;
-            break;
+            foundUsage = true;
           }
+          if (!streamFinishReason && json.choices?.[0]?.finish_reason) {
+            streamFinishReason = json.choices[0].finish_reason;
+          }
+          if (foundUsage && streamFinishReason) break;
         }
       } catch {}
 
@@ -871,11 +889,15 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         cachedTokens: billing.cachedTokens,
         cacheCreationTokens: billing.cacheCreationTokens,
         estimated: estimatedBilling,
+        finishReason: streamFinishReason || (streamError ? "interrupted" : undefined),
+        clientIp,
+        errorReason: streamError ? "upstream_stream_interrupted" : undefined,
         requestBody: req.body,
         responseBody: fullResponse,
       });
       recordProviderTokens(upstream.providerId, modelId, streamTokens.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
+      tokensReconciled = true;
 
       if (billing.finalAmount > 0) {
         await consume(
@@ -908,6 +930,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           const errJson = await response.json() as any;
           upstreamMsg = errJson?.error?.message || upstreamMsg;
         } catch { /* non-JSON response, use default */ }
+        logToSLS({ logId, apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "error", errorReason: `upstream_${response.status}: ${upstreamMsg}`, clientIp, latencyMs: Date.now() - startTime });
         res.status(response.status).json({
           error: { message: upstreamMsg, type: "upstream_error", code: "upstream_error" },
         });
@@ -963,9 +986,12 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs: nonStreamTpot,
         cachedTokens: billing.cachedTokens,
         cacheCreationTokens: billing.cacheCreationTokens,
+        finishReason: data.choices?.[0]?.finish_reason,
+        clientIp,
       });
       recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
+      tokensReconciled = true;
 
       if (billing.finalAmount > 0) {
         await consume(
@@ -1005,6 +1031,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     const data: any = await response.json();
 
     if (!response.ok) {
+      logToSLS({ logId, apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "error", errorReason: `upstream_${response.status}: ${data.error?.message || "Upstream API error"}`, clientIp, latencyMs: Date.now() - startTime });
       res.status(response.status).json({
         error: {
           message: data.error?.message || "Upstream API error",
@@ -1039,11 +1066,14 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs,
       cachedTokens: billing.cachedTokens,
       cacheCreationTokens: billing.cacheCreationTokens,
+      finishReason: data.choices?.[0]?.finish_reason,
+      clientIp,
       requestBody: req.body,
       responseBody: data.choices?.[0]?.message,
     });
     recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
     await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
+    tokensReconciled = true;
 
     // Auto-billing
     if (billing.finalAmount > 0) {
@@ -1084,6 +1114,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       cost: 0,
       status: "error",
       latencyMs: Date.now() - startTime,
+      clientIp,
+      errorReason: String(err?.message || err),
     });
 
     // 流式响应已 end 后（如计费段 DB 异常）不能再写状态码
@@ -1099,6 +1131,11 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       });
     }
   } finally {
+    if (!tokensReconciled) {
+      try {
+        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, 0);
+      } catch { /* 归还失败仅影响 60s 窗口，不阻断 */ }
+    }
     releaseConcurrency(upstream.providerId, modelId);
   }
 });
@@ -1203,7 +1240,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   }
 
   // Rate limit check
-  const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
     res.status(429).json({
       error: {
@@ -1227,6 +1264,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
 
   const startTime = Date.now();
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
+  let tokensReconciled = false;
 
   try {
     const response = await fetch(`${upstream.baseUrl}/embeddings`, {
@@ -1271,6 +1309,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     });
     recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
     await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedEmbeddingTokens, usage.total_tokens || 0);
+    tokensReconciled = true;
 
     if (cost > 0) {
       await consume(
@@ -1305,6 +1344,12 @@ router.post("/embeddings", async (req: Request, res: Response) => {
         code: "upstream_error",
       },
     });
+  } finally {
+    if (!tokensReconciled) {
+      try {
+        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedEmbeddingTokens, 0);
+      } catch { /* 归还失败仅影响 60s 窗口，不阻断 */ }
+    }
   }
 });
 

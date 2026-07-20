@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { formatCny } from "@/lib/money";
 import { NexusflowLogo } from "./QuadrantLogo";
+import ThemeToggle from "./ThemeToggle";
 
 const icons: Record<string, React.ReactNode> = {
   dashboard: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
@@ -119,6 +120,10 @@ export default function UserSidebar() {
             </div>
           </div>
         )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12 }}>
+          <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>主题</span>
+          <ThemeToggle compact />
+        </div>
       </div>
     </aside>
   );

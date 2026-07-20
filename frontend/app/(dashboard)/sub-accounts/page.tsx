@@ -339,12 +339,18 @@ export default function SubAccountsPage() {
                         )}
                       </td>
                       <td style={{ padding: "10px 14px", color: "var(--text-secondary)" }}>{r.key_count}</td>
-                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                      <td style={{ padding: "10px 14px", maxWidth: 260 }}>
                         {(() => {
                           const a = parseAllowed(r.allowed_models);
                           if (a == null) return <span style={badgeStyle("rgba(16,185,129,0.1)", "#059669")}>全部</span>;
                           if (a.length === 0) return <span style={badgeStyle("rgba(239,68,68,0.08)", "var(--danger)")}>无</span>;
-                          return <span style={{ color: "var(--text-secondary)" }}>{a.length} 个</span>;
+                          const names = a.map((id) => models.find((m) => m.id === id)?.name || id);
+                          const full = names.join("、");
+                          return (
+                            <span title={`共 ${a.length} 个：${full}`} style={{ display: "inline-block", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "middle", color: "var(--text-secondary)", fontSize: 12.5 }}>
+                              <span style={{ color: "var(--text-tertiary)" }}>{a.length} · </span>{full}
+                            </span>
+                          );
                         })()}
                       </td>
                       <td style={{ padding: "10px 14px", color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>

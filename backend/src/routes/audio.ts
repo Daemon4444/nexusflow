@@ -18,7 +18,8 @@ import { logUsage } from "../data/usage";
 import { consume, hasSufficientBalance } from "../data/billing";
 import { applyUserModelDiscount } from "../data/user-discounts";
 import { isModelAllowed } from "../data/model-access";
-import { checkRPM, recordRequest } from "../services/rate-limiter";
+import { checkConsumerLimitsAsync, checkRPM, checkTPM, recordRequest } from "../services/rate-limiter";
+import { getEffectiveRateLimit } from "../data/ratelimits";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 
@@ -126,11 +127,26 @@ router.post("/speech", async (req: Request, res: Response) => {
       return;
     }
 
-    // 5. RPM check
-    const rpmCheck = await checkRPM(`user:${caller.user_id}:${modelId}`, 30);
+    // 5. Rate limits (per-user-per-model QPM/TPM via Redis + per-API-key RPM)
+    const userLimits = await getEffectiveRateLimit(caller.user_id, modelId);
+    const rpmCheck = await checkRPM(`user:${caller.user_id}:${modelId}`, userLimits.qpm);
     if (!rpmCheck.allowed) {
       res.status(429).json({
         error: { message: `Rate limit exceeded. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`, type: "rate_limit_error", code: "rate_limit_exceeded" },
+      });
+      return;
+    }
+    const tpmCheck = await checkTPM(`user:${caller.user_id}:${modelId}`, userLimits.tpm, charCount);
+    if (!tpmCheck.allowed) {
+      res.status(429).json({
+        error: { message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`, type: "rate_limit_error", code: "rate_limit_exceeded" },
+      });
+      return;
+    }
+    const keyRate = await checkConsumerLimitsAsync(caller.id, caller.rate_limit);
+    if (!keyRate.allowed) {
+      res.status(429).json({
+        error: { message: keyRate.reason, type: "rate_limit_error", code: "rate_limit_exceeded" },
       });
       return;
     }
@@ -347,11 +363,20 @@ router.post("/transcriptions", audioUpload.single("file"), async (req: Request, 
       return;
     }
 
-    const rpmCheck = await checkRPM(`user:${caller.user_id}:${modelId}`, 30);
+    const userLimits = await getEffectiveRateLimit(caller.user_id, modelId);
+    const rpmCheck = await checkRPM(`user:${caller.user_id}:${modelId}`, userLimits.qpm);
     if (!rpmCheck.allowed) {
       cleanupUploadedFile(req.file);
       res.status(429).json({
         error: { message: `Rate limit exceeded.`, type: "rate_limit_error", code: "rate_limit_exceeded" },
+      });
+      return;
+    }
+    const keyRate = await checkConsumerLimitsAsync(caller.id, caller.rate_limit);
+    if (!keyRate.allowed) {
+      cleanupUploadedFile(req.file);
+      res.status(429).json({
+        error: { message: keyRate.reason, type: "rate_limit_error", code: "rate_limit_exceeded" },
       });
       return;
     }

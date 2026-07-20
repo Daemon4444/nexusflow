@@ -2,6 +2,27 @@ import type { AIModel } from "../data/models";
 import { getTokenPricingTier } from "../data/models";
 import { applyUserModelDiscount } from "../data/user-discounts";
 
+/** Token usage shapes consumed by billing. All fields optional — upstreams omit some. */
+export interface OpenAiTokenDetails {
+  cached_tokens?: number;
+  cache_creation_input_tokens?: number;
+  audio_tokens?: number;
+  reasoning_tokens?: number;
+}
+export interface OpenAiUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  prompt_tokens_details?: OpenAiTokenDetails;
+  completion_tokens_details?: OpenAiTokenDetails;
+}
+export interface AnthropicUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+}
+
 function money(value: number): number {
   return Math.round((Number(value) || 0) * 1_000_000) / 1_000_000;
 }
@@ -25,7 +46,7 @@ export function hasCacheControl(value: unknown): boolean {
   return Object.values(record).some(hasCacheControl);
 }
 
-export function getOpenAiPromptCacheUsage(usage: any): {
+export function getOpenAiPromptCacheUsage(usage: OpenAiUsage | null | undefined): {
   promptTokens: number;
   completionTokens: number;
   cachedTokens: number;
@@ -52,7 +73,7 @@ export interface BillingResult {
 export async function calculateOpenAiCacheAwareCost(params: {
   userId?: string | null;
   model: AIModel;
-  usage: any;
+  usage: OpenAiUsage;
   explicitCache: boolean;
 }): Promise<BillingResult> {
   const { promptTokens, completionTokens, cachedTokens, cacheCreationTokens } = getOpenAiPromptCacheUsage(params.usage);

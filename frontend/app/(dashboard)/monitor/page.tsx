@@ -20,6 +20,7 @@ export default function MonitorPage() {
   const [recent, setRecent] = useState<RecentReq[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -50,7 +51,12 @@ export default function MonitorPage() {
       if (hrRes.success) setHourly(hrRes.data);
       if (mdRes.success) setModelPerf(mdRes.data);
       if (rcRes.success) setRecent(rcRes.data);
-    } catch (e) { console.error("Failed to load monitor data", e); }
+      setLoadError(ovRes.success ? null : (ovRes.message || "数据更新失败"));
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      console.error("Failed to load monitor data", e);
+      setLoadError("数据更新失败，请稍后重试");
+    }
     finally { setDataLoading(false); }
   }
 
@@ -69,6 +75,12 @@ export default function MonitorPage() {
           <button onClick={() => { setDataLoading(true); loadAll(); }} className="btn-secondary" style={{ padding: "6px 14px", fontSize: 12 }}>{t("refresh")}</button>
         </div>
       </div>
+
+      {loadError && (
+        <div style={{ margin: "0 0 12px", padding: "10px 14px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: 13 }}>
+          {loadError}
+        </div>
+      )}
 
       {dataLoading && !overview ? (
         <div style={{ textAlign: "center", padding: 80, color: "var(--text-tertiary)" }}>{t("loadingMetrics")}</div>
@@ -122,7 +134,7 @@ export default function MonitorPage() {
             <div className="usr-section-header"><div><h3>{t("perfByModel")}</h3><p>{t("last24h")}</p></div></div>
             {modelPerf.length === 0 ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-tertiary)", fontSize: 13 }}>{t("noData")}</div> : (
               <>
-                <div className="table-row" style={{ gridTemplateColumns: "1fr 70px 90px 90px 90px 80px", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "var(--text-tertiary)", background: "var(--bg-elevated)" }}>
+                <div className="table-row table-head" style={{ gridTemplateColumns: "1fr 70px 90px 90px 90px 80px", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "var(--text-tertiary)", background: "var(--bg-elevated)" }}>
                   <span>{t("model")}</span><span style={{ textAlign: "right" }}>{t("requests")}</span><span style={{ textAlign: "right" }}>TTFT</span><span style={{ textAlign: "right" }}>TPOT</span><span style={{ textAlign: "right" }}>{t("latency")}</span><span style={{ textAlign: "right" }}>{t("success")}</span>
                 </div>
                 {modelPerf.map((m) => (
@@ -143,7 +155,7 @@ export default function MonitorPage() {
             <div className="usr-section-header"><div><h3>{t("recentRequests")}</h3><p>{t("recentReqDesc")}</p></div></div>
             {recent.length === 0 ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-tertiary)", fontSize: 13 }}>{t("noRequests")}</div> : (
               <>
-                <div className="table-row" style={{ gridTemplateColumns: "65px 1fr 60px 75px 75px 75px 50px", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "var(--text-tertiary)", background: "var(--bg-elevated)" }}>
+                <div className="table-row table-head" style={{ gridTemplateColumns: "65px 1fr 60px 75px 75px 75px 50px", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "var(--text-tertiary)", background: "var(--bg-elevated)" }}>
                   <span>{t("txTime")}</span><span>{t("model")}</span><span style={{ textAlign: "right" }}>{t("tokens")}</span><span style={{ textAlign: "right" }}>TTFT</span><span style={{ textAlign: "right" }}>TPOT</span><span style={{ textAlign: "right" }}>{t("latency")}</span><span style={{ textAlign: "center" }}>OK</span>
                 </div>
                 {recent.map((r, i) => (

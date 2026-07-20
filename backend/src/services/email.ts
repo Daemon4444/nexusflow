@@ -51,9 +51,11 @@ async function redisSetCode(email: string, code: string): Promise<void> {
   if (!useRedis()) return;
   try {
     const client = getRedis();
-    const key = `email:code:${email.toLowerCase()}`;
+    const lower = email.toLowerCase();
     const data = JSON.stringify({ code, attempts: 0 });
-    await client.set(key, data, "EX", CODE_EXPIRY_SEC);
+    await client.set(`email:code:${lower}`, data, "EX", CODE_EXPIRY_SEC);
+    // 新验证码：重置尝试计数，避免沿用上一份验证码的失败次数
+    await client.del(`email:attempts:${lower}`);
   } catch {
     console.warn("[EMAIL] Redis 存储失败，降级到内存");
   }
@@ -78,8 +80,8 @@ async function redisDeleteCode(email: string): Promise<void> {
   if (!useRedis()) return;
   try {
     const client = getRedis();
-    const key = `email:code:${email.toLowerCase()}`;
-    await client.del(key);
+    const lower = email.toLowerCase();
+    await client.del(`email:code:${lower}`, `email:attempts:${lower}`);
   } catch {}
 }
 
@@ -87,14 +89,11 @@ async function redisIncrementAttempts(email: string): Promise<number> {
   if (!useRedis()) return 0;
   try {
     const client = getRedis();
-    const key = `email:code:${email.toLowerCase()}`;
-    const data = await client.get(key);
-    if (data) {
-      const parsed = JSON.parse(data);
-      parsed.attempts++;
-      await client.set(key, JSON.stringify(parsed), "KEEPTTL");
-      return parsed.attempts;
-    }
+    const key = `email:attempts:${email.toLowerCase()}`;
+    // 原子自增，避免并发下多个 worker 各自读到旧值而放大猜测次数
+    const attempts = await client.incr(key);
+    if (attempts === 1) await client.expire(key, CODE_EXPIRY_SEC);
+    return attempts;
   } catch {}
   return 0;
 }

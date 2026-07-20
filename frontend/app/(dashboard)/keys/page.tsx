@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import UserLayout from "@/components/UserLayout";
@@ -34,6 +34,7 @@ export default function KeysPage() {
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyLimit, setNewKeyLimit] = useState(60);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [createdKey, setCreatedKey] = useState<ApiKey | null>(null);
   const [error, setError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null);
@@ -44,6 +45,8 @@ export default function KeysPage() {
     loadKeys(controller.signal);
     return () => controller.abort();
   }, [user]);
+
+  useEffect(() => () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }, []);
 
   async function loadKeys(signal?: AbortSignal) {
     setDataLoading(true);
@@ -102,24 +105,16 @@ export default function KeysPage() {
     }
   }
 
+  function markCopied(id: string) {
+    setCopiedId(id);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopiedId(null), 2000);
+  }
+
   function copyKey(key: string, id: string) {
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = key;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      ta.style.top = "-9999px";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      ta.setSelectionRange(0, ta.value.length);
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(key).then(() => markCopied(id)).catch(() => window.prompt(t("copyKeyPrompt"), key));
+    } else {
       window.prompt(t("copyKeyPrompt"), key);
     }
   }

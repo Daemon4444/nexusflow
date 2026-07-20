@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useI18n, localeLabels } from "@/lib/i18n";
 import { Locale } from "@/lib/i18n";
 import { NexusflowLogo } from "./QuadrantLogo";
+import ThemeToggle from "./ThemeToggle";
 import { formatCny } from "@/lib/money";
 import { useState, useRef, useEffect } from "react";
 
@@ -56,7 +57,7 @@ export default function Header() {
         padding: "0 28px",
         display: "flex",
         alignItems: "center",
-        background: "rgba(255,255,255,0.8)",
+        background: "var(--header-bg)",
         backdropFilter: "blur(20px) saturate(1.8)",
         WebkitBackdropFilter: "blur(20px) saturate(1.8)",
         borderBottom: "1px solid var(--border)",
@@ -114,6 +115,11 @@ export default function Header() {
             <div className="status-dot" />
             <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{t("online")}</span>
           </Link>
+
+          {/* Theme toggle */}
+          <div style={{ marginRight: 8 }}>
+            <ThemeToggle compact />
+          </div>
 
           {/* Language Switcher */}
           <div ref={langRef} style={{ position: "relative", marginRight: 8 }}>
@@ -279,7 +285,7 @@ export default function Header() {
                 </Link>
                 <Link href="/login" style={{
                   padding: "6px 18px",
-                  background: "#111",
+                  background: "var(--accent)",
                   color: "#fff",
                   borderRadius: 7,
                   fontSize: 13,
@@ -335,7 +341,7 @@ export default function Header() {
           right: 0,
           bottom: 0,
           zIndex: 99,
-          background: "rgba(255,255,255,0.98)",
+          background: "var(--header-bg-solid)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           overflowY: "auto",
@@ -438,7 +444,7 @@ export default function Header() {
                 </Link>
                 <Link href="/login" style={{
                   flex: 1, textAlign: "center", padding: "11px 0",
-                  background: "#111", color: "#fff", fontSize: 14, fontWeight: 500,
+                  background: "var(--accent)", color: "#fff", fontSize: 14, fontWeight: 500,
                   textDecoration: "none", borderRadius: 8,
                 }}>
                   {t("signUp")}

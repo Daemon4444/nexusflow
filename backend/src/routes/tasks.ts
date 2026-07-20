@@ -32,7 +32,7 @@ import {
   pollPixVerseTask,
   pollVolcEngineTask,
 } from "../services/adapters";
-import { checkConsumerLimits, checkRPM, recordRequest } from "../services/rate-limiter";
+import { checkConsumerLimitsAsync, checkRPM, recordRequest } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
 import { selectProvider, acquireConcurrency, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
@@ -81,7 +81,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // Rate limit check
-  const rateCheck = checkConsumerLimits(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
   if (!rateCheck.allowed) {
     res.status(429).json({
       error: { message: rateCheck.reason, type: "rate_limit_error", code: "rate_limit_exceeded" },
@@ -293,8 +293,8 @@ router.post("/", async (req: Request, res: Response) => {
           const output = { type: "image", image_url: imageUrls[0], images: imageUrls };
           const model = models.find((m) => m.id === modelId);
           const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
-          await completeTask(task.id, output, cost);
-          if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+          const won = await completeTask(task.id, output, cost);
+          if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
           res.status(202).json({
             id: task.id,
             object: "task",
@@ -462,11 +462,11 @@ router.get("/:id", async (req: Request, res: Response) => {
     if (result.status === "succeeded") {
       const model = models.find((m) => m.id === task.model);
       const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
-      await completeTask(task.id, result.output, cost);
-      if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+      const won = await completeTask(task.id, result.output, cost);
+      if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
     } else if (result.status === "failed") {
-      await failTask(task.id, result.error || "Task failed");
-      await billAsyncError(task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
+      const won = await failTask(task.id, result.error || "Task failed");
+      if (won) await billAsyncError(task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
     } else {
       await updateTaskStatus(task.id, result.status, result.progress || 0);
     }

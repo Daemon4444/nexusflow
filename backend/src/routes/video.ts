@@ -456,8 +456,8 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
       if (result.status === "succeeded") {
         const model = models.find((m) => m.id === task.model);
         const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
-        await completeTask(task.id, result.output, cost);
-        if (model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+        const won = await completeTask(task.id, result.output, cost);
+        if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {
@@ -467,8 +467,8 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
           },
         });
       } else if (result.status === "failed") {
-        await failTask(task.id, result.error || "Task failed");
-        await billAsyncError(task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
+        const won = await failTask(task.id, result.error || "Task failed");
+        if (won) await billAsyncError(task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
         res.json({
           success: true,
           data: {
