@@ -11,3 +11,4 @@ dist/
 *.db-wal
 data.db
 backend/uploads/
+backups/
