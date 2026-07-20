@@ -14,6 +14,8 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         PORT: process.env.BACKEND_PORT || 3001,
+        BUILD_SHA: process.env.BUILD_SHA || "unknown",
+        BUILD_TIME: process.env.BUILD_TIME || "unknown",
       },
     },
     {
