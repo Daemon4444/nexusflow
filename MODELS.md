@@ -1,6 +1,6 @@
 # NexusFlow AI 平台模型文档
 
-本文档详细记录 NexusFlow AI 平台支持的所有模型，包括参数、价格、协议支持和底层渠道信息。
+本文档记录 NexusFlow AI 平台模型的参数、价格、协议支持和底层渠道信息。运行时目录由静态模型表与 PostgreSQL `model_overrides` 合并生成；模型数量、上下架和价格以 `GET /api/models`、当前代码及数据库覆盖层为准。
 
 ## 目录
 
@@ -24,7 +24,7 @@
 
 NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
-- **50+ 模型**: 涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成
+- **67 个运行时模型（2026-07-21 校准）**：涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成
 - **OpenAI 协议兼容**: 支持 OpenAI Chat Completions、Embeddings、Image Generations 协议
 - **多协议支持**: 同时支持 Anthropic Messages 和 OpenAI Responses API 协议
 - **统一计费**: 按 Token 或按生成数量计费，价格透明
@@ -36,16 +36,16 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
 | 分类 | 模型数量 | 说明 |
 |------|----------|------|
-| 大语言模型 | 24 | 通用对话、文本生成 |
+| 大语言模型 | 30 | 通用对话、文本生成 |
 | 推理模型 | 4 | 数学、逻辑、复杂推理 |
-| 多模态模型 | 6 | 视觉理解、图像输入 |
+| 多模态模型 | 8 | 视觉理解、图像输入 |
 | 编程模型 | 2 | 代码生成、代码补全 |
 | 专业模型 | 2 | 翻译、意图识别 |
 | 向量模型 | 2 | 文本嵌入、语义搜索 |
 | 语音模型 | 2 | 语音识别、语音合成 |
 | 图像生成 | 1 | 文生图、图像编辑 |
-| 视频生成 | 11 | 文生视频、图生视频、视频编辑 |
-| **总计** | **54** | |
+| 视频生成 | 16 | 文生视频、图生视频、视频编辑 |
+| **总计** | **67** | 运行时快照；以后以 API 为准 |
 
 ---
 
@@ -67,7 +67,7 @@ PixVerse 模型支持两种渠道切换：
 | `bailian` | 百炼渠道 | dashscope | DashScope API | 通过百炼平台代理调用 |
 | `official` | 拍我官方 | pixverse | PixVerse Official API | **当前激活渠道** |
 
-当前激活渠道: `official` (PixVerse 官方 API)
+当前激活渠道属于数据库运行配置，会随后台切换；不要把本文当成实时状态。
 
 ### API Key 配置
 
@@ -424,9 +424,10 @@ Authorization: Bearer YOUR_API_KEY
 
 | 提供商 | 模型数量 | 主要模型 |
 |--------|----------|----------|
-| 通义千问 | 27 | Qwen系列、万相、QwQ、Math、MT、ASR、TTS、意图识别 |
+| 通义千问 | 39 | Qwen系列、万相、QwQ、Math、MT、ASR、TTS、意图识别 |
 | DeepSeek | 5 | V3、V3.2、V4 Pro、V4 Flash、R1 |
 | 拍我AI (PixVerse) | 1 | PixVerse V6 |
+| 火山方舟 (Volcengine) | 6 | Seedance 系列 |
 | 阿里巴巴 (Alibaba) | 4 | HappyHorse 系列 |
 | 智谱AI | 4 | GLM 4.7、GLM 5、GLM 5.1、GLM 5.2 |
 | 月之暗面 | 3 | Kimi K3、Kimi K2.6、Kimi K2.5 |
@@ -450,7 +451,7 @@ Authorization: Bearer YOUR_API_KEY
 
 ## 更新日期
 
-文档更新时间: 2026-06-17
+文档更新时间: 2026-07-21
 模型数据来源: `/api/models` API + 代码配置文件
 
 ---
