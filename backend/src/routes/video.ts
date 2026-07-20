@@ -7,6 +7,7 @@
  */
 
 import { Router, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { validateSession } from "../data/users";
@@ -18,9 +19,10 @@ import {
   failTask,
   updateTaskStatus
 } from "../data/tasks";
-import { selectProvider, acquireConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
+import { selectProvider, acquireConcurrency, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
-import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
+import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
+import { releaseReservation, reserveBalance } from "../data/billing";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
 import { checkRPM } from "../services/rate-limiter";
@@ -156,21 +158,6 @@ const handleGenerate = async (req: Request, res: Response) => {
     }
   }
 
-  const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { duration, quality, resolution, audio, audio_setting });
-  if (!(await hasEnoughBalance(caller.userId, estimatedCost))) {
-    res.status(402).json({ success: false, message: "余额不足，请先充值" });
-    return;
-  }
-
-  // Select provider via scheduler
-  const selected = await selectProvider(modelId, { userId: caller.userId });
-  if (!selected) {
-    res.status(503).json({ success: false, message: "当前无可用渠道" });
-    return;
-  }
-  const apiKey = selected.apiKey;
-  acquireConcurrency(selected.providerId, modelId);
-
   if ((modelId.includes("-i2v") || modelId.includes("-r2v")) && !img_url && !img_urls?.length) {
     res.status(400).json({
       success: false,
@@ -187,20 +174,43 @@ const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
+  // Select provider via scheduler
+  const selected = await selectProvider(modelId, { userId: caller.userId });
+  if (!selected) {
+    res.status(503).json({ success: false, message: "当前无可用渠道" });
+    return;
+  }
+  const apiKey = selected.apiKey;
+
+  const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { duration, quality, resolution, audio, audio_setting });
+  const reservation = await reserveBalance(caller.userId, estimatedCost, `video:${randomUUID()}`, 30 * 24 * 60 * 60);
+  if (!reservation) {
+    res.status(402).json({ success: false, message: "余额不足，请先充值" });
+    return;
+  }
+
   const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
   const isVolcEngine = selected.apiBaseUrl.includes("volces.com") || selected.apiBaseUrl.includes("genvia.ai");
 
   // Create internal task record
-  const task = await createTask({
-    userId: caller.userId,
-    apiKeyId: caller.apiKeyId,
-    type: "video",
-    model: modelId,
-    provider: selected.providerId,
-    input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_end_url, img_urls, video_url, video_urls, audio_urls, resolution, ratio, audio, audio_setting, generate_audio, draft, return_last_frame, camera_fixed, service_tier, callback_url, priority, seed, watermark, style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend },
-  });
+  let task;
+  try {
+    task = await createTask({
+      userId: caller.userId,
+      apiKeyId: caller.apiKeyId,
+      type: "video",
+      model: modelId,
+      provider: selected.providerId,
+      input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_end_url, img_urls, video_url, video_urls, audio_urls, resolution, ratio, audio, audio_setting, generate_audio, draft, return_last_frame, camera_fixed, service_tier, callback_url, priority, seed, watermark, style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend },
+      billingReservationId: reservation.id,
+    });
+  } catch (error) {
+    await releaseReservation(reservation.id);
+    throw error;
+  }
 
   // Build request based on provider
+  acquireConcurrency(selected.providerId, modelId);
   try {
     let adapted;
     if (isPixVerseOfficial) {
@@ -289,7 +299,7 @@ const handleGenerate = async (req: Request, res: Response) => {
       if (data.ErrCode !== 0) {
         recordFailure(selected.providerId, modelId, data.ErrMsg || "视频生成失败");
         await failTask(task.id, data.ErrMsg || "视频生成失败");
-        await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+        await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
         res.status(400).json({
           success: false,
           message: data.ErrMsg || "视频生成失败",
@@ -299,9 +309,13 @@ const handleGenerate = async (req: Request, res: Response) => {
 
       recordSuccess(selected.providerId, modelId, Date.now() - startTime);
       const upstreamId = data.Resp?.video_id || data.Resp?.task_id;
-      if (upstreamId) {
-        await setUpstreamTaskId(task.id, String(upstreamId));
+      if (!upstreamId) {
+        const won = await failTask(task.id, "Upstream did not return a task ID");
+        if (won) await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
+        res.status(502).json({ success: false, message: "上游未返回任务 ID" });
+        return;
       }
+      await setUpstreamTaskId(task.id, String(upstreamId));
 
       res.json({
         success: true,
@@ -319,7 +333,7 @@ const handleGenerate = async (req: Request, res: Response) => {
         const errorMsg = data.error?.message || data.message || `HTTP ${response.status}`;
         recordFailure(selected.providerId, modelId, errorMsg);
         await failTask(task.id, errorMsg);
-        await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+        await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
         res.status(response.status || 400).json({
           success: false,
           message: errorMsg,
@@ -330,9 +344,13 @@ const handleGenerate = async (req: Request, res: Response) => {
 
       recordSuccess(selected.providerId, modelId, Date.now() - startTime);
       const upstreamId = data.id;
-      if (upstreamId && typeof upstreamId === "string") {
-        await setUpstreamTaskId(task.id, upstreamId);
+      if (!upstreamId || typeof upstreamId !== "string") {
+        const won = await failTask(task.id, "Upstream did not return a task ID");
+        if (won) await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
+        res.status(502).json({ success: false, message: "上游未返回任务 ID" });
+        return;
       }
+      await setUpstreamTaskId(task.id, upstreamId);
 
       res.json({
         success: true,
@@ -349,7 +367,7 @@ const handleGenerate = async (req: Request, res: Response) => {
       const errorMsg = data.message || `HTTP ${response.status}`;
       recordFailure(selected.providerId, modelId, errorMsg);
       await failTask(task.id, errorMsg);
-      await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+      await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
       res.status(response.status || 400).json({
         success: false,
         message: errorMsg,
@@ -360,9 +378,13 @@ const handleGenerate = async (req: Request, res: Response) => {
 
     recordSuccess(selected.providerId, modelId, Date.now() - startTime);
 
-    if (data.output?.task_id) {
-      await setUpstreamTaskId(task.id, data.output.task_id);
+    if (!data.output?.task_id) {
+      const won = await failTask(task.id, "Upstream did not return a task ID");
+      if (won) await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
+      res.status(502).json({ success: false, message: "上游未返回任务 ID" });
+      return;
     }
+    await setUpstreamTaskId(task.id, data.output.task_id);
 
     res.json({
       success: true,
@@ -375,12 +397,14 @@ const handleGenerate = async (req: Request, res: Response) => {
 
   } catch (err: any) {
     recordFailure(selected.providerId, modelId, err.message);
-    await failTask(task.id, err.message);
-    await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+    const won = await failTask(task.id, err.message);
+    if (won) await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
     res.status(500).json({
       success: false,
       message: `请求失败: ${err.message}`,
     });
+  } finally {
+    releaseConcurrency(selected.providerId, modelId);
   }
 };
 
@@ -402,6 +426,16 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
     // Use our task system
     if (task.status === "succeeded" || task.status === "failed") {
+      if (task.status === "succeeded") {
+        const model = models.find((item) => item.id === task.model);
+        if (model) {
+          try {
+            await ensureAsyncTaskSettlement(task, model);
+          } catch (error) {
+            console.error(`[video] settlement repair failed for ${task.id}:`, error);
+          }
+        }
+      }
       res.json({
         success: true,
         data: {
@@ -468,7 +502,12 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
         });
       } else if (result.status === "failed") {
         const won = await failTask(task.id, result.error || "Task failed");
-        if (won) await billAsyncError(task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
+        if (won) await billAsyncError(
+          task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null,
+          task.model,
+          Date.now() - new Date(task.created_at).getTime(),
+          task.billing_reservation_id,
+        );
         res.json({
           success: true,
           data: {

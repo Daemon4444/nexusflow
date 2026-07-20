@@ -18,6 +18,20 @@ export interface Transaction {
   discount_amount_cny: number | null;
 }
 
+export interface BillingReservation {
+  id: string;
+  user_id: string;
+  billing_owner_id: string;
+  ref_id: string;
+  reserved_amount: number;
+  actual_amount: number | null;
+  status: "active" | "settled" | "released";
+  description: string | null;
+  created_at: string;
+  expires_at: string;
+  settled_at: string | null;
+}
+
 export interface BillingUsageExportRow {
   usage_id: number;
   account_id: string;
@@ -146,6 +160,255 @@ export async function recharge(userId: string, amount: number, description?: str
   });
 }
 
+type BillingActor = {
+  id: string;
+  parent_user_id: string | null;
+  status: string;
+  quota_limit: number | null;
+  quota_used: number;
+  quota_period: string | null;
+  quota_reset_at: string | null;
+};
+
+/**
+ * Atomically reserves estimated spend without changing the displayed balance.
+ * All reservations for an owner are serialized by the owner's users row lock.
+ */
+export async function reserveBalance(
+  userId: string,
+  estimatedAmount: number,
+  refId: string,
+  ttlSeconds = 20 * 60
+): Promise<BillingReservation | null> {
+  const normalizedAmount = roundBalance(Math.max(0, estimatedAmount));
+  if (!userId || !refId || !Number.isFinite(normalizedAmount)) return null;
+  const reservationId = uuidv4();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + Math.max(60, ttlSeconds) * 1000);
+
+  return db.transaction(async (client) => {
+    const actor = await client.queryOne<BillingActor>(
+      `SELECT id, parent_user_id, status, quota_limit, quota_used, quota_period, quota_reset_at
+         FROM users WHERE id = ?`,
+      [userId]
+    );
+    if (!actor || actor.status !== "active") return null;
+
+    const billingOwnerId = actor.parent_user_id || actor.id;
+    const owner = await client.queryOne<{ balance: number; status: string }>(
+      "SELECT balance, status FROM users WHERE id = ? FOR UPDATE",
+      [billingOwnerId]
+    );
+    if (!owner || owner.status !== "active") return null;
+
+    // Expired holds never consume money and can be released while the owner row
+    // lock serializes this cleanup with all new reservations for that owner.
+    await client.execute(
+      `UPDATE billing_reservations
+          SET status = 'released', settled_at = NOW(), description = COALESCE(description, 'expired')
+        WHERE billing_owner_id = ? AND status = 'active' AND expires_at <= NOW()`,
+      [billingOwnerId]
+    );
+
+    const held = await client.queryOne<{ amount: string | number }>(
+      `SELECT COALESCE(SUM(reserved_amount), 0) AS amount
+         FROM billing_reservations
+        WHERE billing_owner_id = ? AND status = 'active'`,
+      [billingOwnerId]
+    );
+    const available = roundBalance(Number(owner.balance || 0) - Number(held?.amount || 0));
+    if (available < normalizedAmount) return null;
+
+    if (actor.parent_user_id) {
+      const lockedActor = await client.queryOne<BillingActor>(
+        `SELECT id, parent_user_id, status, quota_limit, quota_used, quota_period, quota_reset_at
+           FROM users WHERE id = ? FOR UPDATE`,
+        [userId]
+      );
+      if (!lockedActor || lockedActor.status !== "active") return null;
+
+      let quotaUsed = Number(lockedActor.quota_used || 0);
+      if (lockedActor.quota_period === "monthly" && isMonthlyQuotaResetDue(lockedActor.quota_reset_at)) {
+        quotaUsed = 0;
+        await client.execute(
+          "UPDATE users SET quota_used = 0, quota_reset_at = ?, updated_at = ? WHERE id = ?",
+          [now.toISOString(), now.toISOString(), userId]
+        );
+      }
+      if (lockedActor.quota_limit != null) {
+        const actorHeld = await client.queryOne<{ amount: string | number }>(
+          `SELECT COALESCE(SUM(reserved_amount), 0) AS amount
+             FROM billing_reservations
+            WHERE user_id = ? AND status = 'active'`,
+          [userId]
+        );
+        if (quotaUsed + Number(actorHeld?.amount || 0) + normalizedAmount > Number(lockedActor.quota_limit)) {
+          return null;
+        }
+      }
+    }
+
+    const row = await client.queryOne<BillingReservation>(
+      `INSERT INTO billing_reservations
+        (id, user_id, billing_owner_id, ref_id, reserved_amount, status, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
+       ON CONFLICT (ref_id) DO NOTHING
+       RETURNING *`,
+      [reservationId, userId, billingOwnerId, refId, normalizedAmount, now.toISOString(), expiresAt.toISOString()]
+    );
+    return row || null;
+  });
+}
+
+/**
+ * Settles a hold exactly once. The actual amount is authoritative; an estimate
+ * miss is recorded and charged, but normal requests cannot overspend through
+ * concurrent stale pre-checks because their estimates are held up front.
+ */
+export async function settleReservation(
+  reservationId: string,
+  actualAmount: number,
+  description: string,
+  discountRate?: number,
+  discountAmountCny?: number
+): Promise<Transaction | null> {
+  const normalizedAmount = roundBalance(Math.max(0, actualAmount));
+  const now = new Date().toISOString();
+  const transactionRef = `reservation:${reservationId}`;
+  const savedDiscountRate = discountRate !== undefined && discountRate < 1 ? discountRate : null;
+  const savedDiscountAmount = discountAmountCny && discountAmountCny > 0 ? roundBalance(discountAmountCny) : null;
+
+  return db.transaction(async (client) => {
+    // Discover the owner first, then follow the global owner -> reservation ->
+    // actor lock order used by reserveBalance. This avoids a deadlock with
+    // expired-hold cleanup, which runs while holding the owner lock.
+    const reservationOwner = await client.queryOne<{ billing_owner_id: string }>(
+      "SELECT billing_owner_id FROM billing_reservations WHERE id = ?",
+      [reservationId]
+    );
+    if (!reservationOwner) return null;
+
+    const owner = await client.queryOne<{ balance: number }>(
+      "SELECT balance FROM users WHERE id = ? FOR UPDATE",
+      [reservationOwner.billing_owner_id]
+    );
+    if (!owner) return null;
+
+    const reservation = await client.queryOne<BillingReservation>(
+      "SELECT * FROM billing_reservations WHERE id = ? FOR UPDATE",
+      [reservationId]
+    );
+    if (!reservation) return null;
+    if (reservation.status === "settled") {
+      return client.queryOne<Transaction>(
+        "SELECT * FROM transactions WHERE ref_id = ? AND type = 'consumption'",
+        [transactionRef]
+      );
+    }
+    if (reservation.status !== "active") return null;
+
+    if (normalizedAmount <= 0) {
+      await client.execute(
+        "UPDATE billing_reservations SET status = 'released', actual_amount = 0, description = ?, settled_at = ? WHERE id = ?",
+        [description, now, reservationId]
+      );
+      return null;
+    }
+
+    const actor = await client.queryOne<BillingActor>(
+      `SELECT id, parent_user_id, status, quota_limit, quota_used, quota_period, quota_reset_at
+         FROM users WHERE id = ? FOR UPDATE`,
+      [reservation.user_id]
+    );
+    if (!actor) return null;
+
+    const currentBalance = Number(owner.balance || 0);
+    if (normalizedAmount > Number(reservation.reserved_amount || 0) || currentBalance < normalizedAmount) {
+      logToSLS({
+        event: "billing_reservation_estimate_miss",
+        reservationId,
+        userId: reservation.user_id,
+        billingOwnerId: reservation.billing_owner_id,
+        reservedAmount: reservation.reserved_amount,
+        actualAmount: normalizedAmount,
+        balance: currentBalance,
+      });
+    }
+
+    if (actor.parent_user_id) {
+      if (actor.quota_period === "monthly" && isMonthlyQuotaResetDue(actor.quota_reset_at)) {
+        await client.execute(
+          "UPDATE users SET quota_used = 0, quota_reset_at = ?, updated_at = ? WHERE id = ?",
+          [now, now, actor.id]
+        );
+      }
+      // Delivery already happened. Record the actual spend even if it exceeds a
+      // stale quota estimate; the next reservation will be rejected.
+      await client.execute(
+        "UPDATE users SET quota_used = quota_used + ?, updated_at = ? WHERE id = ?",
+        [normalizedAmount, now, actor.id]
+      );
+    }
+
+    const newBalance = roundBalance(currentBalance - normalizedAmount);
+    await client.execute(
+      "UPDATE users SET balance = ?, updated_at = ? WHERE id = ?",
+      [newBalance, now, reservation.billing_owner_id]
+    );
+
+    const txId = uuidv4();
+    const tx = await client.queryOne<Transaction>(
+      `INSERT INTO transactions
+        (id, user_id, actor_user_id, type, amount, balance_after, description, ref_id, created_at, discount_rate, discount_amount_cny)
+       VALUES (?, ?, ?, 'consumption', ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT DO NOTHING
+       RETURNING *`,
+      [
+        txId,
+        reservation.billing_owner_id,
+        reservation.user_id,
+        normalizedAmount,
+        newBalance,
+        description,
+        transactionRef,
+        now,
+        savedDiscountRate,
+        savedDiscountAmount,
+      ]
+    );
+    if (!tx) {
+      throw new Error(`Duplicate billing settlement for reservation ${reservationId}`);
+    }
+
+    await client.execute(
+      `UPDATE billing_reservations
+          SET status = 'settled', actual_amount = ?, description = ?, settled_at = ?
+        WHERE id = ?`,
+      [normalizedAmount, description, now, reservationId]
+    );
+    return tx;
+  });
+}
+
+export async function releaseReservation(reservationId: string, reason = "request_failed"): Promise<boolean> {
+  if (!reservationId) return false;
+  const changed = await db.execute(
+    `UPDATE billing_reservations
+        SET status = 'released', description = COALESCE(description, ?), settled_at = NOW()
+      WHERE id = ? AND status = 'active'`,
+    [reason, reservationId]
+  );
+  return changed > 0;
+}
+
+export async function getBillingReservation(reservationId: string): Promise<BillingReservation | null> {
+  if (!reservationId) return null;
+  return db.queryOne<BillingReservation>(
+    "SELECT * FROM billing_reservations WHERE id = ?",
+    [reservationId]
+  );
+}
+
 /**
  * 扣费（唯一入口，docs/sub-accounts-spec.md §3.2）。
  * userId 是实际发起消费的账号（actor）；若为子账号，钱从主账号余额扣，
@@ -191,10 +454,9 @@ export async function consume(
     if (!owner) return null;
     const currentBalance = Number(owner.balance || 0);
     if (currentBalance < normalizedAmount) {
-      // 服务已交付但余额不足以结算（并发击穿预检/实际费用超预估）：
-      // 照常扣费（允许余额变负）并写流水，保证账实一致、可追溯；
-      // 欠款靠 hasSufficientBalance 预检挡住该用户的下一次请求，故欠款上限≈单次超支。
-      console.error(`[billing] consume shortfall (billed into negative): user=${userId} owner=${billingOwnerId} amount=${normalizedAmount} balance=${currentBalance} desc="${description}"`);
+      // Legacy callers may still settle after delivery without a reservation.
+      // Charge and alert rather than silently making the platform pay.
+      console.error(`[billing] legacy consume shortfall: user=${userId} owner=${billingOwnerId} amount=${normalizedAmount} balance=${currentBalance} desc="${description}"`);
       logToSLS({ event: "consume_shortfall", userId, billingOwnerId, amount: normalizedAmount, balance: currentBalance, description, refId });
     }
 

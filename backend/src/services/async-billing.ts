@@ -1,4 +1,4 @@
-import { consume } from "../data/billing";
+import { consume, getBillingReservation, releaseReservation, settleReservation } from "../data/billing";
 import { AIModel } from "../data/models";
 import { AsyncTask } from "../data/tasks";
 import { logUsage } from "../data/usage";
@@ -139,6 +139,15 @@ export async function hasEnoughBalance(userId: string | null | undefined, amount
 }
 
 export async function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: number, latencyMs: number): Promise<void> {
+  if (task.user_id) {
+    const billing = billingDescription(task, model);
+    if (task.billing_reservation_id) {
+      await settleReservation(task.billing_reservation_id, cost, billing.description);
+    } else if (cost > 0) {
+      await consume(task.user_id, cost, billing.description, billing.refId);
+    }
+  }
+
   await logUsage({
     apiKeyId: task.api_key_id,
     userId: task.user_id,
@@ -150,23 +159,38 @@ export async function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: nu
     status: "success",
     latencyMs,
   });
-
-  if (task.user_id && cost > 0) {
-    const billing = billingDescription(task, model);
-    await consume(task.user_id, cost, billing.description, billing.refId);
-  }
 }
 
-export async function billAsyncError(apiKey: { id: string | null; user_id: string | null } | null, modelId: string, latencyMs: number): Promise<void> {
-  await logUsage({
-    apiKeyId: apiKey?.id || null,
-    userId: apiKey?.user_id || null,
-    model: modelId,
-    promptTokens: 0,
-    completionTokens: 0,
-    totalTokens: 0,
-    cost: 0,
-    status: "error",
-    latencyMs,
-  });
+/** Repairs the crash window between marking a task succeeded and settling it. */
+export async function ensureAsyncTaskSettlement(task: AsyncTask, model: AIModel): Promise<void> {
+  if (!task.billing_reservation_id) return;
+  const reservation = await getBillingReservation(task.billing_reservation_id);
+  if (!reservation || reservation.status !== "active") return;
+  const billing = billingDescription(task, model);
+  await settleReservation(task.billing_reservation_id, Number(task.cost || 0), billing.description);
+}
+
+export async function billAsyncError(
+  apiKey: { id: string | null; user_id: string | null } | null,
+  modelId: string,
+  latencyMs: number,
+  billingReservationId?: string | null
+): Promise<void> {
+  try {
+    await logUsage({
+      apiKeyId: apiKey?.id || null,
+      userId: apiKey?.user_id || null,
+      model: modelId,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      cost: 0,
+      status: "error",
+      latencyMs,
+    });
+  } finally {
+    if (billingReservationId) {
+      await releaseReservation(billingReservationId, "async_task_failed");
+    }
+  }
 }

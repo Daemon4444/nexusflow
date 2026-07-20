@@ -15,6 +15,7 @@ export interface AsyncTask {
   error_message: string | null;
   progress: number;
   cost: number;
+  billing_reservation_id: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -35,14 +36,15 @@ export async function createTask(params: {
   model: string;
   provider: string;
   input: any;
+  billingReservationId?: string | null;
 }): Promise<AsyncTask> {
   const id = uuidv4();
   const now = new Date().toISOString();
   const row = await db.queryOne<any>(
-    `INSERT INTO async_tasks (id, user_id, api_key_id, type, model, provider, status, input, output, upstream_task_id, error_message, progress, cost, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO async_tasks (id, user_id, api_key_id, type, model, provider, status, input, output, upstream_task_id, error_message, progress, cost, billing_reservation_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      RETURNING *`,
-    [id, params.userId || null, params.apiKeyId || null, params.type, params.model, params.provider, "pending", JSON.stringify(params.input), null, null, null, 0, 0, now, now]
+    [id, params.userId || null, params.apiKeyId || null, params.type, params.model, params.provider, "pending", JSON.stringify(params.input), null, null, null, 0, 0, params.billingReservationId || null, now, now]
   );
   return parseRow(row);
 }

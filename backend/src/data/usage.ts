@@ -2,6 +2,29 @@ import { db } from "../db/client";
 import { logToSLS } from "../services/sls";
 import { randomUUID } from "crypto";
 
+const SLS_LOG_FULL_CONTENT = process.env.SLS_LOG_FULL_CONTENT === "true";
+const SLS_CONTENT_LIMIT = Math.max(1_000, Number(process.env.SLS_CONTENT_LIMIT || 16_000));
+const SENSITIVE_FIELD = /(authorization|api[-_]?key|token|secret|password|cookie)/i;
+
+function sanitizeTelemetryContent(value: any, depth = 0): any {
+  if (value == null || typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    return value.length <= SLS_CONTENT_LIMIT
+      ? value
+      : `${value.slice(0, SLS_CONTENT_LIMIT)}…[truncated ${value.length - SLS_CONTENT_LIMIT} chars]`;
+  }
+  if (depth >= 6) return "[max-depth]";
+  if (Array.isArray(value)) return value.slice(0, 100).map((item) => sanitizeTelemetryContent(item, depth + 1));
+  if (typeof value === "object") {
+    const output: Record<string, any> = {};
+    for (const [key, item] of Object.entries(value).slice(0, 100)) {
+      output[key] = SENSITIVE_FIELD.test(key) ? "[redacted]" : sanitizeTelemetryContent(item, depth + 1);
+    }
+    return output;
+  }
+  return String(value);
+}
+
 export interface UsageLog {
   id: number;
   log_id: string | null;
@@ -43,28 +66,34 @@ export async function logUsage(params: {
   responseBody?: any;
 }): Promise<string> {
   const logId = params.logId || randomUUID();
-  await db.execute(
-    `INSERT INTO usage_logs (log_id, api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens, region, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      logId,
-      params.apiKeyId,
-      params.userId || null,
-      params.model,
-      params.promptTokens,
-      params.completionTokens,
-      params.totalTokens,
-      params.cost,
-      params.status,
-      params.latencyMs,
-      params.ttftMs || 0,
-      params.tpotMs || 0,
-      params.cachedTokens || 0,
-      params.cacheCreationTokens || 0,
-      params.region || null,
-      new Date().toISOString(),
-    ]
-  );
+  try {
+    await db.execute(
+      `INSERT INTO usage_logs (log_id, api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens, region, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        logId,
+        params.apiKeyId,
+        params.userId || null,
+        params.model,
+        params.promptTokens,
+        params.completionTokens,
+        params.totalTokens,
+        params.cost,
+        params.status,
+        params.latencyMs,
+        params.ttftMs || 0,
+        params.tpotMs || 0,
+        params.cachedTokens || 0,
+        params.cacheCreationTokens || 0,
+        params.region || null,
+        new Date().toISOString(),
+      ]
+    );
+  } catch (error) {
+    // Usage analytics must never suppress the authoritative billing settlement.
+    // SLS still receives the event below, and the DB failure remains visible.
+    console.error("[usage] PostgreSQL insert failed:", error);
+  }
   logToSLS({
     logId,
     apiKeyId: params.apiKeyId,
@@ -84,8 +113,12 @@ export async function logUsage(params: {
     finishReason: params.finishReason,
     clientIp: params.clientIp,
     errorReason: params.errorReason,
-    request: params.requestBody,
-    response: params.responseBody,
+    ...(SLS_LOG_FULL_CONTENT
+      ? {
+          request: sanitizeTelemetryContent(params.requestBody),
+          response: sanitizeTelemetryContent(params.responseBody),
+        }
+      : {}),
   });
   return logId;
 }

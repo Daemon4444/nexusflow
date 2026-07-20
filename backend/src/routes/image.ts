@@ -9,6 +9,7 @@
  */
 
 import { Router, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { validateSession } from "../data/users";
@@ -21,7 +22,8 @@ import {
   updateTaskStatus
 } from "../data/tasks";
 import { adaptImageRequest, pollDashScopeTask } from "../services/adapters";
-import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
+import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
+import { releaseReservation, reserveBalance } from "../data/billing";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
 import { checkRPM } from "../services/rate-limiter";
@@ -144,12 +146,6 @@ router.post("/generate", async (req: Request, res: Response) => {
     }
   }
 
-  const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { n });
-  if (!(await hasEnoughBalance(caller.userId, estimatedCost))) {
-    res.status(402).json({ success: false, message: "余额不足，请先充值" });
-    return;
-  }
-
   const DASHSCOPE_API_KEY = getApiKey();
   if (!DASHSCOPE_API_KEY) {
     res.status(500).json({ success: false, message: "未配置 API Key" });
@@ -185,15 +181,29 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
+  const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { n });
+  const reservation = await reserveBalance(caller.userId, estimatedCost, `image:${randomUUID()}`, 30 * 24 * 60 * 60);
+  if (!reservation) {
+    res.status(402).json({ success: false, message: "余额不足，请先充值" });
+    return;
+  }
+
   // Create internal task record
-  const task = await createTask({
-    userId: caller.userId,
-    apiKeyId: caller.apiKeyId,
-    type: "image",
-    model: modelId,
-    provider: "dashscope",
-    input: { prompt, negative_prompt, size, n, ref_img },
-  });
+  let task;
+  try {
+    task = await createTask({
+      userId: caller.userId,
+      apiKeyId: caller.apiKeyId,
+      type: "image",
+      model: modelId,
+      provider: "dashscope",
+      input: { prompt, negative_prompt, size, n, ref_img },
+      billingReservationId: reservation.id,
+    });
+  } catch (error) {
+    await releaseReservation(reservation.id);
+    throw error;
+  }
 
   try {
     // Use the correct model ID for the API
@@ -225,7 +235,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     if (!response.ok || data.code) {
       const errorMsg = data.message || `HTTP ${response.status}`;
       await failTask(task.id, errorMsg);
-      await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+      await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
       res.status(response.status || 400).json({
         success: false,
         message: errorMsg,
@@ -256,7 +266,7 @@ router.post("/generate", async (req: Request, res: Response) => {
         });
       } else {
         const won = await failTask(task.id, "No image generated");
-        if (won) await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+        if (won) await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
         res.status(500).json({
           success: false,
           message: "图像生成失败，未返回结果",
@@ -266,9 +276,13 @@ router.post("/generate", async (req: Request, res: Response) => {
     }
 
     // Async response - store upstream task ID for polling
-    if (data.output?.task_id) {
-      await setUpstreamTaskId(task.id, data.output.task_id);
+    if (!data.output?.task_id) {
+      const won = await failTask(task.id, "Upstream did not return a task ID");
+      if (won) await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
+      res.status(502).json({ success: false, message: "上游未返回任务 ID" });
+      return;
     }
+    await setUpstreamTaskId(task.id, data.output.task_id);
 
     res.json({
       success: true,
@@ -279,8 +293,8 @@ router.post("/generate", async (req: Request, res: Response) => {
       },
     });
   } catch (err: any) {
-    await failTask(task.id, err.message);
-    await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime);
+    const won = await failTask(task.id, err.message);
+    if (won) await billAsyncError(caller.errorIdentity, modelId, Date.now() - startTime, task.billing_reservation_id);
     res.status(500).json({
       success: false,
       message: `请求失败: ${err.message}`,
@@ -314,6 +328,16 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
     // Use our task system
     if (task.status === "succeeded" || task.status === "failed") {
+      if (task.status === "succeeded") {
+        const model = models.find((item) => item.id === task.model);
+        if (model) {
+          try {
+            await ensureAsyncTaskSettlement(task, model);
+          } catch (error) {
+            console.error(`[image] settlement repair failed for ${task.id}:`, error);
+          }
+        }
+      }
       res.json({
         success: true,
         data: {
@@ -353,7 +377,12 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
         });
       } else if (result.status === "failed") {
         const won = await failTask(task.id, result.error || "Task failed");
-        if (won) await billAsyncError(task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
+        if (won) await billAsyncError(
+          task.user_id || task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null,
+          task.model,
+          Date.now() - new Date(task.created_at).getTime(),
+          task.billing_reservation_id,
+        );
         res.json({
           success: true,
           data: {

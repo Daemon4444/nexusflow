@@ -2,14 +2,29 @@ import { Router, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { randomUUID } from "crypto";
 import sharp from "sharp";
 import { validateSession } from "../data/users";
 import { validateApiKey } from "../data/apikeys";
+import { checkRPM } from "../services/rate-limiter";
 
 const router = Router();
 
 const IMAGE_SIZE_LIMIT = 10 * 1024 * 1024; // 10MB
 const JPEG_MIME = "image/jpeg";
+const UPLOAD_RPM = Math.max(1, Number(process.env.UPLOAD_RPM || 10));
+
+const MIME_EXTENSIONS: Record<string, string[]> = {
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/png": [".png"],
+  "image/webp": [".webp"],
+  "image/gif": [".gif"],
+  "image/bmp": [".bmp"],
+  "video/mp4": [".mp4"],
+  "video/quicktime": [".mov"],
+  "video/webm": [".webm"],
+  "video/x-msvideo": [".avi"],
+};
 
 type UploadResult = {
   filename: string;
@@ -26,26 +41,18 @@ if (!fs.existsSync(uploadDir)) {
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+    const ext = path.extname(file.originalname).toLowerCase();
+    const safeName = `${randomUUID()}${ext}`;
     cb(null, safeName);
   },
 });
 
 const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedMimes = [
-    "image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp",
-    "video/mp4", "video/quicktime", "video/webm", "video/x-msvideo",
-  ];
-  const allowedExts = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".mp4", ".mov", ".webm", ".avi"];
   const ext = path.extname(file.originalname).toLowerCase();
-  // 双条件：扩展名必须在白名单（挡住 .html/.svg 等可执行脚本的类型），
-  // 且 mimetype 是图片/视频（挡住把 .jpg 当任意二进制分发）。任一不满足即拒绝。
-  const extOk = allowedExts.includes(ext);
-  const mimeOk = allowedMimes.includes(file.mimetype)
-    || file.mimetype.startsWith("image/")
-    || file.mimetype.startsWith("video/");
-  if (extOk && mimeOk) {
+  // The declared MIME and extension must be an exact known pair. Browser
+  // supplied MIME values are not trusted as content validation; file magic is
+  // checked again after multer writes the file.
+  if (MIME_EXTENSIONS[file.mimetype]?.includes(ext)) {
     cb(null, true);
   } else {
     cb(new Error("不支持的文件格式。支持: JPG, PNG, WebP, GIF, BMP, MP4, MOV, WebM"));
@@ -68,12 +75,54 @@ async function requireUploadAuth(req: Request, res: Response, next: NextFunction
   }
 
   const token = auth.slice(7).trim();
-  if ((await validateSession(token)) || (await validateApiKey(token))) {
+  const session = await validateSession(token);
+  const apiKey = session ? null : await validateApiKey(token);
+  const identity = session?.id || apiKey?.user_id || apiKey?.id;
+  if (identity) {
+    const rate = await checkRPM(`upload:${identity}`, UPLOAD_RPM);
+    if (!rate.allowed) {
+      res.status(429).json({ success: false, message: `上传过于频繁，请 ${Math.ceil(rate.resetMs / 1000)} 秒后重试` });
+      return;
+    }
     next();
     return;
   }
 
   res.status(401).json({ success: false, message: "上传凭证无效或已过期" });
+}
+
+async function hasValidFileSignature(file: Express.Multer.File): Promise<boolean> {
+  const handle = await fs.promises.open(file.path, "r");
+  try {
+    const buffer = Buffer.alloc(32);
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+    const head = buffer.subarray(0, bytesRead);
+    const ascii = (start: number, end: number) => head.subarray(start, end).toString("ascii");
+
+    switch (file.mimetype) {
+      case "image/jpeg":
+        return head.length >= 3 && head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+      case "image/png":
+        return head.length >= 8 && head.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+      case "image/gif":
+        return ascii(0, 6) === "GIF87a" || ascii(0, 6) === "GIF89a";
+      case "image/webp":
+        return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP";
+      case "image/bmp":
+        return ascii(0, 2) === "BM";
+      case "video/mp4":
+      case "video/quicktime":
+        return ascii(4, 8) === "ftyp";
+      case "video/webm":
+        return head.length >= 4 && head.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
+      case "video/x-msvideo":
+        return ascii(0, 4) === "RIFF" && ascii(8, 12) === "AVI ";
+      default:
+        return false;
+    }
+  } finally {
+    await handle.close();
+  }
 }
 
 function jpegFilename(filename: string): string {
@@ -144,6 +193,19 @@ router.post("/", requireUploadAuth, upload.single("file"), async (req, res) => {
     size: req.file.size,
     mimetype: req.file.mimetype,
   };
+
+  try {
+    if (!(await hasValidFileSignature(req.file))) {
+      fs.unlinkSync(req.file.path);
+      res.status(400).json({ success: false, message: "文件内容与声明格式不匹配" });
+      return;
+    }
+  } catch (err: any) {
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    console.error("[Upload API] Signature validation failed:", err.message);
+    res.status(400).json({ success: false, message: "无法验证文件内容" });
+    return;
+  }
 
   try {
     uploaded = await compressImageIfNeeded(req.file);

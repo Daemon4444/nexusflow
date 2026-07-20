@@ -15,11 +15,10 @@
     "build:frontend": "cd frontend && npm run build",
     "build:backend": "cd backend && npm run build"
   },
-  "dependencies": {
-    "@alicloud/log": "^1.2.6",
-    "better-sqlite3": "^12.6.2"
-  },
   "overrides": {
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "@alicloud/log@1.2.6": {
+      "protobufjs": "8.7.1"
+    }
   }
 }

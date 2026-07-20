@@ -8,10 +8,11 @@
  */
 
 import { Router, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { models, getTokenPricingTier } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { consume, hasSufficientBalance } from "../data/billing";
+import { releaseReservation, reserveBalance, settleReservation } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
@@ -260,18 +261,20 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   const estimatedCost = await estimateMessageMaxCost(apiKeyRecord.user_id, model, req.body);
-  if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedCost)) {
+  const billingReservation = await reserveBalance(apiKeyRecord.user_id, estimatedCost, `messages:${randomUUID()}`);
+  if (!billingReservation) {
     rejectInsufficientBalance(res);
     return;
   }
 
   const startTime = Date.now();
-  const logId = require("crypto").randomUUID();
+  const logId = randomUUID();
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
   acquireConcurrency(upstream.providerId, modelId);
 
   // 预占 TPM 归还：正常路径按实际 usage 归还，异常/上游错误路径由 finally 兜底释放，且仅一次。
   let tokensReconciled = false;
+  let billableResponseReceived = false;
   const reconcileOnce = async (actualTokens: number) => {
     if (tokensReconciled) return;
     tokensReconciled = true;
@@ -319,6 +322,7 @@ router.post("/", async (req: Request, res: Response) => {
           });
           return;
         }
+        billableResponseReceived = true;
 
         res.setHeader("Content-Type", "text/event-stream");
         res.setHeader("Cache-Control", "no-cache");
@@ -416,16 +420,13 @@ router.post("/", async (req: Request, res: Response) => {
         recordProviderTokens(upstream.providerId, modelId, totalTokens);
         await reconcileOnce(totalTokens);
 
-        if (apiKeyRecord.user_id && billing.finalAmount > 0) {
-          await consume(
-            apiKeyRecord.user_id,
-            billing.finalAmount,
-            buildApiDescription(modelId, totalTokens, cacheReadInputTokens, true),
-            apiKeyRecord.id,
-            billing.discountRate,
-            billing.discountAmount,
-          );
-        }
+        await settleReservation(
+          billingReservation.id,
+          billing.finalAmount,
+          buildApiDescription(modelId, totalTokens, cacheReadInputTokens, true),
+          billing.discountRate,
+          billing.discountAmount,
+        );
         return;
       }
 
@@ -434,6 +435,7 @@ router.post("/", async (req: Request, res: Response) => {
         res.status(response.status).json(data);
         return;
       }
+      billableResponseReceived = true;
 
       const usage = data.usage || {};
       const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false });
@@ -456,16 +458,13 @@ router.post("/", async (req: Request, res: Response) => {
       recordProviderTokens(upstream.providerId, modelId, totalTokens);
       await reconcileOnce(totalTokens);
 
-      if (apiKeyRecord.user_id && billing.finalAmount > 0) {
-        await consume(
-          apiKeyRecord.user_id,
-          billing.finalAmount,
-          buildApiDescription(modelId, totalTokens, usage.cache_read_input_tokens || 0),
-          apiKeyRecord.id,
-          billing.discountRate,
-          billing.discountAmount,
-        );
-      }
+      await settleReservation(
+        billingReservation.id,
+        billing.finalAmount,
+        buildApiDescription(modelId, totalTokens, usage.cache_read_input_tokens || 0),
+        billing.discountRate,
+        billing.discountAmount,
+      );
 
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
       if (data && typeof data === "object") data.id = `msg_${logId}`;
@@ -531,6 +530,7 @@ router.post("/", async (req: Request, res: Response) => {
         });
         return;
       }
+      billableResponseReceived = true;
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -610,16 +610,13 @@ router.post("/", async (req: Request, res: Response) => {
       });
       recordProviderTokens(upstream.providerId, modelId, totalTokens);
       await reconcileOnce(totalTokens);
-      if (apiKeyRecord.user_id && billing.finalAmount > 0) {
-        await consume(
-          apiKeyRecord.user_id,
-          billing.finalAmount,
-          buildApiDescription(modelId, totalTokens, usage.cache_read_input_tokens || 0, true),
-          apiKeyRecord.id,
-          billing.discountRate,
-          billing.discountAmount,
-        );
-      }
+      await settleReservation(
+        billingReservation.id,
+        billing.finalAmount,
+        buildApiDescription(modelId, totalTokens, usage.cache_read_input_tokens || 0, true),
+        billing.discountRate,
+        billing.discountAmount,
+      );
       return;
     }
 
@@ -635,6 +632,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
+    billableResponseReceived = true;
 
     const anthropicResponse = openAiResponseToAnthropic(data, `msg_${logId}`, modelId);
     const usage = anthropicResponse.usage || openAiUsageToAnthropic(data?.usage);
@@ -657,16 +655,13 @@ router.post("/", async (req: Request, res: Response) => {
     });
     recordProviderTokens(upstream.providerId, modelId, totalTokens);
     await reconcileOnce(totalTokens);
-    if (apiKeyRecord.user_id && billing.finalAmount > 0) {
-      await consume(
-        apiKeyRecord.user_id,
-        billing.finalAmount,
-        buildApiDescription(modelId, totalTokens, usage.cache_read_input_tokens || 0),
-        apiKeyRecord.id,
-        billing.discountRate,
-        billing.discountAmount,
-      );
-    }
+    await settleReservation(
+      billingReservation.id,
+      billing.finalAmount,
+      buildApiDescription(modelId, totalTokens, usage.cache_read_input_tokens || 0),
+      billing.discountRate,
+      billing.discountAmount,
+    );
 
     res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
     res.json(anthropicResponse);
@@ -701,6 +696,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   } finally {
+    if (!billableResponseReceived) await releaseReservation(billingReservation.id);
     await reconcileOnce(0);
     releaseConcurrency(upstream.providerId, modelId);
   }

@@ -9,13 +9,14 @@
  */
 
 import { Router, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { consume, hasSufficientBalance } from "../data/billing";
+import { BillingReservation, releaseReservation, reserveBalance, settleReservation } from "../data/billing";
 import { applyUserModelDiscount } from "../data/user-discounts";
 import { isModelAllowed } from "../data/model-access";
 import { checkConsumerLimitsAsync, checkRPM, checkTPM, recordRequest } from "../services/rate-limiter";
@@ -64,6 +65,8 @@ function resolveVoice(openaiVoice?: string): string {
 
 router.post("/speech", async (req: Request, res: Response) => {
   const startTime = Date.now();
+  let billingReservation: BillingReservation | null = null;
+  let billableResponseReceived = false;
 
   try {
     // 1. Auth
@@ -120,13 +123,6 @@ router.post("/speech", async (req: Request, res: Response) => {
       return;
     }
     const { finalAmount: discountedCost } = await applyUserModelDiscount(caller.user_id, modelId, estimatedCost);
-    if (!(await hasSufficientBalance(caller.user_id, discountedCost))) {
-      res.status(402).json({
-        error: { message: "Insufficient balance.", type: "invalid_request_error", code: "insufficient_balance" },
-      });
-      return;
-    }
-
     // 5. Rate limits (per-user-per-model QPM/TPM via Redis + per-API-key RPM)
     const userLimits = await getEffectiveRateLimit(caller.user_id, modelId);
     const rpmCheck = await checkRPM(`user:${caller.user_id}:${modelId}`, userLimits.qpm);
@@ -167,6 +163,14 @@ router.post("/speech", async (req: Request, res: Response) => {
       return;
     }
 
+    billingReservation = await reserveBalance(caller.user_id, discountedCost, `audio-tts:${randomUUID()}`);
+    if (!billingReservation) {
+      res.status(402).json({
+        error: { message: "Insufficient balance.", type: "invalid_request_error", code: "insufficient_balance" },
+      });
+      return;
+    }
+
     // 7. Build DashScope TTS request
     const dashScopeBody: Record<string, any> = {
       model: resolvedModelId,
@@ -195,6 +199,7 @@ router.post("/speech", async (req: Request, res: Response) => {
       res.status(upstreamResp.status >= 500 ? 502 : upstreamResp.status).json({ error: sanitized });
       return;
     }
+    billableResponseReceived = true;
 
     const result = (await upstreamResp.json()) as Record<string, any>;
     const audioUrl = result?.output?.audio?.url;
@@ -230,7 +235,7 @@ router.post("/speech", async (req: Request, res: Response) => {
     // 10. Billing & logging
     const cost = (characters / 1_000_000) * model.promptPrice;
     const { finalAmount } = await applyUserModelDiscount(caller.user_id, modelId, cost);
-    await consume(caller.user_id, finalAmount, `TTS: ${modelId} (${characters} chars)`);
+    await settleReservation(billingReservation.id, finalAmount, `TTS: ${modelId} (${characters} chars)`);
     recordRequest(provider.id, modelId, caller.id, characters);
 
     try {
@@ -255,6 +260,8 @@ router.post("/speech", async (req: Request, res: Response) => {
         error: { message: "Internal server error.", type: "server_error", code: "internal_error" },
       });
     }
+  } finally {
+    if (billingReservation && !billableResponseReceived) await releaseReservation(billingReservation.id);
   }
 });
 
@@ -293,6 +300,8 @@ const audioUpload = multer({
 
 router.post("/transcriptions", audioUpload.single("file"), async (req: Request, res: Response) => {
   const startTime = Date.now();
+  let billingReservation: BillingReservation | null = null;
+  let billableResponseReceived = false;
 
   try {
     // 1. Auth
@@ -346,7 +355,7 @@ router.post("/transcriptions", audioUpload.single("file"), async (req: Request, 
     }
 
     // 4. Balance & rate check
-    const estimatedCost = (60 / 1_000_000) * model.promptPrice;
+    const estimatedCost = (14_400 / 1_000_000) * model.promptPrice;
     if (!isModelAllowed(caller.parent_user_id, caller.allowed_models, modelId)) {
       cleanupUploadedFile(req.file);
       res.status(403).json({
@@ -355,14 +364,6 @@ router.post("/transcriptions", audioUpload.single("file"), async (req: Request, 
       return;
     }
     const { finalAmount: discountedCost } = await applyUserModelDiscount(caller.user_id, modelId, estimatedCost);
-    if (!(await hasSufficientBalance(caller.user_id, discountedCost))) {
-      cleanupUploadedFile(req.file);
-      res.status(402).json({
-        error: { message: "Insufficient balance.", type: "invalid_request_error", code: "insufficient_balance" },
-      });
-      return;
-    }
-
     const userLimits = await getEffectiveRateLimit(caller.user_id, modelId);
     const rpmCheck = await checkRPM(`user:${caller.user_id}:${modelId}`, userLimits.qpm);
     if (!rpmCheck.allowed) {
@@ -399,6 +400,15 @@ router.post("/transcriptions", audioUpload.single("file"), async (req: Request, 
       return;
     }
 
+    billingReservation = await reserveBalance(caller.user_id, discountedCost, `audio-asr:${randomUUID()}`);
+    if (!billingReservation) {
+      cleanupUploadedFile(req.file);
+      res.status(402).json({
+        error: { message: "Insufficient balance.", type: "invalid_request_error", code: "insufficient_balance" },
+      });
+      return;
+    }
+
     // 6. Build DashScope ASR request
     const dashScopeBody = {
       model: modelId,
@@ -431,6 +441,7 @@ router.post("/transcriptions", audioUpload.single("file"), async (req: Request, 
       res.status(upstreamResp.status >= 500 ? 502 : upstreamResp.status).json({ error: sanitized });
       return;
     }
+    billableResponseReceived = true;
 
     const result = (await upstreamResp.json()) as Record<string, any>;
     const content = result?.output?.choices?.[0]?.message?.content;
@@ -454,7 +465,7 @@ router.post("/transcriptions", audioUpload.single("file"), async (req: Request, 
     // 9. Billing & logging
     const cost = (audioSeconds / 1_000_000) * model.promptPrice;
     const { finalAmount } = await applyUserModelDiscount(caller.user_id, modelId, cost);
-    await consume(caller.user_id, finalAmount, `ASR: ${modelId} (${audioSeconds}s)`);
+    await settleReservation(billingReservation.id, finalAmount, `ASR: ${modelId} (${audioSeconds}s)`);
     recordRequest(provider.id, modelId, caller.id, audioTokens);
 
     try {
@@ -480,6 +491,8 @@ router.post("/transcriptions", audioUpload.single("file"), async (req: Request, 
         error: { message: "Internal server error.", type: "server_error", code: "internal_error" },
       });
     }
+  } finally {
+    if (billingReservation && !billableResponseReceived) await releaseReservation(billingReservation.id);
   }
 });
 

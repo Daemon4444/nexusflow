@@ -8,9 +8,9 @@
  */
 
 import { Router, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
-import { getUserById } from "../data/users";
 import { 
   createTask, 
   getTaskById, 
@@ -37,8 +37,9 @@ import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
 import { selectProvider, acquireConcurrency, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
-import { billAsyncError, billAsyncSuccess, estimateDiscountedAsyncCost, hasEnoughBalance } from "../services/async-billing";
+import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
+import { releaseReservation, reserveBalance } from "../data/billing";
 
 const router = Router();
 
@@ -87,17 +88,6 @@ router.post("/", async (req: Request, res: Response) => {
       error: { message: rateCheck.reason, type: "rate_limit_error", code: "rate_limit_exceeded" },
     });
     return;
-  }
-
-  // Balance check
-  if (apiKeyRecord.user_id) {
-    const owner = await getUserById(apiKeyRecord.user_id);
-    if (owner && owner.balance <= 0) {
-      res.status(402).json({
-        error: { message: "Insufficient balance", type: "billing_error", code: "insufficient_balance" },
-      });
-      return;
-    }
   }
 
   const { model: modelId, prompt, ...params } = req.body;
@@ -156,13 +146,6 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   const estimatedCost = await estimateDiscountedAsyncCost(apiKeyRecord.user_id, model, params);
-  if (!(await hasEnoughBalance(apiKeyRecord.user_id, estimatedCost))) {
-    res.status(402).json({
-      error: { message: "Insufficient balance", type: "billing_error", code: "insufficient_balance" },
-    });
-    return;
-  }
-
   const requiresReferenceImage =
     modelId === "wanx-style-repaint" ||
     modelId === "wanx-style-repaint-v1" ||
@@ -212,6 +195,17 @@ router.post("/", async (req: Request, res: Response) => {
   }
   const upstreamApiKey = selected.apiKey;
   const provider = selected.providerId;
+  const billingReservation = estimatedCost > 0
+    ? await reserveBalance(apiKeyRecord.user_id, estimatedCost, `task:${randomUUID()}`, 30 * 24 * 60 * 60)
+    : null;
+  if (estimatedCost > 0 && !billingReservation) {
+    res.status(402).json({
+      error: { message: "Insufficient available balance", type: "billing_error", code: "insufficient_balance" },
+    });
+    return;
+  }
+
+  let keepReservationForPolling = false;
   acquireConcurrency(selected.providerId, modelId);
 
   try {
@@ -223,6 +217,7 @@ router.post("/", async (req: Request, res: Response) => {
       model: modelId,
       provider,
       input: { prompt, ...params },
+      billingReservationId: billingReservation?.id,
     });
 
     // Record rate limit
@@ -247,6 +242,7 @@ router.post("/", async (req: Request, res: Response) => {
     } catch (err: any) {
       recordFailure(selected.providerId, modelId, err.message);
       await failTask(task.id, `Adapter error: ${err.message}`);
+      await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime(), task.billing_reservation_id);
       res.status(500).json({
         error: { message: `Failed to prepare request: ${sanitizeUpstreamError(err)}`, type: "server_error", code: "adapter_error" },
       });
@@ -270,7 +266,7 @@ router.post("/", async (req: Request, res: Response) => {
         const errorMsg = data.message || data.error?.message || data.ErrMsg || `HTTP ${response.status}`;
         recordFailure(selected.providerId, modelId, errorMsg);
         await failTask(task.id, errorMsg);
-        await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
+        await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime(), task.billing_reservation_id);
         res.status(response.ok ? 400 : response.status).json({
           error: { message: errorMsg, type: "upstream_error", code: "upstream_error" },
         });
@@ -290,6 +286,9 @@ router.post("/", async (req: Request, res: Response) => {
           .map((c: any) => c.image || c.url);
 
         if (imageUrls.length > 0) {
+          // Upstream has delivered a billable result. Keep the hold if database
+          // settlement fails so a retry/reconciler can finish it safely.
+          keepReservationForPolling = true;
           const output = { type: "image", image_url: imageUrls[0], images: imageUrls };
           const model = models.find((m) => m.id === modelId);
           const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
@@ -327,9 +326,11 @@ router.post("/", async (req: Request, res: Response) => {
 
       if (upstreamTaskId) {
         await setUpstreamTaskId(task.id, upstreamTaskId);
+        keepReservationForPolling = true;
       } else {
         // Unexpected response format
         await failTask(task.id, "No task_id in upstream response");
+        await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime(), task.billing_reservation_id);
         res.status(500).json({
           error: { message: "No task_id returned from upstream", type: "upstream_error", code: "unexpected_response" },
         });
@@ -348,13 +349,18 @@ router.post("/", async (req: Request, res: Response) => {
 
     } catch (err: any) {
       recordFailure(selected.providerId, modelId, err.message);
-      await failTask(task.id, `Request failed: ${sanitizeUpstreamError(err)}`);
-      await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime());
+      const won = await failTask(task.id, `Request failed: ${sanitizeUpstreamError(err)}`);
+      if (won) {
+        await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime(), task.billing_reservation_id);
+      }
       res.status(500).json({
         error: { message: `Upstream request failed: ${sanitizeUpstreamError(err)}`, type: "server_error", code: "upstream_error" },
       });
     }
   } finally {
+    if (billingReservation && !keepReservationForPolling) {
+      await releaseReservation(billingReservation.id, "task_submission_not_running");
+    }
     releaseConcurrency(selected.providerId, modelId);
   }
 });
@@ -393,6 +399,16 @@ router.get("/:id", async (req: Request, res: Response) => {
 
   // If task is already complete, return cached result
   if (task.status === "succeeded" || task.status === "failed") {
+    if (task.status === "succeeded") {
+      const model = models.find((item) => item.id === task.model);
+      if (model) {
+        try {
+          await ensureAsyncTaskSettlement(task, model);
+        } catch (error) {
+          console.error(`[tasks] settlement repair failed for ${task.id}:`, error);
+        }
+      }
+    }
     res.json({
       id: task.id,
       object: "task",
@@ -466,7 +482,14 @@ router.get("/:id", async (req: Request, res: Response) => {
       if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
     } else if (result.status === "failed") {
       const won = await failTask(task.id, result.error || "Task failed");
-      if (won) await billAsyncError(task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null, task.model, Date.now() - new Date(task.created_at).getTime());
+      if (won) {
+        await billAsyncError(
+          task.api_key_id ? { id: task.api_key_id, user_id: task.user_id } : null,
+          task.model,
+          Date.now() - new Date(task.created_at).getTime(),
+          task.billing_reservation_id
+        );
+      }
     } else {
       await updateTaskStatus(task.id, result.status, result.progress || 0);
     }

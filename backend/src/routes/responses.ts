@@ -13,7 +13,7 @@ import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { consume, hasSufficientBalance } from "../data/billing";
+import { releaseReservation, reserveBalance, settleReservation } from "../data/billing";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
@@ -73,12 +73,15 @@ function extractResponseIdFromStream(fullResponse: string): string | null {
 const router = Router();
 const UPSTREAM_TIMEOUT = 600000;
 
-// 允许透传给上游的内置工具类型白名单（文档所列 + function）。
-// 拒绝未知类型，避免用户注入非预期工具影响上游计费/行为。
-const ALLOWED_RESPONSE_TOOL_TYPES = new Set([
-  "web_search", "web_search_preview", "web_extractor", "code_interpreter",
-  "file_search", "image_search", "web_search_image", "mcp", "function",
-]);
+// Built-in tools can create material non-token upstream charges. Keep the safe
+// local function tool enabled by default and require an explicit production
+// allowlist before forwarding any billable built-in tool.
+const ALLOWED_RESPONSE_TOOL_TYPES = new Set(
+  (process.env.RESPONSE_ALLOWED_TOOLS || "function")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+);
 const MAX_RESPONSE_TOOLS = 32;
 
 function extractToken(req: Request): string | null {
@@ -206,7 +209,9 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // Rate limiting
-  const estimatedTokens = roughTokenCount(req.body.input) + roughTokenCount(req.body.tools);
+  const estimatedInputTokens = Math.max(1, roughTokenCount(req.body.input) + roughTokenCount(req.body.tools));
+  const estimatedOutputTokens = model.maxOutput || 4096;
+  const estimatedTokens = estimatedInputTokens + estimatedOutputTokens;
   if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
     res.status(403).json({
       error: {
@@ -253,8 +258,14 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // Balance check
-  const estimatedCost = (await calculateDiscountedTokenCost(apiKeyRecord.user_id, model, estimatedTokens, model.maxOutput || 4096)).finalAmount;
-  if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedCost)) {
+  const estimatedCost = (await calculateDiscountedTokenCost(
+    apiKeyRecord.user_id,
+    model,
+    estimatedInputTokens,
+    estimatedOutputTokens
+  )).finalAmount;
+  const billingReservation = await reserveBalance(apiKeyRecord.user_id, estimatedCost, `responses:${randomUUID()}`);
+  if (!billingReservation) {
     res.status(402).json({
       error: {
         message: "Insufficient balance. Please recharge your account.",
@@ -275,6 +286,7 @@ router.post("/", async (req: Request, res: Response) => {
   // 预占的 TPM 必须在所有出口恰好归还一次；billAndLog 内 reconcile 后置 true，
   // 上游错误/异常路径由 finally 兜底释放。
   let tokensReconciled = false;
+  let billableResponseReceived = false;
 
   try {
     // Build upstream request — pass through body directly, upstream is DashScope Responses API
@@ -307,6 +319,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
+    billableResponseReceived = true;
 
     if (isStream) {
       // Stream SSE directly to client
@@ -355,7 +368,7 @@ router.post("/", async (req: Request, res: Response) => {
         estimated = true;
       }
       await billAndLog(billableUsage, {
-        upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, estimated,
+        upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated,
         onReconciled: () => { tokensReconciled = true; },
       });
     } else {
@@ -369,7 +382,7 @@ router.post("/", async (req: Request, res: Response) => {
       // Bill based on response usage
       const usage = data?.usage || {};
       await billAndLog(usage, {
-        upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, estimated: false,
+        upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated: false,
         onReconciled: () => { tokensReconciled = true; },
       });
     }
@@ -400,6 +413,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
   } finally {
+    if (!billableResponseReceived) await releaseReservation(billingReservation.id);
     if (!tokensReconciled) {
       try {
         await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedTokens, 0);
@@ -556,11 +570,12 @@ async function billAndLog(
     model: any;
     startTime: number;
     estimatedTokens: number;
+    billingReservationId: string;
     estimated?: boolean;
     onReconciled?: () => void;
   },
 ): Promise<void> {
-  const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, estimated } = ctx;
+  const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId, estimated } = ctx;
   const latencyMs = Date.now() - startTime;
   const inputTokens = usage.input_tokens || 0;
   const outputTokens = usage.output_tokens || 0;
@@ -601,16 +616,13 @@ async function billAndLog(
   await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedTokens, totalTokens);
   ctx.onReconciled?.();
 
-  if (billing.finalAmount > 0) {
-    await consume(
-      apiKeyRecord.user_id,
-      billing.finalAmount,
-      buildApiDescription(modelId, totalTokens, billing.cachedTokens),
-      apiKeyRecord.id,
-      billing.discountRate,
-      billing.discountAmount,
-    );
-  }
+  await settleReservation(
+    billingReservationId,
+    billing.finalAmount,
+    buildApiDescription(modelId, totalTokens, billing.cachedTokens),
+    billing.discountRate,
+    billing.discountAmount,
+  );
 }
 
 export default router;

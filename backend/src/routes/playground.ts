@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
+import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateSession } from "../data/users";
 import { logUsage } from "../data/usage";
-import { consume, hasSufficientBalance } from "../data/billing";
+import { releaseReservation, reserveBalance, settleReservation } from "../data/billing";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
@@ -156,7 +157,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   }
 
   const estimatedChatCost = await estimateChatMaxCost(session.id, model, messages, max_tokens);
-  if (!await hasSufficientBalance(session.id, estimatedChatCost)) {
+  const billingReservation = await reserveBalance(session.id, estimatedChatCost, `playground:${randomUUID()}`);
+  if (!billingReservation) {
     openAiError(res, 402, "账户余额不足，请充值后再调用。", "insufficient_balance", "insufficient_balance");
     return;
   }
@@ -195,6 +197,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   const startTime = Date.now();
   const refId = `playground:${session.id}`;
   recordRequest(upstream.providerId, modelId, refId, 0);
+  let tokensReconciled = false;
+  let billableResponseReceived = false;
 
   try {
     const response = await fetch(`${upstream.baseUrl}/chat/completions`, {
@@ -213,6 +217,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         openAiError(res, response.status, errText || "Upstream API error", "upstream_error", "upstream_error");
         return;
       }
+      billableResponseReceived = true;
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -283,7 +288,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       });
       recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
       await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
-      if (totalCost > 0) await consume(session.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
+      tokensReconciled = true;
+      await settleReservation(billingReservation.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`);
       return;
     }
 
@@ -298,6 +304,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       );
       return;
     }
+    billableResponseReceived = true;
 
     const usage = data.usage || {};
     const playgroundCachedNS = usage.prompt_tokens_details?.cached_tokens || 0;
@@ -321,7 +328,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     });
     recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
     await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
-    if (totalCost > 0) await consume(session.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`, refId);
+    tokensReconciled = true;
+    await settleReservation(billingReservation.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`);
 
     res.setHeader("X-RateLimit-Remaining", rpmCheck.remaining.toString());
     res.json(data);
@@ -338,7 +346,18 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       status: "error",
       latencyMs: Date.now() - startTime,
     });
-    openAiError(res, 500, `Upstream request failed: ${err.message}`, "upstream_error", "server_error");
+    if (res.headersSent) {
+      try { res.end(); } catch { /* connection already closed */ }
+    } else {
+      openAiError(res, 500, `Upstream request failed: ${err.message}`, "upstream_error", "server_error");
+    }
+  } finally {
+    if (!billableResponseReceived) await releaseReservation(billingReservation.id);
+    if (!tokensReconciled) {
+      try {
+        await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, 0);
+      } catch { /* only affects the current 60-second window */ }
+    }
   }
 });
 

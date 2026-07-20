@@ -107,6 +107,12 @@ import { refreshModels, startModelRefreshLoop } from "./data/model-overrides";
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
+app.get("/api/version", (_req, res) => {
+  res.json({
+    sha: process.env.BUILD_SHA || "unknown",
+    builtAt: process.env.BUILD_TIME || "unknown",
+  });
+});
 
 // 404 处理
 app.use(notFoundHandler);
@@ -114,18 +120,24 @@ app.use(notFoundHandler);
 // 统一错误处理
 app.use(errorHandler);
 
-// 进程级兜底：async 路由里未捕获的 promise rejection 在 Node 会导致 worker 崩溃退出
-// （疑似频繁重启根因）。未处理的 rejection 记录但不退出（多为上游/断流的瞬时错误）；
-// 真正的 uncaughtException 记录后退出，交给 PM2 拉起。
+let fatalExitScheduled = false;
+function scheduleFatalExit(): void {
+  if (fatalExitScheduled) return;
+  fatalExitScheduled = true;
+  // Continuing after an unhandled async failure can leave accounting or
+  // in-memory scheduler state inconsistent. PM2 will replace this worker.
+  setTimeout(() => process.exit(1), 100);
+}
+
 process.on("unhandledRejection", (reason) => {
   const message = reason instanceof Error ? reason.stack || reason.message : String(reason);
   console.error(`[Quadrant API] Unhandled promise rejection: ${message}`);
+  scheduleFatalExit();
 });
 
 process.on("uncaughtException", (error) => {
   console.error(`[Quadrant API] Uncaught exception: ${error.stack || error.message}`);
-  // 给日志/连接一点 flush 时间后退出，PM2 会重启该实例
-  setTimeout(() => process.exit(1), 100);
+  scheduleFatalExit();
 });
 
 async function start() {

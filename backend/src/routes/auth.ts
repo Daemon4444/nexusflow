@@ -13,8 +13,11 @@ const LOGIN_MAX_FAILURES = 5;
 const LOGIN_WINDOW_SEC = 15 * 60; // 15 分钟窗口，达到阈值即锁定该窗口剩余时间
 
 function getClientIp(req: Request): string {
-  const xff = req.headers["x-forwarded-for"];
-  if (typeof xff === "string" && xff.length > 0) return xff.split(",")[0].trim();
+  // nginx overwrites X-Real-IP from the connection source. The left-most
+  // X-Forwarded-For value is client-controlled unless every proxy hop is
+  // explicitly trusted, so do not use it for brute-force keys.
+  const realIp = req.headers["x-real-ip"];
+  if (typeof realIp === "string" && realIp.length > 0) return realIp.trim();
   return req.ip || req.socket?.remoteAddress || "unknown";
 }
 

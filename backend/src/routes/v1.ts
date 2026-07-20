@@ -12,7 +12,7 @@ import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { consume, hasSufficientBalance } from "../data/billing";
+import { releaseReservation, reserveBalance, settleReservation } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
@@ -379,13 +379,15 @@ router.post("/images/generations", async (req: Request, res: Response) => {
   }
 
   const estimatedImageCost = (await applyUserModelDiscount(apiKeyRecord.user_id, modelId, (n || 1) * model.promptPrice)).finalAmount;
-  if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedImageCost)) {
+  const imageReservation = await reserveBalance(apiKeyRecord.user_id, estimatedImageCost, `v1-image:${randomUUID()}`);
+  if (!imageReservation) {
     rejectInsufficientBalance(res);
     return;
   }
 
   const startTime = Date.now();
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
+  let imageDelivered = false;
 
   try {
     const adapted = adaptImageRequest(upstreamApiKey, {
@@ -467,6 +469,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     }
 
     const imageCount = imageUrls.length;
+    imageDelivered = true;
     const cost = (await applyUserModelDiscount(apiKeyRecord.user_id, modelId, (n || imageCount || 1) * model.promptPrice)).finalAmount;
     await logUsage({
       region: upstream.region,
@@ -481,14 +484,11 @@ router.post("/images/generations", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
     });
 
-    if (cost > 0) {
-      await consume(
-        apiKeyRecord.user_id,
-        cost,
-        `Image generation: ${modelId} (${imageCount} images)`,
-        apiKeyRecord.id
-      );
-    }
+    await settleReservation(
+      imageReservation.id,
+      cost,
+      `Image generation: ${modelId} (${imageCount} images)`
+    );
 
     res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
     res.json({
@@ -516,6 +516,8 @@ router.post("/images/generations", async (req: Request, res: Response) => {
         code: "upstream_error",
       },
     });
+  } finally {
+    if (!imageDelivered) await releaseReservation(imageReservation.id);
   }
 });
 
@@ -678,7 +680,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   }
 
   const estimatedChatCost = await estimateChatMaxCost(apiKeyRecord.user_id, model, messages, max_tokens);
-  if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedChatCost)) {
+  const chatReservation = await reserveBalance(apiKeyRecord.user_id, estimatedChatCost, `v1-chat:${randomUUID()}`);
+  if (!chatReservation) {
     logToSLS({ apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "rejected", errorReason: "insufficient_balance", clientIp });
     rejectInsufficientBalance(res);
     return;
@@ -732,6 +735,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   // 预占的 TPM（checkTPM 已 INCRBY estimatedChatTokens）必须在所有出口恰好归还一次。
   // 正常路径 reconcile 后置 true；异常/上游错误路径由 finally 兜底释放，避免 60s 内虚占。
   let tokensReconciled = false;
+  let billableResponseReceived = false;
 
   try {
     // Streaming
@@ -758,6 +762,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         });
         return;
       }
+      billableResponseReceived = true;
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -899,16 +904,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, streamTokens.total_tokens || 0);
       tokensReconciled = true;
 
-      if (billing.finalAmount > 0) {
-        await consume(
-          apiKeyRecord.user_id,
-          billing.finalAmount,
-          buildApiDescription(modelId, streamTokens.total_tokens || 0, billing.cachedTokens, true),
-          apiKeyRecord.id,
-          billing.discountRate,
-          billing.discountAmount,
-        );
-      }
+      await settleReservation(
+        chatReservation.id,
+        billing.finalAmount,
+        buildApiDescription(modelId, streamTokens.total_tokens || 0, billing.cachedTokens, true),
+        billing.discountRate,
+        billing.discountAmount,
+      );
       return;
     }
 
@@ -936,6 +938,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         });
         return;
       }
+      billableResponseReceived = true;
 
       let fullResponse = "";
       const reader = response.body as any;
@@ -993,16 +996,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, usage.total_tokens || 0);
       tokensReconciled = true;
 
-      if (billing.finalAmount > 0) {
-        await consume(
-          apiKeyRecord.user_id,
-          billing.finalAmount,
-          buildApiDescription(modelId, usage.total_tokens || 0, billing.cachedTokens),
-          apiKeyRecord.id,
-          billing.discountRate,
-          billing.discountAmount,
-        );
-      }
+      await settleReservation(
+        chatReservation.id,
+        billing.finalAmount,
+        buildApiDescription(modelId, usage.total_tokens || 0, billing.cachedTokens),
+        billing.discountRate,
+        billing.discountAmount,
+      );
 
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
       if (data.usage && typeof data.usage === "object") {
@@ -1041,6 +1041,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       });
       return;
     }
+    billableResponseReceived = true;
 
     // Log usage and billing
     const latencyMs = Date.now() - startTime;
@@ -1076,16 +1077,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     tokensReconciled = true;
 
     // Auto-billing
-    if (billing.finalAmount > 0) {
-      await consume(
-        apiKeyRecord.user_id,
-        billing.finalAmount,
-        buildApiDescription(modelId, usage.total_tokens || 0, billing.cachedTokens),
-        apiKeyRecord.id,
-        billing.discountRate,
-        billing.discountAmount,
-      );
-    }
+    await settleReservation(
+      chatReservation.id,
+      billing.finalAmount,
+      buildApiDescription(modelId, usage.total_tokens || 0, billing.cachedTokens),
+      billing.discountRate,
+      billing.discountAmount,
+    );
 
     // Normalize usage to always include completion_tokens_details
     if (data.usage && typeof data.usage === "object") {
@@ -1131,6 +1129,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       });
     }
   } finally {
+    if (!billableResponseReceived) await releaseReservation(chatReservation.id);
     if (!tokensReconciled) {
       try {
         await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedChatTokens, 0);
@@ -1253,7 +1252,8 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   }
 
   const estimatedEmbeddingCost = await estimateEmbeddingCost(apiKeyRecord.user_id, model, input);
-  if (!await hasSufficientBalance(apiKeyRecord.user_id, estimatedEmbeddingCost)) {
+  const embeddingReservation = await reserveBalance(apiKeyRecord.user_id, estimatedEmbeddingCost, `v1-embedding:${randomUUID()}`);
+  if (!embeddingReservation) {
     rejectInsufficientBalance(res);
     return;
   }
@@ -1265,6 +1265,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   const startTime = Date.now();
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
   let tokensReconciled = false;
+  let billableResponseReceived = false;
 
   try {
     const response = await fetch(`${upstream.baseUrl}/embeddings`, {
@@ -1289,6 +1290,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
       });
       return;
     }
+    billableResponseReceived = true;
 
     // Log usage
     const latencyMs = Date.now() - startTime;
@@ -1311,14 +1313,11 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedEmbeddingTokens, usage.total_tokens || 0);
     tokensReconciled = true;
 
-    if (cost > 0) {
-      await consume(
-        apiKeyRecord.user_id,
-        cost,
-        `Embedding: ${modelId} (${usage.prompt_tokens || 0} tokens)`,
-        apiKeyRecord.id
-      );
-    }
+    await settleReservation(
+      embeddingReservation.id,
+      cost,
+      `Embedding: ${modelId} (${usage.prompt_tokens || 0} tokens)`
+    );
 
     res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
     res.json(data);
@@ -1345,6 +1344,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
       },
     });
   } finally {
+    if (!billableResponseReceived) await releaseReservation(embeddingReservation.id);
     if (!tokensReconciled) {
       try {
         await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedEmbeddingTokens, 0);

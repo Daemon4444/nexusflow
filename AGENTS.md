@@ -17,9 +17,9 @@ NexusFlow 是一个 AI 模型聚合路由平台，提供统一的多协议 API �
 
 | 层级 | 技术 | 版本 |
 |------|------|------|
-| 前端框架 | Next.js (React) | 16.2.4 (React 19) |
+| 前端框架 | Next.js (React) | 16.3.0-preview.6 (React 19) |
 | 前端样式 | Tailwind CSS v4 + 自定义暗色主题 | — |
-| 后端框架 | Express v5 (TypeScript, ts-node) | — |
+| 后端框架 | Express v5 (TypeScript，生产运行编译后的 dist) | — |
 | 数据库 | PostgreSQL 16 (Docker) | — |
 | 缓存/限流 | Redis 7 (Docker) | — |
 | 进程管理 | PM2 | v6 |
@@ -40,7 +40,7 @@ NexusFlow 是一个 AI 模型聚合路由平台，提供统一的多协议 API �
 
 PM2 进程
     ├── quadrant-frontend  (port 19999, Next.js start)
-    └── quadrant-backend   (port 3001, ts-node src/index.ts)
+    └── quadrant-backend   (port 3001, Node.js dist/index.js, cluster ×2)
 
 Docker 容器
     ├── quadrant-postgres  (port 5432, postgres:16-alpine)
@@ -54,7 +54,7 @@ Docker 容器
 | 443 | nginx HTTPS (nexusflow.hk) |
 | 80 | nginx → 301 重定向到 HTTPS |
 | 19999 | Next.js 前端 (PM2) |
-| 3001 | Express 后端 (PM2, ts-node) |
+| 3001 | Express 后端 (PM2 cluster ×2, dist/index.js) |
 | 5432 | PostgreSQL (Docker) |
 | 6379 | Redis (Docker) |
 | 9999 | nginx 内网直通（前端+后端，无 SSL） |
@@ -336,8 +336,10 @@ nexusflow/
 ### 重启服务
 
 ```bash
-# 后端（ts-node 直接运行，改代码后重启即可，无需编译）
-pm2 restart quadrant-backend
+# 后端（生产运行 dist；必须先编译，再滚动 reload）
+cd /root/distiny/nexusflow && npm run build:backend
+BUILD_SHA="$(git rev-parse HEAD)" BUILD_TIME="$(date -u +%FT%TZ)" \
+  pm2 reload ecosystem.config.js --only quadrant-backend --update-env
 
 # 前端（改了源码必须先 build，否则生效的是旧构建）
 cd /root/distiny/nexusflow/frontend && npx next build
@@ -401,7 +403,7 @@ docker exec quadrant-postgres psql -U quadrant -d quadrant \
 
 ## 已知问题和注意事项
 
-1. **后端以 ts-node 运行**：ecosystem.config.js 指向 `dist/index.js`，但实际 PM2 启动命令是 `npx ts-node src/index.ts`；修改 `.ts` 文件后直接 `pm2 restart` 即可，**无需编译**。
+1. **后端生产运行编译产物**：ecosystem.config.js 与实际 PM2 都运行 `backend/dist/index.js`；修改 `.ts` 后必须先 `npm run build:backend`，再滚动 reload，并用 `/api/version` 核对 SHA。
 2. **前端必须 build**：修改源码后必须先 `npx next build` 再重启，否则生效的是旧构建产物。
 3. **API key 明文不可恢复**：`key` 字段存掩码，创建后只能看到一次完整 key；需要测试时创建新 key 并在测试完成后删除。
 4. **管理后台双层鉴权**：nginx 层 HTTP Basic Auth（`/etc/nginx/.htpasswd`）+ 应用层 admin session，两层独立。
