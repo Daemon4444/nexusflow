@@ -1,14 +1,13 @@
-# Nexusflow 项目 Wiki
+# NexusFlow — 项目说明文档
 
-## 项目概览
+## 项目概述
 
-Nexusflow（原名 Quadrant AI Router Platform）是一个统一的 AI 模型聚合路由平台，类似 OpenRouter.ai。提供 OpenAI 兼容接口，将多个上游 AI 服务商（阿里云百炼 DashScope、拍我AI PixVerse、HappyHorse 等）整合为一个统一入口。
+NexusFlow 是一个 AI 模型聚合路由平台，提供统一的多协议 API 接口，将多个上游 AI 服务商整合为一个入口。
 
-- **线上域名**: `https://nexusflow.hk`
-- **GitHub**: `github.com/Daemon4444/nexusflow`
-- **部署服务器**: 阿里云 ECS 8.152.221.32
-- **前端端口**: 19999（Nginx 反代）
-- **后端端口**: 3001
+- **网站**: https://nexusflow.hk
+- **API Base URL**: https://nexusflow.hk/v1
+- **部署服务器**: 阿里云 ECS（内网 172.16.0.141 / 公网 8.152.221.32）
+- **项目根目录**: `/root/distiny/nexusflow`
 
 ---
 
@@ -16,28 +15,52 @@ Nexusflow（原名 Quadrant AI Router Platform）是一个统一的 AI 模型聚
 
 | 层级 | 技术 | 版本 |
 |------|------|------|
-| 前端 | Next.js 16 (App Router) + React 19 + TypeScript | |
-| 样式 | Tailwind CSS v4 + 自定义暗色主题 | |
-| 后端 | Express 5 + TypeScript | |
-| 数据库 | PostgreSQL (`pg` connection pool) | 16 |
-| 缓存 | Redis（可选，不可用时降级内存） | |
-| 进程管理 | PM2 | |
-| Node.js | v20.x / v24.x | |
+| 前端框架 | Next.js (React) | 16.2.4 (React 19) |
+| 前端样式 | Tailwind CSS v4 + 自定义暗色主题 | — |
+| 后端框架 | Express v5 (TypeScript, ts-node) | — |
+| 数据库 | PostgreSQL 16 (Docker) | — |
+| 缓存/限流 | Redis 7 (Docker) | — |
+| 进程管理 | PM2 | v6 |
+| 反向代理 | nginx + Certbot SSL | — |
+| 运行时 | Node.js | v24 |
 
 ---
 
-## 核心功能
+## 部署架构
 
-1. **OpenAI 兼容 API** — `/v1/chat/completions`、`/v1/models`、`/v1/embeddings`、`/v1/images/generations`
-2. **45+ 模型聚合** — Qwen、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse、万相等
-3. **智能路由** — 供应商级路由 + 双通道架构（百炼/官方）
-4. **双层限流** — Provider 级 + Consumer 级 RPM/TPM 控制
-5. **异步任务** — 图片/视频生成任务创建 + 轮询；public API 当前不依赖 webhook 回调
-6. **支付充值** — Alipay + mock，支持 page/qr 三种方式
-7. **管理后台** — `/admin` 管理员入口，渠道管理、工单处理
-8. **用量监控** — 用户侧 + 渠道侧监控，内存滑动窗口
-9. **Playground** — 在线测试，支持文件上传、视频参数动态配置
-10. **密钥加密** — AES-256-GCM 透明加密存储 provider API key
+```
+外网 HTTPS (443)
+    └── nginx (nexusflow.hk)
+            ├── /admin → http://127.0.0.1:19999 (HTTP Basic Auth 保护)
+            ├── /       → http://127.0.0.1:19999 (Next.js 前端)
+            ├── /api/   → http://127.0.0.1:3001  (Express 后端)
+            └── /v1/    → http://127.0.0.1:3001  (OpenAI 兼容 API)
+
+PM2 进程
+    ├── quadrant-frontend  (port 19999, Next.js start)
+    └── quadrant-backend   (port 3001, ts-node src/index.ts)
+
+Docker 容器
+    ├── quadrant-postgres  (port 5432, postgres:16-alpine)
+    └── quadrant-redis     (port 6379, redis:7-alpine)
+```
+
+### 端口占用汇总
+
+| 端口 | 服务 |
+|------|------|
+| 443 | nginx HTTPS (nexusflow.hk) |
+| 80 | nginx → 301 重定向到 HTTPS |
+| 19999 | Next.js 前端 (PM2) |
+| 3001 | Express 后端 (PM2, ts-node) |
+| 5432 | PostgreSQL (Docker) |
+| 6379 | Redis (Docker) |
+| 9999 | nginx 内网直通（前端+后端，无 SSL） |
+| 8080 | nginx → instreet-clone（另一个项目） |
+| 8888 | nginx → 缘分配对等项目 |
+
+### nginx 配置
+`/etc/nginx/conf.d/` — nexusflow.hk server block 含 SSL（Certbot 管理，证书路径 `/etc/letsencrypt/live/nexusflow.hk/`）。`/admin` 路径额外启用 HTTP Basic Auth（`/etc/nginx/.htpasswd`）。
 
 ---
 
@@ -45,668 +68,565 @@ Nexusflow（原名 Quadrant AI Router Platform）是一个统一的 AI 模型聚
 
 ```
 nexusflow/
+├── AGENTS.md                      # 本文档
+├── ecosystem.config.js            # PM2 配置（backend dist/index.js，frontend next start -p 19999）
+├── docker-compose.yml             # Docker 服务（Redis + Postgres）
 ├── backend/
-│   ├── src/
-│   │   ├── index.ts              # Express 入口
-│   │   ├── db/                   # PostgreSQL 初始化 + 迁移
-│   │   ├── data/                 # 数据层（models, providers, apikeys, usage, tasks...）
-│   │   ├── routes/               # API 路由（v1, tasks, billing, provider, admin...）
-│   │   ├── services/             # 业务服务（adapters, rate-limiter, alipay, webhook...）
-│   │   ├── middleware/           # 中间件（auth, admin）
-│   │   └── utils/                # 工具（provider-secrets 加密）
-│   └── data/ai-router.db         # 历史迁移来源，不是当前主库
-├── frontend/
-│   ├── app/
-│   │   ├── (dashboard)/          # Dashboard（playground, models, keys, billing, activity...）
-│   │   ├── admin/                # 管理后台
-│   │   ├── api/                  # API Routes（upload, uploads proxy）
-│   │   └── (landing)/            # Landing 页面
-│   ├── components/               # 共享组件
-│   └── lib/                      # API 工具
-├── docker-compose.yml
-├── ecosystem.config.js           # PM2 配置
-└── start.sh                      # 启停脚本
+│   ├── .env                       # 环境变量（见下节）
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       ├── index.ts               # 入口：Express 应用、路由注册、安全响应头
+│       ├── app.ts                 # Express app 配置
+│       ├── types.ts               # 全局 TypeScript 类型定义
+│       ├── routes/                # 路由处理器（22 个文件）
+│       ├── services/              # 业务逻辑服务（12 个文件）
+│       ├── data/                  # 数据访问层（14 个文件）
+│       ├── middleware/            # Express 中间件（5 个文件）
+│       ├── utils/                 # 工具函数（5 个文件）
+│       └── db/
+│           ├── client.ts          # 统一 DB 客户端（支持 pg / pg-mem）
+│           ├── pg.ts              # PostgreSQL 连接池
+│           ├── memory.ts          # 内存数据库适配器（测试/开发用）
+│           ├── migrate.ts         # SQL 迁移执行器
+│           └── migrations/        # SQL 迁移文件（001~004）
+└── frontend/
+    ├── .env                       # NEXT_PUBLIC_API_URL 等前端环境变量
+    ├── package.json
+    ├── next.config.ts
+    ├── tailwind.config.ts
+    ├── app/                       # Next.js App Router
+    │   ├── (dashboard)/           # 主应用路由组（含 layout、sidebar）
+    │   ├── login/                 # 登录页
+    │   ├── admin/                 # 管理员面板
+    │   └── api/                   # Next.js API Routes（代理/上传）
+    ├── components/                # React 组件（12+ 文件）
+    └── lib/                       # 客户端工具库（models.ts、api.ts、money.ts 等）
 ```
 
 ---
 
-## 核心业务链路
-
-### API 调用链路（`/v1/chat/completions`）
-1. API Key 校验 → 2. 限流检查 → 3. 余额校验 → 4. Provider 选择 → 5. 请求上游 → 6. 记录 usage + 扣费
-
-### 异步任务链路（视频/图片生成）
-创建任务 → 提交上游 → 轮询状态 → 回写结果
-
-### PixVerse 双通道架构
-- **百炼渠道**: 通过阿里云百炼平台调用，adapter=dashscope
-- **官方渠道**: 通过 PixVerse 官方 API 调用，adapter=pixverse
-- 通过 `active_channel` 字段切换，任务轮询时根据 channelAdapter 选择对应 API key
-
-### 支付充值
-支持 mock/page/qr 三种方式，回调验签 + 幂等入账 + 主动查单兜底
-
----
-
-## 模型分类统计（45 个）
-
-| 分类 | 数量 | 代表模型 |
-|------|------|----------|
-| 大语言模型 | 21 | Qwen3 系列、DeepSeek、GLM、Kimi、MiniMax |
-| 推理模型 | 4 | QwQ Plus、DeepSeek R1、Qwen Math Plus |
-| 多模态模型 | 5 | Qwen VL 系列、Qwen Omni |
-| 编程模型 | 2 | Qwen3 Coder Plus/Flash |
-| 专业模型 | 1 | Qwen MT Plus（翻译） |
-| 向量模型 | 1 | Text Embedding V3 |
-| 图像生成 | 1 | 万相 2.6 文生图 |
-| 视频生成 | 11 | PixVerse V6、万相视频、HappyHorse 系列 |
-
-### 免费模型
-- `qwen3-vl-flash`、`qwen3-coder-flash`、`qwen3-8b`、`pixverse-v6`
-
----
-
-## 关键 API 端点
-
-### Public API 协议边界
-
-| 能力 | Public endpoint | 状态 | 说明 |
-| --- | --- | --- | --- |
-| Models | `GET /v1/models` | 可用 | OpenAI 风格模型列表 |
-| Chat | `POST /v1/chat/completions` | 可用 | OpenAI Chat Completions |
-| Messages | `POST /v1/messages` | 可用 | Anthropic Messages 兼容层，不代表托管 Claude 原生模型 |
-| Responses | `POST /v1/responses` | 可用 | OpenAI Responses API，内置工具 web_search/web_extractor/code_interpreter/file_search/image_search/web_search_image/mcp，支持 `previous_response_id` 与 `store=true/false` |
-| Response retrieval | `GET /v1/responses/:id`, `DELETE /v1/responses/:id`, `GET /v1/responses/:id/input_items` | 可用 | 已存储响应的查询、删除与原始 input items 回放 |
-| Embeddings | `POST /v1/embeddings` | 可用 | OpenAI Embeddings |
-| Images | `POST /v1/images/generations` | 可用 | OpenAI Images 风格，当前接万相图像 |
-| Tasks | `POST /v1/tasks`, `GET /v1/tasks/:id` | 可用 | 图像/视频异步任务 |
-| Videos alias | `POST /v1/videos/generations` | 可用 | 兼容用户直觉路径 |
-
-### 认证
-- `POST /api/auth/send-code`、`POST /api/auth/login`、`GET /api/auth/me`
-
-### 密钥/计费/用量
-- `GET/POST /api/keys`、`GET /api/billing/*`、`GET /api/usage/*`
-
-### 内部渠道管理
-- `GET/PUT /api/provider/admin/providers`、`POST /api/provider/admin/models/:id/enable`
-
-### 渠道监控
-- `GET /api/provider-monitor/overview`
-
----
-
-## 环境变量（关键）
+## 环境变量 (`backend/.env`)
 
 | 变量 | 说明 |
 |------|------|
-| `DASHSCOPE_API_KEY` | 阿里云百炼 API Key |
-| `PIXVERSE_API_KEY` | PixVerse 官方 API Key |
-| `ADMIN_EMAILS` / `ADMIN_USER_IDS` | 管理员白名单 |
-| `PROVIDER_SECRET_KEY` | 渠道密钥加密密钥（AES-256-GCM） |
-| `ALIPAY_*` | 支付宝支付配置 |
-| `REDIS_HOST/PORT/PASSWORD` | Redis 配置 |
+| `PORT` | 后端端口，默认 3001 |
+| `NODE_ENV` | production / development |
+| `ADMIN_USER_IDS` | 管理员用户 ID（逗号分隔） |
+| `ADMIN_EMAILS` | 管理员邮箱（逗号分隔） |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | Redis 连接信息 |
+| `DATABASE_URL` / `PG_HOST` / `PG_PORT` / `PG_USER` / `PG_PASSWORD` / `PG_DB` | PostgreSQL 连接信息 |
+| `PUBLIC_BASE_URL` | 公开访问地址（https://nexusflow.hk） |
+| `DASHSCOPE_API_KEY` | 阿里云百炼 DashScope API Key |
+| `PIXVERSE_API_KEY` | PixVerse API Key |
+| `PROVIDER_SECRET_KEY` | AES-256-GCM 加密 Provider API key 用的对称密钥 |
+| `ALIPAY_APP_ID` / `ALIPAY_PRIVATE_KEY` / `ALIPAY_PUBLIC_KEY` / `ALIPAY_GATEWAY` / `ALIPAY_NOTIFY_URL` / `ALIPAY_RETURN_URL` | 支付宝支付配置 |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | SMTP 邮件发送配置 |
 
 ---
 
-## 部署运维
+## 数据库结构 (PostgreSQL)
 
-### 构建
-```bash
-cd backend && npm run build
-cd frontend && npm run build -- --webpack
-```
+数据库名：`quadrant`，用户：`quadrant`，密码：见 `.env`
 
-### PM2 启动
-```bash
-pm2 start ecosystem.config.js
-pm2 save
-# 进程名: quadrant-backend
-```
+### 主要表
 
-### 健康检查
-```bash
-curl http://127.0.0.1:3001/api/health
-curl -I http://127.0.0.1:19999
-```
+| 表名 | 说明 |
+|------|------|
+| `users` | 用户（email、nickname、balance NUMERIC、password_hash scrypt） |
+| `sessions` | 登录会话（token=`sess-xxx`，7 天过期） |
+| `api_keys` | API 密钥（`key` 字段存掩码，`key_hash` 存 SHA-256，用于验证鉴权） |
+| `transactions` | 充值/消费流水（NUMERIC(18,6) 金融精度） |
+| `payment_orders` | 支付宝订单（created/pending/paid/failed/closed/expired） |
+| `usage_logs` | 调用日志（model、tokens、cost、latency_ms、ttft_ms、tpot_ms） |
+| `user_rate_limits` | 用户自定义 QPM/TPM 限制（per user per model） |
+| `rate_limit_requests` | 用户申请提升限流的工单 |
+| `providers` | 上游 provider 配置（API key AES-256-GCM 加密存储） |
+| `provider_models` | Provider 可用模型映射 |
+| `provider_capacity` | Provider 容量/并发配置 |
+| `provider_channel_configs` | Provider 多通道配置（百炼/官方等） |
+| `provider_health` | Provider 健康状态记录 |
+| `provider_cost_versions` | Provider 成本版本管理 |
+| `route_change_audits` | 路由策略变更审计日志 |
+| `provider_sla_snapshots` | Provider SLA 快照 |
+| `customer_route_policies` | 用户级路由策略（weighted/priority/lowest_cost/highest_sla/pinned） |
+| `async_tasks` | 异步任务追踪（图片/视频生成） |
+| `user_model_discounts` | 用户模型折扣率（per user per model） |
+| `tickets` | 工单系统（open/in_progress/resolved/rejected） |
+| `webhooks` / `webhook_deliveries` | Webhook 配置和投递记录 |
 
----
+### 安全存储方式
 
-## 统一运维补充
-
-本节合并自原 `WIKI.md (Unified)`，用于补齐当前 Wiki 中较少展开的运行细节。
-
-### 数据模型
-
-当前主链路使用 PostgreSQL，历史 SQLite 文件只作为迁移来源或旧环境参考。核心表按业务域划分：
-
-| 领域 | 表 | 说明 |
-| --- | --- | --- |
-| 用户与认证 | `users`, `sessions` | 邮箱/手机用户、会话 token、余额、密码哈希 |
-| API Key | `api_keys` | 用户密钥、哈希、掩码展示、调用次数、限流 |
-| 计费与用量 | `transactions`, `usage_logs`, `payment_orders` | 充值/消费流水、模型调用日志、第三方支付订单 |
-| Provider | `providers`, `provider_models`, `provider_capacity` | 供应商、动态模型、容量与优先级配置 |
-| 多渠道 | `provider_channel_configs`, `provider_health` | PixVerse 等多渠道路由、健康状态 |
-| 异步任务 | `async_tasks` | 图片/视频任务、上游 task id、轮询结果、成本 |
-| 协作与审批 | `tickets`, `rate_limit_requests`, `user_rate_limits` | 工单、限流申请、用户级限额 |
-| Webhook | `webhooks`, `webhook_deliveries` | 内部预留的 webhook 配置与投递记录 |
-
-金额字段线上应使用固定精度数值语义，避免浮点累计误差；迁移文件 `002_money_numeric.sql` 用于把余额和成本类字段收敛为 `NUMERIC(18, 6)`。
-
-### 鉴权与权限模型
-
-- Public API 使用 Nexusflow API Key：`Authorization: Bearer sk-air-...`。
-- 用户后台使用 session token：`Authorization: Bearer sess-...`，由验证码或密码登录获得。
-- 管理员权限由 `ADMIN_EMAILS` / `ADMIN_USER_IDS` 白名单决定，前端入口是 `/admin`。
-- 用户只能查看自己的 API Key、账单、用量、工单、限流申请。
-- Provider 管理、渠道切换、全局用量和用户列表必须走管理员校验。
-
-### 状态语义
-
-Provider 和模型使用统一状态语义：
-
-| 状态 | 语义 |
-| --- | --- |
-| `draft` | 草稿/待配置，不进入 public 路由 |
-| `enabled` | 已启用，可参与模型目录或路由 |
-| `disabled` | 停用，不应被新请求选中 |
-
-异步任务状态：
-
-| 状态 | 语义 |
-| --- | --- |
-| `pending` | 本地任务已创建，等待提交或轮询 |
-| `running` | 上游任务已提交，等待完成 |
-| `succeeded` | 已完成并写入输出 |
-| `failed` | 失败并写入错误信息 |
-
-### PixVerse 双通道
-
-PixVerse 当前支持百炼渠道和官方渠道。核心配置存放在 `provider_channel_configs`：
-
-```json
-{
-  "active_channel": "official",
-  "channels": {
-    "bailian": {
-      "name": "百炼渠道",
-      "adapter": "dashscope",
-      "api_base_url": "https://dashscope.aliyuncs.com/api/v1"
-    },
-    "official": {
-      "name": "拍我官方",
-      "adapter": "pixverse",
-      "api_base_url": "https://app-api.pixverseai.cn/openapi/v2"
-    }
-  }
-}
-```
-
-运行时通过 `getPixVerseRuntimeChannel()` / `getPixVerseTaskChannel()` 选择上游适配器和 API Key。切换渠道后需要同时复测：
-
-1. `/api/models` 模型目录是否去重。
-2. `/v1/tasks` 创建任务是否使用正确上游。
-3. `/v1/tasks/:id` 轮询是否匹配对应渠道。
-4. 余额不足、账号欠费、上游 4xx/5xx 是否被转换为清晰错误。
-
-### 密钥安全
-
-- Provider API Key 通过 `PROVIDER_SECRET_KEY` 做 AES-256-GCM 透明加密。
-- 如果未配置 `PROVIDER_SECRET_KEY`，开发环境可降级，但生产环境必须配置稳定密钥。
-- 用户 API Key 只在创建时返回明文，数据库中应保存掩码和 `key_hash`。
-- 文档、README、测试报告不得记录真实用户 API Key、SMTP 授权码、支付宝私钥或上游密钥。
-
-### 监控体系
-
-用户侧监控主要基于 `usage_logs`：
-
-- `/api/usage/overview`
-- `/api/usage/daily`
-- `/api/usage/by-model`
-- `/api/usage/recent`
-- `/api/usage/monitor/*`
-
-渠道侧监控主要基于 provider 统计和健康记录：
-
-- `/api/provider-monitor/overview`
-- `/api/provider-monitor/hourly`
-- `/api/provider-monitor/by-model`
-- `/api/provider-monitor/recent`
-
-重点关注：
-
-1. 成功率、错误数、平均延迟。
-2. TTFT / TPOT 是否异常。
-3. Provider 容量是否触顶。
-4. Redis 不可用时限流是否正确降级到内存。
-
-### 前端信息架构
-
-| 区域 | 路径 | 说明 |
-| --- | --- | --- |
-| 公共站点 | `/`, `/models`, `/pricing`, `/docs/*` | 展示模型、价格、文档和接入说明 |
-| 用户后台 | `/billing`, `/keys`, `/activity`, `/monitor`, `/rate-limits`, `/tickets`, `/settings` | 用户自助管理 |
-| Playground | `/playground` | 文本、图片、视频模型调试 |
-| 管理后台 | `/admin` | Provider、模型、用户、工单、限流、用量管理 |
-
-### 本地测试模式
-
-本地无 PostgreSQL / Docker 时可使用内存数据库模式：
-
-```bash
-USE_PG_MEM=true \
-LOCAL_TEST_SESSION_TOKEN=sess-local-test \
-LOCAL_TEST_API_KEY=sk-air-local-test-000000000000000000000000 \
-npm run dev:backend
-```
-
-该模式会自动创建测试用户、API Key、余额、交易、用量、工单和限流申请，只用于本地深测，不应在生产环境启用。
+| 数据 | 存储方式 |
+|------|----------|
+| 用户密码 | scrypt 哈希，格式 `salt:hash` |
+| API key | 创建时返回明文 `sk-air-xxx`，DB 存掩码（中间替换为 `••••••••`）+ SHA-256 hash |
+| Provider API key | AES-256-GCM 加密，需 `PROVIDER_SECRET_KEY` 环境变量解密 |
 
 ---
 
-## 与 Qoder CLI 的完整协作历史
+## API 架构
 
-### 对话记录来源
+### 对外 API（需 `Authorization: Bearer sk-air-xxx`）
 
-Qoder CLI 的对话记录存储在以下位置：
-- **会话文件**: `/root/.qoder/projects/-root/*.jsonl` — 完整的对话历史（JSONL 格式）
-- **运行日志**: `/root/.qoder/logs/runs/*/qodercli.log` — 遥测数据（token计数、工具调用等）
-- **文件历史**: `/root/.qoder/file-history/*/` — 代码快照
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/v1/models` | 模型列表（OpenAI 格式） |
+| POST | `/v1/chat/completions` | 对话补全（支持 stream、tools、thinking、search） |
+| POST | `/v1/messages` | Anthropic Messages 兼容接口 |
+| POST | `/v1/responses` | OpenAI Responses API（含 web_search/web_extractor/code_interpreter/file_search/image_search/web_search_image/mcp 内置工具，支持 `previous_response_id` 多轮、`store=true/false` 响应存储） |
+| GET | `/v1/responses/:id` | 查询已存储响应 |
+| DELETE | `/v1/responses/:id` | 删除已存储响应 |
+| GET | `/v1/responses/:id/input_items` | 查询响应原始 input items |
+| POST | `/v1/embeddings` | 文本向量嵌入 |
+| POST | `/v1/images/generations` | 图像生成 |
+| POST | `/v1/tasks` | 提交异步任务（图片/视频） |
+| GET | `/v1/tasks/:id` | 查询异步任务状态 |
+| GET | `/v1/tasks` | 列出用户任务 |
 
-以下对话内容直接从 Qoder CLI 会话文件中提取，按时间顺序排列。
+### 前端内部 API（需登录 session `sess-xxx`）
 
----
+| 路径前缀 | 说明 |
+|----------|------|
+| `/api/auth/*` | 注册/登录/登出/改密（邮箱验证码 + 密码双模式） |
+| `/api/keys/*` | API 密钥增删查 |
+| `/api/models/*` | 模型列表/详情（支持 category/provider/search/sort 筛选） |
+| `/api/usage/*` | 使用统计、日志、性能监控 |
+| `/api/billing/*` | 账单、充值、支付宝支付/回调 |
+| `/api/playground/*` | Playground 对话（session 鉴权，无需 API key） |
+| `/api/rate-limits/*` | 限流配置查询和提升申请 |
+| `/api/tickets/*` | 工单提交/查看 |
+| `/api/upload` | 文件上传（multer + sharp 自动压缩大图） |
+| `/api/image/*` / `/api/video/*` | Playground 图片/视频生成 |
 
-### 阶段一：项目初始化与 DNS 配置（2026-03）
+### 管理员 API（需 admin session）
 
-**Session: 0d4b9208 (3.1MB, 19 条用户消息)**
-
-1. **DNS 解析配置**: 用户提供了阿里云 DNS 解析截图，要求将域名解析到 router 服务（公网 IP: 47.93.204.160）
-2. **首页美化需求**: "我想你给这个项目做的更美观一些，首页做一些色块在背后流动的那种感觉 你能做到吗"
-3. **去掉色块方案**: "算了 还是别用色块了 去掉吧 然后两个问题：模型列表是空的 log in之后没有返回的"
-4. **登录页改进**: "log页面按理说应该 点击返回一下的按钮吧"
-5. **前端重新设计**: "我想设计一个新的页面前端 你先单独几个页面 html我看看 然后我来选择，你可以使用skills 来设计美观的前端 我觉得现在比较小气 没有突出重点"
-6. **选择设计方案**: "http://47.93.204.160:8899/design-2.html这个还不错 按照这个来吧 对接起来所有逻辑"
-7. **首页模型滚动效果**: "搞成一个滚动的列表，再往下滚动 有所有的模型，然后形状是一个内敛的状态，有点类似于一个圆柱的侧面的那种感觉"
-8. **圆柱效果增强**: "是这个感觉 但是可以半径更大 显示的模型更多，然后可以侧着的那种感觉 圆柱的背面也能被看到"
-9. **项目 Code Review**: "ai-router-platform 这个项目 你/review一下看看 有什么问题 你先指出"
-10. **验证码与密码**: "未注册的邮箱将自动创建账户 / 未配置 SMTP 时，验证码固定为 8888 这个去掉 然后进去了 个人账户应该设置密码吧需要 设计整个逻辑"
-11. **个人信息系统**: "我想你设计一个更全面的个人信息系统，比如充值支付板块 比如监控看板 ttft tpot的监控 比如个人信息 改密码等等"
-
-### 阶段二：HappyHorse 模型接入（2026-04）
-
-**Session: 66b52aeb (2.6MB, 20 条用户消息)**
-
-1. **HappyHorse 接入**: "你可以看看wiki，然后我有一个新的模型 happyHorse，你可以往上搜些公开材料 然后接入进去 先有名字 后续模型接入api我再提供，然后在首页做个标志 一只快乐小马 可以做个动态的过程"
-2. **502 错误排查**: "502 Bad Gateway nginx/1.20.1 怎么打不开了"
-3. **小马动画迭代**: "这是一个视频模型 然后继续迭代吧 你反复迭代 然后再次review 进行测试 确保美观好看 我去吃饭了"
-4. **简笔画小马**: "这个马太丑了 做一个简笔画 从左到右 画出一匹奔跑的 有张力的 飞驰的骏马 然后标注上happyhorses"
-5. **Dashboard 位置纠正**: "你理解错了 nexusflow Models Playground Docs Pricing Dashboard 是放在首页 最上面这一栏 dashscope的左边"
-6. **去掉 DashScope 标识**: "放错了 dashboard 旁边 dashcope这个去掉吧"
-
-### 阶段三：前端全面重构与多协议支持（2026-04-27 ~ 04-28）
-
-**Session: 8595c3cf (5.3MB, 16 条用户消息)**
-
-1. **Router 项目优化**: "再次优化router整个项目，review他，让他变得更美观精致 但是风格不要改 你要扣细节扣逻辑，比如标题首页的表现力，组件的逻辑"
-2. **导航与 Logo 重构**: "1:Models Playground Docs Pricing 首页是这个，模型列表 API 文档 在线体验点进去就变成这个了 2:重新设计一下logo 参考一下fronted skills 需要更美观夺目 然后具有设计感"
-3. **首页重构反馈**: "这个更丑了 你要重构排版，logo就是nexusflow，可以那种淡入淡出的光影效果，然后第二个问题是：字体有点low，可以利用scrapling抓取一下https://openrouter.ai/"
-4. **首页再次重构**: "nexusflow / 50+ 模型已接入 · 全部可用 / One API to rule all models / 首页太丑了 很不协调 使用frontend-design再次重构 强调平台意识"
-5. **Pricing 页面修复**: "Models Playground Docs Pricing pricing这个有问题 点击过去了就没有了 要保证点击过去还有这个界面 所有你要新增一个页面"
-6. **个人信息系统细化**: "我想你设计一个更全面的个人信息系统，比如充值支付板块 比如监控看板 ttft tpot的监控 比如个人信息 改密码等等"
-7. **UI 细节调整**: "Online Keys Billing Activity li liuyang0 ¥500.00 Log out API Keys API 密钥管理 看着没变化呀"
-8. **去掉金额显示**: "li liuyang0 ¥500.00 这看着有点丑 可以去掉金额"
-9. **多语言切换**: "可以对整个网页进行中英文改造，在右上角进行中文 英文 日文的切换，模型本身名字不用改，其他需要改。然后对整个网页进行测试，测试这些功能是否可用，然后个人看板这一块也可以写入到wiki里"
-10. **Activity 页面错误**: "Application error: a client-side exception has occurred while loading nexusflow.hk 点活动就变成这样了"
-11. **速率限制与工单**: "应该还要做一些速率限制吧 就是比如qpm tpm 限制 这些模型默认的qpm tpm限流 按照1000 1000000 这个应该在看板能看到 然后能够提工单申请 你也需要构建一下工单系统"
-
-### 阶段四：多协议接入与烟雾测试（2026-04-28）
-
-**Session: 09bf7e8e (3.9MB, 24 条用户消息)**
-
-1. **Codex 网络问题**: "stream disconnected before completion: Transport error: network error: error decoding response body 用codex经常出现这个"
-2. **文档与协议构建**: "现在内容比较匮乏 尤其是文档和协议的构建，https://tokendance.space/ 你可以爬到这个网站吗"
-3. **参考 tokendance 改造**: "除了这些 模型也可以参考他 基本都一样 只是我的都是通过百炼接入的，甚至模型的价格和上下文长度这些内容，你也可以抄袭他...可以对我的进行大刀阔斧的改造 我睡觉去了 你保持不停的迭代吧"
-4. **协议策略**: "以及路由的策略 我只用接入openai协议和claude gemini暂时不用 完成整个项目后进行冒烟测试 review"
-5. **重命名为 Nexusflow**: "帮我把rouer这个项目改个名字 就叫nexusflow 就是文件夹的名字 然后上传到github上"
-6. **GitHub SSH 配置**: 用户在终端配置 SSH key 上传到 GitHub (`Daemon4444/nexusflow`)
-7. **阶段总结需求**: "给我总结一下我需要继续迭代的 第六阶段：模型接入 & 测试 / 第七阶段：多协议支持"
-8. **Playwright 测试**: 使用 webapp-testing skill 进行全站自动化测试
-
-### 阶段五：PixVerse 双通道架构（2026-04-27 ~ 04-28）
-
-**Session: 5acc1510 (4.6MB)** — 从上下文摘要提取：
-1. **PixVerse 模型集成**: 接入 PixVerse 视频生成模型（v6, v5.5, v5, v4, v3.5）
-2. **双通道架构**: 实现百炼渠道 + 官方渠道的双通道
-3. **HappyHorse 全量接入**: 集成 4 种 HappyHorse 视频模型（t2v, i2v, r2v, video-edit）
-
-### 阶段六：管理后台与 Playgroud 优化（2026-04-28 ~ 04-29）
-
-**Session: caa584ca (3.9MB, 6 条用户消息)** — 从上下文摘要提取：
-1. **管理员权限修复**: 修复 `/admin` 页面 "管理员权限不足" 问题
-2. **Admin UI 改进**: 替换浏览器 prompt() 为更好的交互
-3. **Playground 文件上传**: 实现文件上传功能，支持 HappyHorse 和 PixVerse V6
-4. **全站图片模型测试**: 测试所有 image 和 video 模型
-5. **视频生成调试**: 修复 Playground 视频生成卡在 "processing" 状态
-
-### 阶段七：代码质量与最终交付（2026-04-28 ~ 04-29）
-
-1. **Simplify Skill 审查**: 使用 Qoder CLI 的 simplify skill 进行代码质量审查
-2. **Playwright 自动化测试**: 18/19 项测试通过（94%）
-3. **部署验证**: 每次重大更新后执行部署验证清单
+| 路径前缀 | 说明 |
+|----------|------|
+| `/api/admin/users/*` | 用户列表、详情、余额调整、账单导出 CSV |
+| `/api/admin/providers/*` | Provider/通道/路由策略/成本管理 |
+| `/api/admin/rate-limits/*` | 审批用户限流申请 |
+| `/api/admin/user-model-discounts/*` | 管理用户折扣率 |
+| `/api/monitor/*` | Provider 健康/饱和度/告警监控 |
 
 ---
 
-## 协作中积累的关键经验
+## 路由处理器一览 (`backend/src/routes/`)
 
-### 代码编辑
-1. Edit 工具修改时需要精确的 `old_string` 匹配，否则会产生重复代码
-2. 编辑前先用 Read 工具确认最新内容
-3. 编辑后必须用 Read 验证结果
-
-### 数据库操作
-1. 当前主库是 PostgreSQL，数据访问主链路走 `backend/src/db/client.ts` 的 `pg.Pool`
-2. `backend/data/ai-router.db` 只作为历史迁移来源或旧环境遗留文件，不是当前线上主库
-3. 修改模型配置后需要同步更新数据库和代码
-4. 金额字段已通过 `002_money_numeric.sql` 从 `REAL` 迁移到 `NUMERIC(18,6)`：`users.balance`、`transactions.amount`、`transactions.balance_after`、`usage_logs.cost`
-
-### 部署运维
-1. PM2 进程名是 `quadrant-backend`，不是 `nexusflow-backend`
-2. 每次代码更新后必须 `npm run build` + `pm2 restart`
-3. 前端改动需要重新 build，后端 ts-node 可直接重启
-
-### 上游服务问题
-1. 百炼渠道曾因阿里云账号欠费不可用
-2. 官方渠道 PixVerse 余额不足
-3. 旧版本 PixVerse 模型（v3.5/v4/v5）在当前百炼 Key 下不可用
-
----
-
-## 当前已知限制
-
-1. `provider-monitor` 基于内存窗口，重启后窗口计数重置
-2. 管理后台存在 Nginx Basic Auth + 应用层管理员鉴权双层控制
-3. 渠道监控趋势数据是轻量近实时视图，非完整历史分析
-4. 未配置 `PROVIDER_SECRET_KEY` 时渠道 key 走兼容模式（不强制加密）
-5. 百炼渠道和官方渠道余额可能不足
+| 文件 | 挂载路径 | 职责 |
+|------|----------|------|
+| `v1.ts` | `/v1` | 核心 OpenAI 兼容 API，含限流/计费/流式/tools/thinking |
+| `messages.ts` | `/v1/messages` | Anthropic Messages 格式转换（**必须在 v1 之前挂载**） |
+| `responses.ts` | `/v1/responses` | OpenAI Responses API 实现（内置工具 web_search/web_extractor/code_interpreter/file_search/image_search/web_search_image/mcp、`previous_response_id` 多轮串联、响应存储 `store=true`、`GET /:id`、`DELETE /:id`、`GET /:id/input_items`） |
+| `auth.ts` | `/api/auth` | 邮箱验证码登录、密码登录、session 管理 |
+| `keys.ts` | `/api/keys` | API key CRUD（`sk-air-` 前缀，SHA-256 哈希） |
+| `models.ts` | `/api/models` | 模型列表/详情，支持 category/provider/search/sort 筛选 |
+| `usage.ts` | `/api/usage` | 使用统计/日志/性能监控 |
+| `billing.ts` | `/api/billing` | 充值、流水、支付宝支付/回调 |
+| `admin.ts` | `/api/admin` | 用户管理、余额调整、账单 CSV 导出 |
+| `provider.ts` | `/api/admin` | Provider/通道/路由策略/成本管理（最复杂路由） |
+| `provider-monitor.ts` | `/api/monitor` | Provider 健康/饱和度/告警监控 |
+| `ratelimits.ts` | `/api/rate-limits` | 限流配置查询、申请/审批 |
+| `discounts.ts` | `/api/admin` | 用户模型折扣管理 |
+| `tickets.ts` | `/api/tickets` | 工单系统 |
+| `playground.ts` | `/api/playground` | Playground 对话（session 鉴权，无需 API key） |
+| `tasks.ts` | `/v1/tasks` | 异步任务提交/查询 |
+| `image.ts` | `/api/image` | Playground 图片生成 |
+| `video.ts` | `/api/video` | Playground 视频生成 |
+| `upload.ts` | `/api/upload` | 文件上传（multer + sharp 压缩） |
+| `pixverse.ts` | `/api/pixverse` | PixVerse 独立路由（历史遗留） |
+| `chat.ts` | — | **已废弃**，返回 410 Gone |
 
 ---
 
-## 后续迭代建议
+## 服务层一览 (`backend/src/services/`)
 
-1. 监控指标落库（按分钟聚合），补 1h/24h 趋势图与告警历史
-2. 告警联动通知通道（邮件/飞书/webhook）
-3. 渠道监控与工单自动关联
-4. 统一后台认证入口
-5. 百炼渠道和 PixVerse 官方渠道充值
+| 文件 | 职责 |
+|------|------|
+| `providers.ts` | 静态 provider 注册表，模型 ID 前缀 → provider 映射，API key 解析 |
+| `rate-limiter.ts` | 两层限流：Redis 滑动窗口（QPM/TPM per user per model）+ 内存 RPM per API key |
+| `adapters.ts` | 上游 API 格式适配（文本/图片/视频/嵌入/HappyHorse/PixVerse），含 DashScope 异步任务轮询 |
+| `alipay.ts` | 支付宝集成（电脑网站支付、当面付扫码、RSA2 签名验证、订单查询） |
+| `async-billing.ts` | 异步任务计费（图片/视频按分辨率/时长定价） |
+| `redis.ts` | Redis 服务（滑动窗口 Lua 脚本、语义缓存、session 缓存、任务状态缓存） |
+| `scheduler.ts` | 后台健康检查调度，Provider 加权评分选择（健康/策略/成本/可用性） |
+| `email.ts` | Nodemailer SMTP 邮件（验证码 6 位，5 分钟有效，60 秒发送间隔，HTML 模板） |
+| `webhook.ts` | Webhook 投递（HMAC-SHA256 签名，最多 3 次重试） |
+| `fallback.ts` | 上游健康监测和自动故障转移 |
+| `sms.ts` | 阿里云 Dysmsapi 短信（测试模式固定验证码 `8888`） |
+| `pixverse-channel.ts` | PixVerse 通道解析（百炼通道 vs 官方通道） |
 
 ---
 
+## 工具层一览 (`backend/src/utils/`)
+
+| 文件 | 职责 |
+|------|------|
+| `model-capabilities.ts` | 模型能力矩阵（thinking 模式分类、tools/vision/search 支持、参数白名单） |
+| `chat-request.ts` | 构建上游请求体，按模型能力白名单过滤入参 |
+| `model-protocols.ts` | 返回每个模型支持的协议列表（OpenAI Chat / Anthropic Messages / Responses API / Embeddings / Image / Tasks） |
+| `provider-secrets.ts` | AES-256-GCM 加密/解密 Provider API key |
+
 ---
 
-## 2026-05 最近项目状态与踩坑记录
+## 限流机制
 
-### 最近工作概览
+两层限流在 `v1.ts` 中顺序执行：
 
-最近几轮主要围绕首页模型圆环、模型价格/目录、阿里云百炼原始资料沉淀、API 文档协议、真实线上测试和路由兼容性修复。
+1. **API key RPM**（内存，per API key）：默认 60 次/分钟，来自 `api_keys.rate_limit` 字段
+2. **用户 QPM/TPM**（Redis 滑动窗口，per user per model）：
+   - 优先级：model-specific → user default → 系统默认（QPM=60，TPM=100,000）
+   - 配置来源：`user_rate_limits` 表
+   - 管理员可在 Admin 面板直接配置；用户可提交申请（需审批）
 
-内部模型源文档：
+**Token 计费时机**：响应结束后异步 reconcile（`reconcileTokensAsync`），不阻塞响应流。
 
-- `internal/model-sources/aliyun-bailian-2026-05-05.md`：保存用户提供的阿里云百炼模型、价格和阶梯定价资料，供后续补模型和迭代，不直接在前端展示给用户。
+---
 
-当前主分支最新关键提交：
+## 模型能力 (`backend/src/utils/model-capabilities.ts`)
 
-| Commit | 说明 |
-| --- | --- |
-| `6e81714` | Fix live review routing and catalog gaps |
-| `9e1d3c5` | Fix review issues in docs and task auth |
-| `ca4e5f7` | Boost rear carousel depth |
+### 思考模式分类
 
-以上提交已推送到 `origin/main`。
+| 分类 | 说明 | 包含模型 |
+|------|------|----------|
+| `ALWAYS_THINKING` | 始终返回 reasoning_content，不能关闭 | qwq-plus, deepseek-r1 |
+| `MIXED_THINKING_DEFAULT_ON` | 默认开启思考，可通过 `enable_thinking=false` 关闭 | qwen3.7-max, qwen3.6-max-preview, qwen3.6-plus, qwen3.6-flash, qwen3.5-plus, qwen3.5-flash, deepseek-v4-pro, deepseek-v4-flash, glm-5.1, glm-5, glm-4.7, kimi/kimi-k3 |
+| `MIXED_THINKING_DEFAULT_OFF` | 默认不思考，可通过 `enable_thinking=true` 开启 | qwen3-max, qwen3-plus, qwen3-flash, qwen3-turbo, qwen3-32b, qwen3-8b, deepseek-v3.2, kimi-k2.6, kimi-k2.5 |
 
-### 首页与视觉调整记录
+### 特殊参数透传范围
 
-首页 hero 已从原先偏啰嗦的英文文案压缩为更短的产品表达：
+| 参数 | 透传条件 |
+|------|----------|
+| `enable_thinking` | thinking_mode = mixed 或 always |
+| `thinking_budget` | ID 前缀为 `qwen3.7-` / `qwen3.6-` / `qwen3.5-` / `qwen3-vl-` / `qwen3-` 且有思考模式 |
+| `preserve_thinking` | qwen3.7-max, qwen3.6-max-preview, qwen3.6-plus, kimi-k2.6, kimi/kimi-k3 |
+| `enable_search` / `search_options` | 通义千问文本类模型（非 VL / math / mt 系列） |
+| `seed`, `top_k`, `logprobs`, `repetition_penalty` | 通义千问文本类模型 |
+| `parallel_tool_calls` | 通义千问 + DeepSeek + GLM + Anthropic |
 
-- `One API for leading text, vision, image and video models.`
+---
 
-首页关键数字从默认 QPM 一类不强的指标，改为更有产品说服力的指标：
+## 前端页面说明
 
-- `45+ model options`
-- `¥0.15/s video from`
-- `VBench #1 HappyHorse video`
+| 路径 | 页面 | 功能 |
+|------|------|------|
+| `/` | 首页 | Hero 展示、特性介绍、支持供应商、API 示例代码 |
+| `/login` | 登录 | 邮箱验证码 + 密码双模式登录 |
+| `/dashboard` | 仪表盘 | 余额/用量概览、推荐模型、快速操作 |
+| `/models` | 模型列表 | 按 category/provider/tags 筛选、排序、卡片展示 |
+| `/models/:id` | 模型详情 | 参数、分级定价、协议、API 调用示例 |
+| `/playground` | Playground | 选模型对话，支持流式/thinking/图片生成，session 鉴权无需 API key |
+| `/keys` | 密钥管理 | 创建/删除 `sk-air-xxx` 密钥（创建时返回唯一一次明文） |
+| `/billing` | 账单 | 余额、流水、充值（支付宝电脑支付/扫码） |
+| `/activity` | 使用记录 | 调用日志、token 统计、费用明细 |
+| `/rate-limits` | 限流 | 查看当前限制，提交提升申请（需管理员审批） |
+| `/tickets` | 工单 | 提交/查看支持工单 |
+| `/settings` | 设置 | 个人信息修改、修改密码 |
+| `/monitor` | 监控 | Provider 健康/延迟/饱和度实时监控 |
+| `/pricing` | 定价 | 所有模型分级定价表 |
+| `/admin` | 管理后台 | 用户管理、余额调整、限流审批、Provider 配置（nginx HTTP Basic Auth 额外保护） |
+| `/docs/*` | 文档中心 | API 文档、模型介绍、快速开始、参数矩阵、各 provider API 参考 |
 
-模型圆环曾多次迭代。最终方向：
+---
 
-- 仍保持单轨圆环，不使用三条轨道，避免视觉太乱。
-- 前景卡片数量要少，约 3 张可见，不要密集。
-- 卡片之间要有明显间隔。
-- 背面卡片需要存在感，不能太淡；保留“弧背后也有卡片，只是隐去”的感觉。
-- 圆环整体略向右移动，避免压住主文案。
+## 日常操作
 
-踩坑：
-
-- 卡片太多会显得廉价和拥挤。
-- 背面透明度太低时用户会认为“背后没有了”。
-- 阴影太弱会导致圆环缺少空间感。
-
-### 模型价格与目录修复
-
-用户曾提供阿里云百炼文档大段价格内容，但该文档并不等同于 nexusflow 线上展示价格，不能直接全文搬运。实际应以 nexusflow 自己要售卖/展示的价格体系为准。
-
-重点价格确认：
-
-- `glm-5.1` 线上真实 `/api/models` 当前字段为：
-  - `promptPrice: 6`
-  - `completionPrice: 24`
-- 之前用户贴过一版 GLM 文档表中 `glm-5.1` 是 `¥2.5 / ¥10`，但线上真实测试和项目当前口径已经改为 `¥6 / ¥24`。
-
-已经修复/调整：
-
-- 删除“更多模型/other”这类错误文档入口。
-- GLM 价格修正。
-- Qwen/DeepSeek/视频模型等文档和模型目录做过一轮价格一致性修复。
-- `qwen3.6-flash` 已在本地代码 `backend/src/data/models.ts` 中加入，价格 `¥1.2 / ¥7.2`，上下文 `1M`。
-- `text-embedding-v4` 已加入模型目录，价格 `¥0.5 / 百万输入 token`。
-- 文档和首页默认向量模型已从 `text-embedding-v3` 统一改为 `text-embedding-v4`。
-
-注意：
-
-- 线上 `/api/models` 曾仍返回 45 个模型，说明线上未部署最新 main 时会看不到 `qwen3.6-flash` 和 `text-embedding-v4`。
-- 如果部署后仍缺模型，优先查 `backend/src/routes/models.ts` 中静态模型和数据库动态模型合并逻辑，以及数据库是否覆盖了静态模型字段。
-
-### 文档和协议
-
-项目当前支持三种主要兼容协议：
-
-| 协议 | 路径 | 状态 |
-| --- | --- | --- |
-| OpenAI Chat Completions | `/v1/chat/completions` | 已真实调用通过 |
-| Anthropic Messages | `/v1/messages` | 已真实调用通过 |
-| OpenAI Responses API | `/v1/responses` | 已真实调用通过（支持 web_search/web_extractor/code_interpreter/file_search/image_search/web_search_image/mcp 内置工具、`previous_response_id` 多轮、`store=true/false` 响应存储） |
-
-已修复文档路由：
-
-- `/docs/api/openai` 现在 redirect 到 `/docs/api/chat`。
-- `/docs/api/anthropic` 现在 redirect 到 `/docs/api/claude`。
-- `/docs/api/claude` 实际是 Anthropic Messages 兼容协议文档，不代表托管 Claude 原生模型。
-- `/docs/multi-protocol` 已包含 OpenAI Chat / Anthropic Messages / Responses API 三协议说明。
-
-踩坑：
-
-- 用户会直觉访问 `/docs/api/openai` 和 `/docs/api/anthropic`，即使导航里真实链接是 `/docs/api/chat` 和 `/docs/api/claude`，也应该提供别名路由。
-- 文档里写“Claude”容易被误解成平台已接 Claude 模型。当前更准确的说法是“Anthropic Messages 兼容层”。
-
-### 真实线上测试结果
-
-线上测试域名：
-
-- `https://nexusflow.hk`
-
-真实验证码登录曾成功，用户余额当时约 `3.999949`。测试时创建过临时 API Key，并完成三次真实付费调用。
-
-真实付费调用结果：
-
-| 协议 | 路径 | 模型 | 结果 |
-| --- | --- | --- | --- |
-| OpenAI | `/v1/chat/completions` | `qwen3.5-flash` | 200 |
-| Anthropic | `/v1/messages` | `qwen3.5-flash` | 200 |
-| Responses | `/v1/responses` | `qwen3.5-flash` | 200 |
-
-账单结果：
-
-- 调用数从 17 增加到 20。
-- 余额减少约 `0.000895`。
-- 三次真实调用的扣费链路是通的。
-
-2026-05-05 部署后又补充验证：
-
-| 能力 | 路径 | 模型 | 结果 |
-| --- | --- | --- | --- |
-| Models | `/v1/models` | - | 200 |
-| Chat | `/v1/chat/completions` | `qwen3.5-flash` | 200 |
-| Anthropic Messages | `/v1/messages` | `qwen3.5-flash` | 200 |
-| Responses API | `/v1/responses` | `qwen3.5-flash` | 200 |
-| Embeddings | `/v1/embeddings` | `text-embedding-v4` | 200 |
-| Images | `/v1/images/generations` | `wan2.6-t2i` | 200，真实返回图片 URL |
-| Video Task | `/v1/tasks` | `wan2.6-t2v` | 202，轮询后 `succeeded`，真实返回 mp4 URL |
-| Docs | `/docs/api`, `/docs/multi-protocol`, `/docs/api/qwen` | - | 200 |
-
-图片/视频真实测试参数：
-
-- 图片：`wan2.6-t2i`，`1024x1024`，生成 1 张。
-- 视频：`wan2.6-t2v`，`1280*720`，3 秒，任务成功。
-- 文档和 wiki 中只保留 `$API_KEY` 占位符，不记录真实密钥。
-
-注意：
-
-- 不要把用户密码、验证码、API Key 写入文档或日志。
-- 测试脚本输出 API Key 时必须 mask。
-- 真实测试创建的临时 API Key 需要登录后清理。如果测试进程中断，可能需要重新验证码登录后到 `/api/keys` 删除。
-
-### 线上测试发现的问题与修复状态
-
-| 问题 | 状态 | 处理 |
-| --- | --- | --- |
-| `/dashboard` 404 | 已修复 | 新增页面并 redirect 到 `/playground` |
-| `/docs/api/openai` 404 | 已修复 | redirect 到 `/docs/api/chat` |
-| `/docs/api/anthropic` 404 | 已修复 | redirect 到 `/docs/api/claude` |
-| `/api/models` 缺 `qwen3.6-flash` | 本地已修复 | 需要部署最新 main 验证 |
-| `/api/models` 缺 `text-embedding-v4` | 已修复 | 新增静态模型 |
-| `/v1/videos/generations` 404 | 已修复 | 新增 `/v1/videos` 挂载并复用 videoRouter |
-| `GET /v1/tasks/:id` 无 key 返回 404 | 本地已修复 | `9e1d3c5` 已加鉴权，线上需部署 |
-| 支付未配置时错误不清晰 | 已修复 | `/api/billing/recharge` 返回 `503 payment_not_configured` |
-| 支付宝配置缺失 | 运维配置问题 | 需要配置 `ALIPAY_*` |
-| `/api/billing/transactions` 一次登录态请求长时间不返回 | 待复测 | 可能是线上 DB 查询/连接抖动，需要登录态单独测 |
-
-### 需要部署后复测的清单
-
-部署最新 `main` 后建议马上跑：
+### 重启服务
 
 ```bash
-curl -I https://nexusflow.hk/dashboard
-curl -I https://nexusflow.hk/docs/api/openai
-curl -I https://nexusflow.hk/docs/api/anthropic
-curl -s https://nexusflow.hk/api/models | jq '.data[] | select(.id=="qwen3.6-flash" or .id=="text-embedding-v4")'
+# 后端（ts-node 直接运行，改代码后重启即可，无需编译）
+pm2 restart quadrant-backend
+
+# 前端（改了源码必须先 build，否则生效的是旧构建）
+cd /root/distiny/nexusflow/frontend && npx next build
+pm2 restart quadrant-frontend
 ```
 
-API 鉴权复测：
+### 查看日志
 
 ```bash
-curl -s https://nexusflow.hk/v1/tasks/fake-task-id
+pm2 logs quadrant-backend --lines 50 --nostream
+pm2 logs quadrant-frontend --lines 50 --nostream
 ```
 
-期望未带 Key 返回 401，而不是 404。
-
-视频兼容路径复测：
+### 数据库连接
 
 ```bash
-curl -s -X POST https://nexusflow.hk/v1/videos/generations \
-  -H "Content-Type: application/json" \
-  -d '{"model":"happyhorse-1.0-t2v","prompt":"cat"}'
+docker exec -it quadrant-postgres psql -U quadrant -d quadrant
 ```
 
-未带 Key 期望返回 401。
+### 添加新模型（完整流程）
 
-支付未配置复测（需要登录 token）：
+1. `backend/src/data/models.ts` — 在数组合适位置加模型定义（数组顺序 = 页面默认展示顺序）
+2. `backend/src/utils/model-capabilities.ts` — 配置 thinking 分类、thinking_budget 前缀、preserve_thinking、search 等能力
+3. `frontend/lib/models.ts` — 在 `getRecommendedModels` 和 `pickDefaultPlaygroundModel` 的 preferredIds 中加入
+4. 更新 `frontend/app/(dashboard)/docs/` 相关文档页（models 列表、api 参考、parameters 矩阵）
+5. `pm2 restart quadrant-backend`
+6. `cd frontend && npx next build && pm2 restart quadrant-frontend`
+
+### 重置用户密码
 
 ```bash
-curl -s -X POST https://nexusflow.hk/api/billing/recharge \
-  -H "Authorization: Bearer $SESSION_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"amount":1,"method":"page"}'
+# 生成 scrypt hash 后更新（见 backend/src/data/users.ts 的 hashPassword 函数）
+# 或直接用后台管理面板操作
+docker exec quadrant-postgres psql -U quadrant -d quadrant \
+  -c "UPDATE users SET password_hash = '...' WHERE email = 'user@example.com';"
 ```
-
-如果支付宝未配置，期望返回：
-
-- HTTP 503
-- `code: "payment_not_configured"`
-- `data.missing` 包含缺失的 `ALIPAY_*`
-
-### 本地验证记录
-
-最近一次修复后已经通过：
-
-```bash
-npm run build:backend
-npm run build:frontend
-git diff --check
-```
-
-本地后端黑盒如果跑不起来，优先检查：
-
-- 当前机器是否有本地 PostgreSQL 服务。
-- `PG_HOST/PG_PORT/PG_USER/PG_PASSWORD/PG_DATABASE` 是否与 `docker-compose.yml` 一致。
-- 启动 `backend/dist/index.js` 时连接 `127.0.0.1:5432` 失败通常是本机 DB 环境问题，不是 TypeScript 构建问题。
-
-### 重要踩坑
-
-1. **不要只看文档源代码判断线上**
-   - 很多问题是“线上未部署最新 main”，本地已修但线上仍旧。
-   - 真实测试必须直接打 `https://nexusflow.hk`。
-
-2. **API 路径不要凭直觉猜**
-   - API Key 管理真实路径是 `/api/keys`，不是 `/api/api-keys`。
-   - 验证码登录真实路径是 `/api/auth/login`，不是 `/api/auth/login-code`。
-   - 发送验证码路径是 `/api/auth/send-code`。
-
-3. **验证码会被消费**
-   - 用错登录路径不会消费，但成功登录后验证码不能复用。
-   - 测试中断后如果 session token 在脚本内存里丢失，需要重新发验证码。
-
-4. **真实调用会扣费**
-   - 即使 `max_tokens` 很小，Qwen 思考模式可能返回较长 `reasoning_content`。
-   - `qwen3.5-flash` 真实测试中虽然用户要求 `Reply only OK`，返回仍包含较长 reasoning，导致输出 token 偏高。
-   - 后续可考虑对默认 `enable_thinking` 策略做更明确控制，或在文档中提醒。
-
-5. **支付接口不是 mock**
-   - 线上 `mock` 充值不可用是正确行为。
-   - 支付宝未配置时不能让用户以为能充值，应明确返回 `payment_not_configured`。
-
-6. **视频模型路径要兼容用户预期**
-   - 文档主要推荐异步任务 `/v1/tasks` 和专用视频接口。
-   - 但用户/开发者会自然尝试 `/v1/videos/generations`，所以已补别名。
-
-7. **模型目录和文档必须同步**
-   - 文档有 `text-embedding-v4`，模型目录没有，会影响用户信任。
-   - 首页展示、文档示例、模型目录、价格页应尽量引用同一模型 ID。
-
-### 下一步建议
-
-1. 服务器部署最新 `main`，重启前后端。
-2. 登录后删除之前真实测试创建的临时 API Key。
-3. 复测 `/api/billing/transactions` 是否还会卡住。
-4. 配置支付宝生产或沙箱参数，完成真实充值闭环。
-5. 对 `qwen3.5-flash` 默认思考模式做策略选择：
-   - 简单任务默认关闭思考，降低 token 和扣费；
-   - 或在 Playground/文档中暴露 `enable_thinking`。
-6. 用 Playwright 或浏览器自动化补一次登录态 UI 测试：
-   - 登录
-   - Keys 创建/删除
-   - Billing 充值按钮
-   - Playground 三协议/模型调用
-   - Docs 关键路径
 
 ---
 
-*最后更新: 2026-05-05*
+## 模型列表（静态数据，截至 2026-05-22）
+
+定义在 `backend/src/data/models.ts`，共约 50 个模型：
+
+**大语言模型（通义千问）**：qwen3.7-max, qwen3-max, qwen3.6-max-preview, qwen3.6-plus, qwen3.6-flash, qwen3.5-plus, qwen3.5-flash, qwen-plus, qwen-turbo, qwen-long, qwen-flash, qwen3-235b-a22b, qwen3-32b
+
+**推理模型**：qwq-plus, qvq-max, deepseek-r1
+
+**多模态（视觉）**：qwen-vl-max, qwen-vl-plus, qwen3-vl-plus, qwen3-vl-flash, qwen3-omni-flash
+
+**编程模型**：qwen3-coder-plus, qwen3-coder-flash
+
+**大语言模型（其他厂商）**：deepseek-v4-pro, deepseek-v4-flash, deepseek-v3.2, deepseek-v3, glm-5.1, glm-5, glm-4.7, kimi/kimi-k3, kimi-k2.6, kimi-k2.5, MiniMax-M2.5, MiniMax-M2.1, claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5
+
+**嵌入**：text-embedding-v4
+
+**图像生成**：wan2.6-t2i, qwen-image-max
+
+**视频生成**：wan2.6-t2v, wan2.6-i2v, wan2.6-r2v, pixverse-v6, happyhorse-1.0-t2v, happyhorse-1.0-i2v, happyhorse-1.0-r2v, happyhorse-1.0-video-edit
+
+---
+
+## 已知问题和注意事项
+
+1. **后端以 ts-node 运行**：ecosystem.config.js 指向 `dist/index.js`，但实际 PM2 启动命令是 `npx ts-node src/index.ts`；修改 `.ts` 文件后直接 `pm2 restart` 即可，**无需编译**。
+2. **前端必须 build**：修改源码后必须先 `npx next build` 再重启，否则生效的是旧构建产物。
+3. **API key 明文不可恢复**：`key` 字段存掩码，创建后只能看到一次完整 key；需要测试时创建新 key 并在测试完成后删除。
+4. **管理后台双层鉴权**：nginx 层 HTTP Basic Auth（`/etc/nginx/.htpasswd`）+ 应用层 admin session，两层独立。
+5. **支付宝支付**：需配置 `ALIPAY_*` 环境变量；`isMockPaymentAllowed()` 在 dev 环境允许 mock 支付绕过真实签名。
+6. **Provider API key 加密**：存入 DB 前用 AES-256-GCM 加密，需 `PROVIDER_SECRET_KEY` 才能解密，丢失该密钥则无法读取 Provider 配置。
+7. **短信验证**：需配置阿里云 SMS；`NODE_ENV != production` 时验证码固定为 `8888`。
+8. **SSL 证书**：Certbot 管理，到期前会自动续期；证书路径 `/etc/letsencrypt/live/nexusflow.hk/`。
+9. **CORS**：后端只允许 `localhost:3000` 和 `nexusflow.hk`，从其他域直接调 `/api/*` 会被拒。
+
+---
+
+## 最近更新（2026-05-24 ~ 2026-05-28）
+
+### 1. 统一 Provider 路由调度
+
+**变更**：所有模型（包括 PixVerse 视频生成）统一走 `scheduler.ts` 的 `selectProvider()` 调度。
+
+- 后台 `provider_capacity` 表中的"启用/停用、优先级、权重"对所有模型真正生效
+- 支持自动 fallback：高优先级 provider 不可用时自动切换到次优
+- 健康检查、并发追踪与 provider 评分机制全部启用
+
+**影响文件**：`backend/src/routes/tasks.ts`, `backend/src/routes/video.ts`, `backend/src/services/pixverse-channel.ts`
+
+### 2. 参数完整透传
+
+全面审计并修复了所有模型的参数透传：
+
+**视频/图片模型新增透传参数**：
+- PixVerse 官方：`style`, `camera_movement`, `water_mark`, `audio`
+- DashScope wan2.6-t2v：`seed`, `watermark`, `audio`, `shot_type`, `audio_url`
+- DashScope wan2.6-i2v：正确使用 `resolution`(720P/1080P) 而非 `size`
+- 图像生成：`seed`, `image_url`
+
+**文本模型参数白名单扩展**：
+- GLM：`top_k`, `seed`, `repetition_penalty`
+- DeepSeek：`enable_search`, `thinking_budget`, `repetition_penalty`(v3.1/v3.2)
+- MiniMax：`enable_search`
+
+**影响文件**：`backend/src/services/adapters.ts`, `backend/src/utils/model-capabilities.ts`, `backend/src/routes/image.ts`
+
+### 3. 折扣系统（通配符匹配）
+
+支持三层优先级的折扣匹配：
+
+```
+精确匹配 > 前缀通配 > 全局通配
+
+示例：
+  * → 0.9（全局九折）
+  qwen* → 0.75（Qwen 系列 75 折）
+  qwen3.7-max → 0.5（精确匹配五折）
+```
+
+- 管理员在 Admin 面板 → 用户 → 模型折扣中配置
+- `model_id` 支持精确值、`前缀*` 通配、`*` 全局
+- 账单页交易记录显示折扣角标（~~原价~~ 折后价 + X折标签）
+
+**影响文件**：`backend/src/data/user-discounts.ts`, `backend/src/routes/billing.ts`, `frontend/app/(dashboard)/billing/page.tsx`
+
+### 4. 上下文缓存（Context Cache）
+
+**显式缓存**：在 `messages[].content[]` 中添加 `cache_control: {type: "ephemeral"}` 标记（需 ≥1024 tokens）。
+**隐式缓存**：自动生效，无需参数。
+
+功能支持：
+- API 响应返回 `usage.prompt_tokens_details.cached_tokens` 和 `cache_creation_input_tokens`
+- `usage_logs` 表记录 `cached_tokens` 和 `cache_creation_tokens`
+- Activity 页面显示蓝色「缓存命中」和橙色「创建缓存」角标
+- Overview 统计区显示「缓存命中」总 token 数
+- 新建 `/docs/api/cache` 文档页，包含模型支持矩阵和计费说明
+
+**支持显式缓存的模型**：qwen3.7-max, qwen3.6系列, qwen3.5系列, qwen3-coder系列, qwen3-vl系列, deepseek-v4系列, deepseek-v3.2, glm-5.1, kimi/kimi-k3, kimi-k2.6, kimi-k2.5, MiniMax-M2.5
+
+**影响文件**：`backend/src/data/usage.ts`, `backend/src/routes/v1.ts`, `frontend/app/(dashboard)/activity/page.tsx`, `frontend/app/(dashboard)/docs/api/cache/page.tsx`
+
+### 5. Admin 按模型视图
+
+渠道控制台新增「按模型」视图切换：
+- 列出所有模型及其背后的 provider 路由
+- 支持搜索和分类筛选
+- 每个模型直接编辑路由（优先级/权重/启停）
+
+**影响文件**：`frontend/app/admin/page.tsx`
+
+### 6. 限流配置可搜索
+
+后台为用户配置模型限流时，model_id 输入框改为可搜索的 combobox 下拉（输入关键词过滤匹配）。
+
+### 7. 前端布局修复
+
+- 侧边栏用户信息固定在底部，不再随内容滚动
+- 移除 dashboard 内的 Footer（只属于营销页）
+- 使用记录页面改为全宽布局
+
+### 8. 时区修正
+
+`usage_logs` 查询时间统一转换为北京时间（`AT TIME ZONE 'Asia/Shanghai'`）。
+
+---
+
+## 当前用户概况（截至 2026-05-28）
+
+| 用户 | 累计充值 | 当前余额 | 折扣配置 |
+|------|---------|---------|---------|
+| TokenDance | ¥5,000 | ~¥9,995 | qwen* 75折, deepseek*/glm*/kimi* 9折, qwen3.7-max 5折 |
+| 24728436 | ¥1.21 | ~¥4.97 | 同 TokenDance |
+| 其他 | 测试账号 | — | 无 |
+
+**TokenDance 限流配置**：QPM=20,000 / TPM=20,000,000
+
+---
+
+## Provider 配置（截至 2026-05-28）
+
+| Provider ID | 名称 | API Base URL | 状态 |
+|-------------|------|-------------|------|
+| dashscope | 阿里云百炼 | https://dashscope.aliyuncs.com/compatible-mode/v1 | enabled |
+| pixverse | PixVerse | https://app-api.pixverse.ai/openapi/v2 | enabled |
+
+**pixverse-v6 路由**：
+- pixverse（官方）：priority=20, weight=100 → 默认走这条
+- dashscope（百炼）：priority=10, weight=100 → fallback
+
+---
+
+## Git 分支
+
+- `main` — 生产分支，所有部署从这里出
+- `codex/nexusflow-developer-conversion` — 开发分支
+
+**远程仓库**：`git@github.com:Daemon4444/nexusflow.git`
+
+---
+
+## SLS 日志服务（2026-05-29 接入）
+
+### 配置
+
+| 配置项 | 值 |
+|--------|---|
+| Provider | 阿里云日志服务 (SLS) |
+| Region | cn-beijing |
+| Project | nexusflow |
+| Logstore | nexusflow |
+| AccessKey ID | 见 backend/.env `SLS_ACCESS_KEY_ID` |
+| 写入方式 | @alicloud/log SDK protobuf |
+| 缓冲机制 | 内存 buffer，3 秒或 50 条自动 flush |
+
+### 记录范围
+
+**所有经过 `logUsage` 的请求**自动推送到 SLS，覆盖：
+
+| 路径 | 类型 |
+|------|------|
+| `/v1/chat/completions` | stream + non-stream + error |
+| `/v1/messages` (Anthropic) | stream + non-stream |
+| `/v1/embeddings` | 向量嵌入 |
+| `/v1/images/generations` | 图像生成 |
+| `/api/playground` | Playground 对话 |
+| `/v1/tasks` | 异步任务（视频/图片） |
+
+### 日志字段
+
+| 字段 | 说明 |
+|------|------|
+| `userId` | 用户 ID |
+| `apiKeyId` | API Key ID |
+| `model` | 模型名 |
+| `promptTokens` | 输入 token 数 |
+| `completionTokens` | 输出 token 数 |
+| `totalTokens` | 总 token 数 |
+| `cost` | 费用（折后） |
+| `status` | success / error |
+| `latencyMs` | 延迟（毫秒） |
+| `cachedTokens` | 缓存命中 token 数 |
+| `cacheCreationTokens` | 缓存创建 token 数 |
+| `request` | 完整请求体（JSON）含 messages |
+| `response` | 完整回复内容 |
+
+### 查询示例
+
+```bash
+# 在服务器上查询最近 5 分钟日志
+cd /root/distiny/nexusflow && node -e "
+const ALY = require('./node_modules/@alicloud/log');
+const client = new ALY({
+  accessKeyId: 'REDACTED_ALIYUN_AK_ID',
+  accessKeySecret: 'REDACTED',
+  region: 'cn-beijing',
+});
+const now = new Date();
+const from = new Date(now.getTime() - 300000);
+client.getLogs('nexusflow', 'nexusflow', from, now, { query: '*', line: 10 }).then(r => {
+  (Array.isArray(r) ? r : []).forEach(log => console.log(log.model, log.status, log.request?.slice(0,100)));
+});
+"
+```
+
+### 注意事项
+
+- SLS 写入后约 **1-2 分钟**才能查询到（索引延迟）
+- stream 模式下 `response` 字段记录最后 3000 字符的 SSE 原始数据
+- `logToSLS` 是异步非阻塞的，不影响 API 响应速度
+- SLS Logstore TTL 为 30 天，超过自动清理
+
+---
+
+## 运维增强（2026-05-28~29）
+
+### 后端多实例
+
+后端现在以 PM2 fork 模式运行 2 个实例（Linux SO_REUSEPORT 内核负载均衡）：
+```bash
+pm2 status
+# quadrant-backend (id 7) - fork - online
+# quadrant-backend (id 8) - fork - online
+
+# 扩容到 4 实例
+pm2 scale quadrant-backend 4
+```
+
+### 上游超时
+
+所有协议的上游超时统一设为 **10 分钟**（600000ms），避免长推理请求被截断：
+- `/v1/chat/completions` (v1.ts)
+- `/v1/messages` (messages.ts)
+- `/api/playground` (playground.ts)
+- `/v1/responses` (responses.ts)
+
+**远程仓库**：`git@github.com:Daemon4444/nexusflow.git`
