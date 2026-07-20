@@ -16,13 +16,14 @@ import fs from "fs";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { BillingReservation, releaseReservation, reserveBalance, settleReservation } from "../data/billing";
+import { BillingReservation, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
 import { applyUserModelDiscount } from "../data/user-discounts";
 import { isModelAllowed } from "../data/model-access";
 import { checkConsumerLimitsAsync, checkRPM, checkTPM, recordRequest } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { findProvider, getResolvedProviderApiKey } from "../services/providers";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
+import { sendBillingReservationFailure } from "../utils/billing-response";
 
 const router = Router();
 
@@ -157,19 +158,22 @@ router.post("/speech", async (req: Request, res: Response) => {
     }
     const upstreamApiKey = getResolvedProviderApiKey(provider);
     if (!upstreamApiKey) {
-      res.status(500).json({
-        error: { message: "Provider API key not configured.", type: "server_error", code: "provider_key_missing" },
+      res.status(503).json({
+        error: { message: "Provider is not configured.", type: "server_error", code: "provider_not_configured" },
       });
       return;
     }
 
-    billingReservation = await reserveBalance(caller.user_id, discountedCost, `audio-tts:${randomUUID()}`);
-    if (!billingReservation) {
-      res.status(402).json({
-        error: { message: "Insufficient balance.", type: "invalid_request_error", code: "insufficient_balance" },
-      });
+    const billingReservationResult = await reserveBalanceWithReason(
+      caller.user_id,
+      discountedCost,
+      `audio-tts:${randomUUID()}`
+    );
+    if (!billingReservationResult.reservation) {
+      sendBillingReservationFailure(res, billingReservationResult.reason);
       return;
     }
+    billingReservation = billingReservationResult.reservation;
 
     // 7. Build DashScope TTS request
     const dashScopeBody: Record<string, any> = {
@@ -394,20 +398,23 @@ router.post("/transcriptions", audioUpload.single("file"), async (req: Request, 
     const upstreamApiKey = getResolvedProviderApiKey(provider);
     if (!upstreamApiKey) {
       cleanupUploadedFile(req.file);
-      res.status(500).json({
-        error: { message: "Provider API key not configured.", type: "server_error", code: "provider_key_missing" },
+      res.status(503).json({
+        error: { message: "Provider is not configured.", type: "server_error", code: "provider_not_configured" },
       });
       return;
     }
 
-    billingReservation = await reserveBalance(caller.user_id, discountedCost, `audio-asr:${randomUUID()}`);
-    if (!billingReservation) {
+    const billingReservationResult = await reserveBalanceWithReason(
+      caller.user_id,
+      discountedCost,
+      `audio-asr:${randomUUID()}`
+    );
+    if (!billingReservationResult.reservation) {
       cleanupUploadedFile(req.file);
-      res.status(402).json({
-        error: { message: "Insufficient balance.", type: "invalid_request_error", code: "insufficient_balance" },
-      });
+      sendBillingReservationFailure(res, billingReservationResult.reason);
       return;
     }
+    billingReservation = billingReservationResult.reservation;
 
     // 6. Build DashScope ASR request
     const dashScopeBody = {

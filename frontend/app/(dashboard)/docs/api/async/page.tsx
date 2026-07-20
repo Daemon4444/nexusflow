@@ -18,7 +18,7 @@ const poll = `curl https://nexusflow.hk/v1/tasks/task_xxx \\
 const params = [
   { name: "model", required: "必填", desc: "图像或视频模型 ID，如 seedance-2.0（旗舰视频，火山方舟）、wan2.6-t2i、wan2.6-i2v、pixverse-v6、happyhorse-1.0-t2v。" },
   { name: "prompt", required: "必填", desc: "生成提示词。视频建议描述主体、动作、镜头、场景和光线。" },
-  { name: "size", required: "可选", desc: "图像或视频尺寸，如 1024x1024、1280x720。" },
+  { name: "size", required: "可选", desc: "图像尺寸可用 1024x1024；Wan 视频精确尺寸使用 1280*720（兼容传入 1280x720）。" },
   { name: "duration", required: "视频可选", desc: "视频时长，按模型能力选择 5、8、10、15 等值。" },
   { name: "img_url", required: "图生视频可选", desc: "参考图 URL，用于 i2v/r2v 类型任务。" },
   { name: "negative_prompt", required: "可选", desc: "不希望出现的元素、风格或动作。" },

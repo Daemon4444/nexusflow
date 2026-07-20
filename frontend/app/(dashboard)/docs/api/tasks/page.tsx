@@ -25,8 +25,8 @@ const requestParams: Record<TabKey, { name: string; type: string; required: bool
   video: [
     { name: "model", type: "string", required: true, desc: "模型 ID，例如 seedance-2.0（旗舰视频，多模态参考/4K HDR/有声）、happyhorse-1.0-t2v。Seedance 专属参数详见 /docs/api/seedance，完整列表见模型文档。" },
     { name: "prompt", type: "string", required: true, desc: "文本提示词，描述期望生成的视频内容。支持中英文。" },
-    { name: "resolution", type: "string", required: false, desc: "分辨率档位：720P（默认）或 1080P。影响计费。" },
-    { name: "ratio", type: "string", required: false, desc: "宽高比，如 16:9（默认）、9:16、1:1、4:3、3:4。" },
+    { name: "resolution", type: "string", required: false, desc: "Wan 视频分辨率档位：720P（默认）或 1080P。服务端会转换为供应商要求的精确尺寸。" },
+    { name: "ratio", type: "string", required: false, desc: "Wan 文生视频宽高比：16:9（默认）、9:16 或 1:1。也可直接传 size；1280x720 会兼容规范化为 1280*720。" },
     { name: "duration", type: "integer", required: false, desc: "视频时长（秒），不同模型取值范围不同，默认 5。" },
     { name: "img_url", type: "string", required: false, desc: "首帧参考图 URL（图生视频模型必填）。" },
     { name: "watermark", type: "boolean", required: false, desc: "是否添加水印，默认 true。" },

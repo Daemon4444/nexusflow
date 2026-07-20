@@ -63,6 +63,26 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ): void {
+  // express.json() reports malformed JSON as a SyntaxError with
+  // `type=entity.parse.failed`. Treat client syntax errors as a stable 400
+  // instead of logging and surfacing them as an internal server failure.
+  if (
+    err instanceof SyntaxError
+    && (
+      (err as SyntaxError & { type?: string }).type === "entity.parse.failed"
+      || (err as SyntaxError & { status?: number }).status === 400
+    )
+  ) {
+    res.status(400).json({
+      error: {
+        message: "Malformed JSON request body.",
+        type: "invalid_request_error",
+        code: "invalid_json",
+      },
+    });
+    return;
+  }
+
   // 如果是 ApiError，使用统一格式
   if (err instanceof ApiError) {
     res.status(err.status).json({

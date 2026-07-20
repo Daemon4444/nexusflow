@@ -669,8 +669,8 @@ async function smokePlaygroundVideo(model: AIModel): Promise<Omit<SmokeResult, "
     body: JSON.stringify({
       model: model.id,
       prompt: "a paper airplane flying in a blue sky",
-      duration: 2,
-      size: "1280x720",
+      duration: 5,
+      size: "1280*720",
     }),
   });
 
@@ -809,8 +809,8 @@ async function main(): Promise<void> {
       smokeVideoTask(t2vModel, {
         model: t2vModel.id,
         prompt: "a paper airplane flying across a blue sky",
-        duration: 2,
-        size: "1280x720",
+        duration: 5,
+        size: "1280*720",
       })));
 
     const i2vModel = pickModel(["wan2.6-i2v-flash", "wan2.6-i2v"], videos);
@@ -818,9 +818,9 @@ async function main(): Promise<void> {
       smokeVideoTask(i2vModel, {
         model: i2vModel.id,
         prompt: "make the image gently pan and add subtle motion",
-        duration: 2,
+        duration: 5,
         img_url: referenceImageUrl,
-        size: "1280x720",
+        size: "1280*720",
       })));
 
     results.push(await runTest(`playground-chat-${firstChat.id}`, () => smokePlaygroundChat(firstChat)));
@@ -855,8 +855,8 @@ async function main(): Promise<void> {
       const body: Record<string, unknown> = {
         model: model.id,
         prompt: "a paper airplane flying across a blue sky",
-        duration: 2,
-        size: "1280x720",
+        duration: 5,
+        size: "1280*720",
       };
       if (model.id.includes("-i2v") || model.id.includes("-r2v")) {
         body.img_url = referenceImageUrl;

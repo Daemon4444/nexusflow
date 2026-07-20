@@ -8,9 +8,21 @@ import { NexusflowLogo } from "@/components/QuadrantLogo";
 
 type LoginMode = "code" | "password" | "username";
 
+function safeReturnTo(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/dashboard";
+  try {
+    const parsed = new URL(value, "https://nexusflow.hk");
+    if (parsed.origin !== "https://nexusflow.hk" || parsed.pathname === "/login") return "/dashboard";
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "/dashboard";
+  }
+}
+
 function LoginPageInner() {
   const searchParams = useSearchParams();
   const isRegister = searchParams.get("tab") === "register";
+  const returnTo = safeReturnTo(searchParams.get("returnTo") || searchParams.get("callbackUrl"));
   const [mode, setMode] = useState<LoginMode>("code");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -25,8 +37,8 @@ function LoginPageInner() {
   const router = useRouter();
 
   useEffect(() => {
-    if (user) router.push("/billing");
-  }, [user, router]);
+    if (user) router.replace(returnTo);
+  }, [user, router, returnTo]);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -85,7 +97,7 @@ function LoginPageInner() {
     }
 
     setSubmitting(false);
-    if (result.success) router.push("/billing");
+    if (result.success) router.replace(returnTo);
     else setError(result.message);
   }
 

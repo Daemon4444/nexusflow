@@ -235,14 +235,15 @@ export default function MultiProtocolPage() {
           </table>
         </div>
         <p style={{ fontSize: 13, color: "var(--text-tertiary)", marginTop: 12 }}>
-          不是所有模型都支持所有协议。模型详情页会直接展示该模型当前可用的 <code style={{ fontFamily: "var(--font-mono)" }}>supported_protocols</code>。
+          不是所有模型都支持所有协议。模型详情页会直接展示该模型当前开放的 <code style={{ fontFamily: "var(--font-mono)" }}>supported_protocols</code>；
+          调用前还应确认 <code style={{ fontFamily: "var(--font-mono)" }}>availability</code> 为 <code style={{ fontFamily: "var(--font-mono)" }}>available</code>。
         </p>
       </section>
 
       <section style={{ marginBottom: 48 }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>协议边界</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          NexusFlow 当前 public API 只列出可直接调用的兼容入口。模型详情页会展示每个模型实际开放的 supported_protocols。
+          NexusFlow 当前 public API 只列出兼容入口；目录中的模型可能因上游凭据或健康状态临时不可用。模型详情页会同时展示 supported_protocols 和 availability。
         </p>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

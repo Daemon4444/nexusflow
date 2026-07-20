@@ -18,7 +18,7 @@ export default function OnboardingGuide({ hasApiKey, apiKey, onClose }: Onboardi
   const steps = [
     {
       title: "欢迎使用 NexusFlow",
-      description: "一站式 AI 模型聚合平台，让你轻松调用 40+ 模型",
+      description: "一站式 AI 模型聚合平台，通过实时目录选择当前可用模型",
       icon: "🎉",
       action: null,
     },

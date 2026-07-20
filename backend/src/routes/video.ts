@@ -19,10 +19,10 @@ import {
   failTask,
   updateTaskStatus
 } from "../data/tasks";
-import { selectProvider, acquireConcurrency, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
+import { selectProvider, acquireConcurrency, getModelAvailabilityMap, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
-import { releaseReservation, reserveBalance } from "../data/billing";
+import { releaseReservation, reserveBalanceWithReason } from "../data/billing";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
 import { checkRPM } from "../services/rate-limiter";
@@ -35,6 +35,12 @@ import {
   pollPixVerseTask,
   pollVolcEngineTask,
 } from "../services/adapters";
+import { sendBillingReservationFailure } from "../utils/billing-response";
+import {
+  normalizeDashScopeVideoResolution,
+  normalizeDashScopeVideoSize,
+  VideoParameterError,
+} from "../utils/video-parameters";
 
 const router = Router();
 
@@ -45,6 +51,75 @@ type Caller = {
   allowedModels: string | null;
   errorIdentity: { id: string | null; user_id: string | null } | null;
 };
+
+type VideoTaskStatus = "pending" | "processing" | "successful" | "failed";
+
+function sendVideoTaskCreated(
+  res: Response,
+  taskId: string,
+  upstreamTaskId: string | number,
+  upstreamStatus?: string
+): void {
+  if (res.locals.videoLegacyEnvelope) {
+    res.json({
+      request_id: randomUUID(),
+      output: {
+        task_id: taskId,
+        task_status: upstreamStatus || "PENDING",
+      },
+    });
+    return;
+  }
+  res.json({
+    success: true,
+    data: {
+      task_id: taskId,
+      upstream_task_id: upstreamTaskId,
+      ...(upstreamStatus ? { task_status: upstreamStatus } : {}),
+    },
+  });
+}
+
+function sendVideoTaskStatus(
+  res: Response,
+  data: {
+    taskId: string;
+    status: VideoTaskStatus;
+    videoUrl?: string;
+    error?: string | null;
+    progress?: number;
+  }
+): void {
+  if (res.locals.videoLegacyEnvelope) {
+    const taskStatus: Record<VideoTaskStatus, string> = {
+      pending: "PENDING",
+      processing: "RUNNING",
+      successful: "SUCCEEDED",
+      failed: "FAILED",
+    };
+    res.json({
+      request_id: randomUUID(),
+      output: {
+        task_id: data.taskId,
+        task_status: taskStatus[data.status],
+        ...(data.videoUrl ? { video_url: data.videoUrl } : {}),
+        ...(data.error ? { message: data.error } : {}),
+        ...(data.progress !== undefined ? { progress: data.progress } : {}),
+      },
+    });
+    return;
+  }
+  res.json({
+    success: true,
+    data: {
+      task_id: data.taskId,
+      status: data.status,
+      ...(data.videoUrl ? { video_url: data.videoUrl } : {}),
+      ...(data.error ? { error: data.error } : {}),
+      ...(data.progress !== undefined ? { progress: data.progress } : {}),
+    },
+  });
+}
 
 function getDashScopeKey(): string {
   return process.env.DASHSCOPE_API_KEY || "";
@@ -102,7 +177,7 @@ async function canAccessTask(req: Request, taskUserId: string | null, taskApiKey
 
 // Submit video generation task. Mounted as /api/video/generate and
 // /v1/videos/generations for clients that expect an OpenAI-style video path.
-const handleGenerate = async (req: Request, res: Response) => {
+export const handleGenerate = async (req: Request, res: Response) => {
   const startTime = Date.now();
   const {
     model: modelId, prompt, duration, aspect_ratio, quality, negative_prompt, size,
@@ -174,20 +249,61 @@ const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
+  let normalizedSize = size;
+  let normalizedResolution = resolution;
+  const isPixVerse = modelId.startsWith("pixverse-");
+  if (!isHappyHorse && !isSeedance && !isPixVerse) {
+    try {
+      if (modelId.includes("-i2v")) {
+        normalizedResolution = normalizeDashScopeVideoResolution(resolution, size);
+      } else {
+        normalizedSize = normalizeDashScopeVideoSize({ size, resolution, ratio });
+      }
+    } catch (error) {
+      if (error instanceof VideoParameterError) {
+        res.status(400).json({
+          success: false,
+          message: error.message,
+          code: error.code,
+        });
+        return;
+      }
+      throw error;
+    }
+  }
+
   // Select provider via scheduler
   const selected = await selectProvider(modelId, { userId: caller.userId });
   if (!selected) {
-    res.status(503).json({ success: false, message: "当前无可用渠道" });
+    const availability = (await getModelAvailabilityMap([modelId])).get(modelId);
+    const providerNotConfigured = availability?.reason === "provider_not_configured";
+    res.status(503).json({
+      success: false,
+      message: providerNotConfigured ? "该模型的供应商尚未配置" : "当前无可用渠道",
+      code: providerNotConfigured ? "provider_not_configured" : "provider_unavailable",
+    });
     return;
   }
   const apiKey = selected.apiKey;
 
-  const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { duration, quality, resolution, audio, audio_setting });
-  const reservation = await reserveBalance(caller.userId, estimatedCost, `video:${randomUUID()}`, 30 * 24 * 60 * 60);
-  if (!reservation) {
-    res.status(402).json({ success: false, message: "余额不足，请先充值" });
+  const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, {
+    duration,
+    quality,
+    resolution: normalizedResolution,
+    audio,
+    audio_setting,
+  });
+  const reservationResult = await reserveBalanceWithReason(
+    caller.userId,
+    estimatedCost,
+    `video:${randomUUID()}`,
+    30 * 24 * 60 * 60
+  );
+  if (!reservationResult.reservation) {
+    sendBillingReservationFailure(res, reservationResult.reason, "api");
     return;
   }
+  const reservation = reservationResult.reservation;
 
   const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
   const isVolcEngine = selected.apiBaseUrl.includes("volces.com") || selected.apiBaseUrl.includes("genvia.ai");
@@ -201,7 +317,7 @@ const handleGenerate = async (req: Request, res: Response) => {
       type: "video",
       model: modelId,
       provider: selected.providerId,
-      input: { prompt, duration, aspect_ratio, quality, negative_prompt, size, img_url, img_end_url, img_urls, video_url, video_urls, audio_urls, resolution, ratio, audio, audio_setting, generate_audio, draft, return_last_frame, camera_fixed, service_tier, callback_url, priority, seed, watermark, style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend },
+      input: { prompt, duration, aspect_ratio, quality, negative_prompt, size: normalizedSize, img_url, img_end_url, img_urls, video_url, video_urls, audio_urls, resolution: normalizedResolution, ratio, audio, audio_setting, generate_audio, draft, return_last_frame, camera_fixed, service_tier, callback_url, priority, seed, watermark, style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend },
       billingReservationId: reservation.id,
     });
   } catch (error) {
@@ -271,8 +387,9 @@ const handleGenerate = async (req: Request, res: Response) => {
         model: modelId,
         prompt,
         negative_prompt,
-        size: size || "1280*720",
-        resolution,
+        size: normalizedSize,
+        resolution: normalizedResolution,
+        ratio,
         duration: duration || 5,
         img_url: modelId.includes("i2v") ? img_url : undefined,
         img_urls: modelId.includes("r2v") ? (img_urls || (img_url ? [img_url] : undefined)) : undefined,
@@ -317,13 +434,7 @@ const handleGenerate = async (req: Request, res: Response) => {
       }
       await setUpstreamTaskId(task.id, String(upstreamId));
 
-      res.json({
-        success: true,
-        data: {
-          task_id: task.id,
-          upstream_task_id: upstreamId,
-        },
-      });
+      sendVideoTaskCreated(res, task.id, upstreamId);
       return;
     }
 
@@ -352,13 +463,7 @@ const handleGenerate = async (req: Request, res: Response) => {
       }
       await setUpstreamTaskId(task.id, upstreamId);
 
-      res.json({
-        success: true,
-        data: {
-          task_id: task.id,
-          upstream_task_id: upstreamId,
-        },
-      });
+      sendVideoTaskCreated(res, task.id, upstreamId);
       return;
     }
 
@@ -386,14 +491,7 @@ const handleGenerate = async (req: Request, res: Response) => {
     }
     await setUpstreamTaskId(task.id, data.output.task_id);
 
-    res.json({
-      success: true,
-      data: {
-        task_id: task.id,
-        upstream_task_id: data.output?.task_id,
-        task_status: data.output?.task_status,
-      },
-    });
+    sendVideoTaskCreated(res, task.id, data.output.task_id, data.output?.task_status);
 
   } catch (err: any) {
     recordFailure(selected.providerId, modelId, err.message);
@@ -412,7 +510,7 @@ router.post("/generate", handleGenerate);
 router.post("/generations", handleGenerate);
 
 // GET /api/video/status/:taskId - Get video generation status
-router.get("/status/:taskId", async (req: Request, res: Response) => {
+export const handleVideoStatus = async (req: Request, res: Response) => {
   const taskId = req.params.taskId as string;
   
   // First try to find our internal task
@@ -436,23 +534,17 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
           }
         }
       }
-      res.json({
-        success: true,
-        data: {
-          task_id: task.id,
-          status: task.status === "succeeded" ? "successful" : "failed",
-          video_url: task.output?.video_url,
-          error: task.error_message,
-        },
+      sendVideoTaskStatus(res, {
+        taskId: task.id,
+        status: task.status === "succeeded" ? "successful" : "failed",
+        videoUrl: task.output?.video_url,
+        error: task.error_message,
       });
       return;
     }
 
     if (!task.upstream_task_id) {
-      res.json({
-        success: true,
-        data: { task_id: task.id, status: "pending" },
-      });
+      sendVideoTaskStatus(res, { taskId: task.id, status: "pending" });
       return;
     }
 
@@ -482,7 +574,7 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
       }
 
       const result = isPixVerseOfficialPoll
-        ? await pollPixVerseTask(pollApiKey, task.upstream_task_id)
+        ? await pollPixVerseTask(pollApiKey, task.upstream_task_id, pollApiBaseUrl)
         : isVolcEnginePoll
           ? await pollVolcEngineTask(pollApiKey, task.upstream_task_id, pollApiBaseUrl)
           : await pollDashScopeTask(pollApiKey, task.upstream_task_id);
@@ -492,13 +584,10 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
         const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
         const won = await completeTask(task.id, result.output, cost);
         if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
-        res.json({
-          success: true,
-          data: {
-            task_id: task.id,
-            status: "successful",
-            video_url: result.output?.video_url,
-          },
+        sendVideoTaskStatus(res, {
+          taskId: task.id,
+          status: "successful",
+          videoUrl: result.output?.video_url,
         });
       } else if (result.status === "failed") {
         const won = await failTask(task.id, result.error || "Task failed");
@@ -508,23 +597,17 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
           Date.now() - new Date(task.created_at).getTime(),
           task.billing_reservation_id,
         );
-        res.json({
-          success: true,
-          data: {
-            task_id: task.id,
-            status: "failed",
-            error: result.error,
-          },
+        sendVideoTaskStatus(res, {
+          taskId: task.id,
+          status: "failed",
+          error: result.error,
         });
       } else {
         await updateTaskStatus(task.id, result.status, result.progress || 0);
-        res.json({
-          success: true,
-          data: {
-            task_id: task.id,
-            status: result.status === "running" ? "processing" : "pending",
-            progress: result.progress,
-          },
+        sendVideoTaskStatus(res, {
+          taskId: task.id,
+          status: result.status === "running" ? "processing" : "pending",
+          progress: result.progress,
         });
       }
       return;
@@ -538,57 +621,19 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
     }
   }
 
-  // Fallback: treat taskId as direct PixVerse/DashScope task ID (legacy support)
+  // Never poll arbitrary upstream task IDs. Legacy creation endpoints now
+  // return the internal task ID, which is owner-checked above.
   if (!(await authenticateCaller(req))) {
     res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
     return;
-  }
-
-  const pixVerseKey = getPixVerseKey();
-  const dashScopeKey = getDashScopeKey();
-
-  // Try PixVerse first (legacy behavior)
-  if (pixVerseKey) {
-    try {
-      const result = await pollPixVerseTask(pixVerseKey, taskId);
-      res.json({
-        success: true,
-        data: {
-          task_id: taskId,
-          status: result.status === "succeeded" ? "successful" 
-            : result.status === "failed" ? "failed"
-            : result.status === "running" ? "processing" : "pending",
-          video_url: result.output?.video_url,
-          error: result.error,
-        },
-      });
-      return;
-    } catch {}
-  }
-
-  // Try DashScope
-  if (dashScopeKey) {
-    try {
-      const result = await pollDashScopeTask(dashScopeKey, taskId);
-      res.json({
-        success: true,
-        data: {
-          task_id: taskId,
-          status: result.status === "succeeded" ? "successful"
-            : result.status === "failed" ? "failed"
-            : result.status === "running" ? "processing" : "pending",
-          video_url: result.output?.video_url,
-          error: result.error,
-        },
-      });
-      return;
-    } catch {}
   }
 
   res.status(404).json({
     success: false,
     message: "任务不存在",
   });
-});
+};
+
+router.get("/status/:taskId", handleVideoStatus);
 
 export default router;

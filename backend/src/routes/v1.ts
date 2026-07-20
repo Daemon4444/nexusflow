@@ -12,7 +12,7 @@ import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { releaseReservation, reserveBalance, settleReservation } from "../data/billing";
+import { BillingReservationFailureReason, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
@@ -24,9 +24,10 @@ import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-c
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
 import { calculateOpenAiCacheAwareCost, buildApiDescription, getOpenAiPromptCacheUsage, hasCacheControl } from "../utils/cache-billing";
-import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
+import { acquireConcurrency, getModelAvailabilityMap, releaseConcurrency } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { logToSLS } from "../services/sls";
+import { sendBillingReservationFailure } from "../utils/billing-response";
 
 const router = Router();
 
@@ -182,14 +183,8 @@ async function estimateEmbeddingCost(userId: string | null | undefined, model: a
 /** Sanitize error messages — never expose internal hostnames, paths, or stack traces */
 const sanitizeError = sanitizeUpstreamError;
 
-function rejectInsufficientBalance(res: Response): void {
-  res.status(402).json({
-    error: {
-      message: "Insufficient balance for estimated maximum cost. Please recharge your account or lower max_tokens.",
-      type: "billing_error",
-      code: "insufficient_balance",
-    },
-  });
+function rejectBillingReservation(res: Response, reason: BillingReservationFailureReason): void {
+  sendBillingReservationFailure(res, reason);
 }
 
 function rejectUserRateLimit(res: Response, message: string): void {
@@ -220,6 +215,7 @@ router.get("/models", async (req: Request, res: Response) => {
   // 子账号：仅返回被授权的模型（NULL=不限→全部；[]=全禁→空）
   const allowed = keyRecord.parent_user_id ? parseAllowedModels(keyRecord.allowed_models) : null;
   const visibleModels = allowed == null ? models : models.filter((m) => allowed.includes(m.id));
+  const availability = await getModelAvailabilityMap(visibleModels.map((model) => model.id));
 
   const data = visibleModels.map((m) => ({
     id: m.id,
@@ -232,6 +228,8 @@ router.get("/models", async (req: Request, res: Response) => {
     supported_protocols: getSupportedProtocols(m),
     capabilities: getModelCapabilities(m),
     allowed_parameters: getAllowedChatParameters(m),
+    availability: availability.get(m.id)?.status || "temporarily_unavailable",
+    availability_reason: availability.has(m.id) ? availability.get(m.id)!.reason : "no_active_route",
   }));
 
   res.json({ object: "list", data });
@@ -379,11 +377,16 @@ router.post("/images/generations", async (req: Request, res: Response) => {
   }
 
   const estimatedImageCost = (await applyUserModelDiscount(apiKeyRecord.user_id, modelId, (n || 1) * model.promptPrice)).finalAmount;
-  const imageReservation = await reserveBalance(apiKeyRecord.user_id, estimatedImageCost, `v1-image:${randomUUID()}`);
-  if (!imageReservation) {
-    rejectInsufficientBalance(res);
+  const imageReservationResult = await reserveBalanceWithReason(
+    apiKeyRecord.user_id,
+    estimatedImageCost,
+    `v1-image:${randomUUID()}`
+  );
+  if (!imageReservationResult.reservation) {
+    rejectBillingReservation(res, imageReservationResult.reason);
     return;
   }
+  const imageReservation = imageReservationResult.reservation;
 
   const startTime = Date.now();
   recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
@@ -680,12 +683,24 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   }
 
   const estimatedChatCost = await estimateChatMaxCost(apiKeyRecord.user_id, model, messages, max_tokens);
-  const chatReservation = await reserveBalance(apiKeyRecord.user_id, estimatedChatCost, `v1-chat:${randomUUID()}`);
-  if (!chatReservation) {
-    logToSLS({ apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "rejected", errorReason: "insufficient_balance", clientIp });
-    rejectInsufficientBalance(res);
+  const chatReservationResult = await reserveBalanceWithReason(
+    apiKeyRecord.user_id,
+    estimatedChatCost,
+    `v1-chat:${randomUUID()}`
+  );
+  if (!chatReservationResult.reservation) {
+    logToSLS({
+      apiKeyId: apiKeyRecord.id,
+      userId: apiKeyRecord.user_id,
+      model: modelId,
+      status: "rejected",
+      errorReason: chatReservationResult.reason,
+      clientIp,
+    });
+    rejectBillingReservation(res, chatReservationResult.reason);
     return;
   }
+  const chatReservation = chatReservationResult.reservation;
 
   // Build request
   const wantsAudioOutput = Array.isArray(modalities) && modalities.includes("audio");
@@ -1252,11 +1267,16 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   }
 
   const estimatedEmbeddingCost = await estimateEmbeddingCost(apiKeyRecord.user_id, model, input);
-  const embeddingReservation = await reserveBalance(apiKeyRecord.user_id, estimatedEmbeddingCost, `v1-embedding:${randomUUID()}`);
-  if (!embeddingReservation) {
-    rejectInsufficientBalance(res);
+  const embeddingReservationResult = await reserveBalanceWithReason(
+    apiKeyRecord.user_id,
+    estimatedEmbeddingCost,
+    `v1-embedding:${randomUUID()}`
+  );
+  if (!embeddingReservationResult.reservation) {
+    rejectBillingReservation(res, embeddingReservationResult.reason);
     return;
   }
+  const embeddingReservation = embeddingReservationResult.reservation;
 
   const requestBody: any = { model: modelId, input };
   if (dimensions !== undefined) requestBody.dimensions = dimensions;

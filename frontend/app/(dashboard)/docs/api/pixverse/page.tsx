@@ -11,8 +11,6 @@ type TabKey = "t2v" | "i2v" | "kf2v" | "r2v";
 const tabs: { key: TabKey; label: string; desc: string }[] = [
   { key: "t2v", label: "文生视频", desc: "基于文本提示词生成视频" },
   { key: "i2v", label: "图生视频（首帧）", desc: "基于输入图像和文本提示词生成视频" },
-  { key: "kf2v", label: "图生视频（首尾帧）", desc: "基于首帧、尾帧图像和文本提示词生成过渡视频" },
-  { key: "r2v", label: "参考生视频", desc: "基于多张参考图片和文本提示词生成视频" },
 ];
 
 const models: Record<TabKey, string> = {
@@ -350,8 +348,9 @@ function PixVerseDocsInner() {
         爱诗（PixVerse）视频生成 API
       </h1>
       <p style={{ fontSize: 15, color: "var(--text-secondary)", marginBottom: 32, lineHeight: 1.6 }}>
-        爱诗 PixVerse V6 系列模型支持文生视频、图生视频、首尾帧生视频、参考生视频四种模式。
-        API 采用异步调用方式：先创建任务获取 task_id，再轮询查询结果。
+        NexusFlow 当前稳定开放 PixVerse V6 文生视频和单首帧图生视频。
+        API 采用异步调用方式：先创建任务获取 NexusFlow task_id，再用同一个 API Key 轮询查询结果。
+        首尾帧与多参考图模式在完成真实上游与计费验收前不作为公开能力展示。
       </p>
 
       {/* Tabs */}

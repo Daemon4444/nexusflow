@@ -7,13 +7,11 @@ import { useI18n } from "@/lib/i18n";
 import { formatCny, formatCnyPrecise } from "@/lib/money";
 import UserLayout from "@/components/UserLayout";
 import { BalanceWarning } from "@/components/BalanceWarning";
-import OnboardingGuide, { useOnboarding } from "@/components/OnboardingGuide";
 import SmartRecharge from "@/components/SmartRechargeRecommendation";
 import { ErrorState, LoadingState } from "@/components/AppState";
 
 interface BillingSummary { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; }
 interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; discountRate?: number; discountAmountCny?: number; actorUserId?: string | null; actorName?: string | null; }
-interface ApiKeyInfo { id: string; key: string; name: string; }
 type PayMethod = "mock" | "alipay";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
 
@@ -44,7 +42,6 @@ export default function BillingPage() {
   const [pollOrderId, setPollOrderId] = useState<string | null>(null);
   const [paymentConfig, setPaymentConfig] = useState<PaymentConfigStatus | null>(null);
   const [paymentFormHtml, setPaymentFormHtml] = useState<string | null>(null);
-  const [firstApiKey, setFirstApiKey] = useState<ApiKeyInfo | null>(null);
   const [exportStartDate, setExportStartDate] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
@@ -53,7 +50,6 @@ export default function BillingPage() {
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportError, setExportError] = useState("");
   const missingConfigKeys = Array.isArray(paymentConfig?.missing) ? paymentConfig!.missing : [];
-  const { shouldShow: showOnboarding, markCompleted } = useOnboarding();
   // 子账号视角：无充值入口，余额卡替换为限额视图（docs/sub-accounts-spec.md §4.3）
   const isSub = user?.accountType === "sub";
   const quota = user?.quota || null;
@@ -86,18 +82,14 @@ export default function BillingPage() {
     setDataError("");
     try {
       const headers = authHeaders();
-      const [sRes, tRes, cRes, kRes] = await Promise.all([
+      const [sRes, tRes, cRes] = await Promise.all([
         fetchAPI("/api/billing/summary", { headers, signal }),
         fetchAPI(`/api/billing/transactions?limit=20&offset=${txOffset}`, { headers, signal }),
         fetchAPI("/api/billing/payment/config", { headers, signal }),
-        fetchAPI("/api/keys", { headers, signal }),
       ]);
       if (sRes.success) setSummary(sRes.data);
       if (tRes.success) { setTransactions(tRes.data.rows); setTxTotal(tRes.data.total); }
       if (cRes.success) setPaymentConfig(cRes.data);
-      if (kRes.success && kRes.data && kRes.data.length > 0) {
-        setFirstApiKey(kRes.data[0]);
-      }
       if (!sRes.success && !tRes.success) {
         setDataError(sRes.message || tRes.message || "账单数据加载失败");
       }
@@ -224,14 +216,6 @@ export default function BillingPage() {
 
   return (
     <UserLayout>
-      {/* Onboarding Guide */}
-      {showOnboarding && user && (
-        <OnboardingGuide
-          hasApiKey={!!firstApiKey}
-          onClose={markCompleted}
-        />
-      )}
-
       <div className="usr-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div><h1>{t("creditsTitle")}</h1><p>{t("creditsDesc")}</p></div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>

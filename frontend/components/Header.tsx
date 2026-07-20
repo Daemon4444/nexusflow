@@ -44,8 +44,10 @@ export default function Header() {
   const userNav = [
     { href: "/dashboard", label: "Console" },
   ];
-  const consolePaths = ["/dashboard", "/keys", "/billing", "/monitor", "/activity", "/settings", "/rate-limits", "/tickets"];
+  const consolePaths = ["/dashboard", "/keys", "/billing", "/monitor", "/activity", "/settings", "/rate-limits", "/tickets", "/sub-accounts"];
   const inConsole = consolePaths.some((p) => pathname.startsWith(p));
+  const loginHref = `/login?returnTo=${encodeURIComponent(pathname || "/dashboard")}`;
+  const registerHref = `/login?tab=register&returnTo=${encodeURIComponent(pathname || "/dashboard")}`;
 
   return (
     <>
@@ -272,7 +274,7 @@ export default function Header() {
               </div>
             ) : (
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Link href="/login" style={{
+                <Link href={loginHref} style={{
                   padding: "6px 16px",
                   color: "var(--text-secondary)",
                   fontSize: 13,
@@ -283,7 +285,7 @@ export default function Header() {
                 }}>
                   {t("logIn")}
                 </Link>
-                <Link href="/login" style={{
+                <Link href={registerHref} style={{
                   padding: "6px 18px",
                   background: "var(--accent)",
                   color: "#fff",
@@ -435,14 +437,14 @@ export default function Header() {
               </div>
             ) : (
               <div style={{ display: "flex", gap: 10 }}>
-                <Link href="/login" style={{
+                <Link href={loginHref} style={{
                   flex: 1, textAlign: "center", padding: "11px 0",
                   color: "var(--text-secondary)", fontSize: 14, fontWeight: 500,
                   textDecoration: "none", border: "1px solid var(--border)", borderRadius: 8,
                 }}>
                   {t("logIn")}
                 </Link>
-                <Link href="/login" style={{
+                <Link href={registerHref} style={{
                   flex: 1, textAlign: "center", padding: "11px 0",
                   background: "var(--accent)", color: "#fff", fontSize: 14, fontWeight: 500,
                   textDecoration: "none", borderRadius: 8,

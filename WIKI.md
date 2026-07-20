@@ -48,6 +48,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | `.github/copilot-instructions.md` | GitHub Copilot 自动入口 |
 | `README.md` | 面向开发者和 GitHub 访客的快速介绍 |
 | `docs/MODEL_ONBOARDING.md` | 新模型上线的强制 Playbook |
+| `docs/whole-site-reliability-ux-spec-2026-07-21.md` | 2026-07-21 整站功能、协议、视觉与发布验收记录 |
 | `MODELS.md` | 人工维护的模型说明；运行时目录以 API/代码/DB 覆盖层为准 |
 | `REVIEW_SPEC_2026-07.md` | 2026-07-20 审计快照，不代表所有事项仍未完成 |
 
@@ -161,7 +162,7 @@ API Key 鉴权
 - 缓存计费：`backend/src/utils/cache-billing.ts`
 - 限流：`backend/src/services/rate-limiter.ts`
 
-余额检查不是普通的“先查余额、后扣款”。迁移 `011_billing_reservations.sql` 和 `reserveBalance/settleReservation/releaseReservation` 用数据库行锁解决并发请求穿透余额的问题。新增任何收费路径必须接入同一套预占/结算语义。
+余额检查不是普通的“先查余额、后扣款”。迁移 `011_billing_reservations.sql` 和 `reserveBalanceWithReason/settleReservation/releaseReservation` 用数据库行锁解决并发请求穿透余额的问题。预占失败会保留余额不足、子账号额度耗尽、账号暂停等稳定原因，HTTP 路由不能再把这些情况合并成同一个 402。新增任何收费路径必须接入同一套预占/结算语义。
 
 ### 6.2 图像、视频、语音与异步任务
 
@@ -171,6 +172,10 @@ API Key 鉴权
 - Playground 内部路由：`/api/image`、`/api/video`、`/api/playground`
 - 音频：`/v1/audio/*`
 - 上传：`/api/upload`；需 session 或 API Key
+
+Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720` 会规范化为 DashScope 要求的 `1280*720`；不支持的分辨率/比例组合必须在创建任务和预占计费前返回 400。文档、Playground、通用任务和 smoke 应使用同一契约。
+
+旧 `/v1/video/*` 和 DashScope 兼容路径只负责转换请求/响应外壳，实际必须委托给统一视频任务管线。它们返回 NexusFlow 内部 task ID，并按用户/API Key 校验任务归属；严禁把任意字符串当上游 task ID 直接轮询，这会绕过账本和资源所有权。
 
 上传链路已具备鉴权、每身份 RPM、扩展名与 MIME 精确配对、文件 magic 校验、随机文件名和图片压缩。仍应把“文件过期清理/对象存储迁移”视为后续运维事项。
 
@@ -211,6 +216,8 @@ API Key 鉴权
 - Provider 映射定义某个模型能路由到哪些上游、容量、优先级和区域。
 
 Provider 选择综合静态注册、数据库 Provider、`provider_capacity`、渠道配置、健康、区域和用户策略。区域支持已预埋北京/新加坡/美国/法兰克福，但只有配置了对应渠道与区域 Key 才生效；不能因为代码存在就宣称海外区域已可用。
+
+`GET /api/models` 与 `GET /v1/models` 会返回模型渠道可用性。启用映射但缺少 Provider 凭据时，目录标记 `temporarily_unavailable`，收费接口在预占前返回 `provider_not_configured`；不得把空凭据请求发到上游后再暴露 401。该状态是平台级渠道状态，不替代用户级模型白名单或路由策略判断。
 
 上线新模型必须完整阅读 `docs/MODEL_ONBOARDING.md`。至少覆盖：
 
@@ -294,11 +301,15 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - API Key 掩码绕过；
 - Provider capacity 匿名修改；
 - Responses 存储资源 IDOR；
+- 旧图像/PixVerse/视频轮询可凭任意有效 Key 查询上游 task ID 的资源越权；
 - Messages 分层价与缓存语义错计；
 - 流式断流 0 计费；
 - 并发余额竞态；
 - 上传伪装文件与滥用；
 - 上游错误直接泄漏；
+- 畸形 JSON 被误报为 500；
+- 子账号额度耗尽被误报为主账号余额不足；
+- 缺少 Provider 凭据的模型仍被展示为可调用；
 - 登录/验证码滥用与若干路由鉴权缺口。
 
 继续修改时必须保持：
@@ -344,6 +355,8 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 
 当前主推模型和推荐顺序会随运营调整，不能从历史对话推断。以 `frontend/app/page.tsx`、`frontend/lib/models.ts` 和线上页面为准。
 
+公共站与控制台共用 `Header`。登录入口携带经过站内校验的 `returnTo`；移动文档使用抽屉目录；模型与 Playground 必须遵循运行时可用性，不能推荐或提交暂不可用模型。定价与模型服务端取数统一通过 `BACKEND_URL`，避免非默认端口构建静默生成空目录。
+
 ## 14. 本地开发、验证与 CI
 
 安装与构建：
@@ -372,7 +385,7 @@ npm audit --omit=dev --audit-level=high
 
 现有 CI 会执行上述生产依赖审计、计费预占测试和双端构建。它还不是完整测试体系：路由契约、真实数据库迁移、浏览器 E2E 和真实上游回归仍需按改动风险人工/专项执行。
 
-前端 `npm run lint` 仍可能暴露存量债务；不要把“build 通过”写成“lint 全绿”。
+前端 `npm run lint` 当前以 0 error 退出，但仍保留显式 `any`、旧 effect 和少量未使用变量等 warning 作为存量重构信号；不要把“lint 命令通过”写成“无任何 lint 债务”。
 
 ## 15. 生产部署 Runbook
 
@@ -440,10 +453,10 @@ curl -fsS https://nexusflow.hk/api/version
 
 1. 主动监控与告警闭环：健康、错误率、低余额、402、备份失败；
 2. 定期恢复演练与凭据轮换，确认 `PROVIDER_SECRET_KEY` 等生产安全配置；
-3. 扩充 CI：路由契约、迁移、真实 PostgreSQL、浏览器 E2E；
+3. 扩充 CI：路由契约、迁移、真实 PostgreSQL、浏览器 E2E，并逐步清零前端 lint warning；
 4. 处理客户端取消后的上游 stream/resource 释放；
 5. 上传对象生命周期、配额与对象存储；
-6. 清理前端 lint、超大组件和重复路由逻辑；
+6. 拆分前端超大组件、收紧诊断 payload 类型并清理重复路由逻辑；
 7. 稳定后再从 Next.js preview 版本迁移到正式版本；
 8. 对海外渠道、Responses 付费工具、Seedance/Claude 等能力保持“有 Key 且真实端到端通过才宣称可用”。
 

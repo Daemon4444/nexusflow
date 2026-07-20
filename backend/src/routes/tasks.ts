@@ -35,11 +35,17 @@ import {
 import { checkConsumerLimitsAsync, checkRPM, recordRequest } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
-import { selectProvider, acquireConcurrency, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
+import { selectProvider, acquireConcurrency, getModelAvailabilityMap, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
-import { releaseReservation, reserveBalance } from "../data/billing";
+import { BillingReservation, releaseReservation, reserveBalanceWithReason } from "../data/billing";
+import { sendBillingReservationFailure } from "../utils/billing-response";
+import {
+  normalizeDashScopeVideoResolution,
+  normalizeDashScopeVideoSize,
+  VideoParameterError,
+} from "../utils/video-parameters";
 
 const router = Router();
 
@@ -185,24 +191,67 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
+  const isSpecialVideoProvider =
+    modelId.startsWith("pixverse-")
+    || modelId.startsWith("seedance-")
+    || modelId.startsWith("happyhorse-");
+  if (modelType === "video" && !isSpecialVideoProvider) {
+    try {
+      if (modelId.includes("-i2v")) {
+        params.resolution = normalizeDashScopeVideoResolution(params.resolution, params.size);
+      } else {
+        params.size = normalizeDashScopeVideoSize({
+          size: params.size,
+          resolution: params.resolution,
+          ratio: params.ratio,
+        });
+      }
+    } catch (error) {
+      if (error instanceof VideoParameterError) {
+        res.status(400).json({
+          error: {
+            message: error.message,
+            type: "invalid_request_error",
+            code: error.code,
+          },
+        });
+        return;
+      }
+      throw error;
+    }
+  }
+
   // Select provider via scheduler (respects provider_capacity config)
   const selected = await selectProvider(modelId, { userId: apiKeyRecord.user_id });
   if (!selected) {
+    const availability = (await getModelAvailabilityMap([modelId])).get(modelId);
+    const providerNotConfigured = availability?.reason === "provider_not_configured";
     res.status(503).json({
-      error: { message: "No available provider for this model", type: "server_error", code: "provider_unavailable" },
+      error: {
+        message: providerNotConfigured
+          ? "The provider for this model is not configured."
+          : "No available provider for this model.",
+        type: "server_error",
+        code: providerNotConfigured ? "provider_not_configured" : "provider_unavailable",
+      },
     });
     return;
   }
   const upstreamApiKey = selected.apiKey;
   const provider = selected.providerId;
-  const billingReservation = estimatedCost > 0
-    ? await reserveBalance(apiKeyRecord.user_id, estimatedCost, `task:${randomUUID()}`, 30 * 24 * 60 * 60)
-    : null;
-  if (estimatedCost > 0 && !billingReservation) {
-    res.status(402).json({
-      error: { message: "Insufficient available balance", type: "billing_error", code: "insufficient_balance" },
-    });
-    return;
+  let billingReservation: BillingReservation | null = null;
+  if (estimatedCost > 0) {
+    const billingReservationResult = await reserveBalanceWithReason(
+      apiKeyRecord.user_id,
+      estimatedCost,
+      `task:${randomUUID()}`,
+      30 * 24 * 60 * 60
+    );
+    if (!billingReservationResult.reservation) {
+      sendBillingReservationFailure(res, billingReservationResult.reason);
+      return;
+    }
+    billingReservation = billingReservationResult.reservation;
   }
 
   let keepReservationForPolling = false;
@@ -243,8 +292,12 @@ router.post("/", async (req: Request, res: Response) => {
       recordFailure(selected.providerId, modelId, err.message);
       await failTask(task.id, `Adapter error: ${err.message}`);
       await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime(), task.billing_reservation_id);
-      res.status(500).json({
-        error: { message: `Failed to prepare request: ${sanitizeUpstreamError(err)}`, type: "server_error", code: "adapter_error" },
+      res.status(err instanceof VideoParameterError ? 400 : 500).json({
+        error: {
+          message: `Failed to prepare request: ${sanitizeUpstreamError(err)}`,
+          type: err instanceof VideoParameterError ? "invalid_request_error" : "server_error",
+          code: err instanceof VideoParameterError ? err.code : "adapter_error",
+        },
       });
       return;
     }

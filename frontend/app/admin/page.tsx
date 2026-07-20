@@ -15,7 +15,11 @@ interface User {
   id: string;
   phone: string | null;
   email: string | null;
+  username?: string | null;
   nickname: string;
+  parentUserId?: string | null;
+  accountType?: "main" | "sub";
+  status?: "active" | "suspended" | "deleted" | string;
   balance: number;
   createdAt: string;
   updatedAt?: string;
@@ -604,6 +608,7 @@ export default function AdminPage() {
   const [selectedProviderId, setSelectedProviderId] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [userSearch, setUserSearch] = useState("");
+  const [userStatusFilter, setUserStatusFilter] = useState<"current" | "all" | "active" | "suspended" | "deleted">("current");
   const [rateLimitForm, setRateLimitForm] = useState<{ model: string; qpm: string; tpm: string } | null>(null);
   const [rateLimitFormTarget, setRateLimitFormTarget] = useState<string | null>(null); // model being edited
   const [balanceForm, setBalanceForm] = useState<{ amount: string; description: string } | null>(null);
@@ -669,7 +674,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!selectedUserId && users.length > 0) {
-      setSelectedUserId(users[0].id);
+      setSelectedUserId(users.find((user) => user.status !== "deleted")?.id || users[0].id);
     }
   }, [users, selectedUserId]);
 
@@ -1372,14 +1377,22 @@ export default function AdminPage() {
 
   const filteredUsers = useMemo(() => {
     const keyword = userSearch.trim().toLowerCase();
-    if (!keyword) return users;
-    return users.filter((user) => [
-      user.nickname,
-      user.email || "",
-      user.phone || "",
-      user.id,
-    ].some((value) => String(value).toLowerCase().includes(keyword)));
-  }, [users, userSearch]);
+    return users.filter((user) => {
+      const status = user.status || "active";
+      const matchesStatus =
+        userStatusFilter === "all"
+        || (userStatusFilter === "current" ? status !== "deleted" : status === userStatusFilter);
+      if (!matchesStatus) return false;
+      if (!keyword) return true;
+      return [
+        user.nickname,
+        user.email || "",
+        user.username || "",
+        user.phone || "",
+        user.id,
+      ].some((value) => String(value).toLowerCase().includes(keyword));
+    });
+  }, [users, userSearch, userStatusFilter]);
 
   const selectedProviderTotals = useMemo(() => {
     if (!providerDetail) return null;
@@ -1827,18 +1840,30 @@ export default function AdminPage() {
                   ) : null}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "minmax(360px, 0.9fr) minmax(420px, 1.1fr)", gap: 16, alignItems: "start" }}>
+                <div className="admin-users-grid" style={{ display: "grid", gridTemplateColumns: "minmax(360px, 0.9fr) minmax(420px, 1.1fr)", gap: 16, alignItems: "start" }}>
                   <div style={{ ...cardStyle, overflow: "hidden" }}>
                     <div style={{ padding: "14px 16px", borderBottom: "1px solid #e5e7eb", background: "#f8fafc", fontSize: 12, fontWeight: 600, color: "#6b7280" }}>
                       用户列表
                     </div>
-                    <div style={{ padding: 12, borderBottom: "1px solid #e5e7eb", background: "#fff" }}>
+                    <div style={{ padding: 12, borderBottom: "1px solid #e5e7eb", background: "#fff", display: "grid", gridTemplateColumns: "minmax(0, 1fr) 132px", gap: 8 }}>
                       <input
                         value={userSearch}
                         onChange={(event) => setUserSearch(event.target.value)}
-                        placeholder="搜索昵称、邮箱、手机号或用户 ID"
+                        placeholder="搜索昵称、邮箱、用户名或 ID"
                         style={{ width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: 8, padding: "9px 10px", fontSize: 13, fontFamily: "inherit" }}
                       />
+                      <select
+                        value={userStatusFilter}
+                        onChange={(event) => setUserStatusFilter(event.target.value as typeof userStatusFilter)}
+                        aria-label="账号状态筛选"
+                        style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "9px 10px", fontSize: 12, fontFamily: "inherit", background: "#fff" }}
+                      >
+                        <option value="current">当前账号</option>
+                        <option value="active">仅正常</option>
+                        <option value="suspended">仅停用</option>
+                        <option value="deleted">回收站</option>
+                        <option value="all">全部状态</option>
+                      </select>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       {filteredUsers.length === 0 ? (
@@ -1860,8 +1885,16 @@ export default function AdminPage() {
                         >
                           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                             <div>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{user.nickname}</div>
-                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{user.email || user.phone}</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{user.nickname}</div>
+                                <span style={{ padding: "2px 6px", borderRadius: 5, fontSize: 10, fontWeight: 700, background: user.accountType === "sub" ? "#eef2ff" : "#ecfdf5", color: user.accountType === "sub" ? "#4338ca" : "#047857" }}>
+                                  {user.accountType === "sub" ? "子账号" : "主账号"}
+                                </span>
+                                <span style={{ padding: "2px 6px", borderRadius: 5, fontSize: 10, fontWeight: 700, background: user.status === "deleted" ? "#f3f4f6" : user.status === "suspended" ? "#fff7ed" : "#ecfdf5", color: user.status === "deleted" ? "#6b7280" : user.status === "suspended" ? "#c2410c" : "#047857" }}>
+                                  {user.status === "deleted" ? "已删除" : user.status === "suspended" ? "已停用" : "正常"}
+                                </span>
+                              </div>
+                              <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{user.email || user.username || user.phone || "无登录标识"}</div>
                             </div>
                             <div style={{ textAlign: "right" }}>
                               <div style={{ fontSize: 12, color: "#10b981", fontWeight: 600 }}>¥{Number(user.balance || 0).toFixed(2)}</div>

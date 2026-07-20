@@ -34,6 +34,11 @@ export interface HealthRecord {
   avgLatencyMs: number;
 }
 
+export type ModelAvailability = {
+  status: "available" | "temporarily_unavailable";
+  reason: null | "provider_not_configured" | "no_active_route" | "provider_unhealthy";
+};
+
 const FAILURE_THRESHOLD_DEGRADED = 3;
 const FAILURE_THRESHOLD_DOWN = 10;
 const concurrentRequests = new Map<string, number>();
@@ -135,9 +140,20 @@ export async function selectProvider(modelId: string, context: ProviderSelection
   ]);
   const costByRoute = new Map(activeCosts.map((cost) => [`${cost.provider_id}:${cost.model_id}`, cost]));
 
-  const available = [];
+  const available: Array<{ ep: any; health: HealthRecord | null; apiKey: string }> = [];
   for (const ep of endpoints) {
     if (!ep.is_enabled) continue;
+    let apiKey = "";
+    try {
+      apiKey = decryptProviderSecret(ep.api_key || "").trim();
+    } catch {
+      apiKey = "";
+    }
+    // A route without credentials is configuration, not capacity. Excluding it
+    // here prevents paid requests from reaching an upstream with an empty
+    // bearer token and lets callers return provider_not_configured before
+    // creating a billing reservation.
+    if (!apiKey) continue;
     if (policy?.pinned_provider_id && policy.strategy === "pinned" && ep.provider_id !== policy.pinned_provider_id) continue;
     if (policy?.allowed_providers.length && !policy.allowed_providers.includes(ep.provider_id)) continue;
     if (policy?.blocked_providers.includes(ep.provider_id)) continue;
@@ -151,12 +167,12 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     const key = `${ep.provider_id}:${ep.model_id}`;
     const concurrent = concurrentRequests.get(key) || 0;
     if (concurrent >= ep.concurrent_limit) continue;
-    available.push({ ep, health });
+    available.push({ ep, health, apiKey });
   }
 
   if (available.length === 0) return null;
 
-  const weighted = available.map(({ ep, health }) => {
+  const weighted = available.map(({ ep, health, apiKey }) => {
     const usage = getProviderUsageStats(ep.provider_id, ep.model_id);
     const remainingRpm = Math.max(0, ep.rpm - usage.rpm);
     const healthMultiplier = health?.status === "degraded" ? 0.3 : 1.0;
@@ -168,16 +184,17 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     const slaBoost = policy?.strategy === "highest_sla" ? (health?.status === "healthy" ? 2 : 0.5) : 1;
     const customBoost = policy?.priority_boost[ep.provider_id] ?? 0;
     const score = (ep.weight + customBoost) * capacityRatio * healthMultiplier * slaBoost * costPenalty * (1 + ep.priority * 0.1);
-    return { endpoint: ep, score };
+    return { endpoint: ep, apiKey, score };
   });
 
   weighted.sort((a, b) => b.score - a.score);
-  const selected = weighted[0].endpoint;
+  const selectedRoute = weighted[0];
+  const selected = selectedRoute.endpoint;
   return {
     providerId: selected.provider_id,
     providerName: selected.provider_name,
     apiBaseUrl: selected.api_base_url,
-    apiKey: decryptProviderSecret(selected.api_key),
+    apiKey: selectedRoute.apiKey,
     modelId: selected.model_id,
     rpm: selected.rpm,
     tpm: selected.tpm,
@@ -187,6 +204,68 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     priority: selected.priority,
     isEnabled: !!selected.is_enabled,
   };
+}
+
+/**
+ * Returns catalog-safe availability without exposing provider credentials.
+ * A model is available when at least one enabled route has a configured secret
+ * and is not marked down by the health circuit breaker.
+ */
+export async function getModelAvailabilityMap(modelIds: string[]): Promise<Map<string, ModelAvailability>> {
+  const uniqueIds = [...new Set(modelIds.filter(Boolean))];
+  const result = new Map<string, ModelAvailability>();
+  for (const modelId of uniqueIds) {
+    result.set(modelId, { status: "temporarily_unavailable", reason: "no_active_route" });
+  }
+  if (uniqueIds.length === 0) return result;
+
+  const placeholders = uniqueIds.map(() => "?").join(", ");
+  const routes = await db.queryMany<any>(
+    `SELECT pc.model_id, p.api_key, ph.status AS health_status
+       FROM provider_capacity pc
+       JOIN providers p ON pc.provider_id = p.id
+       LEFT JOIN provider_health ph
+         ON ph.provider_id = pc.provider_id AND ph.model_id = pc.model_id
+      WHERE pc.model_id IN (${placeholders})
+        AND pc.is_enabled = TRUE
+        AND p.status = 'enabled'`,
+    uniqueIds
+  );
+
+  const configuredByModel = new Set<string>();
+  for (const route of routes) {
+    let apiKey = "";
+    try {
+      apiKey = decryptProviderSecret(route.api_key || "").trim();
+    } catch {
+      apiKey = "";
+    }
+    if (!apiKey) {
+      const current = result.get(route.model_id);
+      if (current?.reason === "no_active_route") {
+        result.set(route.model_id, {
+          status: "temporarily_unavailable",
+          reason: "provider_not_configured",
+        });
+      }
+      continue;
+    }
+
+    configuredByModel.add(route.model_id);
+    if (route.health_status !== "down") {
+      result.set(route.model_id, { status: "available", reason: null });
+    }
+  }
+
+  for (const modelId of configuredByModel) {
+    if (result.get(modelId)?.status !== "available") {
+      result.set(modelId, {
+        status: "temporarily_unavailable",
+        reason: "provider_unhealthy",
+      });
+    }
+  }
+  return result;
 }
 
 export async function getAllHealthRecords(): Promise<HealthRecord[]> {

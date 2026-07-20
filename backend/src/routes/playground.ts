@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateSession } from "../data/users";
 import { logUsage } from "../data/usage";
-import { releaseReservation, reserveBalance, settleReservation } from "../data/billing";
+import { releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
@@ -12,6 +12,7 @@ import { getRequestedRegion, resolveUpstream } from "../services/upstream";
 import { checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 import { calculateOpenAiCacheAwareCost } from "../utils/cache-billing";
+import { sendBillingReservationFailure } from "../utils/billing-response";
 
 const router = Router();
 const UPSTREAM_TIMEOUT = 600000; // 10分钟
@@ -157,11 +158,16 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   }
 
   const estimatedChatCost = await estimateChatMaxCost(session.id, model, messages, max_tokens);
-  const billingReservation = await reserveBalance(session.id, estimatedChatCost, `playground:${randomUUID()}`);
-  if (!billingReservation) {
-    openAiError(res, 402, "账户余额不足，请充值后再调用。", "insufficient_balance", "insufficient_balance");
+  const billingReservationResult = await reserveBalanceWithReason(
+    session.id,
+    estimatedChatCost,
+    `playground:${randomUUID()}`
+  );
+  if (!billingReservationResult.reservation) {
+    sendBillingReservationFailure(res, billingReservationResult.reason);
     return;
   }
+  const billingReservation = billingReservationResult.reservation;
 
   const requestBody = buildUpstreamChatRequest(
     model,

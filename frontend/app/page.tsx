@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { useI18n } from "@/lib/i18n";
-import { NexusflowLogo } from "@/components/QuadrantLogo";
+import Header from "@/components/Header";
 import { useEffect, useRef, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
@@ -161,7 +160,6 @@ function CylinderCarousel({ items }: { items: CarouselModel[] }) {
 
 export default function LandingPage() {
   const { user } = useAuth();
-  const { t } = useI18n();
   const [models, setModels] = useState<ModelSummary[]>([]);
 
   useEffect(() => {
@@ -193,28 +191,9 @@ export default function LandingPage() {
   const modelCount = models.length || 45;
 
   return (
-    <main className="nf-site">
-      <nav className="nf-nav">
-        <Link href="/" className="nf-brand" aria-label="NexusFlow home">
-          <NexusflowLogo size={15} color="var(--text-primary)" />
-        </Link>
-        <div className="nf-nav-links">
-          <Link href="/models">{t("navModels")}</Link>
-          <Link href="/playground">{t("navPlayground")}</Link>
-          <Link href="/docs">{t("navDocs")}</Link>
-          <Link href="/pricing">{t("navPricing")}</Link>
-        </div>
-        <div className="nf-nav-actions">
-          {user ? (
-            <Link href="/dashboard" className="nf-btn nf-btn-primary">Open Console</Link>
-          ) : (
-            <>
-              <Link href="/login" className="nf-btn nf-btn-secondary">Log in</Link>
-              <Link href="/login?tab=register" className="nf-btn nf-btn-primary">Start building</Link>
-            </>
-          )}
-        </div>
-      </nav>
+    <>
+      <Header />
+      <main id="main-content" className="nf-site">
 
       <section className="nf-hero">
         <div className="nf-hero-copy">
@@ -408,6 +387,7 @@ export default function LandingPage() {
           {user ? "Create API key" : "免费开始"}
         </Link>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

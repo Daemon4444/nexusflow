@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { closeDb, db } from "../src/db/client";
-import { reserveBalance, settleReservation } from "../src/data/billing";
+import { reserveBalance, reserveBalanceWithReason, settleReservation } from "../src/data/billing";
+import {
+  normalizeDashScopeVideoResolution,
+  normalizeDashScopeVideoSize,
+  VideoParameterError,
+} from "../src/utils/video-parameters";
 
 async function main(): Promise<void> {
   // pg-mem does not implement PostgreSQL row-lock scheduling, so this test
@@ -41,7 +46,42 @@ async function main(): Promise<void> {
   );
   assert.equal(Number(active?.count), 0, "no hold should remain active");
 
-  console.log("billing reservation concurrency + idempotency: ok");
+  await db.execute(
+    `INSERT INTO users
+      (id, phone, email, nickname, balance, password_hash, parent_user_id, username, status,
+       quota_limit, quota_used, quota_period, quota_reset_at, created_at, updated_at)
+     VALUES (?, NULL, NULL, ?, 0, NULL, ?, ?, 'active', ?, 0, 'monthly', NOW(), NOW(), NOW())`,
+    ["local-sub-quota", "额度测试子账号", "local-user-1", "local_sub_quota", 0.001]
+  );
+  const quotaFailure = await reserveBalanceWithReason(
+    "local-sub-quota",
+    0.01,
+    "sub-quota-contract"
+  );
+  assert.equal(quotaFailure.reservation, null);
+  assert.equal(quotaFailure.reason, "sub_account_quota_exceeded");
+
+  await db.execute("UPDATE users SET status = 'suspended' WHERE id = ?", ["local-sub-quota"]);
+  const suspendedFailure = await reserveBalanceWithReason(
+    "local-sub-quota",
+    0.0001,
+    "sub-suspended-contract"
+  );
+  assert.equal(suspendedFailure.reservation, null);
+  assert.equal(suspendedFailure.reason, "sub_account_suspended");
+
+  assert.equal(normalizeDashScopeVideoSize({ size: "1280x720" }), "1280*720");
+  assert.equal(
+    normalizeDashScopeVideoSize({ resolution: "1080p", ratio: "9:16" }),
+    "1080*1920"
+  );
+  assert.equal(normalizeDashScopeVideoResolution("1080p"), "1080P");
+  assert.throws(
+    () => normalizeDashScopeVideoSize({ resolution: "720P", ratio: "4:3" }),
+    VideoParameterError
+  );
+
+  console.log("billing reservations, failure codes, and video parameter contracts: ok");
 }
 
 main()

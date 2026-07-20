@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { normalizeDashScopeVideoResolution, normalizeDashScopeVideoSize } from "../utils/video-parameters";
 
 /**
  * API Format Adapters
@@ -327,6 +328,7 @@ export function adaptVideoRequest(
     negative_prompt?: string;
     size?: string;
     resolution?: string;
+    ratio?: string;
     duration?: number;
     img_url?: string;
     img_urls?: string[];
@@ -356,10 +358,13 @@ export function adaptVideoRequest(
 
   const parameters: any = {};
   if (isI2V) {
-    if (body.resolution) parameters.resolution = body.resolution;
-    else if (body.size) parameters.resolution = body.size.includes("1080") ? "1080P" : "720P";
+    parameters.resolution = normalizeDashScopeVideoResolution(body.resolution, body.size);
   } else {
-    if (body.size) parameters.size = body.size;
+    parameters.size = normalizeDashScopeVideoSize({
+      size: body.size,
+      resolution: body.resolution,
+      ratio: body.ratio,
+    });
   }
   if (body.duration) parameters.duration = body.duration;
   if (body.prompt_extend !== undefined) parameters.prompt_extend = body.prompt_extend;

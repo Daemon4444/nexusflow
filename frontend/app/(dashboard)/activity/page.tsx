@@ -82,7 +82,7 @@ export default function ActivityPage() {
     }
   }
 
-  const barColors = ["#111", "#333", "#555", "#777", "#999", "#bbb", "#ddd"];
+  const barColors = ["#0f766e", "#0d9488", "#0891b2", "#2563eb", "#7c3aed", "#c2410c", "#64748b"];
 
   function formatTokensCompact(tokens: number): string {
     if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(2)}M`;
@@ -170,7 +170,9 @@ export default function ActivityPage() {
             <div className="usr-section">
               <div className="usr-section-header"><h3>{t("dailyReq7d")}</h3></div>
               <div style={{ padding: "16px 20px" }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "flex-end", height: 160 }}>
+                {data.daily.length === 0 ? (
+                  <EmptyState compact title="最近 7 天还没有请求" message="完成一次 API 调用后，这里会显示每日请求趋势。" />
+                ) : <div style={{ display: "flex", gap: 10, alignItems: "flex-end", height: 160 }}>
                   {data.daily.map((d) => {
                     const maxReq = Math.max(...data.daily.map(x => x.requests), 1);
                     return (
@@ -189,7 +191,7 @@ export default function ActivityPage() {
                       </div>
                     );
                   })}
-                </div>
+                </div>}
               </div>
             </div>
 
@@ -197,7 +199,9 @@ export default function ActivityPage() {
             <div className="usr-section">
               <div className="usr-section-header"><h3>{t("modelDist")}</h3></div>
               <div className="usr-section-body">
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {data.byModel.length === 0 ? (
+                  <EmptyState compact title="暂无模型分布" message="调用模型后将按费用和请求量展示分布。" />
+                ) : <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {data.byModel.map((m, i) => (
                     <div key={m.model}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
@@ -215,7 +219,7 @@ export default function ActivityPage() {
                       </div>
                     </div>
                   ))}
-                </div>
+                </div>}
               </div>
             </div>
           </div>
@@ -234,7 +238,9 @@ export default function ActivityPage() {
                   <span>{t("tokens")}</span>
                   <span>{t("cost")}</span>
                 </div>
-                {data.daily.map((d) => (
+                {data.daily.length === 0 ? (
+                  <EmptyState compact title="暂无每日费用" message="账单产生后可在这里按天核对。" />
+                ) : data.daily.map((d) => (
                   <div key={d.date} className="table-row" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
                     <span style={{ color: "var(--text-primary)", fontSize: 12.5 }}>{d.date}</span>
                     <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{d.requests.toLocaleString()}</span>
@@ -260,7 +266,9 @@ export default function ActivityPage() {
                 <span>{t("cost")}</span>
                 <span>{t("status")}</span>
               </div>
-              {data.recent.map((r, i) => {
+              {data.recent.length === 0 ? (
+                <EmptyState compact title="暂无最近请求" message="首次调用成功后会显示状态、Token 和费用。" />
+              ) : data.recent.map((r, i) => {
                 const hasCacheCreation = (r.cache_creation_tokens ?? 0) > 0;
                 const hasCacheHit = (r.cached_tokens ?? 0) > 0;
                 return (

@@ -13,7 +13,8 @@ import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { releaseReservation, reserveBalance, settleReservation } from "../data/billing";
+import { releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
+import { sendBillingReservationFailure } from "../utils/billing-response";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
@@ -264,17 +265,16 @@ router.post("/", async (req: Request, res: Response) => {
     estimatedInputTokens,
     estimatedOutputTokens
   )).finalAmount;
-  const billingReservation = await reserveBalance(apiKeyRecord.user_id, estimatedCost, `responses:${randomUUID()}`);
-  if (!billingReservation) {
-    res.status(402).json({
-      error: {
-        message: "Insufficient balance. Please recharge your account.",
-        type: "billing_error",
-        code: "insufficient_balance",
-      },
-    });
+  const billingReservationResult = await reserveBalanceWithReason(
+    apiKeyRecord.user_id,
+    estimatedCost,
+    `responses:${randomUUID()}`
+  );
+  if (!billingReservationResult.reservation) {
+    sendBillingReservationFailure(res, billingReservationResult.reason);
     return;
   }
+  const billingReservation = billingReservationResult.reservation;
 
   const startTime = Date.now();
   const logId = randomUUID();

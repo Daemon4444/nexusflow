@@ -50,7 +50,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
   }, {} as Record<string, AIModel[]>);
 
   return (
-    <div style={{ padding: "40px", maxWidth: 1100, margin: "0 auto" }}>
+    <div className="pricing-page" style={{ padding: "40px", maxWidth: 1100, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 48, textAlign: "center" }}>
         <div className="section-label">{t("pricingLabel")}</div>
@@ -82,9 +82,9 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
           marginBottom: 40,
         }}>
           {[
-            { icon: "⚡", label: t("pricePayg"), desc: t("pricePaygDesc") },
-            { icon: "📊", label: t("priceRealtime"), desc: t("priceRealtimeDesc") },
-            { icon: "🔄", label: t("priceNoLockin"), desc: t("priceNoLockinDesc") },
+            { marker: "01", label: t("pricePayg"), desc: t("pricePaygDesc") },
+            { marker: "02", label: t("priceRealtime"), desc: t("priceRealtimeDesc") },
+            { marker: "03", label: t("priceNoLockin"), desc: t("priceNoLockinDesc") },
           ].map((item) => (
             <div key={item.label} style={{
               padding: "20px 28px",
@@ -94,7 +94,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
               textAlign: "center",
               minWidth: 180,
             }}>
-              <div style={{ fontSize: 28, marginBottom: 8 }}>{item.icon}</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: "var(--accent)", marginBottom: 10 }}>{item.marker}</div>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
                 {item.label}
               </div>
@@ -161,7 +161,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                 background: "var(--bg-card)",
               }}>
                 {/* Table header */}
-                <div style={{
+                <div className="pricing-table-head" style={{
                   display: "grid",
                   gridTemplateColumns: "2fr 1fr 2fr",
                   padding: "12px 20px",
@@ -187,6 +187,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                   <Link
                     key={model.id}
                     href={`/models/${encodeURIComponent(model.id)}`}
+                    className="pricing-table-row"
                     style={{
                       display: "grid",
                       gridTemplateColumns: "2fr 1fr 2fr",

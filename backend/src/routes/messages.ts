@@ -12,7 +12,7 @@ import { randomUUID } from "crypto";
 import { models, getTokenPricingTier } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUsage } from "../data/usage";
-import { releaseReservation, reserveBalance, settleReservation } from "../data/billing";
+import { BillingReservationFailureReason, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
 import { getEffectiveRateLimit } from "../data/ratelimits";
@@ -29,6 +29,7 @@ import {
   createAnthropicStreamTranslator,
 } from "../utils/anthropic-openai-bridge";
 import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
+import { getBillingFailurePayload } from "../utils/billing-response";
 
 const router = Router();
 
@@ -79,12 +80,14 @@ function estimateMessageTokens(model: any, body: any): number {
   return promptTokens + completionTokens;
 }
 
-function rejectInsufficientBalance(res: Response): void {
-  res.status(402).json({
+function rejectBillingReservation(res: Response, reason: BillingReservationFailureReason): void {
+  const failure = getBillingFailurePayload(reason);
+  res.status(failure.status).json({
     type: "error",
     error: {
-      type: "invalid_request_error",
-      message: "Insufficient balance for estimated maximum cost. Please recharge your account or lower max_tokens.",
+      type: failure.type,
+      message: failure.message,
+      code: failure.code,
     },
   });
 }
@@ -261,11 +264,16 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   const estimatedCost = await estimateMessageMaxCost(apiKeyRecord.user_id, model, req.body);
-  const billingReservation = await reserveBalance(apiKeyRecord.user_id, estimatedCost, `messages:${randomUUID()}`);
-  if (!billingReservation) {
-    rejectInsufficientBalance(res);
+  const billingReservationResult = await reserveBalanceWithReason(
+    apiKeyRecord.user_id,
+    estimatedCost,
+    `messages:${randomUUID()}`
+  );
+  if (!billingReservationResult.reservation) {
+    rejectBillingReservation(res, billingReservationResult.reason);
     return;
   }
+  const billingReservation = billingReservationResult.reservation;
 
   const startTime = Date.now();
   const logId = randomUUID();

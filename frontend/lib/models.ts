@@ -14,6 +14,8 @@ export interface ModelSummary {
   tags?: string[];
   isFeatured?: boolean;
   isNew?: boolean;
+  availability?: "available" | "temporarily_unavailable" | "disabled";
+  availabilityReason?: string | null;
 }
 
 export function getModelProtocols(model: ModelSummary) {
@@ -43,6 +45,7 @@ export function formatModelPrice(model: ModelSummary) {
 }
 
 export function getRecommendedModels(models: ModelSummary[], limit = 6) {
+  const callableModels = models.filter((model) => !model.availability || model.availability === "available");
   const preferredIds = [
     // Kimi K3 最新旗舰（首页主推）
     "kimi/kimi-k3",
@@ -60,12 +63,12 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
     // Seedance 旗舰视频生成
     "seedance-2.0",
   ];
-  const byId = new Map(models.map((model) => [model.id, model]));
+  const byId = new Map(callableModels.map((model) => [model.id, model]));
   const preferred = preferredIds
     .map((id) => byId.get(id))
     .filter((model): model is ModelSummary => Boolean(model));
-  const featured = models.filter((model) => model.isFeatured && !preferred.some((item) => item.id === model.id));
-  const general = models.filter((model) => !preferred.some((item) => item.id === model.id) && !featured.some((item) => item.id === model.id));
+  const featured = callableModels.filter((model) => model.isFeatured && !preferred.some((item) => item.id === model.id));
+  const general = callableModels.filter((model) => !preferred.some((item) => item.id === model.id) && !featured.some((item) => item.id === model.id));
   return [...preferred, ...featured, ...general].slice(0, limit);
 }
 
@@ -79,7 +82,11 @@ export function pickDefaultPlaygroundModel(models: ModelSummary[], requestedMode
     "qwen3-max",
     "qwen-plus",
   ].filter(Boolean);
-  const chatModels = models.filter((model) => ["大语言模型", "推理模型", "编程模型", "多模态模型"].includes(model.category));
+  const chatModels = models.filter(
+    (model) =>
+      (!model.availability || model.availability === "available")
+      && ["大语言模型", "推理模型", "编程模型", "多模态模型"].includes(model.category)
+  );
   const preferred = preferredIds.find((id) => chatModels.some((model) => model.id === id));
   return preferred || chatModels[0]?.id || models[0]?.id || "";
 }

@@ -3,6 +3,7 @@ import { models, AIModel } from "../data/models";
 import { getApprovedModelsWithProvider } from "../data/providers";
 import { getSupportedProtocols } from "../utils/model-protocols";
 import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
+import { getModelAvailabilityMap } from "../services/scheduler";
 
 const router = Router();
 
@@ -88,6 +89,7 @@ router.get("/", async (req: Request, res: Response) => {
   }
 
   const allModels = await getAllModels();
+  const availability = await getModelAvailabilityMap(allModels.map((model) => model.id));
   res.json({
     success: true,
     data: filtered.map((model) => ({
@@ -99,6 +101,10 @@ router.get("/", async (req: Request, res: Response) => {
       supported_protocols: getSupportedProtocols(model),
       capabilities: getModelCapabilities(model),
       allowed_parameters: getAllowedChatParameters(model),
+      availability: availability.get(model.id)?.status || "temporarily_unavailable",
+      availabilityReason: availability.has(model.id)
+        ? availability.get(model.id)!.reason
+        : "no_active_route",
     })),
     total: filtered.length,
     categories: [...new Set(allModels.map((m) => m.category))],
@@ -114,6 +120,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     res.status(404).json({ success: false, message: "模型不存在" });
     return;
   }
+  const availability = (await getModelAvailabilityMap([model.id])).get(model.id);
   res.json({
     success: true,
     data: {
@@ -125,6 +132,8 @@ router.get("/:id", async (req: Request, res: Response) => {
       supported_protocols: getSupportedProtocols(model),
       capabilities: getModelCapabilities(model),
       allowed_parameters: getAllowedChatParameters(model),
+      availability: availability?.status || "temporarily_unavailable",
+      availabilityReason: availability ? availability.reason : "no_active_route",
     },
   });
 });

@@ -23,10 +23,11 @@ import {
 } from "../data/tasks";
 import { adaptImageRequest, pollDashScopeTask } from "../services/adapters";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
-import { releaseReservation, reserveBalance } from "../data/billing";
+import { releaseReservation, reserveBalanceWithReason } from "../data/billing";
 import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
 import { checkRPM } from "../services/rate-limiter";
+import { sendBillingReservationFailure } from "../utils/billing-response";
 
 const router = Router();
 
@@ -182,11 +183,17 @@ router.post("/generate", async (req: Request, res: Response) => {
   }
 
   const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { n });
-  const reservation = await reserveBalance(caller.userId, estimatedCost, `image:${randomUUID()}`, 30 * 24 * 60 * 60);
-  if (!reservation) {
-    res.status(402).json({ success: false, message: "余额不足，请先充值" });
+  const reservationResult = await reserveBalanceWithReason(
+    caller.userId,
+    estimatedCost,
+    `image:${randomUUID()}`,
+    30 * 24 * 60 * 60
+  );
+  if (!reservationResult.reservation) {
+    sendBillingReservationFailure(res, reservationResult.reason, "api");
     return;
   }
+  const reservation = reservationResult.reservation;
 
   // Create internal task record
   let task;
@@ -311,12 +318,6 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
     return;
   }
   
-  const DASHSCOPE_API_KEY = getApiKey();
-  if (!DASHSCOPE_API_KEY) {
-    res.status(500).json({ success: false, message: "未配置 API Key" });
-    return;
-  }
-
   // First try to find our internal task
   const task = await getTaskById(taskId);
   
@@ -360,6 +361,15 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
     // Poll upstream
     try {
+      const DASHSCOPE_API_KEY = getApiKey();
+      if (!DASHSCOPE_API_KEY) {
+        res.status(503).json({
+          success: false,
+          message: "图像供应商尚未配置",
+          code: "provider_not_configured",
+        });
+        return;
+      }
       const result = await pollDashScopeTask(DASHSCOPE_API_KEY, task.upstream_task_id);
 
       if (result.status === "succeeded") {
@@ -412,32 +422,9 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
     }
   }
 
-  // Fallback: treat as direct DashScope task ID
-  if (!(await authenticateCaller(req))) {
-    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
-    return;
-  }
-
-  try {
-    const result = await pollDashScopeTask(DASHSCOPE_API_KEY, taskId);
-
-    res.json({
-      success: true,
-      data: {
-        task_id: taskId,
-        task_status: result.status === "succeeded" ? "SUCCEEDED"
-          : result.status === "failed" ? "FAILED"
-          : result.status === "running" ? "RUNNING" : "PENDING",
-        results: result.output?.results,
-        error: result.error,
-      },
-    });
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: `查询失败: ${err.message}`,
-    });
-  }
+  // Never interpret an arbitrary ID as an upstream provider task. Creation
+  // always returns an owner-checked NexusFlow task ID.
+  res.status(404).json({ success: false, message: "任务不存在" });
 });
 
 // Map frontend model IDs to actual DashScope model IDs (for legacy models)

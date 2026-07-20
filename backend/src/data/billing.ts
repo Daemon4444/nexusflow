@@ -32,6 +32,19 @@ export interface BillingReservation {
   settled_at: string | null;
 }
 
+export type BillingReservationFailureReason =
+  | "invalid_request"
+  | "account_not_found"
+  | "account_inactive"
+  | "sub_account_suspended"
+  | "insufficient_balance"
+  | "sub_account_quota_exceeded"
+  | "duplicate_reservation";
+
+export type BillingReservationResult =
+  | { reservation: BillingReservation; reason: null }
+  | { reservation: null; reason: BillingReservationFailureReason };
+
 export interface BillingUsageExportRow {
   usage_id: number;
   account_id: string;
@@ -174,14 +187,16 @@ type BillingActor = {
  * Atomically reserves estimated spend without changing the displayed balance.
  * All reservations for an owner are serialized by the owner's users row lock.
  */
-export async function reserveBalance(
+export async function reserveBalanceWithReason(
   userId: string,
   estimatedAmount: number,
   refId: string,
   ttlSeconds = 20 * 60
-): Promise<BillingReservation | null> {
+): Promise<BillingReservationResult> {
   const normalizedAmount = roundBalance(Math.max(0, estimatedAmount));
-  if (!userId || !refId || !Number.isFinite(normalizedAmount)) return null;
+  if (!userId || !refId || !Number.isFinite(normalizedAmount)) {
+    return { reservation: null, reason: "invalid_request" };
+  }
   const reservationId = uuidv4();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + Math.max(60, ttlSeconds) * 1000);
@@ -192,14 +207,22 @@ export async function reserveBalance(
          FROM users WHERE id = ?`,
       [userId]
     );
-    if (!actor || actor.status !== "active") return null;
+    if (!actor) return { reservation: null, reason: "account_not_found" } as const;
+    if (actor.status !== "active") {
+      return {
+        reservation: null,
+        reason: actor.parent_user_id ? "sub_account_suspended" : "account_inactive",
+      } as const;
+    }
 
     const billingOwnerId = actor.parent_user_id || actor.id;
     const owner = await client.queryOne<{ balance: number; status: string }>(
       "SELECT balance, status FROM users WHERE id = ? FOR UPDATE",
       [billingOwnerId]
     );
-    if (!owner || owner.status !== "active") return null;
+    if (!owner || owner.status !== "active") {
+      return { reservation: null, reason: "account_inactive" } as const;
+    }
 
     // Expired holds never consume money and can be released while the owner row
     // lock serializes this cleanup with all new reservations for that owner.
@@ -217,7 +240,9 @@ export async function reserveBalance(
       [billingOwnerId]
     );
     const available = roundBalance(Number(owner.balance || 0) - Number(held?.amount || 0));
-    if (available < normalizedAmount) return null;
+    if (available < normalizedAmount) {
+      return { reservation: null, reason: "insufficient_balance" } as const;
+    }
 
     if (actor.parent_user_id) {
       const lockedActor = await client.queryOne<BillingActor>(
@@ -225,7 +250,9 @@ export async function reserveBalance(
            FROM users WHERE id = ? FOR UPDATE`,
         [userId]
       );
-      if (!lockedActor || lockedActor.status !== "active") return null;
+      if (!lockedActor || lockedActor.status !== "active") {
+        return { reservation: null, reason: "sub_account_suspended" } as const;
+      }
 
       let quotaUsed = Number(lockedActor.quota_used || 0);
       if (lockedActor.quota_period === "monthly" && isMonthlyQuotaResetDue(lockedActor.quota_reset_at)) {
@@ -243,7 +270,7 @@ export async function reserveBalance(
           [userId]
         );
         if (quotaUsed + Number(actorHeld?.amount || 0) + normalizedAmount > Number(lockedActor.quota_limit)) {
-          return null;
+          return { reservation: null, reason: "sub_account_quota_exceeded" } as const;
         }
       }
     }
@@ -253,11 +280,27 @@ export async function reserveBalance(
         (id, user_id, billing_owner_id, ref_id, reserved_amount, status, created_at, expires_at)
        VALUES (?, ?, ?, ?, ?, 'active', ?, ?)
        ON CONFLICT (ref_id) DO NOTHING
-       RETURNING *`,
+      RETURNING *`,
       [reservationId, userId, billingOwnerId, refId, normalizedAmount, now.toISOString(), expiresAt.toISOString()]
     );
-    return row || null;
+    return row
+      ? { reservation: row, reason: null } as const
+      : { reservation: null, reason: "duplicate_reservation" } as const;
   });
+}
+
+/**
+ * Backwards-compatible nullable reservation helper used by internal scripts.
+ * HTTP routes should use reserveBalanceWithReason so quota and account failures
+ * keep their distinct public error codes.
+ */
+export async function reserveBalance(
+  userId: string,
+  estimatedAmount: number,
+  refId: string,
+  ttlSeconds = 20 * 60
+): Promise<BillingReservation | null> {
+  return (await reserveBalanceWithReason(userId, estimatedAmount, refId, ttlSeconds)).reservation;
 }
 
 /**

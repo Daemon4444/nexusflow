@@ -26,6 +26,8 @@ interface AIModel {
   maxOutput: number; supported: string[];
   supportedProtocols?: string[];
   supported_protocols?: string[];
+  availability?: "available" | "temporarily_unavailable" | "disabled";
+  availabilityReason?: string | null;
 }
 
 export interface ModelsPageProps {
@@ -40,15 +42,15 @@ const categoryColors: Record<string, string> = {
   "向量模型": "#0f766e", "专业模型": "#64748b", "语音模型": "#7c2d12",
 };
 
-const protocolStyles: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  "openai/chat-completions": { label: "OpenAI", color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe" },
-  "anthropic/messages": { label: "Anthropic", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
-  "openai/responses": { label: "Responses", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
-  "openai/embeddings": { label: "Embedding", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
-  "openai/image-generations": { label: "Image", color: "#be185d", bg: "#fdf2f8", border: "#fbcfe8" },
-  "openai/audio-speech": { label: "TTS", color: "#7c2d12", bg: "#fff7ed", border: "#fed7aa" },
-  "openai/audio-transcriptions": { label: "ASR", color: "#7c2d12", bg: "#fff7ed", border: "#fed7aa" },
-  "nexusflow/tasks": { label: "Tasks", color: "#475569", bg: "#f8fafc", border: "#cbd5e1" },
+const protocolStyles: Record<string, { label: string; tone: string }> = {
+  "openai/chat-completions": { label: "OpenAI", tone: "blue" },
+  "anthropic/messages": { label: "Anthropic", tone: "violet" },
+  "openai/responses": { label: "Responses", tone: "teal" },
+  "openai/embeddings": { label: "Embedding", tone: "teal" },
+  "openai/image-generations": { label: "Image", tone: "rose" },
+  "openai/audio-speech": { label: "TTS", tone: "orange" },
+  "openai/audio-transcriptions": { label: "ASR", tone: "orange" },
+  "nexusflow/tasks": { label: "Tasks", tone: "slate" },
 };
 
 function getProtocolBadges(model: AIModel) {
@@ -225,9 +227,10 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
           {models.map((model, idx) => {
             const accent = categoryColors[model.category] || "var(--accent)";
             const protocolBadges = getProtocolBadges(model);
+            const isUnavailable = model.availability && model.availability !== "available";
             return (
               <Link href={`/models/${encodeURIComponent(model.id)}`} key={model.id}
-                className="card model-card animate-fadeIn"
+                className={`card model-card animate-fadeIn${isUnavailable ? " is-unavailable" : ""}`}
                 style={{ animationDelay: `${idx * 20}ms`, opacity: 0, textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", borderTop: `3px solid ${accent}` }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 9, gap: 8 }}>
@@ -236,6 +239,11 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
                       <span className="model-card-title" style={{ fontSize: 15, fontWeight: 550, color: "var(--text-primary)", letterSpacing: "0" }}>{model.name}</span>
                       {model.isNew && <span className="tag tag-new" style={{ fontSize: 10 }}>NEW</span>}
                       {model.isFeatured && <span className="tag tag-featured" style={{ fontSize: 10 }}>HOT</span>}
+                      {isUnavailable && (
+                        <span className="model-availability-badge" title={model.availabilityReason || "暂无可用渠道"}>
+                          暂不可用
+                        </span>
+                      )}
                     </div>
                     <div className="model-card-meta" style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{model.provider}</span>
@@ -249,18 +257,13 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
                 {protocolBadges.length > 0 && (
                   <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
                     {protocolBadges.map((protocol) => {
-                      const style = protocolStyles[protocol] || { label: protocol, color: "#475569", bg: "#f8fafc", border: "#cbd5e1" };
+                      const style = protocolStyles[protocol] || { label: protocol, tone: "slate" };
                       return (
-                        <span key={protocol} title={protocol} style={{
-                          padding: "2px 7px",
-                          borderRadius: 5,
-                          fontSize: 10.5,
-                          fontWeight: 700,
-                          color: style.color,
-                          background: style.bg,
-                          border: `1px solid ${style.border}`,
-                          fontFamily: "var(--font-mono)",
-                        }}>
+                        <span
+                          key={protocol}
+                          title={protocol}
+                          className={`model-protocol-badge tone-${style.tone}`}
+                        >
                           {style.label}
                         </span>
                       );

@@ -17,10 +17,16 @@ const errorCodes = [
     solution: "确认使用正确的 API Key，检查 Authorization 头格式为 'Bearer sk-air-xxx'。"
   },
   {
+    code: 402,
+    name: "Payment Required",
+    causes: ["主账号可用余额不足", "子账号月度额度已用完"],
+    solution: "根据响应体 code 区分充值主账号余额，或由主账号调整子账号额度。"
+  },
+  {
     code: 403,
     name: "Forbidden",
-    causes: ["账户余额不足", "API Key 权限不足", "访问被禁止的资源", "账户被封禁"],
-    solution: "检查账户余额，确认 API Key 具有相应权限，联系客服处理账户问题。"
+    causes: ["API Key 或模型权限不足", "访问不属于当前账号的资源", "主账号或子账号已停用"],
+    solution: "确认 API Key 与资源归属、模型白名单和账号状态；不要把 403 当成余额不足。"
   },
   {
     code: 404,
@@ -80,10 +86,34 @@ const businessErrors = [
     solution: "从控制台重新获取有效的 API Key"
   },
   {
-    code: "insufficient_quota",
-    message: "You have exceeded your quota",
-    desc: "账户余额不足或配额已用完",
-    solution: "充值账户余额或等待配额重置"
+    code: "invalid_json",
+    message: "Malformed JSON request body.",
+    desc: "请求体不是合法 JSON",
+    solution: "修正 JSON 语法和 Content-Type 后再提交；不要重试同一请求体"
+  },
+  {
+    code: "insufficient_balance",
+    message: "Insufficient available balance",
+    desc: "主账号可用余额不足",
+    solution: "充值主账号余额，或降低本次最大输出/媒体规格"
+  },
+  {
+    code: "sub_account_quota_exceeded",
+    message: "Sub-account quota exceeded",
+    desc: "子账号当前额度周期的可用额度不足",
+    solution: "由主账号提高子账号额度，或等待月度额度重置"
+  },
+  {
+    code: "sub_account_suspended",
+    message: "This sub-account is suspended.",
+    desc: "子账号已暂停调用",
+    solution: "由主账号恢复该子账号"
+  },
+  {
+    code: "provider_not_configured",
+    message: "The provider for this model is not configured.",
+    desc: "模型已进入目录，但当前没有配置可用的上游凭据",
+    solution: "切换到 availability=available 的模型；该错误可在稍后恢复后重试"
   },
   {
     code: "model_not_found",
@@ -283,9 +313,9 @@ export default function ErrorsPage() {
         }}>
           <DocsCodeBlock code={`{
   "error": {
-    "code": "insufficient_quota",
-    "message": "You have exceeded your quota. Please check your plan and billing details.",
-    "type": "invalid_request_error"
+    "code": "sub_account_quota_exceeded",
+    "message": "Sub-account quota exceeded. Ask the main account owner to increase the quota.",
+    "type": "billing_error"
   }
 }`} />
         </div>

@@ -45,6 +45,8 @@ interface AIModel {
     supports_repetition_penalty?: boolean;
   };
   allowed_parameters?: string[];
+  availability?: "available" | "temporarily_unavailable" | "disabled";
+  availabilityReason?: string | null;
 }
 interface Message { id?: string; role: "user" | "assistant" | "system"; content: string; reasoningContent?: string; type?: "text" | "image" | "video"; mediaUrl?: string; status?: "pending" | "processing" | "done" | "error"; isStreaming?: boolean; }
 interface UsageInfo { prompt_tokens: number; completion_tokens: number; total_tokens: number; cost: string; }
@@ -316,7 +318,11 @@ function PlaygroundInner() {
   const [videoDuration, setVideoDuration] = useState(5);
   const [videoResolution, setVideoResolution] = useState("720p");
   const [videoRatio, setVideoRatio] = useState("16:9");
-  const canUsePlayground = Boolean(user);
+  const selectedModelRecord = models.find((model) => model.id === selectedModel);
+  const selectedModelUnavailable = Boolean(
+    selectedModelRecord?.availability && selectedModelRecord.availability !== "available"
+  );
+  const canUsePlayground = Boolean(user) && !selectedModelUnavailable;
 
   function getChatEndpoint() {
     return "/api/playground/chat/completions";
@@ -1250,18 +1256,24 @@ function PlaygroundInner() {
         <div style={{ flex: 1, overflow: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
           {visibleModels.map((model) => {
             const active = model.id === selectedModel;
+            const unavailable = Boolean(model.availability && model.availability !== "available");
             return (
               <button
                 key={model.id}
                 type="button"
-                onClick={() => setSelectedModel(model.id)}
+                onClick={() => {
+                  if (!unavailable) setSelectedModel(model.id);
+                }}
+                disabled={unavailable}
+                title={unavailable ? "当前没有已配置且健康的供应商渠道" : model.id}
                 style={{
                   textAlign: "left",
                   padding: "8px 12px",
                   borderRadius: 8,
                   border: active ? "1px solid var(--accent)" : "1px solid var(--border)",
                   background: active ? "var(--accent-bg)" : "var(--bg)",
-                  cursor: "pointer",
+                  cursor: unavailable ? "not-allowed" : "pointer",
+                  opacity: unavailable ? 0.52 : 1,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -1278,6 +1290,7 @@ function PlaygroundInner() {
                       来源
                     </span>
                   )}
+                  {unavailable && <span className="model-availability-badge">暂不可用</span>}
                   <span style={{ fontSize: 11, color: "var(--text-tertiary)", whiteSpace: "nowrap" }}>
                     {model.promptPrice}/M
                   </span>
@@ -1891,10 +1904,12 @@ function PlaygroundInner() {
                 </svg>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#ef4444", marginBottom: 4 }}>
-                    请先登录
+                    {selectedModelUnavailable ? "当前模型暂不可用" : "请先登录"}
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    Playground 会直接使用当前账户余额扣费，不需要填写 API Key。
+                    {selectedModelUnavailable
+                      ? "当前没有已配置且健康的供应商渠道，请选择其他模型。"
+                      : "Playground 会直接使用当前账户余额扣费，不需要填写 API Key。"}
                   </div>
                 </div>
               </div>
@@ -1921,12 +1936,12 @@ function PlaygroundInner() {
               style={{ padding: "9px 18px", alignSelf: "flex-end", flexShrink: 0, opacity: canUsePlayground ? 1 : 0.6 }}
               onClick={handleSend}
               disabled={sending || !input.trim() || !canUsePlayground || mode === "audio"}
-              title={mode === "audio" ? "语音模型 Playground 即将上线" : !canUsePlayground ? "请先登录" : "调用会从账户余额扣费"}
+              title={mode === "audio" ? "语音模型 Playground 即将上线" : selectedModelUnavailable ? "当前模型暂不可用" : !canUsePlayground ? "请先登录" : "调用会从账户余额扣费"}
             >
               {sending ? (
                 <span className="spinner" style={{ width: 13, height: 13 }} />
               ) : !canUsePlayground ? (
-                <span style={{ fontSize: 12 }}>需登录</span>
+                <span style={{ fontSize: 12 }}>{selectedModelUnavailable ? "不可用" : "需登录"}</span>
               ) : mode === "chat" ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               ) : "生成"}
