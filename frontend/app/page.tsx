@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import Header from "@/components/Header";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
 
@@ -41,60 +41,119 @@ const workflow = [
   "Track cost, latency, errors and rate limits in the console",
 ];
 
-const fallbackRoutes = [
-  { id: "kimi/kimi-k3", name: "Kimi K3", provider: "Moonshot AI", category: "Reasoning", context: "1M context" },
-  { id: "qwen3.7-max", name: "Qwen3.7 Max", provider: "Tongyi Qianwen", category: "General", context: "1M context" },
-  { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", provider: "DeepSeek", category: "Code", context: "1M context" },
-  { id: "seedance-2.0", name: "Seedance 2.0", provider: "Volcengine Ark", category: "Video", context: "4K HDR" },
+const fallbackCarouselModels = [
+  { name: "Kimi K3", provider: "Moonshot AI", ctx: "1M context", price: "In ¥20 · Out ¥100", badge: "New", tone: "teal" },
+  { name: "Qwen3.7 Max", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥12 · Out ¥36", badge: "Flagship", tone: "blue" },
+  { name: "Qwen3 Max", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥2.5 · Out ¥10", badge: "Stable", tone: "blue" },
+  { name: "Qwen Long", provider: "Tongyi Qianwen", ctx: "10M context", price: "In ¥0.5 · Out ¥2", badge: "Long", tone: "teal" },
+  { name: "Qwen3.6 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥2 · Out ¥12", badge: "Popular", tone: "blue" },
+  { name: "Qwen3.5 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.8 · Out ¥4.8", badge: "Balanced", tone: "blue" },
+  { name: "Qwen3.5 Flash", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.2 · Out ¥2", badge: "Fast", tone: "teal" },
+  { name: "Qwen3.5 Omni Plus", provider: "Tongyi Qianwen", ctx: "262K omni", price: "In ¥7 · Out ¥40", badge: "Omni", tone: "violet" },
+  { name: "Qwen3.5 Omni Flash", provider: "Tongyi Qianwen", ctx: "262K omni", price: "In ¥2.2 · Out ¥13.3", badge: "Omni", tone: "violet" },
+  { name: "Qwen VL Flash", provider: "Tongyi Qianwen", ctx: "262K vision", price: "In ¥0.15 · Out ¥1.5", badge: "Vision", tone: "violet" },
+  { name: "Qwen Coder Flash", provider: "Tongyi Qianwen", ctx: "1M code", price: "In ¥1 · Out ¥4", badge: "Code", tone: "slate" },
+  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "1M context", price: "In ¥12 · Out ¥24", badge: "Reasoning", tone: "red" },
+  { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },
+  { name: "GLM 5.2", provider: "Zhipu AI", ctx: "1M context", price: "In ¥8 · Out ¥28", badge: "Flagship", tone: "violet" },
+  { name: "Text Embedding V4", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
+  { name: "Qwen Image Max", provider: "Tongyi Qianwen", ctx: "Image", price: "per image", badge: "Image", tone: "orange" },
+  { name: "PixVerse V4.5", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
+  { name: "HappyHorse 1.0", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.9/s", badge: "Video", tone: "orange" },
 ];
 
-function RoutingObservatory({ items }: { items: ModelSummary[] }) {
-  const routes = items.length > 0
-    ? items.slice(0, 4).map((item) => ({
-        id: item.id,
-        name: item.name,
-        provider: item.provider,
-        category: item.category.replace("模型", "") || "Model",
-        context: item.pricingType === "per-second" ? "Async media" : `${formatContextLength(item.contextLength)} context`,
-      }))
-    : fallbackRoutes;
+type CarouselModel = typeof fallbackCarouselModels[number];
+
+function toneForCategory(category: string): CarouselModel["tone"] {
+  if (category.includes("推理") || category.includes("DeepSeek")) return "red";
+  if (category.includes("多模态")) return "violet";
+  if (category.includes("图像") || category.includes("视频")) return "orange";
+  if (category.includes("编程") || category.includes("向量")) return "slate";
+  return "blue";
+}
+
+function modelToCarousel(model: ModelSummary): CarouselModel {
+  return {
+    name: model.name,
+    provider: model.provider,
+    ctx: model.pricingType === "per-second" ? "Async video" : `${formatContextLength(model.contextLength)} context`,
+    price: formatModelPrice(model),
+    badge: model.category.replace("模型", "") || "Model",
+    tone: toneForCategory(model.category),
+  };
+}
+
+function CylinderCarousel({ items }: { items: CarouselModel[] }) {
+  const [offset, setOffset] = useState(0);
+  const animRef = useRef<number>(0);
+  const itemAngle = 360 / items.length;
+
+  useEffect(() => {
+    let last = performance.now();
+    const speed = 0.02;
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      setOffset((prev) => (prev + speed * dt) % 360);
+      animRef.current = requestAnimationFrame(tick);
+    };
+    animRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animRef.current);
+  }, []);
+
+  const deg = Math.PI / 180;
+  const radius = 330;
+  const tiltAngle = 24 * deg;
+  const sinTilt = Math.sin(tiltAngle);
+  const cosTilt = Math.cos(tiltAngle);
 
   return (
-    <div className="nf-observatory" aria-label="NexusFlow routing observatory">
-      <div className="nf-observatory-top">
-        <div><i /><i /><i /></div>
-        <span>ROUTING OBSERVATORY</span>
-        <strong><b /> LIVE</strong>
-      </div>
-      <div className="nf-observatory-body">
-        <div className="nf-endpoint-node">
-          <span>YOUR APP</span>
-          <code>POST /v1</code>
-        </div>
-        <div className="nf-route-bus" aria-hidden="true">
-          <span /><span /><span /><span />
-        </div>
-        <div className="nf-route-stack">
-          {routes.map((route, index) => (
-            <div className="nf-route-item" key={route.id} style={{ "--route-delay": `${index * 0.42}s` } as React.CSSProperties}>
-              <div className="nf-route-index">0{index + 1}</div>
-              <div>
-                <strong>{route.name}</strong>
-                <span>{route.provider}</span>
-              </div>
-              <div className="nf-route-meta">
-                <span>{route.category}</span>
-                <code>{route.context}</code>
+    <div className="ld-cylinder-wrap">
+      <div className="ld-cylinder">
+        {items.map((item, i) => {
+          const angle = i * itemAngle - offset;
+          const norm = ((angle % 360) + 540) % 360 - 180;
+          const sinA = Math.sin(norm * deg);
+          const cosA = Math.cos(norm * deg);
+          const y = sinA * radius;
+          const x = -cosA * sinTilt * radius;
+          const zFactor = cosA * cosTilt;
+          const depth = (zFactor + 1) / 2;
+          const visibility = Math.max(0, Math.min(1, (depth - 0.86) / 0.08));
+          const scale = 0.32 + 0.58 * depth;
+          const rearPresence = 0.28 + Math.min(depth, 0.72) * 0.22;
+          const opacity = Math.max(rearPresence, visibility * (0.36 + 0.64 * depth));
+          const blur = visibility > 0 ? 0 : Math.min(2.6, 0.7 + (0.8 - depth) * 2.4);
+          const isRear = visibility === 0;
+
+          return (
+            <div
+              key={item.name}
+              className={`ld-cyl-item${isRear ? " is-rear" : ""}`}
+              style={{
+                transform: `translate(${x}px, ${y}px) scale(${scale})`,
+                opacity,
+                zIndex: Math.round(depth * 100),
+                filter: blur > 0 ? `blur(${blur}px)` : "none",
+              }}
+            >
+              <div className={`ld-cyl-card tone-${item.tone}`}>
+                <div className="ld-cyl-card-top">
+                  <span className="ld-cyl-card-name">{item.name}</span>
+                  <span className="ld-cyl-card-badge">{item.badge}</span>
+                </div>
+                <div className="ld-cyl-card-meta">
+                  <span>{item.provider}</span>
+                  <span className="ld-cyl-card-ctx">{item.ctx}</span>
+                </div>
+                <div className="ld-cyl-card-price">{item.price}</div>
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
-      <div className="nf-observatory-footer">
-        <span><b>OPENAI</b> compatible</span>
-        <span><b>ANTHROPIC</b> native</span>
-        <span><b>RESPONSES</b> ready</span>
-      </div>
+      <div className="ld-cylinder-mask-top" />
+      <div className="ld-cylinder-mask-btm" />
     </div>
   );
 }
@@ -126,69 +185,59 @@ export default function LandingPage() {
         price: formatModelPrice(model),
       }))
     : fallbackModelRows;
-  const routingModels = recommended.length > 0
-    ? recommended.concat(models.filter((model) => !recommended.some((item) => item.id === model.id))).slice(0, 4)
-    : [];
-  const modelCount = models.length || 67;
-  const availableCount = models.length > 0
-    ? models.filter((model) => !model.availability || model.availability === "available").length
-    : 61;
+  const carouselModels = recommended.length > 0
+    ? recommended.concat(models.filter((model) => !recommended.some((item) => item.id === model.id)).slice(0, 12)).map(modelToCarousel)
+    : fallbackCarouselModels;
+  const modelCount = models.length || 45;
 
   return (
     <>
       <Header />
-      <main id="main-content" className="nf-site nf-site-v2">
+      <main id="main-content" className="nf-site">
 
-      <section className="nf-hero nf-hero-v2">
+      <section className="nf-hero">
         <div className="nf-hero-copy">
-          <Link href="/models/kimi/kimi-k3" className="nf-release-signal">
-            <span>NEW ROUTE</span>
-            Kimi K3 · 2.8T params · native vision
-            <b aria-hidden>↗</b>
+          <Link href="/models/kimi/kimi-k3" style={{
+            display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 14,
+            padding: "6px 14px", borderRadius: 999, textDecoration: "none",
+            background: "linear-gradient(135deg, rgba(45,212,191,0.14), rgba(34,211,238,0.1))",
+            border: "1px solid rgba(45,212,191,0.35)", fontSize: 12.5, fontWeight: 600,
+            color: "var(--text-primary)",
+          }}>
+            <span style={{
+              padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 800,
+              letterSpacing: "0.08em", background: "#0d9488", color: "#fff",
+            }}>NEW</span>
+            Kimi K3 is live — 2.8T params · native vision · 1M context
+            <span aria-hidden style={{ fontWeight: 700 }}>→</span>
           </Link>
-          <div className="nf-eyebrow">AI ROUTING FABRIC · PRODUCTION ONLINE</div>
-          <h1>
-            <span>One endpoint.</span>
-            <em>Every intelligence.</em>
-          </h1>
+          <div className="nf-eyebrow">One API, every leading AI model</div>
+          <h1>NexusFlow</h1>
           <p className="nf-hero-lead">
-            用一个生产级 API，连接文本、推理、视觉、图像与视频模型。NexusFlow 把模型选择、协议兼容、计费和观测收束到一条清晰路径。
+            Between question and answer, there is always a path. NexusFlow turns that uncertainty into one deliberate API for text, vision, image and video intelligence.
           </p>
-          <div className="nf-protocol-line" aria-label="Supported protocols">
-            <span>OpenAI SDK</span><i />
-            <span>Anthropic Messages</span><i />
-            <span>Responses API</span>
-          </div>
           <div className="nf-hero-actions">
             <Link href={user ? "/dashboard" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">
-              {user ? "进入控制台" : "免费开始构建"}<span aria-hidden>→</span>
+              {user ? "Open Console" : "免费开始"}
             </Link>
             <Link href="/docs/quickstart" className="nf-btn nf-btn-secondary nf-btn-lg">
-              查看快速接入
+              Read quickstart
             </Link>
           </div>
           <div className="nf-hero-metrics">
-            <div><strong>{modelCount}</strong><span>模型统一接入</span></div>
-            <div><strong>{availableCount}</strong><span>当前可调用</span></div>
-            <div><strong>3</strong><span>原生协议</span></div>
+            <div><strong>{modelCount}+</strong><span>model options</span></div>
+            <div><strong>2.8T</strong><span>Kimi K3 flagship</span></div>
+            <div><strong>4K HDR</strong><span>Seedance 2.0 video</span></div>
           </div>
         </div>
 
         <div className="nf-cylinder-shell" aria-label="Unified model gateway">
-          <RoutingObservatory items={routingModels} />
+          <CylinderCarousel items={carouselModels} />
         </div>
       </section>
 
-      <div className="nf-signal-rail" aria-label="Platform capabilities">
-        <span><b>67</b> MODEL ROUTES</span>
-        <span><b>01</b> UNIFIED KEY</span>
-        <span><b>¥</b> PRECISE BILLING</span>
-        <span><b>↯</b> STREAMING TTFT</span>
-        <span><b>24/7</b> HEALTH ROUTING</span>
-      </div>
-
       {/* ═══ FLAGSHIP — Kimi K3（最新上线旗舰，醒目主推；上一任主推 Seedance 2.0 保留在 hero 指标） ═══ */}
-      <section className="nf-flagship" style={{
+      <section style={{
         position: "relative",
         margin: "8px auto 0",
         maxWidth: 1180,

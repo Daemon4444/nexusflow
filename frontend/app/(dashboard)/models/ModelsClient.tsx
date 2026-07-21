@@ -126,28 +126,21 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
   }
 
   return (
-    <div className="models-page models-page-v2" style={{ padding: "32px 44px", fontFamily: "var(--font-sans)" }}>
+    <div className="models-page" style={{ padding: "32px 44px", fontFamily: "var(--font-sans)" }}>
       {/* Header */}
-      <div className="models-hero-v2" style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
-        <div className="models-hero-index">CATALOG / 001</div>
-        <div className="models-hero-copy">
-          <div className="section-label">Model Routing Catalog</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <h1 className="page-title" style={{ margin: 0 }}>选择下一条智能路径</h1>
+      <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
+        <div className="section-label">Model Catalog</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+          <h1 className="page-title" style={{ margin: 0 }}>模型列表</h1>
           {!loading && (
-            <span className="models-live-count" style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", background: "var(--accent-bg)", padding: "3px 10px", borderRadius: 20, border: "1px solid var(--accent-border)" }}>
-              {models.length} ROUTES
+            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", background: "var(--accent-bg)", padding: "3px 10px", borderRadius: 20, border: "1px solid var(--accent-border)" }}>
+              {models.length} 个模型
             </span>
           )}
-          </div>
-          <p style={{ fontSize: 13.5, color: "var(--text-secondary)", maxWidth: 720, margin: 0 }}>
-            在同一个 API 中比较文本、推理、视觉、编程、图像与视频能力；价格、协议和可用状态均来自实时目录。
-          </p>
         </div>
-        <div className="models-hero-status" aria-label="Catalog status">
-          <span><i /> LIVE CATALOG</span>
-          <code>OpenAI · Anthropic · Responses</code>
-        </div>
+        <p style={{ fontSize: 13.5, color: "var(--text-secondary)", maxWidth: 720, margin: 0 }}>
+          浏览全系列 AI 模型，涵盖文本、推理、视觉、编程、图像、视频、向量等类别
+        </p>
       </div>
 
       {/* Search & Filters */}

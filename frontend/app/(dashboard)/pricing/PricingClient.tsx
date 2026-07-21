@@ -50,10 +50,9 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
   }, {} as Record<string, AIModel[]>);
 
   return (
-    <div className="pricing-page pricing-page-v2" style={{ padding: "40px", maxWidth: 1100, margin: "0 auto" }}>
+    <div className="pricing-page" style={{ padding: "40px", maxWidth: 1100, margin: "0 auto" }}>
       {/* Header */}
-      <div className="pricing-hero-v2" style={{ marginBottom: 48, textAlign: "center" }}>
-        <div className="pricing-coordinate">BILLING / CNY / LIVE</div>
+      <div style={{ marginBottom: 48, textAlign: "center" }}>
         <div className="section-label">{t("pricingLabel")}</div>
         <h1 style={{
           fontSize: 40,
@@ -75,7 +74,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
         </p>
 
         {/* Billing model highlights */}
-        <div className="pricing-principles" style={{
+        <div style={{
           display: "flex",
           gap: 24,
           justifyContent: "center",
@@ -87,7 +86,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
             { marker: "02", label: t("priceRealtime"), desc: t("priceRealtimeDesc") },
             { marker: "03", label: t("priceNoLockin"), desc: t("priceNoLockinDesc") },
           ].map((item) => (
-            <div className="pricing-principle" key={item.label} style={{
+            <div key={item.label} style={{
               padding: "20px 28px",
               background: "var(--bg-card)",
               border: "1px solid var(--border)",
