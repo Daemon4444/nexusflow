@@ -63,9 +63,10 @@ const protocols = [
 
 export default function DocsPage() {
   return (
-    <div style={{ padding: "48px 64px", maxWidth: 900 }}>
+    <div className="docs-home-v2" style={{ padding: "48px 64px", maxWidth: 900 }}>
       {/* Header */}
-      <div style={{ marginBottom: 48 }}>
+      <div className="docs-home-hero" style={{ marginBottom: 48 }}>
+        <div className="docs-home-index">DOCUMENTATION / 001</div>
         <h1 style={{
           fontSize: 36,
           fontWeight: 700,
@@ -82,7 +83,7 @@ export default function DocsPage() {
       </div>
 
       {/* Seedance 旗舰 Banner */}
-      <section style={{
+      <section className="docs-flagship-v2" style={{
         position: "relative",
         padding: "40px 36px",
         borderRadius: 20,
