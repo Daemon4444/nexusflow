@@ -71,6 +71,7 @@ export async function getAdminUserLimitSummaries() {
       accountType: user.parent_user_id ? "sub" : "main",
       status: user.status || "active",
       balance: user.balance,
+      creditBalance: user.credit_balance,
       created_at: user.created_at,
       updated_at: user.updated_at,
       defaultQpm: wildcard?.qpm ?? DEFAULT_QPM,

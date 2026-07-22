@@ -10,8 +10,8 @@ import { BalanceWarning } from "@/components/BalanceWarning";
 import SmartRecharge from "@/components/SmartRechargeRecommendation";
 import { ErrorState, LoadingState } from "@/components/AppState";
 
-interface BillingSummary { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; }
-interface Transaction { id: string; type: string; amount: number; balanceAfter: number; description: string; refId?: string | null; createdAt: string; discountRate?: number; discountAmountCny?: number; actorUserId?: string | null; actorName?: string | null; }
+interface BillingSummary { balance: number; creditBalance: number; availableBalance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; }
+interface Transaction { id: string; type: string; amount: number; balanceAfter: number; creditAmount: number; creditAfter: number; description: string; refId?: string | null; createdAt: string; discountRate?: number; discountAmountCny?: number; actorUserId?: string | null; actorName?: string | null; }
 type PayMethod = "mock" | "alipay";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
 
@@ -186,10 +186,10 @@ export default function BillingPage() {
   }
 
   function typeLabel(type: string) {
-    switch (type) { case "recharge": return t("txTopUp"); case "consumption": return t("txUsage"); case "refund": return t("txRefund"); default: return type; }
+    switch (type) { case "recharge": return t("txTopUp"); case "consumption": return t("txUsage"); case "refund": return t("txRefund"); case "credit_adjustment": return "信控调整"; case "admin_adjustment": return "余额调整"; default: return type; }
   }
   function typeColor(type: string) {
-    switch (type) { case "recharge": return "#10b981"; case "consumption": return "#ef4444"; case "refund": return "#d97706"; default: return "#78716c"; }
+    switch (type) { case "recharge": return "#10b981"; case "consumption": return "#ef4444"; case "refund": return "#d97706"; case "credit_adjustment": return "#7c3aed"; default: return "#78716c"; }
   }
   function isPlaygroundTx(tx: Transaction) {
     return tx.refId?.startsWith("playground:") || tx.description?.startsWith("Playground");
@@ -200,8 +200,8 @@ export default function BillingPage() {
   // 仅主账号、且流水里确实有子账号发起的消费时，才显示“发起账号”列（普通用户零变化）
   const showActorColumn = !isSub && transactions.some((tx) => tx.actorUserId && tx.actorUserId !== user?.id);
   const txGridColumns = showActorColumn
-    ? "80px 1fr 120px 100px 100px 150px"
-    : "80px 1fr 100px 100px 150px";
+    ? "80px 1fr 120px 100px 100px 100px 150px"
+    : "80px 1fr 100px 100px 100px 150px";
 
   const modalOverlay: React.CSSProperties = {
     position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100,
@@ -235,7 +235,7 @@ export default function BillingPage() {
       <div className="usr-hero-dark">
         {!isSub && (
         <BalanceWarning
-          balance={summary?.balance || user?.balance || 0}
+          balance={summary?.availableBalance ?? ((user?.balance || 0) + (user?.creditBalance || 0))}
           threshold={10}
           onRecharge={() => setShowRecharge(true)}
         />
@@ -260,11 +260,12 @@ export default function BillingPage() {
         ) : (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
-            <div className="usr-hero-label">{t("availableBalance")}</div>
-            <div className="usr-hero-value">{formatCny(summary?.balance || user?.balance || 0)}</div>
+            <div className="usr-hero-label">可用合计</div>
+            <div className="usr-hero-value">{formatCny(summary?.availableBalance ?? ((user?.balance || 0) + (user?.creditBalance || 0)))}</div>
           </div>
           <div className="usr-hero-stats">
-            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("totalRecharged")}</div><div className="usr-hero-stat-value">{formatCny(summary?.totalRecharge || 0)}</div></div>
+            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">余额</div><div className="usr-hero-stat-value">{formatCny(summary?.balance ?? user?.balance ?? 0)}</div></div>
+            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">信控</div><div className="usr-hero-stat-value">{formatCny(summary?.creditBalance ?? user?.creditBalance ?? 0)}</div></div>
             <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("totalSpent")}</div><div className="usr-hero-stat-value">{formatCny(summary?.totalConsumption || 0)}</div></div>
             <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("apiCalls")}</div><div className="usr-hero-stat-value">{summary?.totalCalls || 0}</div></div>
           </div>
@@ -305,7 +306,7 @@ export default function BillingPage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, background: "var(--bg-card)", borderTopLeftRadius: 14, borderTopRightRadius: 14, zIndex: 1 }}>
               <div>
                 <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{t("topUp")}</h3>
-                <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>当前余额 {formatCny(summary?.balance || user?.balance || 0)}</div>
+                <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>当前可用 {formatCny(summary?.availableBalance ?? ((user?.balance || 0) + (user?.creditBalance || 0)))}</div>
               </div>
               <button onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 22, lineHeight: 1 }}>×</button>
             </div>
@@ -318,7 +319,7 @@ export default function BillingPage() {
                   stats={{
                     monthlyCost: summary.totalConsumption,
                     avgDailyCost: summary.totalConsumption / 30,
-                    balance: summary.balance,
+                    balance: summary.availableBalance,
                   }}
                   onSelect={(amount) => setRechargeAmount(String(amount))}
                   selectedAmount={rechargeAmount}
@@ -401,7 +402,7 @@ export default function BillingPage() {
           ) : (
             <div className="tx-table">
               <div className="table-row tx-head" style={{ gridTemplateColumns: txGridColumns, fontWeight: 600, color: "var(--text-tertiary)", fontSize: 11, textTransform: "uppercase" as const, background: "var(--bg-elevated)" }}>
-                <span>{t("txType")}</span><span>{t("txDescription")}</span>{showActorColumn && <span>{t("txAccount")}</span>}<span style={{ textAlign: "right" }}>{t("txAmount")}</span><span style={{ textAlign: "right" }}>{t("txBalance")}</span><span style={{ textAlign: "right" }}>{t("txTime")}</span>
+                <span>{t("txType")}</span><span>{t("txDescription")}</span>{showActorColumn && <span>{t("txAccount")}</span>}<span style={{ textAlign: "right" }}>{t("txAmount")}</span><span style={{ textAlign: "right" }}>{t("txBalance")}</span><span style={{ textAlign: "right" }}>信控</span><span style={{ textAlign: "right" }}>{t("txTime")}</span>
               </div>
               {transactions.map((tx) => (
                 <div key={tx.id} className="table-row tx-body-row" style={{ gridTemplateColumns: txGridColumns }}>
@@ -425,7 +426,7 @@ export default function BillingPage() {
                       )}
                     </span>
                   )}
-                  <span data-label={t("txAmount")} style={{ textAlign: "right", color: tx.type === "recharge" ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <span data-label={t("txAmount")} style={{ textAlign: "right", color: tx.type !== "consumption" && tx.amount > 0 ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                     {tx.type !== "recharge" && tx.discountRate !== undefined && tx.discountRate < 1 && tx.discountAmountCny !== undefined && (
                       <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                         <span style={{ color: "var(--text-tertiary)", textDecoration: "line-through", fontSize: 10.5, fontWeight: 400 }}>{formatCnyPrecise(Number(tx.amount) + tx.discountAmountCny)}</span>
@@ -434,9 +435,10 @@ export default function BillingPage() {
                         </span>
                       </span>
                     )}
-                    <span>{tx.type === "recharge" ? "+" : "-"}{formatCnyPrecise(tx.amount)}</span>
+                    <span>{tx.type !== "consumption" && tx.amount > 0 ? "+" : "-"}{formatCnyPrecise(Math.abs(tx.amount))}</span>
                   </span>
                   <span data-label={t("txBalance")} style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCnyPrecise(tx.balanceAfter)}</span>
+                  <span data-label="信控" style={{ textAlign: "right", color: "#7c3aed", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCnyPrecise(tx.creditAfter)}</span>
                   <span data-label={t("txTime")} style={{ textAlign: "right", color: "var(--text-tertiary)", fontSize: 12 }}>{formatDate(tx.createdAt)}</span>
                 </div>
               ))}

@@ -140,6 +140,8 @@ router.get("/transactions", async (req: Request, res: Response) => {
       type: r.type,
       amount: r.amount,
       balanceAfter: r.balance_after,
+      creditAmount: Number(r.credit_amount || 0),
+      creditAfter: Number(r.credit_after || 0),
       description: r.description,
       refId: r.ref_id,
       createdAt: r.created_at,

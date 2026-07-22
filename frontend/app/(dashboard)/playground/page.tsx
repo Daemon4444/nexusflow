@@ -1418,7 +1418,7 @@ function PlaygroundInner() {
             Playground 使用当前登录账户调用模型，费用直接从账户余额扣除，不需要填写 API Key。
           </span>
           <span style={{ color: user ? "var(--success)" : "#ef4444", fontWeight: 700, whiteSpace: "nowrap" }}>
-            {user ? `余额 ¥${Number(user.balance || 0).toFixed(4)}` : "未登录"}
+            {user ? `可用 ¥${Number((user.balance || 0) + (user.creditBalance || 0)).toFixed(4)}` : "未登录"}
           </span>
         </div>
 

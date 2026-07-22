@@ -106,8 +106,9 @@ export default function UserSidebar() {
             </div>
           ) : (
           <div className="quiet-sidebar-balance">
-            <span>Balance</span>
-            <strong>{formatCny(user.balance ?? 0)}</strong>
+            <span>可用额度</span>
+            <strong>{formatCny((user.balance ?? 0) + (user.creditBalance ?? 0))}</strong>
+            {user.creditBalance > 0 && <small style={{ color: "#7c3aed" }}>含信控 {formatCny(user.creditBalance)}</small>}
             <Link href="/billing">Add credit <span>＋</span></Link>
           </div>
           )
@@ -116,7 +117,7 @@ export default function UserSidebar() {
             <div className="usr-sidebar-avatar">{user.nickname.slice(0, 2)}</div>
             <div className="usr-sidebar-userinfo">
               <span className="usr-sidebar-username">{user.nickname}</span>
-              <span className="usr-sidebar-balance">{formatCny(user.balance ?? 0)}</span>
+              <span className="usr-sidebar-balance">{formatCny((user.balance ?? 0) + (user.creditBalance ?? 0))}</span>
             </div>
           </div>
         )}

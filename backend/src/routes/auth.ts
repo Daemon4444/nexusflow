@@ -97,6 +97,7 @@ router.post("/login", validateBody(LoginSchema), async (req: Request, res: Respo
         email: result.user.email,
         nickname: result.user.nickname,
         balance: result.user.balance,
+        creditBalance: result.user.credit_balance,
         hasPassword: !!result.user.password_hash,
         createdAt: result.user.created_at,
       },
@@ -137,6 +138,7 @@ router.post("/login-password", validateBody(PasswordLoginSchema), async (req: Re
         email: result.user.email,
         nickname: result.user.nickname,
         balance: result.user.balance,
+        creditBalance: result.user.credit_balance,
         hasPassword: !!result.user.password_hash,
         createdAt: result.user.created_at,
       },
@@ -179,6 +181,7 @@ router.post("/login-username", validateBody(UsernameLoginSchema), async (req: Re
         username: result.user.username,
         nickname: result.user.nickname,
         balance: result.user.parent_user_id ? 0 : result.user.balance,
+        creditBalance: result.user.parent_user_id ? 0 : result.user.credit_balance,
         accountType: result.user.parent_user_id ? "sub" : "main",
         hasPassword: !!result.user.password_hash,
         createdAt: result.user.created_at,
@@ -247,6 +250,7 @@ router.get("/me", async (req: Request, res: Response) => {
       nickname: user.nickname,
       // 子账号无独立余额（钱在主账号，spec §4.3：不向子账号暴露主账号余额）
       balance: isSub ? 0 : user.balance,
+      creditBalance: isSub ? 0 : user.credit_balance,
       accountType: isSub ? "sub" : "main",
       quota: isSub
         ? { limit: user.quota_limit, used: user.quota_used, period: user.quota_period }

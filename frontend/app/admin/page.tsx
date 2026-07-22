@@ -21,6 +21,7 @@ interface User {
   accountType?: "main" | "sub";
   status?: "active" | "suspended" | "deleted" | string;
   balance: number;
+  creditBalance: number;
   createdAt: string;
   updatedAt?: string;
   defaultQpm?: number;
@@ -492,13 +493,15 @@ interface BillingOverviewRow {
   accountType: "main" | "sub";
   status: string;
   balance: number;
+  creditBalance: number;
+  availableBalance: number;
   totalRecharge: number;
   totalConsumption: number;
   totalCalls: number;
 }
 
 interface BillingOverview {
-  totals: { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; userCount: number };
+  totals: { balance: number; creditBalance: number; availableBalance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; userCount: number };
   users: BillingOverviewRow[];
 }
 
@@ -507,6 +510,8 @@ interface AdminBillingTx {
   type: string;
   amount: number;
   balance_after: number;
+  credit_amount: number;
+  credit_after: number;
   description: string;
   created_at: string;
   actor_user_id: string | null;
@@ -530,7 +535,7 @@ interface SubBreakdownRow {
 
 interface BillingUserDetail {
   user: { id: string; nickname: string; email: string | null; username: string | null; accountType: "main" | "sub"; status: string };
-  summary: { balance: number; totalRecharge: number; totalConsumption: number; totalCalls: number };
+  summary: { balance: number; creditBalance: number; availableBalance: number; totalRecharge: number; totalConsumption: number; totalCalls: number };
   transactions: { rows: AdminBillingTx[]; total: number };
   subBreakdown: SubBreakdownRow[];
 }
@@ -612,6 +617,7 @@ export default function AdminPage() {
   const [rateLimitForm, setRateLimitForm] = useState<{ model: string; qpm: string; tpm: string } | null>(null);
   const [rateLimitFormTarget, setRateLimitFormTarget] = useState<string | null>(null); // model being edited
   const [balanceForm, setBalanceForm] = useState<{ amount: string; description: string } | null>(null);
+  const [creditForm, setCreditForm] = useState<{ amount: string; description: string } | null>(null);
   const [billingOverview, setBillingOverview] = useState<BillingOverview | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingUserId, setBillingUserId] = useState("");
@@ -1142,6 +1148,29 @@ export default function AdminPage() {
       await loadUserDetail(userId);
     } else {
       setNotice(res.message || "余额调整失败");
+    }
+  }
+
+  async function submitCreditForm(userId: string) {
+    if (!creditForm) return;
+    const amountDelta = Number(creditForm.amount);
+    if (!Number.isFinite(amountDelta) || amountDelta === 0) {
+      setNotice("信控调整金额必须是非 0 数字");
+      return;
+    }
+    const description = creditForm.description.trim() || (amountDelta > 0 ? "管理员增加信控" : "管理员扣减信控");
+    const res = await fetchAPI(`/api/admin/users/${userId}/credit-adjust`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ amountDelta, description }),
+    });
+    if (res.success) {
+      setNotice("用户信控已调整");
+      setCreditForm(null);
+      await loadData();
+      await loadUserDetail(userId);
+    } else {
+      setNotice(res.message || "信控调整失败");
     }
   }
 
@@ -1897,7 +1926,8 @@ export default function AdminPage() {
                               <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>{user.email || user.username || user.phone || "无登录标识"}</div>
                             </div>
                             <div style={{ textAlign: "right" }}>
-                              <div style={{ fontSize: 12, color: "#10b981", fontWeight: 600 }}>¥{Number(user.balance || 0).toFixed(2)}</div>
+                              <div style={{ fontSize: 12, color: "#10b981", fontWeight: 600 }}>余额 ¥{Number(user.balance || 0).toFixed(2)}</div>
+                              <div style={{ marginTop: 2, fontSize: 11, color: "#7c3aed", fontWeight: 600 }}>信控 ¥{Number(user.creditBalance || 0).toFixed(2)}</div>
                               <div style={{ marginTop: 4, fontSize: 11, color: "#6b7280" }}>
                                 {user.customLimitCount || 0} 条限额 · {userModelDiscounts.filter((discount) => discount.user_id === user.id).length} 条折扣
                               </div>
@@ -1926,15 +1956,23 @@ export default function AdminPage() {
                               <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>注册于 {new Date(selectedUser.createdAt).toLocaleString("zh-CN")}</div>
                             </div>
                             <div style={{ textAlign: "right" }}>
-                              <div style={{ fontSize: 26, fontWeight: 700, color: "#10b981" }}>¥{Number(selectedUser.balance || 0).toFixed(2)}</div>
-                              <div style={{ fontSize: 12, color: "#6b7280" }}>账户余额</div>
-                              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>账单明细见「账单」标签页</div>
+                              <div style={{ display: "flex", gap: 18, justifyContent: "flex-end" }}>
+                                <div><div style={{ fontSize: 24, fontWeight: 700, color: "#10b981" }}>¥{Number(selectedUser.balance || 0).toFixed(2)}</div><div style={{ fontSize: 12, color: "#6b7280" }}>账户余额</div></div>
+                                <div><div style={{ fontSize: 24, fontWeight: 700, color: "#7c3aed" }}>¥{Number(selectedUser.creditBalance || 0).toFixed(2)}</div><div style={{ fontSize: 12, color: "#6b7280" }}>信控</div></div>
+                              </div>
+                              <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>可用合计 ¥{(Number(selectedUser.balance || 0) + Number(selectedUser.creditBalance || 0)).toFixed(2)}</div>
                               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 10, flexWrap: "wrap" }}>
                                 <button
-                                  onClick={() => { setBalanceForm(null); openBalanceForm(selectedUser.id); }}
+                                  onClick={() => { setCreditForm(null); setBalanceForm(null); openBalanceForm(selectedUser.id); }}
                                   style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
                                 >
                                   调整余额
+                                </button>
+                                <button
+                                  onClick={() => { setCreditForm({ amount: "", description: "" }); setBalanceForm(null); }}
+                                  style={{ border: "1px solid #c4b5fd", color: "#6d28d9", background: "#f5f3ff", borderRadius: 8, padding: "7px 10px", fontSize: 12, cursor: "pointer" }}
+                                >
+                                  调整信控
                                 </button>
                               </div>
                             </div>
@@ -1968,6 +2006,26 @@ export default function AdminPage() {
                               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                                 <button onClick={() => submitBalanceForm(selectedUser.id)} style={{ border: "none", background: "#111827", color: "#fff", borderRadius: 7, padding: "7px 16px", fontSize: 13, cursor: "pointer" }}>确认调账</button>
                                 <button onClick={() => setBalanceForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "7px 12px", fontSize: 13, cursor: "pointer" }}>取消</button>
+                              </div>
+                            </div>
+                          )}
+
+                          {creditForm && (
+                            <div style={{ marginTop: 14, padding: 14, background: "#f5f3ff", borderRadius: 10, border: "1px solid #ddd6fe" }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 10 }}>调整信控</div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
+                                  调整金额（正数增加，负数扣减）
+                                  <input type="number" value={creditForm.amount} onChange={(e) => setCreditForm({ ...creditForm, amount: e.target.value })} placeholder="例如 100 或 -50" style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #c4b5fd", fontSize: 13 }} />
+                                </label>
+                                <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "#374151" }}>
+                                  说明
+                                  <input value={creditForm.description} onChange={(e) => setCreditForm({ ...creditForm, description: e.target.value })} placeholder="信控说明（可选）" style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid #c4b5fd", fontSize: 13 }} />
+                                </label>
+                              </div>
+                              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                                <button onClick={() => submitCreditForm(selectedUser.id)} style={{ border: "none", background: "#6d28d9", color: "#fff", borderRadius: 7, padding: "7px 16px", fontSize: 13, cursor: "pointer" }}>确认调整</button>
+                                <button onClick={() => setCreditForm(null)} style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 7, padding: "7px 12px", fontSize: 13, cursor: "pointer" }}>取消</button>
                               </div>
                             </div>
                           )}
@@ -2293,9 +2351,10 @@ export default function AdminPage() {
                   <div style={{ ...cardStyle, padding: 40, textAlign: "center", color: "#6b7280" }}>加载中...</div>
                 ) : (
                   <>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
                       {[
                         { label: "总余额", value: `¥${Number(billingOverview?.totals.balance || 0).toFixed(2)}`, color: "#10b981" },
+                        { label: "总信控", value: `¥${Number(billingOverview?.totals.creditBalance || 0).toFixed(2)}`, color: "#7c3aed" },
                         { label: "总充值", value: `¥${Number(billingOverview?.totals.totalRecharge || 0).toFixed(2)}`, color: "#2563eb" },
                         { label: "总消费", value: `¥${Number(billingOverview?.totals.totalConsumption || 0).toFixed(2)}`, color: "#ef4444" },
                         { label: "消费笔数", value: Number(billingOverview?.totals.totalCalls || 0).toLocaleString(), color: "#111827" },
@@ -2345,7 +2404,8 @@ export default function AdminPage() {
                                     <div style={{ fontSize: 11, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.email || row.username || row.id}</div>
                                   </div>
                                   <div style={{ textAlign: "right", flex: "0 0 auto" }}>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>¥{Number(row.balance || 0).toFixed(2)}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>可用 ¥{Number(row.availableBalance || 0).toFixed(2)}</div>
+                                    {row.creditBalance > 0 && <div style={{ fontSize: 10.5, color: "#7c3aed" }}>含信控 ¥{Number(row.creditBalance).toFixed(2)}</div>}
                                     <div style={{ fontSize: 10.5, color: "#9ca3af" }}>消费 ¥{Number(row.totalConsumption || 0).toFixed(2)}</div>
                                   </div>
                                 </div>
@@ -2384,9 +2444,10 @@ export default function AdminPage() {
                                   导出 CSV（本月）
                                 </button>
                               </div>
-                              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 16 }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 16 }}>
                                 {[
                                   { label: "余额", value: `¥${Number(billingDetail.summary.balance || 0).toFixed(2)}`, color: "#10b981" },
+                                  { label: "信控", value: `¥${Number(billingDetail.summary.creditBalance || 0).toFixed(2)}`, color: "#7c3aed" },
                                   { label: "累计充值", value: `¥${Number(billingDetail.summary.totalRecharge || 0).toFixed(2)}`, color: "#2563eb" },
                                   { label: "累计消费", value: `¥${Number(billingDetail.summary.totalConsumption || 0).toFixed(2)}`, color: "#ef4444" },
                                   { label: "消费笔数", value: Number(billingDetail.summary.totalCalls || 0).toLocaleString(), color: "#111827" },
@@ -2435,18 +2496,19 @@ export default function AdminPage() {
                               <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: "0 0 14px" }}>账务流水</h3>
                               {billingDetail.transactions.rows.length ? (
                                 <>
-                                  <div style={{ display: "grid", gridTemplateColumns: "90px 1fr 110px 100px 100px 140px", gap: 8, padding: "8px 10px", background: "#f9fafb", borderRadius: 8, fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase" }}>
+                                  <div style={{ display: "grid", gridTemplateColumns: "90px 1fr 110px 100px 100px 100px 140px", gap: 8, padding: "8px 10px", background: "#f9fafb", borderRadius: 8, fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase" }}>
                                     <span>类型</span>
                                     <span>描述</span>
                                     <span>发起</span>
                                     <span style={{ textAlign: "right" }}>金额</span>
                                     <span style={{ textAlign: "right" }}>余额</span>
+                                    <span style={{ textAlign: "right" }}>信控</span>
                                     <span style={{ textAlign: "right" }}>时间</span>
                                   </div>
                                   {billingDetail.transactions.rows.map((tx) => {
                                     const bySub = tx.actor_user_id && tx.actor_user_id !== billingDetail.user.id;
                                     return (
-                                      <div key={tx.id} style={{ display: "grid", gridTemplateColumns: "90px 1fr 110px 100px 100px 140px", gap: 8, padding: "10px", borderBottom: "1px solid #f3f4f6", alignItems: "center" }}>
+                                      <div key={tx.id} style={{ display: "grid", gridTemplateColumns: "90px 1fr 110px 100px 100px 100px 140px", gap: 8, padding: "10px", borderBottom: "1px solid #f3f4f6", alignItems: "center" }}>
                                         <span style={{ fontSize: 12, color: "#6b7280" }}>{tx.type}</span>
                                         <span style={{ minWidth: 0, fontSize: 12.5, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description}</span>
                                         <span style={{ fontSize: 11.5, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -2456,8 +2518,9 @@ export default function AdminPage() {
                                             <span style={{ color: "#9ca3af" }}>本人</span>
                                           )}
                                         </span>
-                                        <span style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: tx.type === "recharge" ? "#059669" : "#dc2626", fontVariantNumeric: "tabular-nums" }}>{tx.type === "recharge" ? "+" : "-"}¥{Math.abs(Number(tx.amount || 0)).toFixed(6)}</span>
+                                        <span style={{ textAlign: "right", fontSize: 12, fontWeight: 700, color: tx.type !== "consumption" && Number(tx.amount) > 0 ? "#059669" : "#dc2626", fontVariantNumeric: "tabular-nums" }}>{tx.type !== "consumption" && Number(tx.amount) > 0 ? "+" : "-"}¥{Math.abs(Number(tx.amount || 0)).toFixed(6)}</span>
                                         <span style={{ textAlign: "right", fontSize: 12, color: "#4b5563", fontVariantNumeric: "tabular-nums" }}>¥{Number(tx.balance_after || 0).toFixed(2)}</span>
+                                        <span style={{ textAlign: "right", fontSize: 12, color: "#7c3aed", fontVariantNumeric: "tabular-nums" }}>¥{Number(tx.credit_after || 0).toFixed(2)}</span>
                                         <span style={{ textAlign: "right", fontSize: 11.5, color: "#9ca3af" }}>{new Date(tx.created_at).toLocaleString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                                       </div>
                                     );

@@ -129,7 +129,7 @@ export default function KeysPage() {
 
   const firstRun = getFirstRunState({
     apiKeyCount: keys.length,
-    balance: user?.balance || 0,
+    balance: (user?.balance || 0) + (user?.creditBalance || 0),
     recentUsageCount: keys.reduce((sum, item) => sum + (item.usageCount || 0), 0),
   });
   const exampleModel = "qwen-plus";

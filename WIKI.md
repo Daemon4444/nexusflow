@@ -10,7 +10,7 @@
 
 ## 1. 一句话认识项目
 
-NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和计费平台。用户使用一套 NexusFlow 账号、余额与 API Key，通过 OpenAI、Anthropic Messages、Responses 及异步任务接口访问多个文本、多模态、向量、语音、图像和视频上游。
+NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和计费平台。用户使用一套 NexusFlow 账号、余额/信控与 API Key，通过 OpenAI、Anthropic Messages、Responses 及异步任务接口访问多个文本、多模态、向量、语音、图像和视频上游。
 
 - 产品站：`https://nexusflow.hk`
 - Public API：`https://nexusflow.hk/v1`
@@ -68,7 +68,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 进程 | PM2；后端 cluster ×2，前端 ×1 |
 | 反向代理 | nginx + TLS |
 | 线上模型目录 | 67 个运行时模型；以 `GET /api/models` 实时结果为准 |
-| 数据库迁移 | `001` 至 `011`，其中历史上存在两个 `006_*` 文件 |
+| 数据库迁移 | `001` 至 `012`，其中历史上存在两个 `006_*` 文件 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 生产每日 PostgreSQL 备份；`small` 服务器每日异地拉取 |
 
@@ -142,7 +142,7 @@ nexusflow/
 API Key 鉴权
   → 子账号状态与模型权限
   → Consumer QPM/TPM + Provider 容量检查
-  → 按最大可能成本原子预占余额
+  → 按最大可能成本原子预占可用资金（余额 + 信控）
   → 解析 Provider/区域/协议
   → 请求上游（流式或非流式）
   → 解析真实 usage / 缓存 token
@@ -162,7 +162,7 @@ API Key 鉴权
 - 缓存计费：`backend/src/utils/cache-billing.ts`
 - 限流：`backend/src/services/rate-limiter.ts`
 
-余额检查不是普通的“先查余额、后扣款”。迁移 `011_billing_reservations.sql` 和 `reserveBalanceWithReason/settleReservation/releaseReservation` 用数据库行锁解决并发请求穿透余额的问题。预占失败会保留余额不足、子账号额度耗尽、账号暂停等稳定原因，HTTP 路由不能再把这些情况合并成同一个 402。新增任何收费路径必须接入同一套预占/结算语义。
+资金检查不是普通的“先查余额、后扣款”。迁移 `011_billing_reservations.sql` 和 `reserveBalanceWithReason/settleReservation/releaseReservation` 用数据库行锁解决并发请求穿透可用资金的问题。主账号可用资金为余额加信控，结算时优先扣余额、不足部分扣信控；两者独立展示和记账。预占失败会保留余额不足、子账号额度耗尽、账号暂停等稳定原因，HTTP 路由不能再把这些情况合并成同一个 402。新增任何收费路径必须接入同一套预占/结算语义。
 
 ### 6.2 图像、视频、语音与异步任务
 
@@ -253,6 +253,7 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 ### 9.3 金额与计费
 
 - PostgreSQL 金额字段使用 NUMERIC；
+- 主账号可用资金 = 余额 + 信控；信控只能由管理员调整，消费优先扣余额再扣信控；
 - 展示金额不能替代账本精度；
 - Token 模型可能有输入长度分层价；
 - 缓存读、缓存写和普通输入价格不同；
@@ -290,9 +291,10 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 009_sub_account_model_permissions.sql
 010_response_ownership.sql
 011_billing_reservations.sql
+012_credit_balance.sql
 ```
 
-历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。未来迁移从 `012_*.sql` 开始，禁止再复用编号。
+历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。未来迁移从 `013_*.sql` 开始，禁止再复用编号。
 
 ## 11. 安全与隐私基线
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { closeDb, db } from "../src/db/client";
-import { reserveBalance, reserveBalanceWithReason, settleReservation } from "../src/data/billing";
+import { adminAdjustCredit, reserveBalance, reserveBalanceWithReason, settleReservation } from "../src/data/billing";
 import {
   normalizeDashScopeVideoResolution,
   normalizeDashScopeVideoSize,
@@ -45,6 +45,31 @@ async function main(): Promise<void> {
     "SELECT COUNT(*)::int AS count FROM billing_reservations WHERE status = 'active'"
   );
   assert.equal(Number(active?.count), 0, "no hold should remain active");
+
+  await db.execute("UPDATE users SET balance = 2 WHERE id = ?", ["local-user-1"]);
+  const creditAdjustment = await adminAdjustCredit({
+    userId: "local-user-1",
+    amountDelta: 10,
+    description: "integration credit grant",
+    actorId: "test-admin",
+  });
+  assert.ok(creditAdjustment, "admin should be able to grant credit");
+  assert.equal(Number(creditAdjustment.credit_after), 10);
+
+  const creditReservation = await reserveBalance("local-user-1", 8, "credit-availability");
+  assert.ok(creditReservation, "cash plus credit should satisfy reservation");
+  const creditSettlement = await settleReservation(creditReservation.id, 8, "credit settlement");
+  assert.ok(creditSettlement);
+  assert.equal(Number(creditSettlement.balance_after), 0, "cash must be consumed first");
+  assert.equal(Number(creditSettlement.credit_amount), 6, "only the remainder should use credit");
+  assert.equal(Number(creditSettlement.credit_after), 4, "credit balance should settle exactly once");
+
+  const creditOwner = await db.queryOne<{ balance: number; credit_balance: number }>(
+    "SELECT balance, credit_balance FROM users WHERE id = ?",
+    ["local-user-1"]
+  );
+  assert.equal(Number(creditOwner?.balance), 0);
+  assert.equal(Number(creditOwner?.credit_balance), 4);
 
   await db.execute(
     `INSERT INTO users

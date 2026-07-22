@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { requireAdmin } from "../middleware/admin";
 import { sanitizeError } from "../utils/sanitize-error";
 import { getAdminUserLimitSummaries, getUserLimitsOverview } from "../data/ratelimits";
-import { adminAdjustBalance, getBillingUsageExport, getTransactions, getBillingSummary, getSubAccountBreakdown } from "../data/billing";
+import { adminAdjustBalance, adminAdjustCredit, getBillingUsageExport, getTransactions, getBillingSummary, getSubAccountBreakdown } from "../data/billing";
 import { getByModel, getOverview, getRecent, getUsageSummary } from "../data/usage";
 import {
   getDashboardDailyStats,
@@ -278,6 +278,32 @@ router.post("/users/:id/balance-adjust", async (req: Request, res: Response) => 
   res.json({ success: true, data: tx, message: "余额已调整" });
 });
 
+router.post("/users/:id/credit-adjust", async (req: Request, res: Response) => {
+  const session = (req as any).admin;
+  const amountDelta = Number(req.body?.amountDelta ?? req.body?.amount_delta);
+  const description = String(req.body?.description || "").trim();
+  if (!Number.isFinite(amountDelta) || amountDelta === 0) {
+    res.status(400).json({ success: false, message: "amountDelta 必须是非 0 数字" });
+    return;
+  }
+  if (Math.abs(amountDelta) > 100000) {
+    res.status(400).json({ success: false, message: "单次信控调整不能超过 100000 元" });
+    return;
+  }
+
+  const tx = await adminAdjustCredit({
+    userId: String(req.params.id),
+    amountDelta,
+    description,
+    actorId: session?.id || null,
+  });
+  if (!tx) {
+    res.status(400).json({ success: false, message: "信控调整失败，请确认用户为主账号且调整后信控不为负" });
+    return;
+  }
+  res.json({ success: true, data: tx, message: "信控已调整" });
+});
+
 // ========== 账单（全局总览 + 单用户下钻，只读） ==========
 
 router.get("/billing/overview", async (_req: Request, res: Response) => {
@@ -295,6 +321,8 @@ router.get("/billing/overview", async (_req: Request, res: Response) => {
           accountType: isSub ? "sub" : "main",
           status: user.status || "active",
           balance: summary.balance,
+          creditBalance: summary.creditBalance,
+          availableBalance: summary.availableBalance,
           totalRecharge: summary.totalRecharge,
           totalConsumption: summary.totalConsumption,
           totalCalls: summary.totalCalls,
@@ -305,12 +333,14 @@ router.get("/billing/overview", async (_req: Request, res: Response) => {
     const totals = rows.reduce(
       (acc, r) => {
         acc.balance += r.balance;
+        acc.creditBalance += r.creditBalance;
+        acc.availableBalance += r.availableBalance;
         acc.totalRecharge += r.totalRecharge;
         acc.totalConsumption += r.totalConsumption;
         acc.totalCalls += r.totalCalls;
         return acc;
       },
-      { balance: 0, totalRecharge: 0, totalConsumption: 0, totalCalls: 0 }
+      { balance: 0, creditBalance: 0, availableBalance: 0, totalRecharge: 0, totalConsumption: 0, totalCalls: 0 }
     );
 
     res.json({
@@ -318,6 +348,8 @@ router.get("/billing/overview", async (_req: Request, res: Response) => {
       data: {
         totals: {
           balance: Math.round(totals.balance * 1_000_000) / 1_000_000,
+          creditBalance: Math.round(totals.creditBalance * 1_000_000) / 1_000_000,
+          availableBalance: Math.round(totals.availableBalance * 1_000_000) / 1_000_000,
           totalRecharge: Math.round(totals.totalRecharge * 1_000_000) / 1_000_000,
           totalConsumption: Math.round(totals.totalConsumption * 1_000_000) / 1_000_000,
           totalCalls: totals.totalCalls,

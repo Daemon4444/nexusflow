@@ -11,6 +11,8 @@ export interface Transaction {
   type: string;
   amount: number;
   balance_after: number;
+  credit_amount: number;
+  credit_after: number;
   description: string;
   ref_id: string | null;
   created_at: string;
@@ -79,6 +81,21 @@ export interface BillingUsageExportRow {
 
 function roundBalance(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000;
+}
+
+function allocateCharge(balance: number, creditBalance: number, amount: number) {
+  const cashCharge = roundBalance(Math.min(Math.max(balance, 0), amount));
+  const remaining = roundBalance(amount - cashCharge);
+  const creditCharge = roundBalance(Math.min(Math.max(creditBalance, 0), remaining));
+  const uncovered = roundBalance(remaining - creditCharge);
+  return {
+    cashCharge,
+    creditCharge,
+    // Preserve the legacy shortfall behavior after delivery: any estimate miss
+    // is recorded as negative cash instead of silently dropping the charge.
+    balanceAfter: roundBalance(balance - cashCharge - uncovered),
+    creditAfter: roundBalance(creditBalance - creditCharge),
+  };
 }
 
 function normalizeExportDate(value: string | undefined, fallback: Date): Date {
@@ -155,8 +172,8 @@ export async function recharge(userId: string, amount: number, description?: str
   const text = description || `充值 ¥${amount.toFixed(2)}`;
 
   return db.transaction(async (client) => {
-    const user = await client.queryOne<{ balance: number; parent_user_id: string | null }>(
-      "SELECT balance, parent_user_id FROM users WHERE id = ? FOR UPDATE",
+    const user = await client.queryOne<{ balance: number; credit_balance: number; parent_user_id: string | null }>(
+      "SELECT balance, credit_balance, parent_user_id FROM users WHERE id = ? FOR UPDATE",
       [userId]
     );
     if (!user) return null;
@@ -164,10 +181,10 @@ export async function recharge(userId: string, amount: number, description?: str
     const newBalance = roundBalance(Number(user.balance || 0) + normalizedAmount);
     await client.execute("UPDATE users SET balance = ?, updated_at = ? WHERE id = ?", [newBalance, now, userId]);
     const tx = await client.queryOne<Transaction>(
-      `INSERT INTO transactions (id, user_id, type, amount, balance_after, description, ref_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO transactions (id, user_id, type, amount, balance_after, credit_amount, credit_after, description, ref_id, created_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
        RETURNING *`,
-      [txId, userId, "recharge", normalizedAmount, newBalance, text, null, now]
+      [txId, userId, "recharge", normalizedAmount, newBalance, Number(user.credit_balance || 0), text, null, now]
     );
     return tx!;
   });
@@ -216,8 +233,8 @@ export async function reserveBalanceWithReason(
     }
 
     const billingOwnerId = actor.parent_user_id || actor.id;
-    const owner = await client.queryOne<{ balance: number; status: string }>(
-      "SELECT balance, status FROM users WHERE id = ? FOR UPDATE",
+    const owner = await client.queryOne<{ balance: number; credit_balance: number; status: string }>(
+      "SELECT balance, credit_balance, status FROM users WHERE id = ? FOR UPDATE",
       [billingOwnerId]
     );
     if (!owner || owner.status !== "active") {
@@ -239,7 +256,7 @@ export async function reserveBalanceWithReason(
         WHERE billing_owner_id = ? AND status = 'active'`,
       [billingOwnerId]
     );
-    const available = roundBalance(Number(owner.balance || 0) - Number(held?.amount || 0));
+    const available = roundBalance(Number(owner.balance || 0) + Number(owner.credit_balance || 0) - Number(held?.amount || 0));
     if (available < normalizedAmount) {
       return { reservation: null, reason: "insufficient_balance" } as const;
     }
@@ -331,8 +348,8 @@ export async function settleReservation(
     );
     if (!reservationOwner) return null;
 
-    const owner = await client.queryOne<{ balance: number }>(
-      "SELECT balance FROM users WHERE id = ? FOR UPDATE",
+    const owner = await client.queryOne<{ balance: number; credit_balance: number }>(
+      "SELECT balance, credit_balance FROM users WHERE id = ? FOR UPDATE",
       [reservationOwner.billing_owner_id]
     );
     if (!owner) return null;
@@ -366,7 +383,8 @@ export async function settleReservation(
     if (!actor) return null;
 
     const currentBalance = Number(owner.balance || 0);
-    if (normalizedAmount > Number(reservation.reserved_amount || 0) || currentBalance < normalizedAmount) {
+    const currentCredit = Number(owner.credit_balance || 0);
+    if (normalizedAmount > Number(reservation.reserved_amount || 0) || currentBalance + currentCredit < normalizedAmount) {
       logToSLS({
         event: "billing_reservation_estimate_miss",
         reservationId,
@@ -375,6 +393,7 @@ export async function settleReservation(
         reservedAmount: reservation.reserved_amount,
         actualAmount: normalizedAmount,
         balance: currentBalance,
+        creditBalance: currentCredit,
       });
     }
 
@@ -393,17 +412,17 @@ export async function settleReservation(
       );
     }
 
-    const newBalance = roundBalance(currentBalance - normalizedAmount);
+    const allocation = allocateCharge(currentBalance, currentCredit, normalizedAmount);
     await client.execute(
-      "UPDATE users SET balance = ?, updated_at = ? WHERE id = ?",
-      [newBalance, now, reservation.billing_owner_id]
+      "UPDATE users SET balance = ?, credit_balance = ?, updated_at = ? WHERE id = ?",
+      [allocation.balanceAfter, allocation.creditAfter, now, reservation.billing_owner_id]
     );
 
     const txId = uuidv4();
     const tx = await client.queryOne<Transaction>(
       `INSERT INTO transactions
-        (id, user_id, actor_user_id, type, amount, balance_after, description, ref_id, created_at, discount_rate, discount_amount_cny)
-       VALUES (?, ?, ?, 'consumption', ?, ?, ?, ?, ?, ?, ?)
+        (id, user_id, actor_user_id, type, amount, balance_after, credit_amount, credit_after, description, ref_id, created_at, discount_rate, discount_amount_cny)
+       VALUES (?, ?, ?, 'consumption', ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT DO NOTHING
        RETURNING *`,
       [
@@ -411,7 +430,9 @@ export async function settleReservation(
         reservation.billing_owner_id,
         reservation.user_id,
         normalizedAmount,
-        newBalance,
+        allocation.balanceAfter,
+        allocation.creditCharge,
+        allocation.creditAfter,
         description,
         transactionRef,
         now,
@@ -490,17 +511,18 @@ export async function consume(
     const billingOwnerId = actor.parent_user_id || userId;
 
     // 锁计费主体（主账号）行
-    const owner = await client.queryOne<{ balance: number }>(
-      "SELECT balance FROM users WHERE id = ? FOR UPDATE",
+    const owner = await client.queryOne<{ balance: number; credit_balance: number }>(
+      "SELECT balance, credit_balance FROM users WHERE id = ? FOR UPDATE",
       [billingOwnerId]
     );
     if (!owner) return null;
     const currentBalance = Number(owner.balance || 0);
-    if (currentBalance < normalizedAmount) {
+    const currentCredit = Number(owner.credit_balance || 0);
+    if (currentBalance + currentCredit < normalizedAmount) {
       // Legacy callers may still settle after delivery without a reservation.
       // Charge and alert rather than silently making the platform pay.
-      console.error(`[billing] legacy consume shortfall: user=${userId} owner=${billingOwnerId} amount=${normalizedAmount} balance=${currentBalance} desc="${description}"`);
-      logToSLS({ event: "consume_shortfall", userId, billingOwnerId, amount: normalizedAmount, balance: currentBalance, description, refId });
+      console.error(`[billing] legacy consume shortfall: user=${userId} owner=${billingOwnerId} amount=${normalizedAmount} balance=${currentBalance} credit=${currentCredit} desc="${description}"`);
+      logToSLS({ event: "consume_shortfall", userId, billingOwnerId, amount: normalizedAmount, balance: currentBalance, creditBalance: currentCredit, description, refId });
     }
 
     // 子账号：状态 + 限额（原子条件更新，0 行 = 停用或超限）
@@ -518,13 +540,13 @@ export async function consume(
       if (!quotaOk) return null;
     }
 
-    const newBalance = roundBalance(currentBalance - normalizedAmount);
-    await client.execute("UPDATE users SET balance = ?, updated_at = ? WHERE id = ?", [newBalance, now, billingOwnerId]);
+    const allocation = allocateCharge(currentBalance, currentCredit, normalizedAmount);
+    await client.execute("UPDATE users SET balance = ?, credit_balance = ?, updated_at = ? WHERE id = ?", [allocation.balanceAfter, allocation.creditAfter, now, billingOwnerId]);
     const tx = await client.queryOne<Transaction>(
-      `INSERT INTO transactions (id, user_id, actor_user_id, type, amount, balance_after, description, ref_id, created_at, discount_rate, discount_amount_cny)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO transactions (id, user_id, actor_user_id, type, amount, balance_after, credit_amount, credit_after, description, ref_id, created_at, discount_rate, discount_amount_cny)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        RETURNING *`,
-      [txId, billingOwnerId, userId, "consumption", normalizedAmount, newBalance, description, refId || null, now, savedDiscountRate, savedDiscountAmount]
+      [txId, billingOwnerId, userId, "consumption", normalizedAmount, allocation.balanceAfter, allocation.creditCharge, allocation.creditAfter, description, refId || null, now, savedDiscountRate, savedDiscountAmount]
     );
     return tx!;
   });
@@ -543,8 +565,8 @@ export async function adminAdjustBalance(params: {
   const description = params.description.trim() || `管理员调账 ${delta > 0 ? "+" : ""}${delta.toFixed(6)}`;
 
   return db.transaction(async (client) => {
-    const user = await client.queryOne<{ balance: number; parent_user_id: string | null }>(
-      "SELECT balance, parent_user_id FROM users WHERE id = ? FOR UPDATE",
+    const user = await client.queryOne<{ balance: number; credit_balance: number; parent_user_id: string | null }>(
+      "SELECT balance, credit_balance, parent_user_id FROM users WHERE id = ? FOR UPDATE",
       [params.userId]
     );
     if (!user) return null;
@@ -553,8 +575,8 @@ export async function adminAdjustBalance(params: {
     if (newBalance < 0) return null;
     await client.execute("UPDATE users SET balance = ?, updated_at = ? WHERE id = ?", [newBalance, now, params.userId]);
     const tx = await client.queryOne<Transaction>(
-      `INSERT INTO transactions (id, user_id, type, amount, balance_after, description, ref_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO transactions (id, user_id, type, amount, balance_after, credit_amount, credit_after, description, ref_id, created_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
        RETURNING *`,
       [
         txId,
@@ -562,12 +584,53 @@ export async function adminAdjustBalance(params: {
         "admin_adjustment",
         delta,
         newBalance,
+        Number(user.credit_balance || 0),
         description,
         params.actorId ? `admin:${params.actorId}` : "admin",
         now,
       ]
     );
     return tx!;
+  });
+}
+
+export async function adminAdjustCredit(params: {
+  userId: string;
+  amountDelta: number;
+  description: string;
+  actorId?: string | null;
+}): Promise<Transaction | null> {
+  if (!Number.isFinite(params.amountDelta) || params.amountDelta === 0) return null;
+  const delta = roundBalance(params.amountDelta);
+  const txId = uuidv4();
+  const now = new Date().toISOString();
+  const description = params.description.trim() || `管理员调整信控 ${delta > 0 ? "+" : ""}${delta.toFixed(6)}`;
+
+  return db.transaction(async (client) => {
+    const user = await client.queryOne<{ balance: number; credit_balance: number; parent_user_id: string | null }>(
+      "SELECT balance, credit_balance, parent_user_id FROM users WHERE id = ? FOR UPDATE",
+      [params.userId]
+    );
+    if (!user || user.parent_user_id) return null;
+    const newCredit = roundBalance(Number(user.credit_balance || 0) + delta);
+    if (newCredit < 0) return null;
+    await client.execute("UPDATE users SET credit_balance = ?, updated_at = ? WHERE id = ?", [newCredit, now, params.userId]);
+    return client.queryOne<Transaction>(
+      `INSERT INTO transactions (id, user_id, type, amount, balance_after, credit_amount, credit_after, description, ref_id, created_at)
+       VALUES (?, ?, 'credit_adjustment', ?, ?, ?, ?, ?, ?, ?)
+       RETURNING *`,
+      [
+        txId,
+        params.userId,
+        delta,
+        Number(user.balance || 0),
+        delta,
+        newCredit,
+        description,
+        params.actorId ? `admin:${params.actorId}` : "admin",
+        now,
+      ]
+    );
   });
 }
 
@@ -578,19 +641,19 @@ export async function hasSufficientBalance(userId: string | null | undefined, es
   if (!user) return false;
   if (user.status !== "active") return false;
 
-  let balance = Number(user.balance || 0);
+  let available = Number(user.balance || 0) + Number(user.credit_balance || 0);
   if (user.parent_user_id) {
     // 子账号：看主账号余额 + 自身限额余量（预检；最终由 consume 事务内强校验）
     const owner = await getUserById(user.parent_user_id);
     if (!owner || owner.status !== "active") return false;
-    balance = Number(owner.balance || 0);
+    available = Number(owner.balance || 0) + Number(owner.credit_balance || 0);
     if (user.quota_limit != null) {
       const used = user.quota_period === "monthly" && isMonthlyQuotaResetDue(user.quota_reset_at) ? 0 : user.quota_used;
       if (used + normalizedAmount > user.quota_limit) return false;
     }
   }
   if (normalizedAmount <= 0) return true;
-  return balance >= normalizedAmount;
+  return available >= normalizedAmount;
 }
 
 export async function getTransactions(
@@ -689,6 +752,8 @@ export async function getBillingSummary(userId: string) {
   const user = await getUserById(userId);
   return {
     balance: Number(user?.balance || 0),
+    creditBalance: Number(user?.credit_balance || 0),
+    availableBalance: roundBalance(Number(user?.balance || 0) + Number(user?.credit_balance || 0)),
     totalRecharge: roundBalance(Number(row?.totalRecharge || 0)),
     totalConsumption: roundBalance(Number(row?.totalConsumption || 0)),
     totalCalls: Number(row?.totalCalls || 0),

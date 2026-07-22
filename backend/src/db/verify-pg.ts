@@ -42,6 +42,7 @@ async function main() {
   const fullKeyRows = await scalar("SELECT COUNT(*)::text AS value FROM api_keys WHERE key ~ '^sk-air-[0-9a-f]{48}$'");
   const unhashedRows = await scalar("SELECT COUNT(*)::text AS value FROM api_keys WHERE key_hash IS NULL OR key_hash = ''");
   const negativeBalances = await scalar("SELECT COUNT(*)::text AS value FROM users WHERE balance < 0");
+  const negativeCredits = await scalar("SELECT COUNT(*)::text AS value FROM users WHERE credit_balance < 0");
   const orphanTransactions = await scalar(`
     SELECT COUNT(*)::text AS value
     FROM transactions t LEFT JOIN users u ON u.id = t.user_id
@@ -49,17 +50,18 @@ async function main() {
   `);
 
   console.log(JSON.stringify({
-    ok: fullKeyRows === 0 && unhashedRows === 0 && negativeBalances === 0 && orphanTransactions === 0,
+    ok: fullKeyRows === 0 && unhashedRows === 0 && negativeBalances === 0 && negativeCredits === 0 && orphanTransactions === 0,
     counts,
     checks: {
       fullKeyRows,
       unhashedRows,
       negativeBalances,
+      negativeCredits,
       orphanTransactions,
     },
   }, null, 2));
 
-  if (fullKeyRows || unhashedRows || negativeBalances || orphanTransactions) {
+  if (fullKeyRows || unhashedRows || negativeBalances || negativeCredits || orphanTransactions) {
     process.exitCode = 1;
   }
 }

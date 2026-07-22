@@ -147,7 +147,8 @@ export default function SettingsPage() {
               </div>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 2 }}>{t("balance")}</div>
-                <div style={{ fontSize: 17, fontWeight: 700, color: "var(--success)", fontVariantNumeric: "tabular-nums" }}>{formatCny(user.balance)}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: "var(--success)", fontVariantNumeric: "tabular-nums" }}>{formatCny(user.balance + (user.creditBalance || 0))}</div>
+                {user.creditBalance > 0 && <div style={{ fontSize: 11, color: "#7c3aed", marginTop: 2 }}>含信控 {formatCny(user.creditBalance)}</div>}
               </div>
             </div>
             <div style={{ padding: "12px 20px", display: "flex", gap: 28 }}>

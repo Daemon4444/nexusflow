@@ -15,6 +15,7 @@ interface User {
   username?: string | null;
   nickname: string;
   balance: number;
+  creditBalance: number;
   accountType?: "main" | "sub";
   quota?: UserQuota | null;
   allowedModels?: string[] | null;

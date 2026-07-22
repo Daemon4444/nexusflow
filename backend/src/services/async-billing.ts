@@ -1,9 +1,8 @@
-import { consume, getBillingReservation, releaseReservation, settleReservation } from "../data/billing";
+import { consume, getBillingReservation, hasSufficientBalance, releaseReservation, settleReservation } from "../data/billing";
 import { AIModel } from "../data/models";
 import { AsyncTask } from "../data/tasks";
 import { logUsage } from "../data/usage";
 import { applyUserModelDiscount } from "../data/user-discounts";
-import { getUserById } from "../data/users";
 
 function money(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000;
@@ -134,8 +133,7 @@ export async function estimateDiscountedAsyncCost(
 
 export async function hasEnoughBalance(userId: string | null | undefined, amount: number): Promise<boolean> {
   if (!userId || amount <= 0) return true;
-  const user = await getUserById(userId);
-  return !!user && user.balance >= amount;
+  return hasSufficientBalance(userId, amount);
 }
 
 export async function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: number, latencyMs: number): Promise<void> {

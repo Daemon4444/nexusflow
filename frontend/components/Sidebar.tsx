@@ -119,7 +119,7 @@ export default function Sidebar() {
                     ? user.quota?.limit != null
                       ? `限额 ${formatCny(Math.max(0, user.quota.limit - user.quota.used))}`
                       : "子账号"
-                    : formatCny(user.balance)}
+                    : formatCny(user.balance + (user.creditBalance || 0))}
                 </div>
               </div>
             </div>

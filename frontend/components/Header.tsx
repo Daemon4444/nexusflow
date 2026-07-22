@@ -237,7 +237,7 @@ export default function Header() {
                     ? user.quota?.limit != null
                       ? `额度 ${formatCny(Math.max(0, user.quota.limit - user.quota.used))}`
                       : "子账号"
-                    : formatCny(user.balance ?? 0)}
+                    : formatCny((user.balance ?? 0) + (user.creditBalance ?? 0))}
                 </Link>
                 <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 8px" }} />
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

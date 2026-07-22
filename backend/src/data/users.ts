@@ -8,6 +8,7 @@ export interface User {
   email: string | null;
   nickname: string;
   balance: number;
+  credit_balance: number;
   password_hash: string | null;
   created_at: string;
   updated_at: string;
@@ -35,6 +36,7 @@ function normalizeUser<T extends User | null>(user: T): T {
   return {
     ...user,
     balance: Number(user.balance || 0),
+    credit_balance: Number(user.credit_balance || 0),
     parent_user_id: user.parent_user_id || null,
     username: user.username || null,
     status: user.status || "active",
@@ -141,7 +143,7 @@ export async function loginByUsername(username: string, password: string): Promi
 
 export async function validateSession(token: string): Promise<(User & { sessionToken: string }) | null> {
   const row = await db.queryOne<any>(
-    `SELECT s.*, u.phone, u.nickname, u.balance, u.email, u.password_hash, u.created_at as user_created_at, u.updated_at as user_updated_at,
+    `SELECT s.*, u.phone, u.nickname, u.balance, u.credit_balance, u.email, u.password_hash, u.created_at as user_created_at, u.updated_at as user_updated_at,
             u.parent_user_id, u.username, u.status, u.quota_limit, u.quota_used, u.quota_period, u.quota_reset_at, u.allowed_models
        FROM sessions s
        JOIN users u ON s.user_id = u.id
@@ -155,6 +157,7 @@ export async function validateSession(token: string): Promise<(User & { sessionT
     email: row.email || null,
     nickname: row.nickname,
     balance: Number(row.balance || 0),
+    credit_balance: Number(row.credit_balance || 0),
     password_hash: row.password_hash || null,
     created_at: row.user_created_at || row.created_at,
     updated_at: row.user_updated_at || row.user_created_at || row.created_at,
@@ -223,5 +226,6 @@ export async function cleanExpiredSessions(): Promise<void> {
 }
 
 export async function getAllUsers(): Promise<User[]> {
-  return db.queryMany<User>("SELECT * FROM users ORDER BY created_at DESC");
+  const users = await db.queryMany<User>("SELECT * FROM users ORDER BY created_at DESC");
+  return users.map((user) => normalizeUser(user)!);
 }

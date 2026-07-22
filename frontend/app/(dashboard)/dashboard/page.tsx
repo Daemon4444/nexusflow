@@ -27,6 +27,8 @@ interface ApiKeyInfo {
 
 interface BillingSummary {
   balance: number;
+  creditBalance: number;
+  availableBalance: number;
   totalConsumption: number;
   totalCalls: number;
 }
@@ -136,7 +138,7 @@ export default function DashboardPage() {
 
   const recommendedModels = useMemo(() => getRecommendedModels(models, 5), [models]);
   const defaultModel = recommendedModels[0]?.id || models[0]?.id || "qwen-plus";
-  const balance = summary?.balance ?? user?.balance ?? 0;
+  const balance = summary?.availableBalance ?? ((user?.balance ?? 0) + (user?.creditBalance ?? 0));
   const today = daily[daily.length - 1] || { requests: 0, cost: 0, tokens: 0, date: "" };
   const code = `curl -X POST https://nexusflow.hk/v1/chat/completions \\
   -H "Authorization: Bearer ${keys[0]?.key || "YOUR_API_KEY"}" \\
