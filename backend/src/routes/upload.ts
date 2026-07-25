@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { validateSession } from "../data/users";
 import { validateApiKey } from "../data/apikeys";
 import { checkRPM } from "../services/rate-limiter";
+import { getUploadObject, isOssUploadEnabled, putUploadObject } from "../services/oss";
 
 const router = Router();
 
@@ -214,6 +215,18 @@ router.post("/", requireUploadAuth, upload.single("file"), async (req, res) => {
     // 压缩失败不影响上传，继续用原文件
   }
 
+  if (isOssUploadEnabled()) {
+    try {
+      await putUploadObject(uploaded.filename, path.join(uploadDir, uploaded.filename), uploaded.mimetype);
+      await fs.promises.unlink(path.join(uploadDir, uploaded.filename));
+    } catch (err: any) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      console.error("[Upload API] OSS upload failed:", err.message);
+      res.status(503).json({ success: false, message: "文件存储暂不可用，请稍后重试" });
+      return;
+    }
+  }
+
   const baseUrl = process.env.PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
   const publicUrl = `${baseUrl}/api/uploads/${uploaded.filename}`;
   console.log("[Upload API] Success, url:", publicUrl, "size:", uploaded.size);
@@ -230,11 +243,35 @@ router.post("/", requireUploadAuth, upload.single("file"), async (req, res) => {
 });
 
 // GET /api/uploads/:filename - serve uploaded files through the backend.
-router.get("/:filename", (req, res) => {
+router.get("/:filename", async (req, res) => {
   const filename = path.basename(req.params.filename || "");
   if (!filename) {
     res.status(400).json({ success: false, message: "文件名无效" });
     return;
+  }
+
+  if (isOssUploadEnabled()) {
+    try {
+      const object = await getUploadObject(filename);
+      res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      if (object.contentType) res.setHeader("Content-Type", object.contentType);
+      if (object.contentLength) res.setHeader("Content-Length", object.contentLength);
+      object.body.on("error", (err) => {
+        console.error("[Upload API] OSS download stream failed:", err.message);
+        if (!res.headersSent) res.status(502).end();
+        else res.destroy(err);
+      });
+      object.body.pipe(res);
+      return;
+    } catch (err: any) {
+      console.error("[Upload API] OSS download failed:", err.message);
+      res.status(err.statusCode === 404 ? 404 : 502).json({
+        success: false,
+        message: err.statusCode === 404 ? "文件不存在" : "文件存储暂不可用",
+      });
+      return;
+    }
   }
 
   const filePath = path.join(uploadDir, filename);

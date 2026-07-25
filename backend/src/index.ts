@@ -102,10 +102,29 @@ app.use("/api/admin", adminRouter);
 import { cleanExpiredSessions } from "./data/users";
 import { seedApiKeysIfNeeded } from "./data/apikeys";
 import { refreshModels, startModelRefreshLoop } from "./data/model-overrides";
+import { db } from "./db/client";
+import { getRedis } from "./services/redis";
 
 // Health check
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", async (_req, res) => {
+  try {
+    await Promise.all([
+      db.query("SELECT 1"),
+      getRedis().ping(),
+    ]);
+    res.json({
+      status: "ok",
+      dependencies: { postgres: "ok", redis: "ok" },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[Health] dependency check failed:", message);
+    res.status(503).json({
+      status: "degraded",
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 app.get("/api/version", (_req, res) => {
   res.json({
