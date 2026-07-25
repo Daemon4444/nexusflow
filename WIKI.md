@@ -82,7 +82,7 @@ ssh nexus 'pm2 status'
 ssh nexus 'docker ps'
 ```
 
-`/api/version` 返回实际部署构建的 Git SHA 和构建时间，用它判断“代码推了但线上仍跑旧产物”。
+`/api/version` 返回实际部署构建的 Git SHA 和构建时间，用它判断“代码推了但线上仍跑旧产物”。后端 build 会把这两个值写入只读构建产物，接口优先读取产物、仅在旧部署缺少产物时回退到 PM2 环境变量，避免滚动发布漏传环境变量后误报 `unknown`。
 
 ## 4. 部署拓扑
 

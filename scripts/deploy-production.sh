@@ -13,7 +13,7 @@ BUILD_SHA="$(git rev-parse HEAD)"
 BUILD_TIME="$(date -u +%FT%TZ)"
 
 npm ci
-npm run build:backend
+BUILD_SHA="$BUILD_SHA" BUILD_TIME="$BUILD_TIME" npm run build:backend
 npm run build:frontend
 (cd backend && npm run db:migrate)
 

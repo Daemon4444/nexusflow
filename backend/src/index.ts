@@ -28,9 +28,11 @@ import rateLimitsRouter from "./routes/ratelimits";
 import ticketsRouter from "./routes/tickets";
 import subAccountsRouter from "./routes/sub-accounts";
 import { errorHandler, notFoundHandler } from "./middleware/error";
+import { getBuildInfo } from "./utils/build-info";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
+const buildInfo = getBuildInfo();
 
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
@@ -127,10 +129,7 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 app.get("/api/version", (_req, res) => {
-  res.json({
-    sha: process.env.BUILD_SHA || "unknown",
-    builtAt: process.env.BUILD_TIME || "unknown",
-  });
+  res.json(buildInfo);
 });
 
 // 404 处理

@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --watch src --exec ts-node src/index.ts",
-    "build": "tsc",
+    "build": "tsc && node scripts/write-build-info.js",
     "start": "node dist/index.js",
     "test": "echo \"Use npm run test:smoke\" && exit 1",
     "test:smoke": "ts-node scripts/smoke.ts",
