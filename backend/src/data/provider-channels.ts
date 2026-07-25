@@ -73,6 +73,13 @@ export async function getProviderChannelConfig(providerId: string): Promise<Prov
 
 export async function upsertProviderChannelConfig(providerId: string, config: ProviderChannelConfig): Promise<ProviderChannelConfig> {
   const now = new Date().toISOString();
+  const existing = await db.queryOne<{ channels: string }>(
+    "SELECT channels FROM provider_channel_configs WHERE provider_id = ?",
+    [providerId]
+  );
+  const storedChannels = existing
+    ? parseStoredChannels(existing.channels)
+    : {};
   await db.execute(
     `INSERT INTO provider_channel_configs (provider_id, active_channel, channels, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?)
@@ -80,7 +87,13 @@ export async function upsertProviderChannelConfig(providerId: string, config: Pr
        active_channel = excluded.active_channel,
        channels = excluded.channels,
        updated_at = excluded.updated_at`,
-    [providerId, config.active_channel, JSON.stringify(serializeChannels(config.channels)), now, now]
+    [
+      providerId,
+      config.active_channel,
+      JSON.stringify(serializeChannels(config.channels, storedChannels)),
+      now,
+      now,
+    ]
   );
   return (await getProviderChannelConfig(providerId))!;
 }
@@ -127,17 +140,29 @@ export async function getProviderChannel(providerId: string, channel?: string): 
   return selected ? { id: channelId, ...selected } : null;
 }
 
-function serializeChannels(channels: Record<string, ProviderChannel>): Record<string, ProviderChannel> {
+function serializeChannels(
+  channels: Record<string, ProviderChannel>,
+  storedChannels: Record<string, ProviderChannel> = {}
+): Record<string, ProviderChannel> {
   return Object.fromEntries(
     Object.entries(channels).map(([id, channel]) => [
       id,
-      { ...channel, api_key: encryptProviderSecret(channel.api_key || "") },
+      {
+        ...channel,
+        api_key: channel.api_key
+          ? encryptProviderSecret(channel.api_key)
+          : storedChannels[id]?.api_key || "",
+      },
     ])
   );
 }
 
+function parseStoredChannels(raw: string): Record<string, ProviderChannel> {
+  return JSON.parse(raw || "{}") as Record<string, ProviderChannel>;
+}
+
 function parseChannels(raw: string): Record<string, ProviderChannel> {
-  const parsed = JSON.parse(raw || "{}") as Record<string, ProviderChannel>;
+  const parsed = parseStoredChannels(raw);
   return Object.fromEntries(
     Object.entries(parsed).map(([id, channel]) => [
       id,

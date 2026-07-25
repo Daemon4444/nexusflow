@@ -157,12 +157,23 @@ export async function updateProvider(id: string, data: {
   contact_email?: string;
   contact_phone?: string;
 }): Promise<boolean> {
-  const provider = await getProviderById(id);
-  if (!provider) return false;
+  // Keep the stored ciphertext verbatim when a metadata-only update does not
+  // supply a new key. Decrypting and re-encrypting here could erase a valid
+  // credential if the runtime key is temporarily unavailable.
+  const storedProvider = await db.queryOne<any>(
+    "SELECT * FROM providers WHERE id = ?",
+    [id]
+  );
+  if (!storedProvider) return false;
+  const provider = parseProviderRow(storedProvider);
+  const storedApiKey =
+    data.api_key !== undefined && data.api_key !== ""
+      ? encryptProviderSecret(data.api_key)
+      : storedProvider.api_key;
   const changed = await db.execute(
     `UPDATE providers SET name = ?, description = ?, logo_url = ?, website = ?,
       api_base_url = ?, api_key = ?, contact_name = ?, contact_email = ?, contact_phone = ?, updated_at = ? WHERE id = ?`,
-    [data.name || provider.name, data.description || provider.description, data.logo_url !== undefined ? data.logo_url : provider.logo_url, data.website !== undefined ? data.website : provider.website, data.api_base_url || provider.api_base_url, data.api_key ? encryptProviderSecret(data.api_key) : encryptProviderSecret(provider.api_key), data.contact_name || provider.contact_name, data.contact_email || provider.contact_email, data.contact_phone !== undefined ? data.contact_phone : provider.contact_phone, new Date().toISOString(), id]
+    [data.name || provider.name, data.description || provider.description, data.logo_url !== undefined ? data.logo_url : provider.logo_url, data.website !== undefined ? data.website : provider.website, data.api_base_url || provider.api_base_url, storedApiKey, data.contact_name || provider.contact_name, data.contact_email || provider.contact_email, data.contact_phone !== undefined ? data.contact_phone : provider.contact_phone, new Date().toISOString(), id]
   );
   return changed > 0;
 }

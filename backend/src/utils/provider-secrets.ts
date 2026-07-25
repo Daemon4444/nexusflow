@@ -9,9 +9,22 @@ function getSecretKey(): Buffer | null {
   return crypto.createHash("sha256").update(raw).digest();
 }
 
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
 export function encryptProviderSecret(secret: string): string {
+  if (!secret || secret.startsWith(PREFIX)) return secret;
+
   const key = getSecretKey();
-  if (!key || !secret) return secret;
+  if (!key) {
+    if (isProduction()) {
+      throw new Error(
+        "PROVIDER_SECRET_KEY is required to store provider credentials"
+      );
+    }
+    return secret;
+  }
 
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(ALGO, key, iv);
@@ -22,7 +35,18 @@ export function encryptProviderSecret(secret: string): string {
 
 export function decryptProviderSecret(secret: string): string {
   const key = getSecretKey();
-  if (!secret || !secret.startsWith(PREFIX)) return secret;
+  if (!secret) return "";
+
+  if (!secret.startsWith(PREFIX)) {
+    if (isProduction()) {
+      console.error(
+        "[ProviderSecrets] 拒绝使用生产数据库中的明文 provider 密钥"
+      );
+      return "";
+    }
+    return secret;
+  }
+
   if (!key) {
     console.error("[ProviderSecrets] ⚠️ PROVIDER_SECRET_KEY 未配置，无法解密 provider 密钥");
     return "";
