@@ -7,7 +7,10 @@ import {
   getLatestProviderSlaEvidence,
   getMatchingRoutePolicy,
 } from "../data/provider-operations";
-import { satisfiesMinimumObservedAvailability } from "./provider-monitor-semantics";
+import {
+  healthStateAfterFailure,
+  satisfiesMinimumObservedAvailability,
+} from "./provider-monitor-semantics";
 
 export interface ProviderEndpoint {
   providerId: string;
@@ -31,7 +34,7 @@ export interface ProviderSelectionContext {
 export interface HealthRecord {
   providerId: string;
   modelId: string;
-  status: "healthy" | "degraded" | "down";
+  status: "unknown" | "healthy" | "degraded" | "down";
   consecutiveFailures: number;
   lastSuccessAt: string | null;
   lastFailureAt: string | null;
@@ -44,7 +47,6 @@ export type ModelAvailability = {
   reason: null | "provider_not_configured" | "no_active_route" | "provider_unhealthy";
 };
 
-const FAILURE_THRESHOLD_DEGRADED = 3;
 const FAILURE_THRESHOLD_DOWN = 10;
 const concurrentRequests = new Map<string, number>();
 
@@ -65,7 +67,10 @@ async function getHealthRecord(providerId: string, modelId: string): Promise<Hea
 
 export async function recordSuccess(providerId: string, modelId: string, latencyMs: number): Promise<void> {
   const existing = await getHealthRecord(providerId, modelId);
-  const avgLatency = existing ? Math.round(existing.avgLatencyMs * 0.7 + latencyMs * 0.3) : latencyMs;
+  const hasPriorObservation = !!(existing?.lastSuccessAt || existing?.lastFailureAt);
+  const avgLatency = existing && hasPriorObservation
+    ? Math.round(existing.avgLatencyMs * 0.7 + latencyMs * 0.3)
+    : latencyMs;
   const now = new Date().toISOString();
   await db.execute(
     `INSERT INTO provider_health (id, provider_id, model_id, status, consecutive_failures, last_success_at, last_failure_at, last_error, avg_latency_ms, updated_at)
@@ -86,9 +91,9 @@ export async function recordSuccess(providerId: string, modelId: string, latency
 export async function recordFailure(providerId: string, modelId: string, error: string): Promise<void> {
   const existing = await getHealthRecord(providerId, modelId);
   const failures = (existing?.consecutiveFailures || 0) + 1;
-  let status: "healthy" | "degraded" | "down" = "healthy";
-  if (failures >= FAILURE_THRESHOLD_DOWN) status = "down";
-  else if (failures >= FAILURE_THRESHOLD_DEGRADED) status = "degraded";
+  // Any observed failure is degraded immediately. The route remains eligible
+  // at reduced weight until the existing down/circuit-open threshold is met.
+  const status = healthStateAfterFailure(failures, FAILURE_THRESHOLD_DOWN);
   const now = new Date().toISOString();
   await db.execute(
     `INSERT INTO provider_health (id, provider_id, model_id, status, consecutive_failures, last_success_at, last_failure_at, last_error, avg_latency_ms, updated_at)
@@ -195,9 +200,13 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     const costPenalty = policy?.strategy === "lowest_cost" && cost
       ? 1 / Math.max(0.0001, cost.prompt_cost + cost.completion_cost + cost.fixed_cost)
       : 1;
-    const slaBoost = policy?.strategy === "highest_sla" ? (health?.status === "healthy" ? 2 : 0.5) : 1;
+    // "highest_sla" is a legacy strategy key. This multiplier ranks the
+    // current observed health state; it is not an SLA or availability percent.
+    const observedHealthRankBoost = policy?.strategy === "highest_sla"
+      ? (health?.status === "healthy" ? 2 : 0.5)
+      : 1;
     const customBoost = policy?.priority_boost[ep.provider_id] ?? 0;
-    const score = (ep.weight + customBoost) * capacityRatio * healthMultiplier * slaBoost * costPenalty * (1 + ep.priority * 0.1);
+    const score = (ep.weight + customBoost) * capacityRatio * healthMultiplier * observedHealthRankBoost * costPenalty * (1 + ep.priority * 0.1);
     return { endpoint: ep, apiKey, score };
   });
 

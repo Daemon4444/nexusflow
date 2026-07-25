@@ -18,7 +18,7 @@ export function getFallbackState(health: HealthState): FallbackState {
 
 export function summarizeRouteHealth(
   enabledModelIds: string[],
-  observedByModel: ReadonlyMap<string, ObservedHealthState>
+  observedByModel: ReadonlyMap<string, HealthState>
 ): { health: HealthState; summary: HealthSummary; observedRoutes: number } {
   const summary: HealthSummary = { healthy: 0, degraded: 0, down: 0, unknown: 0 };
   for (const modelId of enabledModelIds) {
@@ -56,6 +56,13 @@ export function latestObservationAt(
 
 export function unavailableAvailabilityPercentage(): null {
   return null;
+}
+
+export function healthStateAfterFailure(
+  consecutiveFailures: number,
+  downThreshold: number
+): "degraded" | "down" {
+  return consecutiveFailures >= downThreshold ? "down" : "degraded";
 }
 
 export function observedAvailabilityPercentage(

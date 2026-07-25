@@ -273,7 +273,7 @@ export async function getCachedTaskStatus(taskId: string): Promise<any | null> {
 export async function cacheProviderHealth(
   providerId: string,
   modelId: string,
-  status: "healthy" | "degraded" | "down",
+  status: "unknown" | "healthy" | "degraded" | "down",
   ttl: number = 60
 ): Promise<void> {
   const client = getRedis();
@@ -286,10 +286,10 @@ export async function cacheProviderHealth(
 export async function getCachedProviderHealth(
   providerId: string,
   modelId: string
-): Promise<"healthy" | "degraded" | "down" | null> {
+): Promise<"unknown" | "healthy" | "degraded" | "down" | null> {
   const client = getRedis();
   const cached = await client.get(`health:${providerId}:${modelId}`);
-  return cached as "healthy" | "degraded" | "down" | null;
+  return cached as "unknown" | "healthy" | "degraded" | "down" | null;
 }
 
 export default {

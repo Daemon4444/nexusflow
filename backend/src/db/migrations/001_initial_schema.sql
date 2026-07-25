@@ -245,7 +245,7 @@ CREATE TABLE IF NOT EXISTS provider_health (
     id TEXT PRIMARY KEY,
     provider_id TEXT NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
     model_id TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'healthy',  -- 'healthy' | 'degraded' | 'down'
+    status TEXT NOT NULL DEFAULT 'unknown',  -- 'unknown' | 'healthy' | 'degraded' | 'down'
     consecutive_failures INTEGER NOT NULL DEFAULT 0,
     last_success_at TIMESTAMP WITH TIME ZONE,
     last_failure_at TIMESTAMP WITH TIME ZONE,

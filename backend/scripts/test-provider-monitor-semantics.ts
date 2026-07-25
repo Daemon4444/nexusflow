@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   getFallbackState,
+  healthStateAfterFailure,
   latestObservationAt,
   observedAvailabilityPercentage,
   satisfiesMinimumObservedAvailability,
@@ -63,5 +64,9 @@ assert.equal(satisfiesMinimumObservedAvailability(99.9, null, null), false);
 assert.equal(satisfiesMinimumObservedAvailability(99.9, 1000, 999), true);
 assert.equal(satisfiesMinimumObservedAvailability(99.91, 1000, 999), false);
 assert.equal(satisfiesMinimumObservedAvailability(Number.NaN, 1000, 1000), false);
+assert.equal(healthStateAfterFailure(1, 10), "degraded");
+assert.equal(healthStateAfterFailure(2, 10), "degraded");
+assert.equal(healthStateAfterFailure(9, 10), "degraded");
+assert.equal(healthStateAfterFailure(10, 10), "down");
 
 console.log("provider-monitor semantics tests passed");

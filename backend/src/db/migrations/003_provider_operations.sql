@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS provider_sla_snapshots (
     error_requests INTEGER NOT NULL DEFAULT 0,
     avg_latency_ms INTEGER NOT NULL DEFAULT 0,
     p95_latency_ms INTEGER NOT NULL DEFAULT 0,
-    availability REAL NOT NULL DEFAULT 100,
+    availability REAL NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 

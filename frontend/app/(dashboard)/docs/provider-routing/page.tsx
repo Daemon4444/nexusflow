@@ -71,8 +71,8 @@ export default function ProviderRoutingPage() {
             <tbody>
               {[
                 { status: "healthy", cond: "连续成功", action: "正常使用，最高优先级" },
-                { status: "degraded", cond: "连续失败 >= 3 次", action: "降低优先级，仍可被选择" },
-                { status: "down", cond: "连续失败 >= 5 次", action: "跳过该端点，不再尝试" },
+                { status: "degraded", cond: "出现失败且连续失败 < 10 次", action: "降低优先级，仍可被选择" },
+                { status: "down", cond: "连续失败 >= 10 次", action: "跳过该端点，不再尝试" },
               ].map((row, idx) => (
                 <tr key={row.status} style={{ background: idx % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>

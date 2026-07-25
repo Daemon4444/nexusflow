@@ -12,6 +12,9 @@ function stripUnsupportedMigrationBlocks(sql: string): string {
     .replace(/-- 创建更新时间触发器函数[\s\S]*$/m, "")
     // pg-mem 不支持覆盖索引的 INCLUDE 子句（006_dashboard_indexes.sql）
     .replace(/\s+INCLUDE\s*\([^)]*\)/gi, "")
+    // pg-mem 不解析 PostgreSQL 的延迟约束校验语法；测试库为空，
+    // 因此直接创建并立即校验等价约束。
+    .replace(/\s+NOT\s+VALID\b/gi, "")
     .replace(/CREATE INDEX IF NOT EXISTS idx_[^\n]+ ON [^(]+\([^;]+;/g, (statement) => statement);
 }
 

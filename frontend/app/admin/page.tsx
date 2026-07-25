@@ -244,7 +244,7 @@ interface CapacityRecord {
 
 interface HealthRecord {
   modelId: string;
-  status: "healthy" | "degraded" | "down";
+  status: "unknown" | "healthy" | "degraded" | "down";
   consecutiveFailures: number;
   avgLatencyMs: number;
   lastSuccessAt: string | null;
@@ -1781,7 +1781,9 @@ export default function AdminPage() {
                           ) : operations.routePolicies.slice(0, 8).map((policy) => (
                             <div key={policy.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12 }}>
                               <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{policy.model_id} · {policy.strategy}</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
+                                  {policy.model_id} · {policy.strategy === "highest_sla" ? "观测健康优先（非 SLA 百分比）" : policy.strategy}
+                                </div>
                                 <span style={{ fontSize: 12, color: policy.is_enabled ? "#059669" : "#6b7280" }}>{policy.is_enabled ? "启用" : "停用"}</span>
                               </div>
                               <div style={{ marginTop: 6, fontSize: 12, color: "#4b5563", lineHeight: 1.6 }}>
