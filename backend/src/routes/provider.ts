@@ -593,6 +593,8 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         healthUnknownWhenUnobserved: true,
         usageWindowSeconds: 60,
         availabilityPercentageAvailable: false,
+        minAvailabilityPolicyMode: "observed_sla_snapshot_fail_closed",
+        minAvailabilityEvidence: "success_requests/total_requests",
       },
     },
   });

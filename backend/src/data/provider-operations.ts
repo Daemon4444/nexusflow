@@ -49,6 +49,18 @@ export interface CustomerRoutePolicy {
   updated_at: string;
 }
 
+export interface ProviderSlaEvidence {
+  id: string;
+  provider_id: string;
+  model_id: string;
+  window_start: string;
+  window_end: string;
+  total_requests: number;
+  success_requests: number;
+  error_requests: number;
+  created_at: string;
+}
+
 export async function getActiveCostVersions(): Promise<ProviderCostVersion[]> {
   const rows = await db.queryMany<any>(
     `SELECT pcv.*
@@ -175,6 +187,28 @@ export async function getMatchingRoutePolicy(userId: string | null | undefined, 
     [modelId, userId || null, userId || null, modelId]
   );
   return rows[0] ? parsePolicy(rows[0]) : null;
+}
+
+export async function getLatestProviderSlaEvidence(
+  providerId: string,
+  modelId: string
+): Promise<ProviderSlaEvidence | null> {
+  const row = await db.queryOne<any>(
+    `SELECT id, provider_id, model_id, window_start, window_end,
+            total_requests, success_requests, error_requests, created_at
+       FROM provider_sla_snapshots
+      WHERE provider_id = ? AND model_id = ? AND total_requests > 0
+      ORDER BY window_end DESC, created_at DESC
+      LIMIT 1`,
+    [providerId, modelId]
+  );
+  if (!row) return null;
+  return {
+    ...row,
+    total_requests: Number(row.total_requests),
+    success_requests: Number(row.success_requests),
+    error_requests: Number(row.error_requests),
+  };
 }
 
 export async function upsertRoutePolicy(data: {

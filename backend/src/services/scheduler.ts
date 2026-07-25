@@ -2,7 +2,12 @@ import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/client";
 import { getProviderUsageStats } from "./rate-limiter";
 import { decryptProviderSecret } from "../utils/provider-secrets";
-import { getActiveCostVersions, getMatchingRoutePolicy } from "../data/provider-operations";
+import {
+  getActiveCostVersions,
+  getLatestProviderSlaEvidence,
+  getMatchingRoutePolicy,
+} from "../data/provider-operations";
+import { satisfiesMinimumObservedAvailability } from "./provider-monitor-semantics";
 
 export interface ProviderEndpoint {
   providerId: string;
@@ -162,8 +167,17 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     if (policy?.max_completion_cost !== null && policy?.max_completion_cost !== undefined && cost && cost.completion_cost > policy.max_completion_cost) continue;
     const health = await getHealthRecord(ep.provider_id, ep.model_id);
     if (health?.status === "down") continue;
-    const availability = health?.status === "degraded" ? 98 : 100;
-    if (policy?.min_availability !== null && policy?.min_availability !== undefined && availability < policy.min_availability) continue;
+    if (policy?.min_availability !== null && policy?.min_availability !== undefined) {
+      // min_availability is only enforceable with request-count evidence.
+      // Missing evidence is unknown and fails closed; circuit state is never
+      // converted into an invented availability percentage.
+      const slaEvidence = await getLatestProviderSlaEvidence(ep.provider_id, ep.model_id);
+      if (!satisfiesMinimumObservedAvailability(
+        policy.min_availability,
+        slaEvidence?.total_requests,
+        slaEvidence?.success_requests
+      )) continue;
+    }
     const key = `${ep.provider_id}:${ep.model_id}`;
     const concurrent = concurrentRequests.get(key) || 0;
     if (concurrent >= ep.concurrent_limit) continue;

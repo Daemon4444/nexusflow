@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {
   getFallbackState,
   latestObservationAt,
+  observedAvailabilityPercentage,
+  satisfiesMinimumObservedAvailability,
   summarizeRouteHealth,
   unavailableAvailabilityPercentage,
   unavailableHistoricalSeries,
@@ -53,5 +55,13 @@ assert.equal(
   latestObservationAt("2026-07-25T10:00:00.000Z", "2026-07-25T11:00:00.000Z"),
   "2026-07-25T11:00:00.000Z"
 );
+assert.equal(observedAvailabilityPercentage(1000, 999), 99.9);
+assert.equal(observedAvailabilityPercentage(0, 0), null);
+assert.equal(observedAvailabilityPercentage(10, 11), null);
+assert.equal(satisfiesMinimumObservedAvailability(null, null, null), true);
+assert.equal(satisfiesMinimumObservedAvailability(99.9, null, null), false);
+assert.equal(satisfiesMinimumObservedAvailability(99.9, 1000, 999), true);
+assert.equal(satisfiesMinimumObservedAvailability(99.91, 1000, 999), false);
+assert.equal(satisfiesMinimumObservedAvailability(Number.NaN, 1000, 1000), false);
 
 console.log("provider-monitor semantics tests passed");

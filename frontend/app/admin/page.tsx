@@ -462,6 +462,8 @@ interface OperationsDashboard {
     healthUnknownWhenUnobserved: true;
     usageWindowSeconds: number;
     availabilityPercentageAvailable: false;
+    minAvailabilityPolicyMode: "observed_sla_snapshot_fail_closed";
+    minAvailabilityEvidence: "success_requests/total_requests";
   };
 }
 
@@ -1783,8 +1785,13 @@ export default function AdminPage() {
                                 <span style={{ fontSize: 12, color: policy.is_enabled ? "#059669" : "#6b7280" }}>{policy.is_enabled ? "启用" : "停用"}</span>
                               </div>
                               <div style={{ marginTop: 6, fontSize: 12, color: "#4b5563", lineHeight: 1.6 }}>
-                                客户 {policy.user_id || "全局"} · 固定供应商 {policy.pinned_provider_id || "-"} · SLA {policy.min_availability ?? "-"}%
+                                客户 {policy.user_id || "全局"} · 固定供应商 {policy.pinned_provider_id || "-"} · 最低观测可用率 {policy.min_availability ?? "-"}%
                               </div>
+                              {policy.min_availability !== null ? (
+                                <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                                  仅按请求成功数/总请求数快照校验；无观测证据时不满足此门槛。
+                                </div>
+                              ) : null}
                               <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
                                 允许 {policy.allowed_providers.length ? policy.allowed_providers.join(", ") : "不限"} · 屏蔽 {policy.blocked_providers.length ? policy.blocked_providers.join(", ") : "无"}
                               </div>

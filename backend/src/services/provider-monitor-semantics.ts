@@ -57,3 +57,33 @@ export function latestObservationAt(
 export function unavailableAvailabilityPercentage(): null {
   return null;
 }
+
+export function observedAvailabilityPercentage(
+  totalRequests: number,
+  successRequests: number
+): number | null {
+  if (
+    !Number.isFinite(totalRequests) ||
+    !Number.isFinite(successRequests) ||
+    totalRequests <= 0 ||
+    successRequests < 0 ||
+    successRequests > totalRequests
+  ) {
+    return null;
+  }
+  return Number(((successRequests / totalRequests) * 100).toFixed(4));
+}
+
+export function satisfiesMinimumObservedAvailability(
+  minimumAvailability: number | null | undefined,
+  totalRequests: number | null | undefined,
+  successRequests: number | null | undefined
+): boolean {
+  if (minimumAvailability === null || minimumAvailability === undefined) return true;
+  if (!Number.isFinite(minimumAvailability)) return false;
+  const observed = observedAvailabilityPercentage(
+    totalRequests ?? 0,
+    successRequests ?? 0
+  );
+  return observed !== null && observed >= minimumAvailability;
+}
