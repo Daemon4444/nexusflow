@@ -6,6 +6,7 @@ import { getProviderUsageStatsAsync } from "../services/rate-limiter";
 import {
   getFallbackState,
   HealthState,
+  latestObservationAt,
   summarizeRouteHealth,
   unavailableHistoricalSeries,
 } from "../services/provider-monitor-semantics";
@@ -195,10 +196,7 @@ router.get("/provider/:providerId", async (req: Request, res: Response) => {
     const rpmLimit = cap.rpm_limit;
     const tpmLimit = cap.tpm_limit;
     const currentHealth: HealthState = healthItem?.status || "unknown";
-    const observationTimes = [healthItem?.lastSuccessAt, healthItem?.lastFailureAt]
-      .filter((value): value is string => !!value)
-      .sort();
-    const lastObservedAt = observationTimes[observationTimes.length - 1] || null;
+    const lastObservedAt = latestObservationAt(healthItem?.lastSuccessAt, healthItem?.lastFailureAt);
     return {
       modelId: cap.model_id,
       name: catalog?.name || cap.model_id,

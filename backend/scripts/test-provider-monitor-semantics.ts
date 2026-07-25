@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import {
   getFallbackState,
+  latestObservationAt,
   summarizeRouteHealth,
+  unavailableAvailabilityPercentage,
   unavailableHistoricalSeries,
 } from "../src/services/provider-monitor-semantics";
 
@@ -45,5 +47,11 @@ assert.equal(getFallbackState("unknown"), "unknown");
 
 assert.deepEqual(unavailableHistoricalSeries(), []);
 assert.notEqual(unavailableHistoricalSeries(), unavailableHistoricalSeries());
+assert.equal(unavailableAvailabilityPercentage(), null);
+assert.equal(latestObservationAt(null, null), null);
+assert.equal(
+  latestObservationAt("2026-07-25T10:00:00.000Z", "2026-07-25T11:00:00.000Z"),
+  "2026-07-25T11:00:00.000Z"
+);
 
 console.log("provider-monitor semantics tests passed");

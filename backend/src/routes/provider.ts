@@ -8,7 +8,13 @@ import {
   type Provider,
 } from "../data/providers";
 import { getAllHealthRecords } from "../services/scheduler";
-import { getProviderUsageStats } from "../services/rate-limiter";
+import { getProviderUsageStats, getProviderUsageStatsAsync } from "../services/rate-limiter";
+import {
+  HealthState,
+  latestObservationAt,
+  summarizeRouteHealth,
+  unavailableAvailabilityPercentage,
+} from "../services/provider-monitor-semantics";
 import { models as staticModels } from "../data/models";
 import {
   getProviderChannelConfig,
@@ -32,8 +38,6 @@ import {
 import { requireAdmin } from "../middleware/admin";
 
 const router = Router();
-
-type HealthState = "healthy" | "degraded" | "down";
 
 function maskSecret(secret: string): string {
   if (!secret) return "";
@@ -203,12 +207,6 @@ function getMarginPercent(revenue: number, cost: number): number {
   return Number((((revenue - cost) / revenue) * 100).toFixed(2));
 }
 
-function getSyntheticAvailability(status: HealthState, consecutiveFailures: number): number {
-  if (status === "down") return 0;
-  if (status === "degraded") return Math.max(90, 99 - consecutiveFailures);
-  return 99.95;
-}
-
 async function getProviderRouteModels(providerId: string) {
   const capacities = await getCapacityByProvider(providerId);
   return capacities
@@ -331,11 +329,17 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
     rows.push(item);
     capacityByModel.set(item.model_id, rows);
   }
+  const usageByRoute = new Map(
+    await Promise.all(capacity.map(async (item) => [
+      `${item.provider_id}:${item.model_id}`,
+      await getProviderUsageStatsAsync(item.provider_id, item.model_id),
+    ] as const))
+  );
 
   const providerCards = providers.map((provider) => {
     const providerCapacity = capacity.filter((item) => item.provider_id === provider.id);
     const totals = providerCapacity.reduce((acc, item) => {
-      const usage = getProviderUsageStats(provider.id, item.model_id);
+      const usage = usageByRoute.get(`${provider.id}:${item.model_id}`) || { rpm: 0, tpm: 0 };
       acc.currentRpm += usage.rpm;
       acc.currentTpm += usage.tpm;
       acc.rpmLimit += item.rpm_limit;
@@ -353,12 +357,17 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       concurrentLimit: 0,
       enabledRoutes: 0,
     });
-    const healthRows = health.filter((item) => item.providerId === provider.id);
-    const healthState: HealthState = healthRows.some((item) => item.status === "down")
-      ? "down"
-      : healthRows.some((item) => item.status === "degraded")
-        ? "degraded"
-        : "healthy";
+    const healthByModel = new Map(
+      health
+        .filter((item) => item.providerId === provider.id)
+        .map((item) => [item.modelId, item.status])
+    );
+    const enabledCapacity = providerCapacity.filter((item) => item.is_enabled);
+    const {
+      health: healthState,
+      summary: healthSummary,
+      observedRoutes,
+    } = summarizeRouteHealth(enabledCapacity.map((item) => item.model_id), healthByModel);
 
     return {
       id: provider.id,
@@ -370,6 +379,12 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       modelCount: providerCapacity.length,
       enabledRoutes: totals.enabledRoutes,
       health: healthState,
+      observedRoutes,
+      unknownRoutes: healthSummary.unknown,
+      healthCoverageRatio: enabledCapacity.length > 0
+        ? Number((observedRoutes / enabledCapacity.length).toFixed(4))
+        : 0,
+      healthSummary,
       currentRpm: totals.currentRpm,
       currentTpm: totals.currentTpm,
       rpmLimit: totals.rpmLimit,
@@ -384,9 +399,9 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
   const routes = capacity.map((item) => {
     const provider = providerById.get(item.provider_id);
     const catalog = staticModels.find((model) => model.id === item.model_id);
-    const usage = getProviderUsageStats(item.provider_id, item.model_id);
+    const usage = usageByRoute.get(`${item.provider_id}:${item.model_id}`) || { rpm: 0, tpm: 0 };
     const routeHealth = getRouteHealth(health, item.provider_id, item.model_id);
-    const currentHealth = (routeHealth?.status || "healthy") as HealthState;
+    const currentHealth: HealthState = routeHealth?.status || "unknown";
     const cost = costByRoute.get(`${item.provider_id}:${item.model_id}`);
     const priceUnit = catalog?.pricingType === "per-image"
       ? "元/张"
@@ -425,8 +440,11 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       currentTpm: usage.tpm,
       saturationRatio: getSaturation(usage.rpm, item.rpm_limit, usage.tpm, item.tpm_limit),
       health: currentHealth,
-      availability: getSyntheticAvailability(currentHealth, routeHealth?.consecutiveFailures ?? 0),
-      avgLatencyMs: routeHealth?.avgLatencyMs ?? 0,
+      healthObserved: !!routeHealth,
+      lastObservedAt: latestObservationAt(routeHealth?.lastSuccessAt, routeHealth?.lastFailureAt),
+      availability: unavailableAvailabilityPercentage(),
+      availabilitySource: "unavailable",
+      avgLatencyMs: routeHealth?.avgLatencyMs ?? null,
       consecutiveFailures: routeHealth?.consecutiveFailures ?? 0,
       lastError: routeHealth?.lastError ?? null,
     };
@@ -461,6 +479,18 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         title: `${provider.name} 缺少 API Key`,
         detail: "后台已建档，但真实调用会因为上游密钥缺失失败。",
         action: "在渠道控制台补齐密钥或设置对应环境变量。",
+      });
+    }
+    if (provider.health === "unknown") {
+      issues.push({
+        level: "info",
+        scope: "provider",
+        providerId: provider.id,
+        title: `${provider.name} 健康状态未知`,
+        detail: provider.enabledRoutes === 0
+          ? "当前没有启用路由，无法形成上游健康观测。"
+          : `仅 ${provider.observedRoutes}/${provider.enabledRoutes} 条启用路由有真实请求观测。`,
+        action: "通过真实业务流量或独立探测形成观测；未观测前不要将其视为健康。",
       });
     }
     if (provider.saturationRatio >= 0.8) {
@@ -543,6 +573,10 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         warningIssues,
         costedRoutes: routes.filter((item) => item.promptCost > 0 || item.completionCost > 0 || item.fixedCost > 0).length,
         routePolicies: routePolicies.length,
+        healthyProviders: providerCards.filter((item) => item.health === "healthy").length,
+        degradedProviders: providerCards.filter((item) => item.health === "degraded").length,
+        downProviders: providerCards.filter((item) => item.health === "down").length,
+        unknownProviders: providerCards.filter((item) => item.health === "unknown").length,
         currentRpm: providerCards.reduce((sum, item) => sum + item.currentRpm, 0),
         currentTpm: providerCards.reduce((sum, item) => sum + item.currentTpm, 0),
         rpmLimit: providerCards.reduce((sum, item) => sum + item.rpmLimit, 0),
@@ -554,6 +588,12 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       routePolicies,
       routeAudits,
       issues,
+      semantics: {
+        healthSource: "observed_upstream_requests",
+        healthUnknownWhenUnobserved: true,
+        usageWindowSeconds: 60,
+        availabilityPercentageAvailable: false,
+      },
     },
   });
 });

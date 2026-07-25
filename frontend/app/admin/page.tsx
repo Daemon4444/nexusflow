@@ -355,6 +355,10 @@ interface OperationsDashboard {
     warningIssues: number;
     costedRoutes: number;
     routePolicies: number;
+    healthyProviders: number;
+    degradedProviders: number;
+    downProviders: number;
+    unknownProviders: number;
     currentRpm: number;
     currentTpm: number;
     rpmLimit: number;
@@ -369,7 +373,11 @@ interface OperationsDashboard {
     apiKeyMasked: string;
     modelCount: number;
     enabledRoutes: number;
-    health: "healthy" | "degraded" | "down";
+    health: "healthy" | "degraded" | "down" | "unknown";
+    observedRoutes: number;
+    unknownRoutes: number;
+    healthCoverageRatio: number;
+    healthSummary: { healthy: number; degraded: number; down: number; unknown: number };
     currentRpm: number;
     currentTpm: number;
     rpmLimit: number;
@@ -408,9 +416,12 @@ interface OperationsDashboard {
     currentRpm: number;
     currentTpm: number;
     saturationRatio: number;
-    health: "healthy" | "degraded" | "down";
-    availability: number;
-    avgLatencyMs: number;
+    health: "healthy" | "degraded" | "down" | "unknown";
+    healthObserved: boolean;
+    lastObservedAt: string | null;
+    availability: number | null;
+    availabilitySource: "unavailable";
+    avgLatencyMs: number | null;
     consecutiveFailures: number;
     lastError: string | null;
   }>;
@@ -446,6 +457,12 @@ interface OperationsDashboard {
     reason: string;
     created_at: string;
   }>;
+  semantics: {
+    healthSource: "observed_upstream_requests";
+    healthUnknownWhenUnobserved: true;
+    usageWindowSeconds: number;
+    availabilityPercentageAvailable: false;
+  };
 }
 
 function ModelCombobox({ value, onChange, options }: {
@@ -1650,7 +1667,7 @@ export default function AdminPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                   <div>
                     <h1 style={{ fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 }}>供应商运营</h1>
-                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>把上游供应商、模型路由、价格、限流和健康状态放到一张运营视图里</div>
+                    <div style={{ marginTop: 6, fontSize: 13, color: "#6b7280" }}>共享 60 秒用量窗口与真实请求健康观测；无观测明确显示未知</div>
                   </div>
                   <button onClick={() => loadData()} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
                     刷新
@@ -1702,6 +1719,9 @@ export default function AdminPage() {
                                   </div>
                                   <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280", overflowWrap: "anywhere" }}>{provider.apiBaseUrl}</div>
                                   <div style={{ marginTop: 4, fontSize: 12, color: provider.missingApiKey ? "#b91c1c" : "#6b7280" }}>密钥: {provider.apiKeyMasked}</div>
+                                  <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                                    真实观测 {provider.observedRoutes ?? (provider.health === "unknown" ? 0 : provider.enabledRoutes)}/{provider.enabledRoutes}
+                                  </div>
                                 </div>
                                 <div style={{ fontSize: 12, color: "#4b5563" }}>
                                   模型 {provider.modelCount}
@@ -1731,12 +1751,12 @@ export default function AdminPage() {
                           ) : operations.issues.slice(0, 12).map((issue, index) => (
                             <div key={`${issue.title}-${index}`} style={{
                               borderRadius: 10,
-                              border: `1px solid ${issue.level === "critical" ? "#fecaca" : "#fed7aa"}`,
-                              background: issue.level === "critical" ? "#fef2f2" : "#fff7ed",
+                              border: `1px solid ${issue.level === "critical" ? "#fecaca" : issue.level === "warning" ? "#fed7aa" : "#cbd5e1"}`,
+                              background: issue.level === "critical" ? "#fef2f2" : issue.level === "warning" ? "#fff7ed" : "#f8fafc",
                               padding: 12,
                             }}>
                               <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                                <div style={{ fontSize: 13, fontWeight: 700, color: issue.level === "critical" ? "#b91c1c" : "#c2410c" }}>{issue.title}</div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: issue.level === "critical" ? "#b91c1c" : issue.level === "warning" ? "#c2410c" : "#475569" }}>{issue.title}</div>
                                 <span style={{ fontSize: 11, color: "#6b7280" }}>{issue.scope}</span>
                               </div>
                               <div style={{ marginTop: 6, fontSize: 12, color: "#4b5563", lineHeight: 1.6 }}>{issue.detail}</div>
@@ -1798,7 +1818,7 @@ export default function AdminPage() {
                       <div style={{ padding: "16px 18px", borderBottom: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", background: "#f8fafc" }}>
                         <div>
                           <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>模型路由矩阵</h2>
-                          <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>每行是一条上游承载路由，价格来自模型目录，容量来自供应商配置</div>
+                          <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>价格来自模型目录；用量来自共享窗口；健康仅来自真实请求，不推测可用率</div>
                         </div>
                         <button onClick={() => setActiveTab("models")} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontFamily: "inherit" }}>
                           编辑模型路由
@@ -1808,7 +1828,7 @@ export default function AdminPage() {
                         <table style={{ width: "100%", minWidth: 1100, borderCollapse: "collapse", fontSize: 12.5 }}>
                           <thead>
                             <tr style={{ background: "#fff" }}>
-                              {["模型", "供应商", "状态", "价格/毛利", "限流", "权重", "SLA", "容量"].map((head) => (
+                              {["模型", "供应商", "状态", "价格/毛利", "限流", "权重", "健康观测", "容量"].map((head) => (
                                 <th key={head} style={{ padding: "11px 12px", borderBottom: "1px solid #e5e7eb", color: "#6b7280", textAlign: "left", fontWeight: 700 }}>{head}</th>
                               ))}
                             </tr>
@@ -1816,6 +1836,7 @@ export default function AdminPage() {
                           <tbody>
                             {operations.routes.map((route) => {
                               const isTaskModel = isTaskModelCategory(route.category);
+                              const hasHealthObservation = route.healthObserved ?? route.health !== "unknown";
                               return (
                                 <tr key={`${route.providerId}-${route.modelId}`} style={{ background: route.enabled ? "#fff" : "#fafafa" }}>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" }}>
@@ -1856,8 +1877,15 @@ export default function AdminPage() {
                                   </td>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top" }}>
                                     <span style={{ padding: "3px 8px", borderRadius: 9999, background: `${statusColors[route.health]}15`, color: statusColors[route.health] }}>{healthLabels[route.health]}</span>
-                                    <div style={{ marginTop: 6, color: "#6b7280" }}>延迟 {route.avgLatencyMs}ms</div>
-                                    <div style={{ marginTop: 4, color: "#6b7280" }}>可用率 {route.availability}%</div>
+                                    <div style={{ marginTop: 6, color: "#6b7280" }}>
+                                      {hasHealthObservation && route.avgLatencyMs !== null ? `延迟 ${route.avgLatencyMs}ms` : "延迟暂无观测"}
+                                    </div>
+                                    <div style={{ marginTop: 4, color: "#6b7280" }}>
+                                      {route.availability !== null ? `可用率 ${route.availability}%` : "可用率暂无真实统计"}
+                                    </div>
+                                    {route.lastObservedAt ? (
+                                      <div style={{ marginTop: 4, color: "#6b7280" }}>最近观测 {new Date(route.lastObservedAt).toLocaleString("zh-CN")}</div>
+                                    ) : null}
                                     {route.lastError ? <div style={{ marginTop: 4, color: "#b91c1c", maxWidth: 220, overflowWrap: "anywhere" }}>{route.lastError}</div> : null}
                                   </td>
                                   <td style={{ padding: "12px", borderBottom: "1px solid #f3f4f6", verticalAlign: "top", textAlign: "right" }}>

@@ -43,3 +43,17 @@ export function summarizeRouteHealth(
 export function unavailableHistoricalSeries(): number[] {
   return [];
 }
+
+export function latestObservationAt(
+  lastSuccessAt: string | null | undefined,
+  lastFailureAt: string | null | undefined
+): string | null {
+  const timestamps = [lastSuccessAt, lastFailureAt]
+    .filter((value): value is string => !!value)
+    .sort();
+  return timestamps[timestamps.length - 1] || null;
+}
+
+export function unavailableAvailabilityPercentage(): null {
+  return null;
+}
