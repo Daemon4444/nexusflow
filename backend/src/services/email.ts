@@ -11,7 +11,8 @@
  *
  * ====== Redis 存储 ======
  *
- * 验证码优先存储在 Redis（支持分布式），Redis 不可用时降级到内存
+ * 生产环境强制使用 Redis。发送频率预占和验证码写入是原子的，
+ * 验证码校验也在 Redis Lua 脚本内原子完成。
  *
  * ====== 未配置 SMTP 时的行为 ======
  *
@@ -21,104 +22,13 @@
 
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-import { getRedis } from "./redis";
-
-// ============ 配置 ============
-
-const CODE_EXPIRY_SEC = 300;           // 5 分钟（秒）
-const CODE_EXPIRY_MS = 5 * 60 * 1000;  // 5 分钟（毫秒）
-const SEND_INTERVAL_MS = 60 * 1000;    // 60 秒发送间隔
-const MAX_ATTEMPTS = 5;                 // 最大验证尝试次数
-
-// ============ 内存存储（Redis 不可用时的 fallback） ============
-
-interface CodeEntry {
-  code: string;
-  expiresAt: number;
-  attempts: number;
-}
-
-const memoryCodeStore = new Map<string, CodeEntry>();
-const memorySendLimitStore = new Map<string, number>();
-
-// ============ Redis 检测 ============
-
-function useRedis(): boolean {
-  return !!process.env.REDIS_HOST && process.env.REDIS_HOST !== "";
-}
-
-async function redisSetCode(email: string, code: string): Promise<void> {
-  if (!useRedis()) return;
-  try {
-    const client = getRedis();
-    const lower = email.toLowerCase();
-    const data = JSON.stringify({ code, attempts: 0 });
-    await client.set(`email:code:${lower}`, data, "EX", CODE_EXPIRY_SEC);
-    // 新验证码：重置尝试计数，避免沿用上一份验证码的失败次数
-    await client.del(`email:attempts:${lower}`);
-  } catch {
-    console.warn("[EMAIL] Redis 存储失败，降级到内存");
-  }
-}
-
-async function redisGetCode(email: string): Promise<{ code: string; attempts: number } | null> {
-  if (!useRedis()) return null;
-  try {
-    const client = getRedis();
-    const key = `email:code:${email.toLowerCase()}`;
-    const data = await client.get(key);
-    if (data) {
-      return JSON.parse(data);
-    }
-  } catch {
-    console.warn("[EMAIL] Redis 读取失败，降级到内存");
-  }
-  return null;
-}
-
-async function redisDeleteCode(email: string): Promise<void> {
-  if (!useRedis()) return;
-  try {
-    const client = getRedis();
-    const lower = email.toLowerCase();
-    await client.del(`email:code:${lower}`, `email:attempts:${lower}`);
-  } catch {}
-}
-
-async function redisIncrementAttempts(email: string): Promise<number> {
-  if (!useRedis()) return 0;
-  try {
-    const client = getRedis();
-    const key = `email:attempts:${email.toLowerCase()}`;
-    // 原子自增，避免并发下多个 worker 各自读到旧值而放大猜测次数
-    const attempts = await client.incr(key);
-    if (attempts === 1) await client.expire(key, CODE_EXPIRY_SEC);
-    return attempts;
-  } catch {}
-  return 0;
-}
-
-async function redisSetSendLimit(email: string): Promise<void> {
-  if (!useRedis()) return;
-  try {
-    const client = getRedis();
-    const key = `email:limit:${email.toLowerCase()}`;
-    await client.set(key, Date.now().toString(), "EX", Math.ceil(SEND_INTERVAL_MS / 1000) + 10);
-  } catch {}
-}
-
-async function redisGetSendLimit(email: string): Promise<number | null> {
-  if (!useRedis()) return null;
-  try {
-    const client = getRedis();
-    const key = `email:limit:${email.toLowerCase()}`;
-    const data = await client.get(key);
-    if (data) {
-      return parseInt(data);
-    }
-  } catch {}
-  return null;
-}
+import {
+  cancelVerificationCode,
+  reserveVerificationCode,
+  type ReserveVerificationCodeResult,
+  VerificationStoreUnavailableError,
+  verifyVerificationCode,
+} from "./verification-code-store";
 
 // ============ SMTP 客户端 ============
 
@@ -202,56 +112,77 @@ async function sendCodeEmail(email: string, code: string): Promise<boolean> {
 
 // ============ 对外接口 ============
 
+export type SendEmailCodeResult =
+  | {
+      success: true;
+      message: string;
+    }
+  | {
+      success: false;
+      message: string;
+      status: 400 | 429 | 502 | 503;
+    };
+
 /** 发送邮箱验证码 */
-export async function sendEmailCode(email: string): Promise<{ success: boolean; message: string }> {
+export async function sendEmailCode(email: string): Promise<SendEmailCodeResult> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { success: false, message: "邮箱格式不正确" };
+    return { success: false, message: "邮箱格式不正确", status: 400 };
   }
 
   const key = email.toLowerCase();
-
-  // 发送频率限制（优先 Redis）
-  let lastSent: number | null = null;
-  if (useRedis()) {
-    lastSent = await redisGetSendLimit(key);
-  } else {
-    const memLastSent = memorySendLimitStore.get(key);
-    lastSent = memLastSent !== undefined ? memLastSent : null;
-  }
-
-  if (lastSent && Date.now() - lastSent < SEND_INTERVAL_MS) {
-    const remaining = Math.ceil((SEND_INTERVAL_MS - (Date.now() - lastSent)) / 1000);
-    return { success: false, message: `请${remaining}秒后重试` };
-  }
-
-  const code = generateCode();
   const isReal = isSmtpConfigured();
 
   if (!isReal && isProduction()) {
     console.error("[EMAIL] SMTP 未配置，生产环境拒绝发送验证码");
-    return { success: false, message: "验证码服务暂不可用，请稍后重试" };
+    return {
+      success: false,
+      message: "验证码服务暂不可用，请稍后重试",
+      status: 503,
+    };
+  }
+
+  const code = generateCode();
+  let reserved: ReserveVerificationCodeResult;
+
+  try {
+    reserved = await reserveVerificationCode("email", key, code);
+  } catch (error) {
+    if (error instanceof VerificationStoreUnavailableError) {
+      console.error("[EMAIL] 验证码存储不可用，拒绝发送");
+    } else {
+      console.error("[EMAIL] 验证码预占失败");
+    }
+    return {
+      success: false,
+      message: "验证码服务暂不可用，请稍后重试",
+      status: 503,
+    };
+  }
+
+  if (!reserved.reserved) {
+    return {
+      success: false,
+      message: `请${reserved.retryAfterSeconds}秒后重试`,
+      status: 429,
+    };
   }
 
   if (isReal) {
     const sent = await sendCodeEmail(email, code);
     if (!sent) {
-      return { success: false, message: "邮件发送失败，请稍后重试" };
+      try {
+        await cancelVerificationCode(reserved.reservation);
+      } catch {
+        console.error("[EMAIL] 邮件发送失败后，验证码 challenge 清理失败");
+      }
+      return {
+        success: false,
+        message: "邮件发送失败，请稍后重试",
+        status: 502,
+      };
     }
   } else {
     console.log(`[EMAIL-TEST] 邮箱: ${email}, 验证码: ${code} (测试模式)`);
-  }
-
-  // 存储验证码（优先 Redis）
-  if (useRedis()) {
-    await redisSetCode(key, code);
-    await redisSetSendLimit(key);
-  } else {
-    memoryCodeStore.set(key, {
-      code,
-      expiresAt: Date.now() + CODE_EXPIRY_MS,
-      attempts: 0,
-    });
-    memorySendLimitStore.set(key, Date.now());
   }
 
   return {
@@ -262,60 +193,10 @@ export async function sendEmailCode(email: string): Promise<{ success: boolean; 
 
 /** 验证邮箱验证码 */
 export async function verifyEmailCode(email: string, code: string): Promise<boolean> {
-  const key = email.toLowerCase();
-
-  // 优先从 Redis 获取
-  if (useRedis()) {
-    const stored = await redisGetCode(key);
-    if (!stored) return false;
-
-    const attempts = await redisIncrementAttempts(key);
-    if (attempts > MAX_ATTEMPTS) {
-      await redisDeleteCode(key);
-      return false;
-    }
-
-    if (stored.code === code) {
-      await redisDeleteCode(key);
-      return true;
-    }
-
+  try {
+    return await verifyVerificationCode("email", email, code);
+  } catch {
+    console.error("[EMAIL] 验证码存储不可用，拒绝验证");
     return false;
   }
-
-  // 内存 fallback
-  const stored = memoryCodeStore.get(key);
-  if (!stored) return false;
-
-  if (Date.now() > stored.expiresAt) {
-    memoryCodeStore.delete(key);
-    return false;
-  }
-
-  if (stored.attempts >= MAX_ATTEMPTS) {
-    memoryCodeStore.delete(key);
-    return false;
-  }
-
-  stored.attempts++;
-
-  if (stored.code === code) {
-    memoryCodeStore.delete(key);
-    return true;
-  }
-
-  return false;
-}
-
-// 内存定期清理（仅当 Redis 不可用时）
-if (!useRedis()) {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, data] of memoryCodeStore) {
-      if (now > data.expiresAt) memoryCodeStore.delete(key);
-    }
-    for (const [key, time] of memorySendLimitStore) {
-      if (now - time > SEND_INTERVAL_MS * 2) memorySendLimitStore.delete(key);
-    }
-  }, 60 * 1000);
 }

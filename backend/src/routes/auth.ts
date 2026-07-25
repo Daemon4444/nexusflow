@@ -8,7 +8,7 @@ import { parseAllowedModels } from "../data/model-access";
 
 const router = Router();
 
-// ── 登录爆破防护（Redis 失败计数 + 锁定）──
+// ── 登录爆破防护（Redis 原子尝试计数 + 锁定；故障时生产环境 fail-closed）──
 const LOGIN_MAX_FAILURES = 5;
 const LOGIN_WINDOW_SEC = 15 * 60; // 15 分钟窗口，达到阈值即锁定该窗口剩余时间
 
@@ -26,23 +26,26 @@ function loginFailKey(identity: string, ip: string): string {
 }
 
 async function isLoginLocked(identity: string, ip: string): Promise<boolean> {
-  if (!process.env.REDIS_HOST) return false;
-  try {
-    const n = parseInt((await getRedis().get(loginFailKey(identity, ip))) || "0", 10);
-    return n >= LOGIN_MAX_FAILURES;
-  } catch {
-    return false; // Redis 不可用时放行，避免误伤正常登录
+  if (!process.env.REDIS_HOST) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Redis is required for password login rate limiting");
+    }
+    return false;
   }
-}
 
-async function recordLoginFailure(identity: string, ip: string): Promise<void> {
-  if (!process.env.REDIS_HOST) return;
-  try {
-    const client = getRedis();
-    const key = loginFailKey(identity, ip);
-    const n = await client.incr(key);
-    if (n === 1) await client.expire(key, LOGIN_WINDOW_SEC);
-  } catch { /* 计数失败不阻断登录流程 */ }
+  const result = (await getRedis().eval(
+    `
+      local attempts = redis.call("INCR", KEYS[1])
+      if attempts == 1 then
+        redis.call("EXPIRE", KEYS[1], tonumber(ARGV[1]))
+      end
+      return attempts
+    `,
+    1,
+    loginFailKey(identity, ip),
+    LOGIN_WINDOW_SEC
+  )) as number;
+  return Number(result) > LOGIN_MAX_FAILURES;
 }
 
 async function clearLoginFailures(identity: string, ip: string): Promise<void> {
@@ -60,12 +63,20 @@ function extractSessionToken(req: Request): string | null {
 }
 
 // POST /api/auth/send-code — 发送邮箱验证码
-router.post("/send-code", validateBody(SendCodeSchema), async (req: Request, res: Response) => {
-  const { email } = req.body;
+router.post("/send-code", async (req: Request, res: Response) => {
+  const parsed = SendCodeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, message: "邮箱格式不正确" });
+    return;
+  }
+
+  const { email } = parsed.data;
 
   const result = await sendEmailCode(email);
   if (!result.success) {
-    res.status(400).json({ success: false, message: result.message });
+    res
+      .status(result.status)
+      .json({ success: false, message: result.message });
     return;
   }
 
@@ -117,14 +128,22 @@ router.post("/login-password", validateBody(PasswordLoginSchema), async (req: Re
   const { email, password } = req.body;
   const ip = getClientIp(req);
 
-  if (await isLoginLocked(email, ip)) {
+  let locked: boolean;
+  try {
+    locked = await isLoginLocked(email, ip);
+  } catch {
+    console.error("[AUTH] Redis unavailable; password login rejected");
+    res.status(503).json({ success: false, message: "登录服务暂不可用，请稍后重试" });
+    return;
+  }
+
+  if (locked) {
     res.status(429).json({ success: false, message: "登录尝试过于频繁，请 15 分钟后再试" });
     return;
   }
 
   const result = await loginByPassword(email, password);
   if (!result) {
-    await recordLoginFailure(email, ip);
     res.status(401).json({ success: false, message: "邮箱或密码错误" });
     return;
   }
@@ -158,14 +177,22 @@ router.post("/login-username", validateBody(UsernameLoginSchema), async (req: Re
   const { username, password } = req.body;
   const ip = getClientIp(req);
 
-  if (await isLoginLocked(`u:${username}`, ip)) {
+  let locked: boolean;
+  try {
+    locked = await isLoginLocked(`u:${username}`, ip);
+  } catch {
+    console.error("[AUTH] Redis unavailable; username login rejected");
+    res.status(503).json({ success: false, message: "登录服务暂不可用，请稍后重试" });
+    return;
+  }
+
+  if (locked) {
     res.status(429).json({ success: false, message: "登录尝试过于频繁，请 15 分钟后再试" });
     return;
   }
 
   const result = await loginByUsername(username, password);
   if (!result) {
-    await recordLoginFailure(`u:${username}`, ip);
     // 统一报错，不区分用户名不存在/密码错误/已停用（防枚举）
     res.status(401).json({ success: false, message: "用户名或密码错误" });
     return;

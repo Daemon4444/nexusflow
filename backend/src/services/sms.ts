@@ -21,29 +21,20 @@
  * 
  * ====== 未配置时的行为 ======
  * 
- * 未设置环境变量时自动进入测试模式：
- *   - 控制台打印验证码
- *   - 固定码 8888 始终可用
+ * 非生产环境未设置变量时进入测试模式，并将随机验证码输出到控制台。
+ * 生产环境未配置短信或 Redis 时一律拒绝发送和验证。
  */
 
 import Dysmsapi20170525, * as $Dysmsapi20170525 from "@alicloud/dysmsapi20170525";
 import * as $OpenApi from "@alicloud/openapi-client";
 import crypto from "crypto";
-
-// ============ 验证码存储 ============
-
-interface CodeEntry {
-  code: string;
-  expiresAt: number;
-  attempts: number;
-}
-
-const codeStore = new Map<string, CodeEntry>();
-const sendLimitStore = new Map<string, number>();
-
-const CODE_EXPIRY_MS = 5 * 60 * 1000;  // 5 分钟
-const SEND_INTERVAL_MS = 60 * 1000;    // 60 秒发送间隔
-const MAX_ATTEMPTS = 5;                  // 最大验证尝试次数
+import {
+  cancelVerificationCode,
+  reserveVerificationCode,
+  type ReserveVerificationCodeResult,
+  VerificationStoreUnavailableError,
+  verifyVerificationCode,
+} from "./verification-code-store";
 
 // ============ 阿里云 SMS 客户端 ============
 
@@ -56,6 +47,10 @@ function isSmsConfigured(): boolean {
     process.env.SMS_SIGN_NAME &&
     process.env.SMS_TEMPLATE_CODE
   );
+}
+
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
 }
 
 function getSmsClient(): Dysmsapi20170525 {
@@ -117,77 +112,62 @@ export async function sendVerificationCode(phone: string): Promise<{ success: bo
     return { success: false, message: "手机号格式不正确" };
   }
 
-  // 发送频率限制
-  const lastSent = sendLimitStore.get(phone);
-  if (lastSent && Date.now() - lastSent < SEND_INTERVAL_MS) {
-    const remaining = Math.ceil((SEND_INTERVAL_MS - (Date.now() - lastSent)) / 1000);
-    return { success: false, message: `请${remaining}秒后重试` };
+  const isReal = isSmsConfigured();
+
+  if (!isReal && isProduction()) {
+    console.error("[SMS] 短信未配置，生产环境拒绝发送验证码");
+    return { success: false, message: "验证码服务暂不可用，请稍后重试" };
   }
 
   const code = generateCode();
-  const isReal = isSmsConfigured();
+  let reserved: ReserveVerificationCodeResult;
+
+  try {
+    reserved = await reserveVerificationCode("sms", phone, code);
+  } catch (error) {
+    if (error instanceof VerificationStoreUnavailableError) {
+      console.error("[SMS] 验证码存储不可用，拒绝发送");
+    } else {
+      console.error("[SMS] 验证码预占失败");
+    }
+    return { success: false, message: "验证码服务暂不可用，请稍后重试" };
+  }
+
+  if (!reserved.reserved) {
+    return {
+      success: false,
+      message: `请${reserved.retryAfterSeconds}秒后重试`,
+    };
+  }
 
   if (isReal) {
     const sent = await sendAliyunSms(phone, code);
     if (!sent) {
+      try {
+        await cancelVerificationCode(reserved.reservation);
+      } catch {
+        console.error("[SMS] 短信发送失败后，验证码 challenge 清理失败");
+      }
       return { success: false, message: "短信发送失败，请稍后重试" };
     }
   } else {
-    console.log(`[SMS-TEST] 手机号: ${phone}, 验证码: ${code} (测试模式，也可用 8888)`);
+    console.log(`[SMS-TEST] 手机号: ${phone}, 验证码: ${code} (测试模式)`);
   }
-
-  codeStore.set(phone, {
-    code,
-    expiresAt: Date.now() + CODE_EXPIRY_MS,
-    attempts: 0,
-  });
-  sendLimitStore.set(phone, Date.now());
 
   return {
     success: true,
-    message: isReal ? "验证码已发送" : `验证码已发送（测试模式，验证码: ${code}，也可用 8888）`,
+    message: isReal ? "验证码已发送" : "验证码已发送（测试模式，请查看服务器日志）",
   };
 }
 
 /**
  * 验证验证码
  */
-export function verifyCode(phone: string, code: string): boolean {
-  // 测试模式兜底
-  if (!isSmsConfigured() && code === "8888") {
-    return true;
-  }
-
-  const stored = codeStore.get(phone);
-  if (!stored) return false;
-
-  if (Date.now() > stored.expiresAt) {
-    codeStore.delete(phone);
+export async function verifyCode(phone: string, code: string): Promise<boolean> {
+  try {
+    return await verifyVerificationCode("sms", phone, code);
+  } catch {
+    console.error("[SMS] 验证码存储不可用，拒绝验证");
     return false;
   }
-
-  if (stored.attempts >= MAX_ATTEMPTS) {
-    codeStore.delete(phone);
-    return false;
-  }
-
-  stored.attempts++;
-
-  if (stored.code === code) {
-    codeStore.delete(phone);
-    return true;
-  }
-
-  return false;
 }
-
-// 定期清理过期数据
-setInterval(() => {
-  const now = Date.now();
-  for (const [phone, data] of codeStore) {
-    if (now > data.expiresAt) codeStore.delete(phone);
-  }
-  for (const [phone, time] of sendLimitStore) {
-    if (now - time > SEND_INTERVAL_MS * 2) sendLimitStore.delete(phone);
-  }
-}, 60 * 1000);
