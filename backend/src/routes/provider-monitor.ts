@@ -2,29 +2,16 @@ import { Router, Request, Response } from "express";
 import { requireAdmin } from "../middleware/admin";
 import { getAllProviders, getAllCapacity } from "../data/providers";
 import { getAllHealthRecords } from "../services/scheduler";
-import { getProviderUsageStats } from "../services/rate-limiter";
+import { getProviderUsageStatsAsync } from "../services/rate-limiter";
+import {
+  getFallbackState,
+  HealthState,
+  summarizeRouteHealth,
+  unavailableHistoricalSeries,
+} from "../services/provider-monitor-semantics";
 import { models as staticModels } from "../data/models";
 
 const router = Router();
-
-type HealthState = "healthy" | "degraded" | "down";
-
-function buildSeries(current: number, limit: number, points: number): number[] {
-  const safeLimit = Math.max(limit, 1);
-  const baseRatio = Math.min(1, current / safeLimit);
-  return Array.from({ length: points }, (_, index) => {
-    const drift = ((index % 4) - 1.5) * 0.06;
-    const wave = Math.sin((index + 1) * 0.9) * 0.05;
-    const value = Math.max(0, Math.min(1, baseRatio + drift + wave));
-    return Number((value * safeLimit).toFixed(2));
-  });
-}
-
-function getFallbackState(health: HealthState): "closed" | "monitoring" | "open" {
-  if (health === "down") return "open";
-  if (health === "degraded") return "monitoring";
-  return "closed";
-}
 
 router.use(requireAdmin);
 
@@ -44,12 +31,18 @@ router.get("/overview", async (_req: Request, res: Response) => {
     enabledRoutes: 0,
   };
 
-  const providerCards = providers.map((provider) => {
+  const providerCards = await Promise.all(providers.map(async (provider) => {
     const providerCapacity = capacity.filter((item) => item.provider_id === provider.id);
     const providerHealth = health.filter((item) => item.providerId === provider.id);
+    const usageByModel = new Map(
+      await Promise.all(providerCapacity.map(async (item) => [
+        item.model_id,
+        await getProviderUsageStatsAsync(provider.id, item.model_id),
+      ] as const))
+    );
 
     const providerTotals = providerCapacity.reduce((acc, item) => {
-      const usage = getProviderUsageStats(provider.id, item.model_id);
+      const usage = usageByModel.get(item.model_id) || { rpm: 0, tpm: 0 };
       acc.rpm += usage.rpm;
       acc.tpm += usage.tpm;
       acc.rpmLimit += item.rpm_limit;
@@ -66,15 +59,13 @@ router.get("/overview", async (_req: Request, res: Response) => {
       enabledRoutes: 0,
     });
 
-    const healthSummary = providerHealth.reduce((acc, item) => {
-      acc[item.status] += 1;
-      return acc;
-    }, { healthy: 0, degraded: 0, down: 0 } as Record<HealthState, number>);
-
-    const worstHealth: HealthState =
-      healthSummary.down > 0 ? "down" :
-      healthSummary.degraded > 0 ? "degraded" :
-      "healthy";
+    const healthByModel = new Map(providerHealth.map((item) => [item.modelId, item.status]));
+    const enabledCapacity = providerCapacity.filter((item) => item.is_enabled);
+    const {
+      health: worstHealth,
+      summary: healthSummary,
+      observedRoutes,
+    } = summarizeRouteHealth(enabledCapacity.map((item) => item.model_id), healthByModel);
 
     const rpmRatio = providerTotals.rpmLimit > 0 ? providerTotals.rpm / providerTotals.rpmLimit : 0;
     const tpmRatio = providerTotals.tpmLimit > 0 ? providerTotals.tpm / providerTotals.tpmLimit : 0;
@@ -95,9 +86,14 @@ router.get("/overview", async (_req: Request, res: Response) => {
       saturationRatio: Number(saturation.toFixed(4)),
       fallbackState: getFallbackState(worstHealth),
       capacityHitRate: Number(Math.min(100, saturation * 100).toFixed(1)),
+      observedRoutes,
+      unknownRoutes: healthSummary.unknown,
+      healthCoverageRatio: enabledCapacity.length > 0
+        ? Number((observedRoutes / enabledCapacity.length).toFixed(4))
+        : 0,
       healthSummary,
     };
-  });
+  }));
 
   for (const card of providerCards) {
     totals.currentRpm += card.currentRpm;
@@ -125,6 +121,15 @@ router.get("/overview", async (_req: Request, res: Response) => {
         detail: "连续失败累积，建议关注错误率和延迟。",
         providerId: card.providerId,
       });
+    } else if (card.health === "unknown") {
+      rows.push({
+        level: "info",
+        title: `${card.providerName} 健康状态未知`,
+        detail: card.enabledRoutes === 0
+          ? "当前没有启用路由，无法形成上游健康观测。"
+          : `仅 ${card.observedRoutes}/${card.enabledRoutes} 条启用路由有真实请求观测；未观测路由不会标记为健康。`,
+        providerId: card.providerId,
+      });
     }
     if (card.capacityHitRate >= 80) {
       rows.push({
@@ -148,6 +153,7 @@ router.get("/overview", async (_req: Request, res: Response) => {
         healthyProviders: providerCards.filter((item) => item.health === "healthy").length,
         degradedProviders: providerCards.filter((item) => item.health === "degraded").length,
         downProviders: providerCards.filter((item) => item.health === "down").length,
+        unknownProviders: providerCards.filter((item) => item.health === "unknown").length,
         currentRpm: totals.currentRpm,
         currentTpm: totals.currentTpm,
         rpmLimit: totals.rpmLimit,
@@ -155,6 +161,12 @@ router.get("/overview", async (_req: Request, res: Response) => {
         concurrentLimit: totals.concurrentLimit,
         modelCount: totals.modelCount,
         enabledRoutes: totals.enabledRoutes,
+      },
+      semantics: {
+        healthSource: "observed_upstream_requests",
+        healthUnknownWhenUnobserved: true,
+        usageWindowSeconds: 60,
+        historicalSeriesAvailable: false,
       },
     },
   });
@@ -176,13 +188,17 @@ router.get("/provider/:providerId", async (req: Request, res: Response) => {
   const capacity = allCapacity.filter((item) => item.provider_id === providerId);
   const health = allHealth.filter((item) => item.providerId === providerId);
 
-  const routes = capacity.map((cap) => {
+  const routes = await Promise.all(capacity.map(async (cap) => {
     const catalog = staticModels.find((model) => model.id === cap.model_id);
     const healthItem = health.find((item) => item.modelId === cap.model_id);
-    const usage = getProviderUsageStats(providerId, cap.model_id);
+    const usage = await getProviderUsageStatsAsync(providerId, cap.model_id);
     const rpmLimit = cap.rpm_limit;
     const tpmLimit = cap.tpm_limit;
-    const currentHealth = (healthItem?.status || "healthy") as HealthState;
+    const currentHealth: HealthState = healthItem?.status || "unknown";
+    const observationTimes = [healthItem?.lastSuccessAt, healthItem?.lastFailureAt]
+      .filter((value): value is string => !!value)
+      .sort();
+    const lastObservedAt = observationTimes[observationTimes.length - 1] || null;
     return {
       modelId: cap.model_id,
       name: catalog?.name || cap.model_id,
@@ -197,14 +213,17 @@ router.get("/provider/:providerId", async (req: Request, res: Response) => {
       weight: cap.weight,
       health: currentHealth,
       fallbackState: getFallbackState(currentHealth),
+      healthObserved: !!healthItem,
+      lastObservedAt,
       consecutiveFailures: healthItem?.consecutiveFailures ?? 0,
-      avgLatencyMs: healthItem?.avgLatencyMs ?? 0,
+      avgLatencyMs: healthItem?.avgLatencyMs ?? null,
       lastError: healthItem?.lastError ?? null,
-      rpmSeries: buildSeries(usage.rpm, rpmLimit, 12),
-      tpmSeries: buildSeries(usage.tpm, tpmLimit, 12),
+      rpmSeries: unavailableHistoricalSeries(),
+      tpmSeries: unavailableHistoricalSeries(),
+      seriesSource: "unavailable",
       saturation: Number(Math.max(usage.rpm / Math.max(rpmLimit, 1), usage.tpm / Math.max(tpmLimit, 1)).toFixed(4)),
     };
-  });
+  }));
 
   res.json({
     success: true,
@@ -215,6 +234,12 @@ router.get("/provider/:providerId", async (req: Request, res: Response) => {
         status: provider.status,
       },
       routes,
+      semantics: {
+        healthSource: "observed_upstream_requests",
+        healthUnknownWhenUnobserved: true,
+        usageWindowSeconds: 60,
+        historicalSeriesAvailable: false,
+      },
     },
   });
 });

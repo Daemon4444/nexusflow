@@ -273,7 +273,7 @@ interface MonitorOverview {
     providerId: string;
     providerName: string;
     status: string;
-    health: "healthy" | "degraded" | "down";
+    health: "healthy" | "degraded" | "down" | "unknown";
     modelCount: number;
     enabledRoutes: number;
     currentRpm: number;
@@ -282,9 +282,12 @@ interface MonitorOverview {
     tpmLimit: number;
     concurrentLimit: number;
     saturationRatio: number;
-    fallbackState: "closed" | "monitoring" | "open";
+    fallbackState: "closed" | "monitoring" | "open" | "unknown";
     capacityHitRate: number;
-    healthSummary: { healthy: number; degraded: number; down: number };
+    observedRoutes: number;
+    unknownRoutes: number;
+    healthCoverageRatio: number;
+    healthSummary: { healthy: number; degraded: number; down: number; unknown: number };
   }>;
   alerts: Array<{
     level: "critical" | "warning" | "info";
@@ -297,6 +300,7 @@ interface MonitorOverview {
     healthyProviders: number;
     degradedProviders: number;
     downProviders: number;
+    unknownProviders: number;
     currentRpm: number;
     currentTpm: number;
     rpmLimit: number;
@@ -304,6 +308,12 @@ interface MonitorOverview {
     concurrentLimit: number;
     modelCount: number;
     enabledRoutes: number;
+  };
+  semantics: {
+    healthSource: "observed_upstream_requests";
+    healthUnknownWhenUnobserved: true;
+    usageWindowSeconds: number;
+    historicalSeriesAvailable: false;
   };
 }
 
@@ -319,13 +329,16 @@ interface ProviderRouteMetrics {
   concurrentLimit: number;
   priority: number;
   weight: number;
-  health: "healthy" | "degraded" | "down";
-  fallbackState: "closed" | "monitoring" | "open";
+  health: "healthy" | "degraded" | "down" | "unknown";
+  fallbackState: "closed" | "monitoring" | "open" | "unknown";
+  healthObserved: boolean;
+  lastObservedAt: string | null;
   consecutiveFailures: number;
-  avgLatencyMs: number;
+  avgLatencyMs: number | null;
   lastError: string | null;
   rpmSeries: number[];
   tpmSeries: number[];
+  seriesSource: "unavailable";
   saturation: number;
 }
 
@@ -549,6 +562,7 @@ const statusColors: Record<string, string> = {
   healthy: "#10b981",
   degraded: "#f59e0b",
   down: "#ef4444",
+  unknown: "#6b7280",
 };
 
 const statusLabels: Record<string, string> = {
@@ -561,12 +575,14 @@ const healthLabels: Record<string, string> = {
   healthy: "健康",
   degraded: "降级",
   down: "不可用",
+  unknown: "未知",
 };
 
 const fallbackLabels: Record<string, string> = {
   closed: "正常",
   monitoring: "监控中",
   open: "已熔断",
+  unknown: "未判定",
 };
 
 const cardStyle: CSSProperties = {
@@ -1556,11 +1572,12 @@ export default function AdminPage() {
                         </div>
                       ))}
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 16, marginBottom: 20 }}>
                       {[
                         { label: "健康渠道", value: monitorOverview.totals.healthyProviders, color: "#10b981" },
                         { label: "降级渠道", value: monitorOverview.totals.degradedProviders, color: "#f59e0b" },
                         { label: "熔断渠道", value: monitorOverview.totals.downProviders, color: "#ef4444" },
+                        { label: "未知渠道", value: monitorOverview.totals.unknownProviders, color: "#6b7280" },
                         { label: "监控时间", value: new Date(monitorOverview.generatedAt).toLocaleTimeString("zh-CN"), color: "#2563eb" },
                       ].map((item) => (
                         <div key={item.label} style={{ ...cardStyle, padding: 20 }}>
@@ -1579,6 +1596,8 @@ export default function AdminPage() {
                                 <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{provider.providerName}</div>
                                 <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
                                   路由 {provider.enabledRoutes}/{provider.modelCount} · 熔断 {fallbackLabels[provider.fallbackState]}
+                                  <br />
+                                  真实观测 {provider.observedRoutes}/{provider.enabledRoutes}
                                 </div>
                               </div>
                               <div style={{ fontSize: 12, color: "#4b5563" }}>
@@ -1601,10 +1620,10 @@ export default function AdminPage() {
                             <div key={`${alert.providerId}-${index}`} style={{
                               borderRadius: 10,
                               padding: 12,
-                              background: alert.level === "critical" ? "#fef2f2" : "#fff7ed",
-                              border: `1px solid ${alert.level === "critical" ? "#fecaca" : "#fed7aa"}`,
+                              background: alert.level === "critical" ? "#fef2f2" : alert.level === "warning" ? "#fff7ed" : "#f8fafc",
+                              border: `1px solid ${alert.level === "critical" ? "#fecaca" : alert.level === "warning" ? "#fed7aa" : "#cbd5e1"}`,
                             }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: alert.level === "critical" ? "#b91c1c" : "#c2410c" }}>{alert.title}</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: alert.level === "critical" ? "#b91c1c" : alert.level === "warning" ? "#c2410c" : "#475569" }}>{alert.title}</div>
                               <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>{alert.detail}</div>
                             </div>
                           ))}
@@ -2890,6 +2909,7 @@ export default function AdminPage() {
                             ) : providerDetail.models.map((model) => {
                               const capacity = providerDetail.capacity.find((item) => item.modelId === model.modelId);
                               const health = providerDetail.health.find((item) => item.modelId === model.modelId);
+                              const healthState = health?.status || "unknown";
                               const isTaskModel = isTaskModelCategory(model.category);
                               return (
                                 <div key={model.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 14 }}>
@@ -2898,8 +2918,8 @@ export default function AdminPage() {
                                       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                                         <span style={{ fontSize: 15, fontWeight: 600, color: "#111827" }}>{model.name}</span>
                                         <code style={{ fontSize: 12, padding: "3px 8px", background: "#eff6ff", color: "#1d4ed8", borderRadius: 6 }}>{model.modelId}</code>
-                                        <span style={{ padding: "3px 8px", borderRadius: 9999, fontSize: 12, background: `${statusColors[health?.status || "healthy"]}15`, color: statusColors[health?.status || "healthy"] }}>
-                                          {healthLabels[health?.status || "healthy"]}
+                                        <span style={{ padding: "3px 8px", borderRadius: 9999, fontSize: 12, background: `${statusColors[healthState]}15`, color: statusColors[healthState] }}>
+                                          {healthLabels[healthState]}
                                         </span>
                                       </div>
                                       <div style={{ marginTop: 8, display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, color: "#6b7280" }}>
@@ -2933,7 +2953,7 @@ export default function AdminPage() {
                         <div style={{ ...cardStyle, padding: 20 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                             <h3 style={{ fontSize: 17, fontWeight: 700, color: "#111827", margin: 0 }}>运行监控</h3>
-                            <div style={{ fontSize: 12, color: "#6b7280" }}>容量命中率、熔断状态、延迟趋势</div>
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>真实请求观测；无观测显示未知，不生成推测趋势</div>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                             {providerRouteMetrics.length === 0 ? (
@@ -2958,8 +2978,8 @@ export default function AdminPage() {
                                     <div style={{ marginTop: 8, display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#6b7280" }}>
                                       <span>{isTaskModel ? "任务提交 RPM" : "RPM"} {route.currentRpm}/{route.rpmLimit}</span>
                                       {isTaskModel ? <span>任务并发 {route.concurrentLimit}</span> : <span>TPM {route.currentTpm}/{route.tpmLimit}</span>}
-                                      <span>延迟 {route.avgLatencyMs} ms</span>
-                                      <span>失败 {route.consecutiveFailures} 次</span>
+                                      <span>{route.healthObserved ? `延迟 ${route.avgLatencyMs ?? 0} ms` : "延迟暂无观测"}</span>
+                                      <span>{route.healthObserved ? `连续失败 ${route.consecutiveFailures} 次` : "健康暂无观测"}</span>
                                       <span>权重 {route.weight}</span>
                                     </div>
                                   </div>
@@ -2970,16 +2990,22 @@ export default function AdminPage() {
                                     <div style={{ fontSize: 12, color: "#6b7280" }}>容量命中率</div>
                                   </div>
                                 </div>
-                                <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(12, minmax(0, 1fr))", gap: 4 }}>
-                                  {route.rpmSeries.map((point, index) => (
-                                    <div key={`rpm-${route.modelId}-${index}`} style={{
-                                      height: Math.max(8, Math.round((point / Math.max(route.rpmLimit, 1)) * 48)),
-                                      borderRadius: 4,
-                                      background: "#93c5fd",
-                                      alignSelf: "end",
-                                    }} />
-                                  ))}
-                                </div>
+                                {route.rpmSeries.length > 0 ? (
+                                  <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: `repeat(${route.rpmSeries.length}, minmax(0, 1fr))`, gap: 4 }}>
+                                    {route.rpmSeries.map((point, index) => (
+                                      <div key={`rpm-${route.modelId}-${index}`} style={{
+                                        height: Math.max(8, Math.round((point / Math.max(route.rpmLimit, 1)) * 48)),
+                                        borderRadius: 4,
+                                        background: "#93c5fd",
+                                        alignSelf: "end",
+                                      }} />
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ marginTop: 12, padding: "8px 10px", borderRadius: 8, background: "#f8fafc", color: "#64748b", fontSize: 12 }}>
+                                    暂无真实历史序列；上方 RPM/TPM 为最近 60 秒共享限流窗口快照。
+                                  </div>
+                                )}
                                 {route.lastError ? (
                                   <div style={{ marginTop: 10, fontSize: 12, color: "#b91c1c" }}>最近错误：{route.lastError}</div>
                                 ) : null}

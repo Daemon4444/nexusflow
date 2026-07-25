@@ -9,6 +9,7 @@
     "test": "echo \"Use npm run test:smoke\" && exit 1",
     "test:smoke": "ts-node scripts/smoke.ts",
     "test:billing": "USE_PG_MEM=true ts-node scripts/test-billing-reservations.ts",
+    "test:provider-monitor": "ts-node scripts/test-provider-monitor-semantics.ts",
     "db:migrate": "ts-node src/db/migrate.ts",
     "db:pg:migrate": "ts-node src/db/migrate.ts",
     "db:pg:copy": "ts-node src/db/copy-sqlite-to-pg.ts",
