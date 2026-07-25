@@ -1,10 +1,13 @@
-version: '3.8'
+# Legacy local state is retained only as a rollback artifact. Production reads
+# and writes the managed RDS/Redis instances. It must never start implicitly.
 
 services:
   # Redis - 用于速率限制、会话缓存
   redis:
     image: redis:7-alpine
     container_name: quadrant-redis
+    profiles:
+      - legacy-local-state
     ports:
       - "127.0.0.1:6379:6379"
     volumes:
@@ -15,12 +18,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: "no"
 
   # PostgreSQL - 主数据库
   postgres:
     image: postgres:16-alpine
     container_name: quadrant-postgres
+    profiles:
+      - legacy-local-state
     ports:
       - "127.0.0.1:5432:5432"
     environment:
@@ -36,7 +41,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    restart: "no"
 
 volumes:
   redis_data:

@@ -55,10 +55,14 @@ function isProduction(): boolean {
 
 function getSmsClient(): Dysmsapi20170525 {
   if (!smsClient) {
+    const outboundProxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
     const config = new $OpenApi.Config({
       accessKeyId: process.env.SMS_ACCESS_KEY_ID,
       accessKeySecret: process.env.SMS_ACCESS_KEY_SECRET,
       endpoint: "dysmsapi.aliyuncs.com",
+      ...(outboundProxy
+        ? { httpProxy: outboundProxy, httpsProxy: outboundProxy }
+        : {}),
     });
     smsClient = new Dysmsapi20170525(config);
   }
