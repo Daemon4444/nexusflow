@@ -63,12 +63,13 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 前端 | Next.js `16.3.0-preview.6`、React 19、Tailwind CSS 4 |
 | 后端 | Express 5、TypeScript，生产运行编译后的 `backend/dist/index.js` |
 | Runtime | Node.js 24 |
-| 数据库 | PostgreSQL 16，Docker，仅绑定本机 |
-| 缓存/共享状态 | Redis 7，Docker，仅绑定本机 |
-| 进程 | PM2；后端 cluster ×2，前端 ×1 |
-| 反向代理 | nginx + TLS |
+| 数据库 | 阿里云托管 PostgreSQL 16，两应用节点共享 |
+| 缓存/共享状态 | 阿里云托管 Redis 7，两应用节点共享 |
+| 应用节点 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
+| 进程 | 每节点 PM2；后端 cluster ×2，前端 ×1 |
+| 反向代理 | 阿里云 ALB + 每节点 nginx |
 | 线上模型目录 | 67 个运行时模型；以 `GET /api/models` 实时结果为准 |
-| 数据库迁移 | `001` 至 `012`，其中历史上存在两个 `006_*` 文件 |
+| 数据库迁移 | `001` 至 `013`，其中历史上存在两个 `006_*` 文件 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 生产每日 PostgreSQL 备份；`small` 服务器每日异地拉取 |
 
@@ -79,7 +80,7 @@ curl -fsS https://nexusflow.hk/api/health
 curl -fsS https://nexusflow.hk/api/version
 ssh nexus 'cd /root/distiny/nexusflow && git status --short --branch'
 ssh nexus 'pm2 status'
-ssh nexus 'docker ps'
+ssh nexus 'ssh root@172.27.219.55 "pm2 status"'
 ```
 
 `/api/version` 返回实际部署构建的 Git SHA 和构建时间，用它判断“代码推了但线上仍跑旧产物”。后端 build 会把这两个值写入只读构建产物，接口优先读取产物、仅在旧部署缺少产物时回退到 PM2 环境变量，避免滚动发布漏传环境变量后误报 `unknown`。
@@ -90,21 +91,24 @@ ssh nexus 'docker ps'
 Internet
   │
   ▼
-nginx :443
-  ├─ /, /admin ───────────────► Next.js :19999
-  ├─ /api/*, /v1/* ───────────► Express :3001
-  └─ /admin 另有 nginx Basic Auth
+阿里云 ALB
+  ├─► 主节点 nginx ─┬─ /, /admin ─► Next.js :19999
+  │                 └─ /api/*, /v1/* ─► Express :3001
+  └─► 节点 j nginx ─┬─ /, /admin ─► Next.js :19999
+                    └─ /api/*, /v1/* ─► Express :3001
 
-PM2
+每个应用节点的 PM2
   ├─ quadrant-backend ×2       backend/dist/index.js
   └─ quadrant-frontend ×1      next start -p 19999
 
-Docker
-  ├─ quadrant-postgres         127.0.0.1:5432
-  └─ quadrant-redis            127.0.0.1:6379
+共享托管服务
+  ├─ PostgreSQL 16
+  └─ Redis 7
 ```
 
-后端虽然监听 `0.0.0.0:3001` 以兼容 PM2 cluster，但主机防火墙阻止公网直连；外部流量应只经 nginx。不要未经验证就把 cluster 模式改为 `app.listen(..., "127.0.0.1")`，历史上这会导致 PM2 cluster 不监听并产生 502。
+后端虽然监听 `0.0.0.0:3001` 以兼容 PM2 cluster，但主机防火墙阻止公网直连；外部流量应只经 ALB 和 nginx。不要未经验证就把 cluster 模式改为 `app.listen(..., "127.0.0.1")`，历史上这会导致 PM2 cluster 不监听并产生 502。
+
+`/v1` 的大 JSON 请求在 `express.json()` 前先做只读 API Key 校验，避免匿名请求触发最高 50MB 的 JSON 解析。nginx 另加载仓库中的 `ops/nginx/nexusflow-v1-*.conf`，提供每 IP 600 RPM、100 burst 和 50 并发连接的粗粒度防洪；精确的 API Key QPM/TPM 仍由应用层执行。
 
 ## 5. 仓库结构
 
@@ -126,6 +130,8 @@ nexusflow/
 │   └── lib/                    # API、模型、金额、i18n、认证
 ├── docs/                       # 专项 runbook 与回归清单
 ├── internal/model-sources/     # 上游模型资料快照
+├── ops/nginx/                  # 双节点共享的 nginx /v1 防洪配置
+├── scripts/deploy-all-production.sh
 ├── scripts/deploy-production.sh
 ├── ecosystem.config.js
 ├── docker-compose.yml
@@ -292,6 +298,7 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 010_response_ownership.sql
 011_billing_reservations.sql
 012_credit_balance.sql
+013_observation_safe_health_defaults.sql
 ```
 
 历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。未来迁移从 `013_*.sql` 开始，禁止再复用编号。
@@ -332,7 +339,7 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - `/api/health`：进程存活；
 - `/api/version`：部署版本；
 - PM2：进程、重启、stdout/stderr；
-- Docker health：PostgreSQL/Redis；
+- 托管 PostgreSQL/Redis 连通性：通过每节点 `/api/health`；
 - 本地备份：`nexus:/root/backups`，每日 03:30，保留约 14 天；
 - 异地备份：`small:/root/offsite/nexusflow-db`，每日 04:30 拉取，保留约 21 天。
 
@@ -393,23 +400,26 @@ npm audit --omit=dev --audit-level=high
 
 生产永远运行构建产物。改 TypeScript 后只 `pm2 restart` 不会生效。
 
-推荐使用：
+生产是双节点。必须从主节点使用统一发布脚本，它会通过 Git bundle 同步节点 j、分别构建/迁移/reload、安装 nginx `/v1` 防护，并验证两节点版本一致：
 
 ```bash
 ssh nexus
 cd /root/distiny/nexusflow
 git pull --ff-only origin main
-bash scripts/deploy-production.sh
+bash scripts/deploy-all-production.sh
 ```
+
+`scripts/deploy-production.sh` 只是单节点构建/reload 原语，不得再单独把它当作完整生产发布。节点 j 当前不依赖 GitHub Deploy Key；统一脚本从主节点的已核验 HEAD 生成 bundle 并要求对端只能 fast-forward。
 
 脚本负责安装、前后端构建、执行 migrations、注入 `BUILD_SHA/BUILD_TIME`、PM2 reload 和保存进程状态。部署后必须检查：
 
 ```bash
 git status --short --branch
 pm2 status
-docker ps
 curl -fsS http://127.0.0.1:3001/api/health
 curl -fsS http://127.0.0.1:3001/api/version
+ssh root@172.27.219.55 'curl -fsS http://127.0.0.1:3001/api/health'
+ssh root@172.27.219.55 'curl -fsS http://127.0.0.1:3001/api/version'
 curl -fsS https://nexusflow.hk/api/health
 curl -fsS https://nexusflow.hk/api/version
 ```

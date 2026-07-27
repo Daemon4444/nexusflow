@@ -14,6 +14,11 @@ export interface ApiKey {
   rate_limit: number;
 }
 
+export type ValidApiKey = ApiKey & {
+  parent_user_id: string | null;
+  allowed_models: string | null;
+};
+
 function hashApiKey(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -32,13 +37,13 @@ export async function getKeysByUser(userId: string): Promise<ApiKey[]> {
   return db.queryMany<ApiKey>("SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC", [userId]);
 }
 
-export async function validateApiKey(token: string): Promise<(ApiKey & { parent_user_id: string | null; allowed_models: string | null }) | null> {
+async function findValidApiKey(token: string, touchUsage: boolean): Promise<ValidApiKey | null> {
   const tokenHash = hashApiKey(token);
   // join 用户状态 + 子账号模型权限：账号（及其主账号）非 active 时 key 立即失效（spec §5）
   // 安全：只允许 sha256 哈希比对。key 列存的是脱敏预览串，绝不能参与鉴权
   // （历史上 `OR k.key = ?` 会让脱敏串本身成为有效凭据——脱敏是幂等的，
   //  dashboard 展示的预览与库中 key 列逐字节相等）。生产已核实全部 key 均有 key_hash。
-  const key = await db.queryOne<ApiKey & { user_status: string | null; parent_status: string | null; parent_user_id: string | null; allowed_models: string | null }>(
+  const key = await db.queryOne<ValidApiKey & { user_status: string | null; parent_status: string | null }>(
     `SELECT k.*, u.status as user_status, p.status as parent_status,
             u.parent_user_id as parent_user_id, u.allowed_models as allowed_models
        FROM api_keys k
@@ -53,11 +58,29 @@ export async function validateApiKey(token: string): Promise<(ApiKey & { parent_
     if ((key.user_status || "active") !== "active") return null;
     if (key.parent_status != null && key.parent_status !== "active") return null;
   }
-  await db.execute("UPDATE api_keys SET last_used = ?, usage_count = usage_count + 1 WHERE id = ?", [
-    new Date().toISOString(),
-    key.id,
-  ]);
+  if (touchUsage) {
+    await db.execute("UPDATE api_keys SET last_used = ?, usage_count = usage_count + 1 WHERE id = ?", [
+      new Date().toISOString(),
+      key.id,
+    ]);
+  }
   return key;
+}
+
+/**
+ * Validate an API key without incrementing usage counters.
+ *
+ * This is intentionally used before parsing large JSON request bodies so
+ * anonymous callers cannot force the process to allocate and parse up to the
+ * public model-context body limit. Route handlers still call validateApiKey()
+ * after parsing, which records the request exactly once.
+ */
+export async function inspectApiKey(token: string): Promise<ValidApiKey | null> {
+  return findValidApiKey(token, false);
+}
+
+export async function validateApiKey(token: string): Promise<ValidApiKey | null> {
+  return findValidApiKey(token, true);
 }
 
 export async function createApiKey(name: string, rateLimit = 60, userId?: string): Promise<ApiKey> {

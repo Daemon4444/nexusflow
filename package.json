@@ -16,6 +16,7 @@
     "build:backend": "cd backend && npm run build"
   },
   "overrides": {
+    "body-parser": "2.3.0",
     "postcss": "^8.5.10",
     "@alicloud/log@1.2.6": {
       "protobufjs": "8.7.1"

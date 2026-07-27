@@ -28,6 +28,7 @@ import rateLimitsRouter from "./routes/ratelimits";
 import ticketsRouter from "./routes/tickets";
 import subAccountsRouter from "./routes/sub-accounts";
 import { errorHandler, notFoundHandler } from "./middleware/error";
+import { requireApiKeyBeforeLargeJson } from "./middleware/large-json-auth";
 import { getBuildInfo } from "./utils/build-info";
 
 const app = express();
@@ -54,7 +55,14 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true,
 }));
-app.use(express.json({ limit: "50mb" })); // 1M 上下文模型的长 prompt 可远超 1mb；上限仍受 nginx client_max_body_size=100m 保护
+// Only authenticated public API writes may use the 50 MB model-context limit.
+// All other routes retain the conservative 1 MB global limit.
+app.use(
+  "/v1",
+  requireApiKeyBeforeLargeJson,
+  express.json({ limit: "50mb" })
+);
+app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: false })); // 支付宝回调等表单请求
 
 // Anthropic Messages 兼容 API（/v1/messages）— 必须在 /v1 之前挂载

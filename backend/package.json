@@ -9,6 +9,7 @@
     "test": "echo \"Use npm run test:smoke\" && exit 1",
     "test:smoke": "ts-node scripts/smoke.ts",
     "test:billing": "USE_PG_MEM=true ts-node scripts/test-billing-reservations.ts",
+    "test:large-json-auth": "USE_PG_MEM=true ts-node scripts/test-large-json-auth.ts",
     "test:provider-monitor": "ts-node scripts/test-provider-monitor-semantics.ts && USE_PG_MEM=true ts-node scripts/test-provider-health-schema.ts",
     "test:provider-secrets": "NODE_ENV=production USE_PG_MEM=true PROVIDER_SECRET_KEY=test-only-provider-secret-key-000000000000000000000000 ts-node scripts/test-provider-secrets.ts",
     "db:migrate": "ts-node src/db/migrate.ts",
@@ -33,7 +34,7 @@
     "multer": "^2.2.0",
     "nodemailer": "^9.0.3",
     "pg": "^8.12.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.3",
     "uuid": "^14.0.0",
     "zod": "^4.3.6"
   },

@@ -79,10 +79,10 @@ npm audit --omit=dev --audit-level=high
 ssh nexus
 cd /root/distiny/nexusflow
 git pull --ff-only origin main
-bash scripts/deploy-production.sh
+bash scripts/deploy-all-production.sh
 ```
 
-发布后核对 Git、PM2、Docker、`/api/health` 和 `/api/version`。文档变更也应让生产工作区与 GitHub main 保持同步，但无需无意义地重建服务。
+生产是 ALB 双应用节点；完整发布必须使用统一脚本同步并验证两节点，不能只运行单节点的 `deploy-production.sh`。发布后核对两节点 Git、PM2、`/api/health` 和 `/api/version`。文档变更也应让生产工作区与 GitHub main 保持同步，但无需无意义地重建服务。
 
 ## 完成标准
 
