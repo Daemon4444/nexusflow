@@ -18,9 +18,8 @@ npm run build:frontend
 (cd backend && npm run db:migrate)
 
 BUILD_SHA="$BUILD_SHA" BUILD_TIME="$BUILD_TIME" \
-  pm2 reload ecosystem.config.js --only quadrant-backend --update-env
+pm2 reload ecosystem.config.js --only quadrant-backend --update-env
 pm2 reload ecosystem.config.js --only quadrant-frontend --update-env
-pm2 save
 
 curl --fail --silent --show-error http://127.0.0.1:3001/api/health >/dev/null
 VERSION="$(curl --fail --silent --show-error http://127.0.0.1:3001/api/version)"
@@ -45,5 +44,7 @@ if [[ "$FRONTEND_OK" != "true" ]]; then
   pm2 describe quadrant-frontend >&2 || true
   exit 1
 fi
+
+pm2 save
 
 echo "Deployed $BUILD_SHA at $BUILD_TIME"
