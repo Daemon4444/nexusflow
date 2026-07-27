@@ -66,7 +66,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 数据库 | 阿里云托管 PostgreSQL 16，两应用节点共享 |
 | 缓存/共享状态 | 阿里云托管 Redis 7，两应用节点共享 |
 | 应用节点 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
-| 进程 | 每节点 PM2；后端 cluster ×2，前端 ×1 |
+| 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
 | 线上模型目录 | 67 个运行时模型；以 `GET /api/models` 实时结果为准 |
 | 数据库迁移 | `001` 至 `013`，其中历史上存在两个 `006_*` 文件 |
@@ -99,7 +99,7 @@ Internet
 
 每个应用节点的 PM2
   ├─ quadrant-backend ×2       backend/dist/index.js
-  └─ quadrant-frontend ×1      next start -p 19999
+  └─ quadrant-frontend ×1      frontend/node_modules/next（fork）
 
 共享托管服务
   ├─ PostgreSQL 16
@@ -400,7 +400,7 @@ npm audit --omit=dev --audit-level=high
 
 生产永远运行构建产物。改 TypeScript 后只 `pm2 restart` 不会生效。
 
-生产是双节点。必须从主节点使用统一发布脚本，它会通过 Git bundle 同步节点 j、分别构建/迁移/reload、安装 nginx `/v1` 防护，并验证两节点版本一致：
+生产是双节点。必须从主节点使用统一发布脚本，它会通过 Git bundle 同步节点 j、分别构建/迁移/reload、检查后端与前端、安装 nginx `/v1` 防护，并验证两节点版本一致：
 
 ```bash
 ssh nexus

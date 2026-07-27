@@ -42,9 +42,13 @@ module.exports = {
     {
       name: "quadrant-frontend",
       cwd: `${root}/frontend`,
-      script: "node_modules/next/dist/bin/next",
+      // Use the workspace-local binary explicitly. npm may hoist Next to the
+      // repository root or keep it under frontend/node_modules; production
+      // must not depend on that incidental layout.
+      script: `${root}/frontend/node_modules/next/dist/bin/next`,
       args: `start -p ${process.env.FRONTEND_PORT || 19999} -H 0.0.0.0`,
       instances: 1,
+      exec_mode: "fork",
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",

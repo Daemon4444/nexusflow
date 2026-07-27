@@ -32,4 +32,18 @@ case "$VERSION" in
     ;;
 esac
 
+FRONTEND_OK=false
+for _ in $(seq 1 20); do
+  if curl --fail --silent --show-error http://127.0.0.1:19999/ >/dev/null; then
+    FRONTEND_OK=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$FRONTEND_OK" != "true" ]]; then
+  echo "Frontend health check failed on http://127.0.0.1:19999/" >&2
+  pm2 describe quadrant-frontend >&2 || true
+  exit 1
+fi
+
 echo "Deployed $BUILD_SHA at $BUILD_TIME"
