@@ -54,7 +54,7 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true,
 }));
-app.use(express.json({ limit: "1mb" })); // 限制请求体大小，防止内存溢出
+app.use(express.json({ limit: "50mb" })); // 1M 上下文模型的长 prompt 可远超 1mb；上限仍受 nginx client_max_body_size=100m 保护
 app.use(express.urlencoded({ extended: false })); // 支付宝回调等表单请求
 
 // Anthropic Messages 兼容 API（/v1/messages）— 必须在 /v1 之前挂载

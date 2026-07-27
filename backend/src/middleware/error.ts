@@ -83,6 +83,20 @@ export function errorHandler(
     return;
   }
 
+  // body-parser 超过 limit 时抛 PayloadTooLargeError（type=entity.too.large,
+  // status=413）。明确返回 413，避免被兜底成 500 误导客户端。
+  if ((err as Error & { type?: string; status?: number }).type === "entity.too.large"
+    || (err as Error & { status?: number }).status === 413) {
+    res.status(413).json({
+      error: {
+        message: "Request body too large.",
+        type: "invalid_request_error",
+        code: "payload_too_large",
+      },
+    });
+    return;
+  }
+
   // 如果是 ApiError，使用统一格式
   if (err instanceof ApiError) {
     res.status(err.status).json({
