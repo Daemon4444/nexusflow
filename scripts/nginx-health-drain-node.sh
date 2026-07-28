@@ -4,6 +4,7 @@ set -euo pipefail
 
 DRAIN_CONFIG="${NEXUSFLOW_NGINX_DRAIN_CONFIG:-/etc/nginx/nexusflow-drain.conf}"
 AUDIO_GUARD_CONFIG="${NEXUSFLOW_NGINX_AUDIO_GUARD_CONFIG:-/etc/nginx/conf.d/nexusflow-audio-guards.conf}"
+V1_LOCATION_CONFIG="${NEXUSFLOW_NGINX_V1_LOCATION_CONFIG:-/etc/nginx/snippets/nexusflow-v1-location.conf}"
 ACCESS_LOG="${NEXUSFLOW_NGINX_ACCESS_LOG:-/var/log/nginx/access.log}"
 PROBE_PATH="${NEXUSFLOW_NODE_PROBE_PATH:-/__nexusflow_release_probe_9f3b}"
 HEALTH_WAIT_SECONDS="${NEXUSFLOW_HEALTH_WAIT_SECONDS:-120}"
@@ -98,7 +99,7 @@ location = /v1/chat/completions {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
     proxy_pass http://127.0.0.1:3001;
 }
 
@@ -118,7 +119,7 @@ location = /v1/responses {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
     proxy_pass http://127.0.0.1:3001;
 }
 
@@ -138,7 +139,7 @@ location = /v1/messages {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
     proxy_pass http://127.0.0.1:3001;
 }
 
@@ -160,7 +161,7 @@ location = /v1/embeddings {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
     proxy_pass http://127.0.0.1:3001;
 }
 
@@ -183,33 +184,12 @@ location = /v1/audio/transcriptions {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_pass http://127.0.0.1:3001;
-}
-
-# All remaining public v1 routes keep the ordinary 1 MiB edge budget.
-location ^~ /v1/ {
-    client_max_body_size 1m;
-    client_body_timeout 10s;
-    limit_conn nexusflow_v1_default_conn 20;
-    limit_req zone=nexusflow_v1_default_rate burst=50 nodelay;
-    limit_conn_status 429;
-    limit_req_status 429;
-    proxy_request_buffering off;
-    proxy_buffering off;
-    proxy_connect_timeout 5s;
-    proxy_send_timeout 30s;
-    proxy_read_timeout 300s;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
     proxy_pass http://127.0.0.1:3001;
 }
 
 # Public Next proxy aliases must never become a second path to /v1. They would
-# bypass the backend-edge body and concurrency contracts above.
+# bypass the backend-edge body and concurrency contracts.
 location = /proxy/v1 { return 404; }
 location ^~ /proxy/v1/ { return 404; }
 location = /api/proxy/v1 { return 404; }
@@ -234,7 +214,7 @@ location = /api/upload {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
     proxy_pass http://127.0.0.1:19999;
 }
 
@@ -257,7 +237,7 @@ location ^~ /api/uploads/ {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
     proxy_pass http://127.0.0.1:19999;
 }
 EOF
@@ -293,8 +273,6 @@ limit_conn_zone $binary_remote_addr zone=nexusflow_v1_large_conn:10m;
 limit_req_zone $binary_remote_addr zone=nexusflow_v1_large_rate:10m rate=120r/m;
 limit_conn_zone $binary_remote_addr zone=nexusflow_v1_embedding_conn:10m;
 limit_req_zone $binary_remote_addr zone=nexusflow_v1_embedding_rate:10m rate=120r/m;
-limit_conn_zone $binary_remote_addr zone=nexusflow_v1_default_conn:10m;
-limit_req_zone $binary_remote_addr zone=nexusflow_v1_default_rate:10m rate=300r/m;
 limit_conn_zone $binary_remote_addr zone=nexusflow_upload_conn:10m;
 limit_req_zone $binary_remote_addr zone=nexusflow_upload_rate:10m rate=12r/m;
 limit_conn_zone $binary_remote_addr zone=nexusflow_upload_download_conn:10m;
@@ -311,6 +289,9 @@ validate_config_file() {
   local audio_owner
   local audio_mode
   local audio_permissions
+  local v1_owner
+  local v1_mode
+  local v1_permissions
 
   test -f "$DRAIN_CONFIG" || die "drain config is missing: $DRAIN_CONFIG"
   owner="$(stat -c '%u' "$DRAIN_CONFIG")"
@@ -336,6 +317,22 @@ validate_config_file() {
     die "audio ingress guard config must not be group/world writable (mode $audio_mode)"
   cmp -s "$AUDIO_GUARD_CONFIG" <(render_audio_guard_config) ||
     die "audio ingress guard config differs from the release-managed policy"
+  test -f "$V1_LOCATION_CONFIG" ||
+    die "default v1 ingress policy is missing: $V1_LOCATION_CONFIG"
+  v1_owner="$(stat -c '%u' "$V1_LOCATION_CONFIG")"
+  v1_mode="$(stat -c '%a' "$V1_LOCATION_CONFIG")"
+  v1_permissions=$((8#$v1_mode))
+  test "$v1_owner" = "0" || die "default v1 ingress policy must be owned by root"
+  test $((v1_permissions & 0022)) -eq 0 ||
+    die "default v1 ingress policy must not be group/world writable (mode $v1_mode)"
+  grep -Fx 'client_max_body_size 1m;' "$V1_LOCATION_CONFIG" >/dev/null ||
+    die "default v1 request-body cap is missing"
+  grep -Fx 'client_body_timeout 10s;' "$V1_LOCATION_CONFIG" >/dev/null ||
+    die "default v1 slow-client timeout is missing"
+  grep -Fx 'limit_req zone=nf_v1 burst=100 nodelay;' "$V1_LOCATION_CONFIG" >/dev/null ||
+    die "default v1 request-rate limit is missing"
+  grep -Fx 'limit_conn nf_v1_conn 50;' "$V1_LOCATION_CONFIG" >/dev/null ||
+    die "default v1 connection limit is missing"
   grep -F 'location = /v1/audio/transcriptions {' "$DRAIN_CONFIG" >/dev/null ||
     die "audio ingress exact-location policy is missing from the server include"
   grep -F 'client_max_body_size 1m;' "$DRAIN_CONFIG" >/dev/null ||
@@ -354,16 +351,16 @@ validate_config_file() {
     die "large messages ingress policy is missing"
   grep -F 'location = /v1/embeddings {' "$DRAIN_CONFIG" >/dev/null ||
     die "embedding ingress policy is missing"
-  grep -F 'location ^~ /v1/ {' "$DRAIN_CONFIG" >/dev/null ||
-    die "default v1 ingress policy is missing"
   test "$(grep -Fxc '    client_max_body_size 50m;' "$DRAIN_CONFIG")" -eq 3 ||
     die "large-context routes do not have exactly three 50 MiB policies"
   grep -F '    client_max_body_size 8m;' "$DRAIN_CONFIG" >/dev/null ||
     die "embedding request-body cap is missing"
-  test "$(grep -Fxc '    proxy_request_buffering off;' "$DRAIN_CONFIG")" -eq 8 ||
+  test "$(grep -Fxc '    proxy_request_buffering off;' "$DRAIN_CONFIG")" -eq 7 ||
     die "managed ingress routes must stream only after application admission"
-  test "$(grep -Fxc '    proxy_buffering off;' "$DRAIN_CONFIG")" -eq 8 ||
+  test "$(grep -Fxc '    proxy_buffering off;' "$DRAIN_CONFIG")" -eq 7 ||
     die "managed ingress routes must preserve streaming"
+  test "$(grep -Fxc '    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;' "$DRAIN_CONFIG")" -eq 7 ||
+    die "managed ingress routes must preserve the trusted forwarded protocol"
   for blocked_alias in \
     'location = /proxy/v1 { return 404; }' \
     'location ^~ /proxy/v1/ { return 404; }' \
@@ -509,6 +506,8 @@ preflight() {
     die "$DRAIN_CONFIG is not included by nginx"
   nginx -T 2>&1 | grep -F "# configuration file $AUDIO_GUARD_CONFIG:" >/dev/null ||
     die "$AUDIO_GUARD_CONFIG is not included by nginx"
+  nginx -T 2>&1 | grep -F "# configuration file $V1_LOCATION_CONFIG:" >/dev/null ||
+    die "$V1_LOCATION_CONFIG is not included by nginx"
   nginx -T 2>&1 | grep -Eq '^[[:space:]]*real_ip_header[[:space:]]+(X-Forwarded-For|X-Real-IP);' ||
     die "nginx real_ip_header is required for per-client ingress limits"
   nginx -T 2>&1 | grep -Eq '^[[:space:]]*set_real_ip_from[[:space:]]+[^;]+;' ||

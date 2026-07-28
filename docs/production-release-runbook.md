@@ -98,12 +98,17 @@ bash scripts/install-nginx-health-drain.sh \
 # Copy only the bootstrap controls to the peer; the release later aligns Git.
 scp scripts/nginx-health-drain-node.sh \
     scripts/install-nginx-health-drain.sh \
+    ops/nginx/nexusflow-v1-location.conf \
     root@172.27.219.55:/tmp/
 ssh root@172.27.219.55 '
   chmod 0755 /tmp/nginx-health-drain-node.sh /tmp/install-nginx-health-drain.sh
-  /tmp/install-nginx-health-drain.sh \
+  NEXUSFLOW_SOURCE_V1_LOCATION_CONFIG=/tmp/nexusflow-v1-location.conf \
+    /tmp/install-nginx-health-drain.sh \
     /etc/nginx/conf.d/nexusflow-ha.conf peer
-  rm -f /tmp/nginx-health-drain-node.sh /tmp/install-nginx-health-drain.sh
+  rm -f \
+    /tmp/nginx-health-drain-node.sh \
+    /tmp/install-nginx-health-drain.sh \
+    /tmp/nexusflow-v1-location.conf
 '
 ```
 
@@ -115,10 +120,12 @@ The installer:
 - creates root-owned
   `/etc/nginx/conf.d/nexusflow-audio-guards.conf` with per-client request and
   connection zones;
+- atomically updates the existing root-owned
+  `/etc/nginx/snippets/nexusflow-v1-location.conf` default ingress policy;
 - includes it inside every NexusFlow nginx server block;
 - runs `nginx -t`, reloads, and verifies the direct node probe;
-- restores the previous helper, site, drain config, and audio guard config if
-  any step fails.
+- restores the previous helper, site, drain config, audio guard config, and
+  default v1 policy if any step fails.
 
 When enabled, the config returns 503 only if all four facts match:
 
@@ -133,7 +140,8 @@ Wrong method, URI, user-agent, or source continues to the normal application.
 The public `GET /__nexusflow_release_probe_9f3b` returns only `main` or `peer`
 with `Cache-Control: no-store`; it contains no secret or application data.
 
-The same managed server include splits `/v1` ingress by exact contract:
+The managed server include and the existing `/v1/` location's managed snippet
+split `/v1` ingress by exact contract:
 
 - `/v1/chat/completions`, `/v1/responses`, and `/v1/messages`: 50 MiB,
   30-second inter-read timeout, 10 concurrent requests and 120 requests/minute
@@ -141,12 +149,15 @@ The same managed server include splits `/v1` ingress by exact contract:
 - `/v1/embeddings`: 8 MiB and a 15-second inter-read timeout;
 - `/v1/audio/transcriptions`: 1 MiB, 10-second inter-read timeout, two
   concurrent requests and 6 requests/minute with a burst of two;
-- every other `/v1/` route: 1 MiB and a 10-second inter-read timeout.
+- every other `/v1/` route: the existing prefix location keeps its proxy
+  behavior while the managed snippet enforces 1 MiB and a 10-second inter-read
+  timeout.
 
-All six policies disable request buffering so the backend's API-key,
-per-key/IP/global admission runs before the large body is streamed; response
-buffering is also disabled to preserve SSE. The audio backend accepts only
-small fields/`file_url` and rejects binary multipart parts without disk
+The five exact policies disable request buffering so the backend's API-key,
+per-key/IP/global admission runs before the large body is streamed; the
+existing default `/v1/` location retains its unbuffered proxy behavior.
+Response buffering is also disabled to preserve SSE. The audio backend accepts
+only small fields/`file_url` and rejects binary multipart parts without disk
 storage, so there is no dead 50 MiB audio upload surface. The ALB real-IP chain
 must remain configured so limits do not collapse all customers onto a load
 balancer address. Preflight now requires both `real_ip_header` and at least one

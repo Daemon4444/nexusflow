@@ -108,7 +108,7 @@ Internet
 
 后端虽然监听 `0.0.0.0:3001` 以兼容 PM2 cluster，但主机防火墙阻止公网直连；外部流量应只经 ALB 和 nginx。不要未经验证就把 cluster 模式改为 `app.listen(..., "127.0.0.1")`，历史上这会导致 PM2 cluster 不监听并产生 502。
 
-`/v1` 的大 JSON 请求在 `express.json()` 前先做只读 API Key 校验，避免匿名请求触发最高 50MB 的 JSON 解析。nginx 另加载仓库中的 `ops/nginx/nexusflow-v1-*.conf`，提供每 IP 600 RPM、100 burst 和 50 并发连接的粗粒度防洪；精确的 API Key QPM/TPM 仍由应用层执行。
+`/v1` 的大 JSON 请求在 `express.json()` 前先做只读 API Key 校验，避免匿名请求触发最高 50MB 的 JSON 解析。nginx 另加载仓库中的 `ops/nginx/nexusflow-v1-*.conf`，为普通 `/v1/` 请求提供 1 MiB、10 秒慢请求、每 IP 600 RPM、100 burst 和 50 并发连接的粗粒度防洪；大上下文、embedding 和音频路由使用更精确的独立边缘策略，API Key QPM/TPM 仍由应用层执行。
 
 ## 5. 仓库结构
 
@@ -494,7 +494,8 @@ Git、制品或日志。真实发布在成功和可捕获失败时删除该 stag
 默认摘流不依赖 ALB RAM 权限。两节点必须先安装 root-owned
 `/etc/nginx/nexusflow-drain.conf` 和
 `/usr/local/sbin/nexusflow-nginx-health-drain-node`，以及 root-owned
-`/etc/nginx/conf.d/nexusflow-audio-guards.conf`。摘流只匹配 ALB 的来源 IP、
+`/etc/nginx/conf.d/nexusflow-audio-guards.conf` 和
+`/etc/nginx/snippets/nexusflow-v1-location.conf`。摘流只匹配 ALB 的来源 IP、
 `HEAD /api/health` 与 `SLBHealthCheck` UA，随后等待连续 503、公共 node probe
 仅命中另一节点及现有连接归零。任何失败由 hook 与外层编排 trap 恢复健康检查。
 截至 2026-07-28，`NexusFlowCertSyncRole` 对 ALB ServerGroup 仍为 `ImplicitDeny`，

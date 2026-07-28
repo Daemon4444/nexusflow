@@ -99,8 +99,9 @@ Check these before functional testing:
 - The read-only migration preflight reports only expand-compatible pending SQL.
 - Both nodes report and verify one identical pre-release rollback SHA.
 - Both root-owned nginx drain helpers match the release source.
-- Both root-owned nginx ingress guard configs match the helper-rendered policy:
-  exact 50 MiB chat/responses/messages routes, 8 MiB embeddings, 1 MiB
+- Both root-owned nginx ingress guard configs match the helper-rendered exact
+  route policy, and the root-owned default `/v1/` snippet matches the release
+  source: exact 50 MiB chat/responses/messages routes, 8 MiB embeddings, 1 MiB
   audio/default `/v1`, route-specific body timeouts, streaming request/response
   buffering settings, and per-real-IP connection/request limits.
 - Nginx effective config contains the trusted ALB `real_ip_header` and

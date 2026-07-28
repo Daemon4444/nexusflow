@@ -203,9 +203,12 @@ EOF
 chmod 0755 "$SHIMS/stat" "$SHIMS/mv" "$SHIMS/curl" "$SHIMS/pm2" "$SHIMS/ss"
 
 audio_server_policy="$FIXTURE/audio-server-policy.conf"
+enabled_server_policy="$FIXTURE/audio-server-policy-enabled.conf"
 audio_http_policy="$FIXTURE/audio-http-policy.conf"
 "$SCRIPT_DIR/nginx-health-drain-node.sh" render disabled fixture-node \
   > "$audio_server_policy"
+"$SCRIPT_DIR/nginx-health-drain-node.sh" render enabled fixture-node \
+  > "$enabled_server_policy"
 "$SCRIPT_DIR/nginx-health-drain-node.sh" render-audio-guard \
   > "$audio_http_policy"
 grep -Fx 'location = /v1/audio/transcriptions {' "$audio_server_policy" >/dev/null
@@ -218,16 +221,24 @@ for location in \
   'location = /v1/chat/completions {' \
   'location = /v1/responses {' \
   'location = /v1/messages {' \
-  'location = /v1/embeddings {' \
-  'location ^~ /v1/ {'; do
+  'location = /v1/embeddings {'; do
   grep -Fx "$location" "$audio_server_policy" >/dev/null
 done
 test "$(grep -Fxc '    client_max_body_size 50m;' "$audio_server_policy")" -eq 3
 test "$(grep -Fxc '    client_max_body_size 8m;' "$audio_server_policy")" -eq 1
-test "$(grep -Fxc '    client_max_body_size 1m;' "$audio_server_policy")" -eq 3
+test "$(grep -Fxc '    client_max_body_size 1m;' "$audio_server_policy")" -eq 2
 test "$(grep -Fxc '    client_max_body_size 101m;' "$audio_server_policy")" -eq 1
-test "$(grep -Fxc '    proxy_request_buffering off;' "$audio_server_policy")" -eq 8
-test "$(grep -Fxc '    proxy_buffering off;' "$audio_server_policy")" -eq 8
+test "$(grep -Fxc '    proxy_request_buffering off;' "$audio_server_policy")" -eq 7
+test "$(grep -Fxc '    proxy_buffering off;' "$audio_server_policy")" -eq 7
+test "$(grep -Fxc '    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;' "$audio_server_policy")" -eq 7
+test "$(grep -Fxc 'client_max_body_size 1m;' "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf")" -eq 1
+test "$(grep -Fxc 'client_body_timeout 10s;' "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf")" -eq 1
+grep -Fx 'limit_conn nf_v1_conn 50;' \
+  "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf" >/dev/null
+grep -Fx 'limit_req zone=nf_v1 burst=100 nodelay;' \
+  "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf" >/dev/null
+grep -Fx 'if ($nexusflow_drain_match = "IMPU") {' "$enabled_server_policy" >/dev/null
+grep -Fx '    return 503;' "$enabled_server_policy" >/dev/null
 for blocked_alias in \
   'location = /proxy/v1 { return 404; }' \
   'location ^~ /proxy/v1/ { return 404; }' \
@@ -247,8 +258,6 @@ grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_v1_large_rate:10m ra
   "$audio_http_policy" >/dev/null
 grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_v1_embedding_rate:10m rate=120r/m;' \
   "$audio_http_policy" >/dev/null
-grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_v1_default_rate:10m rate=300r/m;' \
-  "$audio_http_policy" >/dev/null
 grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_upload_rate:10m rate=12r/m;' \
   "$audio_http_policy" >/dev/null
 grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_upload_download_rate:10m rate=120r/m;' \
@@ -262,13 +271,33 @@ if command -v nginx >/dev/null 2>&1; then
     "pid $FIXTURE/nginx.pid;" \
     'events {}' \
     'http {' \
+    '  map $http_x_forwarded_proto $nf_forwarded_proto {' \
+    '    default $http_x_forwarded_proto;' \
+    '    "" $scheme;' \
+    '  }' \
+    "  include $REPOSITORY_ROOT/ops/nginx/nexusflow-v1-zones.conf;" \
     "  include $audio_http_policy;" \
     '  server {' \
     '    listen 127.0.0.1:18080;' \
     '    access_log off;' \
     '    set_real_ip_from 127.0.0.1;' \
     '    real_ip_header X-Forwarded-For;' \
+    "    include $enabled_server_policy;" \
+    '    location /v1/ {' \
+    "      include $REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf;" \
+    '      proxy_pass http://127.0.0.1:3001;' \
+    '    }' \
+    '  }' \
+    '  server {' \
+    '    listen 127.0.0.1:18081;' \
+    '    access_log off;' \
+    '    set_real_ip_from 127.0.0.1;' \
+    '    real_ip_header X-Forwarded-For;' \
     "    include $audio_server_policy;" \
+    '    location /v1/ {' \
+    "      include $REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf;" \
+    '      proxy_pass http://127.0.0.1:3001;' \
+    '    }' \
     '  }' \
     '}' \
     > "$nginx_test_config"
@@ -411,6 +440,8 @@ NEXUSFLOW_TEST_INJECT_PROXY="http://proxy.invalid:8080" \
 proxy_status=$?
 set -e
 test "$proxy_status" -ne 0
+
+"$SCRIPT_DIR/test-nginx-health-drain-installer.sh"
 
 printf 'release-primitive-regressions-ok bootstrap=%s ingress_guard=%s nginx_syntax=%s wildcard=%s unprepared=%s save=%s unsafe=%s old_health=%s archive_escape=%s archive_extra=%s proxy=%s\n' \
   0 0 "$nginx_syntax_status" "$wildcard_status" "$unprepared_rollback_status" "$save_status" "$unsafe_status" "$old_health_status" "$archive_escape_status" "$archive_extra_status" "$proxy_status"
