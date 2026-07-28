@@ -68,7 +68,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 应用节点 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
-| 线上模型目录 | 67 个运行时模型；以 `GET /api/models` 实时结果为准 |
+| 线上模型目录 | 68 个运行时模型；以 `GET /api/models` 实时结果为准 |
 | 数据库迁移 | `001` 至 `013`，其中历史上存在两个 `006_*` 文件 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 生产每日 PostgreSQL 备份；`small` 服务器每日异地拉取 |

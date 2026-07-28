@@ -135,6 +135,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | `glm-5` | GLM 5 | 131K | 16K | ¥4/M | ¥18/M | 旗舰 |
 | `glm-5.1` | GLM 5.1 | 131K | 16K | ¥6/M | ¥24/M | 增强旗舰 |
 | `glm-5.2` | GLM 5.2 | **1M** | 128K | ¥8/M (缓存命中 ¥2/M) | ¥28/M | 长程任务、1M上下文、思考模式 |
+| `glm-5.2-fast-preview` | GLM 5.2 Fast Preview | **1M** | 128K | ¥16/M (缓存命中 ¥4/M) | ¥56/M | 高速版、输出TPS达标准版1.5~2倍、思考模式 |
 
 ### Kimi 系列
 

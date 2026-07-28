@@ -1167,6 +1167,24 @@ const staticModels: AIModel[] = [
     supported: ["文本", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
   },
   {
+    id: "glm-5.2-fast-preview",
+    name: "GLM 5.2 Fast Preview",
+    provider: "智谱AI",
+    description: "智谱AI GLM-5.2 的高速版本，支持 1M 超长上下文，模型能力对齐 GLM-5.2 标准版，具备逻辑推理、长文本理解与代码生成能力。通过推理加速优化，输出 TPS 可达标准版的 1.5~2 倍，适用于实时对话、Agent 多轮调用、流式代码生成等对输出速度敏感的场景。",
+    contextLength: 1048576,
+    promptPrice: 16,
+    completionPrice: 56,
+    cacheReadPrice: 4,
+    tokenPricingTiers: [
+      { label: "0<Token≤1M", maxTokens: 1048576, promptPrice: 16, completionPrice: 56, cacheReadPrice: 4 },
+    ],
+    category: "大语言模型",
+    tags: ["高速", "长上下文", "百万上下文", "编程", "思考模式"],
+    isNew: true,
+    maxOutput: 131072,
+    supported: ["文本", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
+  },
+  {
     id: "kimi-k2.5",
     name: "Kimi K2.5",
     provider: "月之暗面",

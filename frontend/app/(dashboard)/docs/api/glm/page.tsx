@@ -8,6 +8,7 @@ const API_BASE = "https://nexusflow.hk";
 
 const models = [
   { id: "glm-5.2", context: "1M", input: 8, output: 28, desc: "GLM-5.2 长程任务旗舰，1M 上下文" },
+  { id: "glm-5.2-fast-preview", context: "1M", input: 16, output: 56, desc: "GLM-5.2 高速版，输出 TPS 达标准版 1.5~2 倍" },
   { id: "glm-5.1", context: "198K", input: 6, output: 24, desc: "GLM-5.1 增强版旗舰" },
   { id: "glm-5", context: "198K", input: 4, output: 18, desc: "GLM-5 旗舰模型" },
   { id: "glm-4.7", context: "166K", input: 3, output: 14, desc: "GLM-4.7 通用模型" },

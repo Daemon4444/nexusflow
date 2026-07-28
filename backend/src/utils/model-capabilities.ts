@@ -42,6 +42,7 @@ const MIXED_THINKING_DEFAULT_ON = new Set([
   "deepseek-v4-pro",
   "deepseek-v4-flash",
   "glm-5.2",
+  "glm-5.2-fast-preview",
   "glm-5.1",
   "glm-5",
   "glm-4.7",
