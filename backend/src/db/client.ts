@@ -2,7 +2,7 @@ import pg from "pg";
 import dotenv from "dotenv";
 import { getMemoryPgAdapter } from "./memory";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const { Pool } = pg;
 

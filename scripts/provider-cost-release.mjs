@@ -163,6 +163,7 @@ function runCli(runtime, args, privatePath = "") {
       ...process.env,
       NEXUSFLOW_APP_ROOT: runtime.releaseDirectory,
       NEXUSFLOW_BACKEND_ENV: runtime.backendEnvironment,
+      DOTENV_CONFIG_QUIET: "true",
       PROVIDER_COST_ROLLBACK_REASON:
         "Automatic compatibility transition before an application rollback",
     },

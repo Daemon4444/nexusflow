@@ -65,6 +65,10 @@ if (process.cwd() !== process.env.PROVIDER_COST_RELEASE_EXPECTED_CWD) {
   console.error("provider-cost CLI started outside the immutable backend directory");
   process.exit(1);
 }
+if (process.env.DOTENV_CONFIG_QUIET !== "true") {
+  console.error("provider-cost CLI did not suppress dotenv control-plane output");
+  process.exit(1);
+}
 if (args.includes("--manifest")) {
   if (current.manifestFailure === true) {
     console.error("rejected private input " + args[args.indexOf("--manifest") + 1]);
