@@ -1,12 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { validateSession } from "../data/users";
-
-function parseEnvList(value?: string): string[] {
-  return (value || "")
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-}
+import { parseEnvList } from "../utils/env-list";
 
 export async function getSessionUser(req: Request, res: Response) {
   const auth = req.headers.authorization;

@@ -19,6 +19,7 @@ interface User {
   accountType?: "main" | "sub";
   quota?: UserQuota | null;
   allowedModels?: string[] | null;
+  demoAdminAccess?: boolean;
   hasPassword: boolean;
   createdAt: string;
 }

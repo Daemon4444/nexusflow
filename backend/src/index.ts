@@ -27,6 +27,7 @@ import audioRouter from "./routes/audio";
 import rateLimitsRouter from "./routes/ratelimits";
 import ticketsRouter from "./routes/tickets";
 import subAccountsRouter from "./routes/sub-accounts";
+import demoAdminRouter from "./routes/demo-admin";
 import { errorHandler, notFoundHandler } from "./middleware/error";
 import { requireApiKeyBeforeLargeJson } from "./middleware/large-json-auth";
 import { getBuildInfo } from "./utils/build-info";
@@ -106,6 +107,7 @@ app.use("/api/uploads", uploadRouter);
 app.use("/api/rate-limits", rateLimitsRouter);
 app.use("/api/tickets", ticketsRouter);
 app.use("/api/sub-accounts", subAccountsRouter);
+app.use("/api/demo-admin", demoAdminRouter);
 app.use("/api/admin", adminRouter);
 
 // Admin API (requires authentication)

@@ -12,6 +12,7 @@
     "test:large-json-auth": "USE_PG_MEM=true ts-node scripts/test-large-json-auth.ts",
     "test:provider-monitor": "ts-node scripts/test-provider-monitor-semantics.ts && USE_PG_MEM=true ts-node scripts/test-provider-health-schema.ts",
     "test:provider-secrets": "NODE_ENV=production USE_PG_MEM=true PROVIDER_SECRET_KEY=test-only-provider-secret-key-000000000000000000000000 ts-node scripts/test-provider-secrets.ts",
+    "test:demo-admin": "ts-node scripts/test-demo-admin.ts",
     "db:migrate": "ts-node src/db/migrate.ts",
     "db:pg:migrate": "ts-node src/db/migrate.ts",
     "db:pg:copy": "ts-node src/db/copy-sqlite-to-pg.ts",

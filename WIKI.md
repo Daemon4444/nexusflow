@@ -244,6 +244,9 @@ Provider 选择综合静态注册、数据库 Provider、`provider_capacity`、�
 - Public API 使用 `sk-air-*` API Key；
 - 管理 API 必须使用 admin session；
 - `/admin` 还有 nginx Basic Auth，形成双层保护。
+- 演示后台使用独立的 `/demo-admin` 页面与 `/api/demo-admin/*` 只读接口；服务端仅允许
+  `DEMO_ADMIN_EMAILS` 中的 session 邮箱访问，返回内容必须是合成数据，禁止复用真实
+  `/api/admin/*` 查询或把该白名单当作真实管理员权限。
 
 API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展示字段只保存掩码。不得恢复“掩码字符串也可通过认证”的兼容逻辑。
 

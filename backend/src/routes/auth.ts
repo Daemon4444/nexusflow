@@ -5,6 +5,7 @@ import { validateBody, SendCodeSchema, LoginSchema } from "../middleware/validat
 import { getRedis } from "../services/redis";
 import { z } from "zod";
 import { parseAllowedModels } from "../data/model-access";
+import { isDemoAdminSession } from "../middleware/demo-admin";
 
 const router = Router();
 
@@ -109,6 +110,7 @@ router.post("/login", validateBody(LoginSchema), async (req: Request, res: Respo
         nickname: result.user.nickname,
         balance: result.user.balance,
         creditBalance: result.user.credit_balance,
+        demoAdminAccess: isDemoAdminSession(result.user),
         hasPassword: !!result.user.password_hash,
         createdAt: result.user.created_at,
       },
@@ -158,6 +160,7 @@ router.post("/login-password", validateBody(PasswordLoginSchema), async (req: Re
         nickname: result.user.nickname,
         balance: result.user.balance,
         creditBalance: result.user.credit_balance,
+        demoAdminAccess: isDemoAdminSession(result.user),
         hasPassword: !!result.user.password_hash,
         createdAt: result.user.created_at,
       },
@@ -210,6 +213,7 @@ router.post("/login-username", validateBody(UsernameLoginSchema), async (req: Re
         balance: result.user.parent_user_id ? 0 : result.user.balance,
         creditBalance: result.user.parent_user_id ? 0 : result.user.credit_balance,
         accountType: result.user.parent_user_id ? "sub" : "main",
+        demoAdminAccess: isDemoAdminSession(result.user),
         hasPassword: !!result.user.password_hash,
         createdAt: result.user.created_at,
       },
@@ -283,6 +287,7 @@ router.get("/me", async (req: Request, res: Response) => {
         ? { limit: user.quota_limit, used: user.quota_used, period: user.quota_period }
         : null,
       allowedModels: isSub ? parseAllowedModels(user.allowed_models) : null,
+      demoAdminAccess: isDemoAdminSession(user),
       hasPassword: !!user.password_hash,
       createdAt: user.created_at,
     },
