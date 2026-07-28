@@ -13,6 +13,8 @@ SNIPPET_ROOT="${NEXUSFLOW_NGINX_SNIPPET_ROOT:-/etc/nginx/snippets}"
 DRAIN_CONFIG="${NEXUSFLOW_NGINX_DRAIN_CONFIG:-/etc/nginx/nexusflow-drain.conf}"
 AUDIO_GUARD_CONFIG="${NEXUSFLOW_NGINX_AUDIO_GUARD_CONFIG:-$CONFIG_ROOT/nexusflow-audio-guards.conf}"
 V1_LOCATION_CONFIG="${NEXUSFLOW_NGINX_V1_LOCATION_CONFIG:-$SNIPPET_ROOT/nexusflow-v1-location.conf}"
+DIRECT_PROBE_ATTEMPTS="${NEXUSFLOW_INSTALLER_PROBE_ATTEMPTS:-10}"
+DIRECT_PROBE_DELAY_SECONDS="${NEXUSFLOW_INSTALLER_PROBE_DELAY_SECONDS:-1}"
 
 die() {
   printf '[nginx-drain-install] ERROR: %s\n' "$*" >&2
@@ -28,6 +30,18 @@ esac
 case "$NODE_ID" in
   ''|*[!A-Za-z0-9_.-]*) die "invalid node ID" ;;
 esac
+case "$DIRECT_PROBE_ATTEMPTS" in
+  ''|*[!0-9]*) die "direct probe attempts must be a positive integer" ;;
+esac
+test "$DIRECT_PROBE_ATTEMPTS" -gt 0 ||
+  die "direct probe attempts must be a positive integer"
+test "$DIRECT_PROBE_ATTEMPTS" -le 60 ||
+  die "direct probe attempts must not exceed 60"
+case "$DIRECT_PROBE_DELAY_SECONDS" in
+  ''|*[!0-9]*) die "direct probe delay must be a non-negative integer" ;;
+esac
+test "$DIRECT_PROBE_DELAY_SECONDS" -le 10 ||
+  die "direct probe delay must not exceed 10 seconds"
 case "$CONFIG_ROOT:$SNIPPET_ROOT:$SITE_CONFIG:$DRAIN_CONFIG:$AUDIO_GUARD_CONFIG:$V1_LOCATION_CONFIG:$NODE_HELPER:$SOURCE_V1_LOCATION" in
   *[!A-Za-z0-9_./:-]*) die "nginx control paths contain unsafe characters" ;;
 esac
@@ -271,7 +285,22 @@ nginx -t >/dev/null
 if ! nginx -s reload; then
   die "nginx reload failed"
 fi
-"$NODE_HELPER" direct-probe >/dev/null
+probe_ready=false
+# A reload is asynchronous: the first loopback request can still reach an old
+# worker even after nginx accepted the new configuration.
+attempt=1
+while test "$attempt" -le "$DIRECT_PROBE_ATTEMPTS"; do
+  if "$NODE_HELPER" direct-probe >/dev/null 2>&1; then
+    probe_ready=true
+    break
+  fi
+  if test "$attempt" -lt "$DIRECT_PROBE_ATTEMPTS"; then
+    sleep "$DIRECT_PROBE_DELAY_SECONDS"
+  fi
+  attempt=$((attempt + 1))
+done
+"$probe_ready" ||
+  die "direct node probe did not observe the reloaded nginx config after $DIRECT_PROBE_ATTEMPTS attempts"
 
 INSTALLED=true
 trap - EXIT INT TERM

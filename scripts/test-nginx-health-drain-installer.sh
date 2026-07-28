@@ -132,6 +132,10 @@ EOF
 
 cat > "$SHIMS/curl" <<'EOF'
 #!/usr/bin/env bash
+if test -f "$NEXUSFLOW_INSTALLER_TEST_STATE/fail-probe-once"; then
+  rm -f -- "$NEXUSFLOW_INSTALLER_TEST_STATE/fail-probe-once"
+  exit 22
+fi
 if test -f "$NEXUSFLOW_INSTALLER_TEST_STATE/fail-probe"; then
   exit 22
 fi
@@ -154,6 +158,8 @@ run_installer() {
     NEXUSFLOW_NGINX_V1_LOCATION_CONFIG="$V1_LOCATION_CONFIG" \
     NEXUSFLOW_INSTALLED_NODE_DRAIN_HELPER="$NODE_HELPER" \
     NEXUSFLOW_SOURCE_V1_LOCATION_CONFIG="$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf" \
+    NEXUSFLOW_INSTALLER_PROBE_ATTEMPTS=2 \
+    NEXUSFLOW_INSTALLER_PROBE_DELAY_SECONDS=0 \
     "$SCRIPT_DIR/install-nginx-health-drain.sh" "$SITE_CONFIG" "${1:-fixture-node}"
 }
 
@@ -211,6 +217,9 @@ test "$(
     "$NODE_HELPER" status
 )" = "disabled"
 first_hash="$(bundle_hash)"
+run_installer
+test "$(bundle_hash)" = "$first_hash"
+touch "$STATE/fail-probe-once"
 run_installer
 test "$(bundle_hash)" = "$first_hash"
 
