@@ -14,6 +14,7 @@ FRONTEND_ROUTES="${NEXUSFLOW_VERIFY_FRONTEND_ROUTES:-/ /admin /login /dashboard}
 ASSET_ROUNDS="${NEXUSFLOW_VERIFY_ASSET_ROUNDS:-3}"
 READY_ATTEMPTS="${NEXUSFLOW_VERIFY_READY_ATTEMPTS:-30}"
 READY_DELAY_SECONDS="${NEXUSFLOW_VERIFY_READY_DELAY_SECONDS:-1}"
+VERSION_READY_SAMPLES="${NEXUSFLOW_VERIFY_VERSION_SAMPLES:-3}"
 FILES_ONLY=false
 
 usage() {
@@ -81,13 +82,17 @@ if "$FILES_ONLY"; then
 fi
 
 release_require_command curl
-for value in "$READY_ATTEMPTS" "$READY_DELAY_SECONDS"; do
+for value in "$READY_ATTEMPTS" "$READY_DELAY_SECONDS" "$VERSION_READY_SAMPLES"; do
   case "$value" in
-    ''|*[!0-9]*) release_die "readiness attempts and delay must be positive integers" ;;
+    ''|*[!0-9]*) release_die "readiness attempts, delay and version samples must be positive integers" ;;
   esac
 done
 test "$READY_ATTEMPTS" -gt 0 || release_die "readiness attempts must be positive"
 test "$READY_DELAY_SECONDS" -gt 0 || release_die "readiness delay must be positive"
+test "$VERSION_READY_SAMPLES" -gt 0 ||
+  release_die "version readiness samples must be positive"
+test "$VERSION_READY_SAMPLES" -le "$READY_ATTEMPTS" ||
+  release_die "version readiness samples must not exceed readiness attempts"
 
 HEALTH=""
 attempt=1
@@ -124,20 +129,43 @@ while test "$attempt" -le "$READY_ATTEMPTS"; do
 done
 test -n "$HEALTH" || release_die "backend health dependencies did not become healthy"
 
-VERSION="$(
-  curl --fail --silent --show-error \
-    --connect-timeout 3 \
-    --max-time 10 \
-    "$BACKEND_URL/api/version"
-)"
-printf '%s' "$VERSION" | EXPECTED_SHA="$EXPECTED_SHA" node -e '
-  let body = "";
-  process.stdin.on("data", (chunk) => { body += chunk; });
-  process.stdin.on("end", () => {
-    const value = JSON.parse(body);
-    if (value.sha !== process.env.EXPECTED_SHA) process.exit(1);
-  });
-' || release_die "running backend version does not match $EXPECTED_SHA"
+VERSION=""
+version_matches=0
+attempt=1
+while test "$attempt" -le "$READY_ATTEMPTS"; do
+  candidate="$(
+    curl --fail --silent --show-error \
+      --connect-timeout 3 \
+      --max-time 10 \
+      "$BACKEND_URL/api/version" 2>/dev/null || true
+  )"
+  if printf '%s' "$candidate" | EXPECTED_SHA="$EXPECTED_SHA" node -e '
+    let body = "";
+    process.stdin.on("data", (chunk) => { body += chunk; });
+    process.stdin.on("end", () => {
+      try {
+        const value = JSON.parse(body);
+        if (value.sha !== process.env.EXPECTED_SHA) process.exit(1);
+      } catch {
+        process.exit(1);
+      }
+    });
+  ' >/dev/null 2>&1; then
+    version_matches=$((version_matches + 1))
+    if test "$version_matches" -ge "$VERSION_READY_SAMPLES"; then
+      VERSION="$candidate"
+      break
+    fi
+  else
+    version_matches=0
+  fi
+  if test "$attempt" -lt "$READY_ATTEMPTS"; then
+    sleep "$READY_DELAY_SECONDS"
+  fi
+  attempt=$((attempt + 1))
+done
+test -n "$VERSION" ||
+  release_die "running backend version did not converge to $EXPECTED_SHA for $VERSION_READY_SAMPLES consecutive samples"
 
 TEMPORARY="$(mktemp -d /tmp/nexusflow-release-verify.XXXXXX)"
 trap 'rm -rf -- "$TEMPORARY"' EXIT

@@ -128,7 +128,24 @@ case "$url" in
     printf '{"status":"ok","dependencies":{"postgres":"ok","redis":"ok"}}'
     ;;
   */api/version)
-    printf '{"sha":"%s"}' "$sha"
+    version_sha="$sha"
+    if test -f "$NEXUSFLOW_TEST_STATE/version-alternate-target" &&
+      test "$sha" = "$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/version-alternate-target")"; then
+      counter="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/version-alternate-counter")"
+      if test $((counter % 2)) -eq 0; then
+        version_sha="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/version-alternate-sha")"
+      fi
+      printf '%s\n' "$((counter + 1))" \
+        > "$NEXUSFLOW_TEST_STATE/version-alternate-counter"
+    elif test -f "$NEXUSFLOW_TEST_STATE/version-lag-remaining"; then
+      remaining="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/version-lag-remaining")"
+      if test "$remaining" -gt 0; then
+        version_sha="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/version-lag-sha")"
+        printf '%s\n' "$((remaining - 1))" \
+          > "$NEXUSFLOW_TEST_STATE/version-lag-remaining"
+      fi
+    fi
+    printf '{"sha":"%s"}' "$version_sha"
     ;;
   */_next/static/*.js)
     test "$output" = "/dev/null"
@@ -319,8 +336,9 @@ run_primitive() {
     NEXUSFLOW_BACKEND_ENV="$BACKEND_ENV" \
     NEXUSFLOW_VERIFY_FRONTEND_ROUTES="/" \
     NEXUSFLOW_VERIFY_ASSET_ROUNDS=1 \
-    NEXUSFLOW_VERIFY_READY_ATTEMPTS=1 \
+    NEXUSFLOW_VERIFY_READY_ATTEMPTS=3 \
     NEXUSFLOW_VERIFY_READY_DELAY_SECONDS=1 \
+    NEXUSFLOW_VERIFY_VERSION_SAMPLES=2 \
     "$SCRIPT_DIR/deploy-production.sh" "$@"
 }
 
@@ -346,7 +364,10 @@ test "$(tr -d '\r\n' < "$STATE/runtime-sha")" = "$OLD_SHA"
 
 # The same target succeeds once both listeners are loopback-only.
 printf 'loopback\n' > "$STATE/listener-mode"
+printf '%s\n' "$OLD_SHA" > "$STATE/version-lag-sha"
+printf '1\n' > "$STATE/version-lag-remaining"
 NEXUSFLOW_DRAIN_CONFIRMED=true run_primitive activate --sha "$NEW_SHA"
+test "$(tr -d '\r\n' < "$STATE/version-lag-remaining")" = "0"
 test "$(resolved_path "$CURRENT_LINK")" = "$(resolved_path "$RELEASES_ROOT/$NEW_SHA")"
 
 # A normal rollback to the pre-capability release remains possible even though
@@ -362,9 +383,25 @@ NEXUSFLOW_SESSION_ROLLBACK_PREPARED=true \
   run_primitive rollback
 test "$(resolved_path "$CURRENT_LINK")" = "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
 
+# A target whose cluster workers keep alternating old/new build identities must
+# fail closed and restore the legacy baseline.
+printf 'loopback\n' > "$STATE/listener-mode"
+printf '%s\n' "$NEW_SHA" > "$STATE/version-alternate-target"
+printf '%s\n' "$OLD_SHA" > "$STATE/version-alternate-sha"
+printf '0\n' > "$STATE/version-alternate-counter"
+set +e
+NEXUSFLOW_DRAIN_CONFIRMED=true run_primitive activate --sha "$NEW_SHA"
+mixed_version_status=$?
+set -e
+test "$mixed_version_status" -eq 20
+test "$(resolved_path "$CURRENT_LINK")" = "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
+rm -f -- \
+  "$STATE/version-alternate-target" \
+  "$STATE/version-alternate-sha" \
+  "$STATE/version-alternate-counter"
+
 # PM2 persistence failure on the new target must also restore and persist the
 # old release with status 20.
-printf 'loopback\n' > "$STATE/listener-mode"
 printf 'once\n' > "$STATE/save-mode"
 set +e
 NEXUSFLOW_DRAIN_CONFIRMED=true run_primitive activate --sha "$NEW_SHA"
@@ -443,5 +480,5 @@ test "$proxy_status" -ne 0
 
 "$SCRIPT_DIR/test-nginx-health-drain-installer.sh"
 
-printf 'release-primitive-regressions-ok bootstrap=%s ingress_guard=%s nginx_syntax=%s wildcard=%s unprepared=%s save=%s unsafe=%s old_health=%s archive_escape=%s archive_extra=%s proxy=%s\n' \
-  0 0 "$nginx_syntax_status" "$wildcard_status" "$unprepared_rollback_status" "$save_status" "$unsafe_status" "$old_health_status" "$archive_escape_status" "$archive_extra_status" "$proxy_status"
+printf 'release-primitive-regressions-ok bootstrap=%s ingress_guard=%s nginx_syntax=%s wildcard=%s unprepared=%s mixed=%s save=%s unsafe=%s old_health=%s archive_escape=%s archive_extra=%s proxy=%s\n' \
+  0 0 "$nginx_syntax_status" "$wildcard_status" "$unprepared_rollback_status" "$mixed_version_status" "$save_status" "$unsafe_status" "$old_health_status" "$archive_escape_status" "$archive_extra_status" "$proxy_status"
