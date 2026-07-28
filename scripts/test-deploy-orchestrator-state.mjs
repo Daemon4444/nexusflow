@@ -131,4 +131,20 @@ assert.match(
   /PEER_BASELINE_PROVIDER_COST_CAPABLE=true/
 );
 
+assert.equal(
+  source.split("candidate=\\$(readlink -f '$CURRENT_LINK' 2>/dev/null)").length - 1,
+  2,
+  "peer capability and static capture must resolve the current link explicitly"
+);
+assert.equal(
+  source.split('&& test -d \\"\\$candidate\\"; then').length - 1,
+  2,
+  "peer capability and static capture must reject a missing current-link target"
+);
+assert.doesNotMatch(
+  source,
+  /readlink -f '\$CURRENT_LINK' 2>\/dev\/null \|\| printf/,
+  "GNU readlink -f may succeed for a missing final component and cannot select the legacy fallback alone"
+);
+
 console.log("deploy-orchestrator-provider-cost-call-graph-ok");

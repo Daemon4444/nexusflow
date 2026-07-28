@@ -843,7 +843,14 @@ if test -f "$BASELINE_RELEASE_DIRECTORY/.release-capabilities.json" &&
 fi
 PEER_BASELINE_CAPABILITIES="$(
   peer_release_command \
-    "current=\$(readlink -f '$CURRENT_LINK' 2>/dev/null || printf '%s' '$PEER_ROOT')
+    "current=''
+     candidate=''
+     if candidate=\$(readlink -f '$CURRENT_LINK' 2>/dev/null) \
+       && test -d \"\$candidate\"; then
+       current=\"\$candidate\"
+     else
+       current='$PEER_ROOT'
+     fi
      if test -f \"\$current/.release-capabilities.json\"; then
        node -e '
          const value = JSON.parse(require(\"fs\").readFileSync(process.argv[1], \"utf8\"));
@@ -870,8 +877,15 @@ test "$BASELINE_PROVIDER_COST_CAPABLE" = "$PEER_BASELINE_PROVIDER_COST_CAPABLE" 
 
 release_log "capturing the peer's active Next.js static assets"
 peer_release_command \
-  "current=\$(readlink -f '$CURRENT_LINK' 2>/dev/null || printf '%s' '$PEER_ROOT') \
-   && test -d \"\$current/frontend/.next/static\" \
+  "current=''
+   candidate=''
+   if candidate=\$(readlink -f '$CURRENT_LINK' 2>/dev/null) \
+     && test -d \"\$candidate\"; then
+     current=\"\$candidate\"
+   else
+     current='$PEER_ROOT'
+   fi
+   test -d \"\$current/frontend/.next/static\" \
    && tar -C \"\$current/frontend/.next/static\" -cf - ." \
   > "$PEER_STATIC_ARCHIVE"
 tar -tf "$PEER_STATIC_ARCHIVE" >/dev/null ||
