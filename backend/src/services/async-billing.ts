@@ -147,6 +147,10 @@ export async function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: nu
   }
 
   await logUsage({
+    providerId: task.provider || null,
+    channelId: task.input?._route?.channelId || null,
+    region: task.input?._route?.region || null,
+    protocol: `async-${task.type}`,
     apiKeyId: task.api_key_id,
     userId: task.user_id,
     model: task.model,
@@ -156,6 +160,10 @@ export async function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: nu
     cost,
     status: "success",
     latencyMs,
+    providerUnits: task.type === "video"
+      ? Math.max(1, Number(task.input?.duration) || 5)
+      : Math.max(1, Number(task.input?.n) || 1),
+    reservationId: task.billing_reservation_id,
   });
 }
 
@@ -185,6 +193,9 @@ export async function billAsyncError(
       cost: 0,
       status: "error",
       latencyMs,
+      protocol: "async-task",
+      reservationId: billingReservationId || null,
+      errorCode: "upstream_error",
     });
   } finally {
     if (billingReservationId) {

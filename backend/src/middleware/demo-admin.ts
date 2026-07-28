@@ -1,11 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import { getSessionUser } from "./admin";
-import { parseEnvList } from "../utils/env-list";
+import { isDemoAdminPrincipal } from "../data/admin-access";
 
 export function isDemoAdminSession(session: { email: string | null }): boolean {
-  const email = (session.email || "").trim().toLowerCase();
-  if (!email) return false;
-  return parseEnvList(process.env.DEMO_ADMIN_EMAILS).includes(email);
+  return isDemoAdminPrincipal(session);
 }
 
 export async function requireDemoAdmin(req: Request, res: Response, next: NextFunction) {

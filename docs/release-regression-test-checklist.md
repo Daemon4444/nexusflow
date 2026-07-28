@@ -14,6 +14,24 @@ Minimum release gate:
 - Redis is available for production-like rate-limit tests.
 - At least one text model call, one embedding call, one async image/video task, one billing export, one admin user-management flow, and one rate-limit rejection are verified.
 - No failed billing write, negative balance surprise, duplicate charge, or incorrect discount is accepted as a known issue.
+- The immutable release dry-run passes, including exact ALB health-check drain
+  preflight and an age-encrypted PostgreSQL 16 offsite full-restore preflight.
+- Both nodes use the same release archive, SHA-256 manifest, Git SHA, and
+  deterministic Next.js BUILD_ID.
+- `backend/.env` is absent from the artifact/manifest, and each installed
+  release resolves its runtime symlink to the configured root-only source.
+- Release telemetry idempotency and stale runtime-node protection pass against
+  an isolated PostgreSQL database after migration `014`.
+- Rollback pointers exist and the release does not build in the live `.next`.
+- Session storage reaches hash-only only after both new nodes verify; a failed
+  legacy rollback never restores balanced traffic while its compatibility
+  transition is still release-owned.
+- Production provider outbound allowlist is explicit, proxy variables are
+  absent, and backend/frontend ports listen on loopback only.
+- The private Provider cost manifest passes root-only staging validation; the
+  exact 12-tier price book activates only after both new nodes verify, is
+  deactivated before any incompatible rollback runtime receives traffic, and
+  is reapplied on failed-rollback recovery before that new runtime is admitted.
 
 Recommended commands:
 
@@ -74,6 +92,61 @@ Check these before functional testing:
 - Backend logs show no Redis connection errors.
 - Frontend `NEXT_PUBLIC_API_BASE` points to the tested backend.
 - Admin login works after restart.
+- `bash scripts/deploy-all-production.sh --dry-run` passes without bypass flags.
+- `NEXUSFLOW_PROVIDER_COST_MANIFEST` points only to the validated random
+  `/run/nexusflow-provider-cost.*/manifest.json` handoff; it is absent from
+  Git, artifacts, logs, and process arguments containing its content.
+- The read-only migration preflight reports only expand-compatible pending SQL.
+- Both nodes report and verify one identical pre-release rollback SHA.
+- Both root-owned nginx drain helpers match the release source.
+- Both root-owned nginx ingress guard configs match the helper-rendered policy:
+  exact 50 MiB chat/responses/messages routes, 8 MiB embeddings, 1 MiB
+  audio/default `/v1`, route-specific body timeouts, streaming request/response
+  buffering settings, and per-real-IP connection/request limits.
+- Nginx effective config contains the trusted ALB `real_ip_header` and
+  `set_real_ip_from`; external acceptance uses two distinct client IPs to prove
+  rate/connection keys are not the ALB address.
+- ALB health is confirmed specifically as trusted-source
+  `HEAD /api/health` with `SLBHealthCheck`; the compatibility
+  `GET /v1/health` probe shares dependency-aware status after rollout but is
+  never counted as an ALB drain or release-health signal.
+- Public plain-HTTP probes for representative exact and prefix `/v1` routes
+  redirect to HTTPS (or are rejected) and never expose backend content; this
+  catches a port-80 server that redirects only from its old `location /`.
+- `/proxy/v1/*` and `/api/proxy/v1/*` (including bare aliases and encoded-path
+  variants) return 404 at nginx and at the Next handler.
+- Anonymous `/api/upload` requests just below/above 101 MiB are exercised with
+  both `Content-Length` and chunked transfer; rejection occurs without a
+  temporary file or frontend RSS growth proportional to the body.
+- Concurrent near-100 MiB `/api/uploads/*` downloads remain streamed: nginx
+  connection/rate/bandwidth controls activate as designed and frontend RSS
+  stays bounded rather than scaling by object size times concurrency.
+- The traffic hook observes real consecutive health-check 503s, proves only
+  the intended node through public probes, and waits for active connections to
+  drain without ever excluding both nodes.
+- The database backup hook streams a fresh custom-format dump directly through
+  age without a plaintext file; the offsite private-key verifier authenticates
+  the complete ciphertext, validates its PostgreSQL 16 TOC, fully restores an
+  isolated database, and checks core schema/migration counts.
+- Pending SQL is expand-compatible with the previous application release.
+- The release artifact was built once; both nodes verify the same archive
+  digest and `.release-manifest.sha256`.
+- The same release ID has exactly one `started` and one terminal event;
+  successful direct node verification is reflected in `runtime_nodes`.
+- `frontend/.next/BUILD_ID` equals the full 40-character release Git SHA.
+- `nexusflow-current` and `nexusflow-previous` resolve to complete releases.
+- A simulated activation verification or `pm2 save` failure restores the
+  baseline with status `20`; incomplete restoration is never re-admitted.
+- A simulated unhealthy legacy rollback target restores and verifies the
+  hash-capable current runtime but returns failure; the orchestrator isolates
+  traffic on that directly verified new node and restores hash-only posture.
+- Provider cost state-machine tests prove normal activation, full deactivation
+  before an old rollback, same-manifest transactional reactivation after a
+  failed rollback, partial-state rejection, and private staging cleanup on
+  success/failure.
+- An artifact with an escaping symlink is rejected before install.
+- Terminal telemetry replay archives an exact success event, suffixes archive
+  collisions, retains failed replays, and rejects unsafe outbox permissions.
 
 Redis check:
 
@@ -578,6 +651,12 @@ Checks:
 - Admin prompts validate invalid input.
 - Export buttons produce a file.
 - User detail refreshes after admin mutations.
+- Every `/_next/static/*` URL referenced by the tested HTML returns non-empty
+  `200` with the correct JavaScript/CSS content type through the ALB.
+- The frontend response header `X-NexusFlow-Build-Sha` matches the backend
+  `/api/version` SHA.
+- Repeated hard refreshes during and after the balanced cutover produce no
+  ChunkLoadError, hydration error, or static `404`.
 
 ## 12. Security And Abuse Checks
 
@@ -665,4 +744,3 @@ Waived:
 Blockers:
 Decision: Go / No-Go
 ```
-

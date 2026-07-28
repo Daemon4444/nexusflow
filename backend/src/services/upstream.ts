@@ -17,6 +17,8 @@ import {
   WORKSPACE_ID_PLACEHOLDER,
   type ProviderChannel,
 } from "../data/provider-channels";
+import { getManagedRouteCount, selectProvider, type ProviderEndpoint } from "./scheduler";
+import { parseAndValidateOutboundUrl } from "./outbound-url-policy";
 
 export const DEFAULT_REGION = "cn-beijing";
 export const REGION_HEADER = "x-nf-region";
@@ -34,6 +36,13 @@ export interface ResolvedUpstream {
    *  仅 dashscope 这类兼容平台才会设置。设置后 /v1/messages 透传到该端点而不是转换成 chat/completions。 */
   anthropicCompatBaseUrl?: string;
   apiKey: string;
+  /** true when the request was selected by provider_capacity/policy/health. */
+  managed: boolean;
+  /** Managed-provider hard limits. Zero means unlimited. */
+  rpm: number;
+  tpm: number;
+  dailyLimit: number;
+  concurrentLimit: number;
 }
 
 export type ResolveUpstreamResult =
@@ -49,10 +58,42 @@ function toAnthropicCompatBaseUrl(baseUrl: string): string | undefined {
   return baseUrl.replace(/\/compatible-mode\/v1\/?$/, "/apps/anthropic/v1");
 }
 
+function finalizeResolvedUpstream(upstream: ResolvedUpstream): ResolveUpstreamResult {
+  try {
+    parseAndValidateOutboundUrl(upstream.baseUrl, { kind: "provider" });
+  } catch {
+    return {
+      ok: false,
+      status: 503,
+      code: "provider_endpoint_blocked",
+      message: "The configured provider endpoint is not permitted by outbound security policy.",
+    };
+  }
+  return { ok: true, upstream };
+}
+
 export async function resolveUpstream(
   modelId: string,
-  options: { region?: string } = {}
+  options: { region?: string; userId?: string | null } = {}
 ): Promise<ResolveUpstreamResult> {
+  const managedRouteCount = await getManagedRouteCount(modelId);
+  if (managedRouteCount > 0) {
+    const selected = await selectProvider(modelId, { userId: options.userId });
+    if (!selected) {
+      return {
+        ok: false,
+        status: 503,
+        code: "provider_unavailable",
+        message: `No active provider route is currently available for model '${modelId}'.`,
+      };
+    }
+    return resolveManagedUpstream(modelId, selected, options.region);
+  }
+
+  // Backward-compatible fallback for installations that have not bootstrapped
+  // provider_capacity yet. Once a managed route exists it is authoritative,
+  // so disabled/unhealthy routes can never silently fall back to environment
+  // variables and bypass the control plane.
   const provider = findProvider(modelId);
   if (!provider) {
     return {
@@ -98,9 +139,7 @@ export async function resolveUpstream(
       });
       const [channelId, channel] = candidates[0];
       const baseUrl = resolveChannelBaseUrl(channel).replace(/\/$/, "");
-      return {
-        ok: true,
-        upstream: {
+      return finalizeResolvedUpstream({
           providerId: provider.id,
           channelId,
           region: channel.region || DEFAULT_REGION,
@@ -108,8 +147,12 @@ export async function resolveUpstream(
           nativeBaseUrl: toNativeBaseUrl(baseUrl),
           anthropicCompatBaseUrl: toAnthropicCompatBaseUrl(baseUrl),
           apiKey: channel.api_key || getResolvedProviderApiKey(provider),
-        },
-      };
+          managed: false,
+          rpm: 0,
+          tpm: 0,
+          dailyLimit: 0,
+          concurrentLimit: 0,
+      });
     }
   }
 
@@ -134,9 +177,7 @@ export async function resolveUpstream(
   }
 
   const baseUrl = provider.baseUrl.replace(/\/$/, "");
-  return {
-    ok: true,
-    upstream: {
+  return finalizeResolvedUpstream({
       providerId: provider.id,
       channelId: null,
       region: provider.id === "dashscope" ? DEFAULT_REGION : "global",
@@ -144,8 +185,102 @@ export async function resolveUpstream(
       nativeBaseUrl: toNativeBaseUrl(baseUrl),
       anthropicCompatBaseUrl: toAnthropicCompatBaseUrl(baseUrl),
       apiKey,
-    },
-  };
+      managed: false,
+      rpm: 0,
+      tpm: 0,
+      dailyLimit: 0,
+      concurrentLimit: 0,
+  });
+}
+
+async function resolveManagedUpstream(
+  modelId: string,
+  selected: ProviderEndpoint,
+  requestedRegionRaw?: string
+): Promise<ResolveUpstreamResult> {
+  const requestedRegion = requestedRegionRaw?.trim() || undefined;
+  const config = await getProviderChannelConfig(selected.providerId);
+
+  if (config && Object.keys(config.channels).length > 0) {
+    let candidates = Object.entries(config.channels).filter(([, channel]) => {
+      const fallbackApplies =
+        !!selected.apiKey && (!channel.region || channel.region === DEFAULT_REGION || channel.region === "global");
+      return isChannelUsable(channel, { hasFallbackKey: fallbackApplies })
+        && channelAllowsModel(channel, modelId);
+    });
+
+    if (requestedRegion) {
+      candidates = candidates.filter(([, channel]) => channel.region === requestedRegion);
+      if (candidates.length === 0) {
+        return {
+          ok: false,
+          status: 400,
+          code: "region_unavailable",
+          message: `Model '${modelId}' is not available in region '${requestedRegion}'.`,
+        };
+      }
+    }
+
+    candidates.sort(([idA, a], [idB, b]) => {
+      const priorityDiff = (b.priority ?? 0) - (a.priority ?? 0);
+      if (priorityDiff !== 0) return priorityDiff;
+      if (idA === config.active_channel) return -1;
+      if (idB === config.active_channel) return 1;
+      return idA.localeCompare(idB);
+    });
+
+    const selectedChannel = candidates[0];
+    if (!selectedChannel) {
+      return {
+        ok: false,
+        status: 503,
+        code: "provider_channel_unavailable",
+        message: `No enabled channel is configured for provider '${selected.providerName}' and model '${modelId}'.`,
+      };
+    }
+
+    const [channelId, channel] = selectedChannel;
+    const baseUrl = resolveChannelBaseUrl(channel).replace(/\/$/, "");
+    return finalizeResolvedUpstream({
+        providerId: selected.providerId,
+        channelId,
+        region: channel.region || DEFAULT_REGION,
+        baseUrl,
+        nativeBaseUrl: toNativeBaseUrl(baseUrl),
+        anthropicCompatBaseUrl: toAnthropicCompatBaseUrl(baseUrl),
+        apiKey: channel.api_key || selected.apiKey,
+        managed: true,
+        rpm: selected.rpm,
+        tpm: selected.tpm,
+        dailyLimit: selected.dailyLimit,
+        concurrentLimit: selected.concurrentLimit,
+    });
+  }
+
+  if (requestedRegion && requestedRegion !== DEFAULT_REGION && requestedRegion !== "global") {
+    return {
+      ok: false,
+      status: 400,
+      code: "region_unavailable",
+      message: `Region '${requestedRegion}' is not configured for provider '${selected.providerName}'.`,
+    };
+  }
+
+  const baseUrl = selected.apiBaseUrl.replace(/\/$/, "");
+  return finalizeResolvedUpstream({
+      providerId: selected.providerId,
+      channelId: null,
+      region: requestedRegion || (selected.providerId === "dashscope" ? DEFAULT_REGION : "global"),
+      baseUrl,
+      nativeBaseUrl: toNativeBaseUrl(baseUrl),
+      anthropicCompatBaseUrl: toAnthropicCompatBaseUrl(baseUrl),
+      apiKey: selected.apiKey,
+      managed: true,
+      rpm: selected.rpm,
+      tpm: selected.tpm,
+      dailyLimit: selected.dailyLimit,
+      concurrentLimit: selected.concurrentLimit,
+  });
 }
 
 /**

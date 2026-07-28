@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { normalizeDashScopeVideoResolution, normalizeDashScopeVideoSize } from "../utils/video-parameters";
+import { safeProviderFetch } from "./outbound-url-policy";
 
 /**
  * API Format Adapters
@@ -696,7 +697,7 @@ export function adaptSeedanceRequest(
 // ============================================================
 
 export async function pollVolcEngineTask(apiKey: string, taskId: string, apiBaseUrl: string = VOLCENGINE_ARK_BASE): Promise<TaskResult> {
-  const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/contents/generations/tasks/${taskId}`, {
+  const response = await safeProviderFetch(`${apiBaseUrl.replace(/\/$/, "")}/contents/generations/tasks/${taskId}`, {
     headers: {
       "Authorization": `Bearer ${apiKey}`,
     },
@@ -754,8 +755,14 @@ export async function pollVolcEngineTask(apiKey: string, taskId: string, apiBase
 // Task Status Polling (DashScope)
 // ============================================================
 
-export async function pollDashScopeTask(apiKey: string, taskId: string): Promise<TaskResult> {
-  const response = await fetch(`${DASHSCOPE_BASE}/api/v1/tasks/${taskId}`, {
+export async function pollDashScopeTask(
+  apiKey: string,
+  taskId: string,
+  nativeBase: string = DASHSCOPE_BASE
+): Promise<TaskResult> {
+  const base = nativeBase.replace(/\/$/, "");
+  const taskBase = base.endsWith("/api/v1") ? base : `${base}/api/v1`;
+  const response = await safeProviderFetch(`${taskBase}/tasks/${taskId}`, {
     headers: {
       "Authorization": `Bearer ${apiKey}`,
     },
@@ -872,7 +879,7 @@ export function adaptPixVerseRequest(
 }
 
 export async function pollPixVerseTask(apiKey: string, taskId: string, apiBaseUrl = "https://app-api.pixverse.ai/openapi/v2"): Promise<TaskResult> {
-  const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/video/result/${taskId}`, {
+  const response = await safeProviderFetch(`${apiBaseUrl.replace(/\/$/, "")}/video/result/${taskId}`, {
     headers: {
       "API-KEY": apiKey,
       "Ai-trace-id": randomUUID(),

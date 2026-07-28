@@ -9,6 +9,10 @@ let adapter: PgAdapter | null = null;
 
 function stripUnsupportedMigrationBlocks(sql: string): string {
   return sql
+    .replace(
+      /-- PG_ONLY_SESSION_TOKEN_TRIGGER_START[\s\S]*?-- PG_ONLY_SESSION_TOKEN_TRIGGER_END/g,
+      ""
+    )
     .replace(/-- 创建更新时间触发器函数[\s\S]*$/m, "")
     // pg-mem 不支持覆盖索引的 INCLUDE 子句（006_dashboard_indexes.sql）
     .replace(/\s+INCLUDE\s*\([^)]*\)/gi, "")
@@ -22,6 +26,14 @@ function hashApiKey(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+function hashSessionToken(token: string): string {
+  return crypto
+    .createHash("sha256")
+    .update("nexusflow/session-token/v1\0")
+    .update(token)
+    .digest("hex");
+}
+
 function iso(daysAgo = 0, minutesAgo = 0): string {
   return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000 - minutesAgo * 60 * 1000).toISOString();
 }
@@ -32,13 +44,14 @@ function seedSql() {
   const apiKey = process.env.LOCAL_TEST_API_KEY || "sk-air-local-test-000000000000000000000000";
   const sessionToken = process.env.LOCAL_TEST_SESSION_TOKEN || "sess-local-test";
   const apiKeyHash = hashApiKey(apiKey);
+  const sessionTokenHash = hashSessionToken(sessionToken);
 
   return `
     INSERT INTO users (id, phone, email, nickname, balance, password_hash, created_at, updated_at)
     VALUES ('${userId}', NULL, 'local-test@nexusflow.test', '本地测试用户', 25.75, NULL, '${iso(14)}', '${iso(0)}');
 
-    INSERT INTO sessions (id, user_id, token, created_at, expires_at)
-    VALUES ('local-session-1', '${userId}', '${sessionToken}', '${iso(0)}', '${iso(-7)}');
+    INSERT INTO sessions (id, user_id, token, token_hash, created_at, expires_at)
+    VALUES ('local-session-1', '${userId}', 'session-hash-v1:local-session-1', '${sessionTokenHash}', '${iso(0)}', '${iso(-7)}');
 
     INSERT INTO api_keys (id, user_id, name, key, key_hash, created_at, last_used, usage_count, rate_limit)
     VALUES ('${apiKeyId}', '${userId}', 'Local E2E Key', '${apiKey}', '${apiKeyHash}', '${iso(7)}', '${iso(0, 30)}', 4, 60);
@@ -124,6 +137,20 @@ export function getMemoryPgAdapter() {
       if (format === "HH24:00") return `${pad(date.getUTCHours())}:00`;
       if (format === "HH24:MI:SS") return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
       return date.toISOString();
+    },
+  });
+  db.public.registerFunction({
+    name: "timezone",
+    args: ["text" as any, "timestamptz" as any],
+    returns: "timestamptz" as any,
+    implementation: (zone: string, value: Date | string) => {
+      const date = new Date(value);
+      // The test fixture only asks for this product's reporting timezone.
+      // PostgreSQL returns a local timestamp; shifting here gives the custom
+      // to_char fixture the equivalent Shanghai wall-clock components.
+      return zone === "Asia/Shanghai"
+        ? new Date(date.getTime() + 8 * 60 * 60 * 1000)
+        : date;
     },
   });
 

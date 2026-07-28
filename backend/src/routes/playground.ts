@@ -2,17 +2,26 @@ import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateSession } from "../data/users";
-import { logUsage } from "../data/usage";
+import { logUpstreamFailure, logUsage } from "../data/usage";
 import { releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
-import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
 import { detectModelType } from "../services/adapters";
 import { getRequestedRegion, resolveUpstream } from "../services/upstream";
-import { checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
+import { safeProviderFetch } from "../services/outbound-url-policy";
+import {
+  reconcileAccountTpm,
+  reserveAccountQpm,
+  reserveAccountTpm,
+} from "../services/account-rate-limiter";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 import { calculateOpenAiCacheAwareCost } from "../utils/cache-billing";
 import { sendBillingReservationFailure } from "../utils/billing-response";
+import {
+  acquireProviderCapacity,
+  releaseProviderCapacity,
+  type ProviderRequestCapacityLease,
+} from "../services/scheduler";
 
 const router = Router();
 const UPSTREAM_TIMEOUT = 600000; // 10分钟
@@ -118,7 +127,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const resolvedUpstream = await resolveUpstream(modelId, { region: getRequestedRegion(req) });
+  const resolvedUpstream = await resolveUpstream(modelId, {
+    region: getRequestedRegion(req),
+    userId: session.id,
+  });
   if (!resolvedUpstream.ok) {
     openAiError(
       res,
@@ -132,25 +144,33 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   const upstream = resolvedUpstream.upstream;
   const upstreamApiKey = upstream.apiKey;
 
-  const userLimits = await getEffectiveRateLimit(session.id, modelId);
-  const rpmCheck = await checkRPM(`user:${session.id}:${modelId}`, userLimits.qpm);
+  const rpmCheck = await reserveAccountQpm({
+    userId: session.id,
+    parentUserId: session.parent_user_id,
+    modelId,
+  });
   if (!rpmCheck.allowed) {
     openAiError(
       res,
       429,
-      `Model-level rate limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`,
+      `Model-level rate limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`,
       "rate_limit_exceeded",
       "rate_limit_error"
     );
     return;
   }
   const estimatedTokens = estimateChatTokens(model, messages, max_tokens);
-  const tpmCheck = await checkTPM(`user:${session.id}:${modelId}`, userLimits.tpm, estimatedTokens);
+  const tpmCheck = await reserveAccountTpm({
+    userId: session.id,
+    parentUserId: session.parent_user_id,
+    modelId,
+    estimatedTokens,
+  });
   if (!tpmCheck.allowed) {
     openAiError(
       res,
       429,
-      `Model-level TPM limit exceeded: ${userLimits.tpm} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`,
+      `Model-level TPM limit exceeded: ${tpmCheck.limit} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining || 0} tokens.`,
       "rate_limit_exceeded",
       "rate_limit_error"
     );
@@ -202,12 +222,20 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   const startTime = Date.now();
   const refId = `playground:${session.id}`;
-  recordRequest(upstream.providerId, modelId, refId, 0);
   let tokensReconciled = false;
   let billableResponseReceived = false;
+  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
+  let actualProviderTokens = 0;
 
   try {
-    const response = await fetch(`${upstream.baseUrl}/chat/completions`, {
+    const capacity = await acquireProviderCapacity(upstream, modelId, estimatedTokens);
+    if (!capacity.ok) {
+      openAiError(res, 503, capacity.message, capacity.code, "server_error");
+      return;
+    }
+    providerCapacityLease = capacity.lease;
+
+    const response = await safeProviderFetch(`${upstream.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${upstreamApiKey}`,
@@ -220,6 +248,19 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     if (stream) {
       if (!response.ok) {
         const errText = await response.text();
+        await logUpstreamFailure({
+          apiKeyId: null,
+          userId: session.id,
+          model: modelId,
+          providerId: upstream.providerId,
+          channelId: upstream.channelId,
+          region: upstream.region,
+          protocol: "playground-openai-chat",
+          latencyMs: Date.now() - startTime,
+          httpStatus: response.status,
+          errorReason: errText || "Upstream API error",
+          reservationId: billingReservation.id,
+        });
         openAiError(res, response.status, errText || "Upstream API error", "upstream_error", "upstream_error");
         return;
       }
@@ -228,7 +269,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-RateLimit-Remaining", rpmCheck.remaining.toString());
+      res.setHeader("X-RateLimit-Remaining", String(rpmCheck.remaining ?? 0));
 
       let fullResponse = "";
       let ttftMs = 0;
@@ -278,6 +319,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       await logUsage({
         region: upstream.region,
+        providerId: upstream.providerId,
+        channelId: upstream.channelId,
+        protocol: "playground-openai-chat",
         apiKeyId: null,
         userId: session.id,
         model: modelId,
@@ -291,9 +335,18 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs,
         cachedTokens: playgroundCached,
         cacheCreationTokens: playgroundCreation,
+        providerCacheMode: "implicit",
+        providerInputIncludesCache: true,
+        reservationId: billingReservation.id,
       });
-      recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
-      await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
+      actualProviderTokens = usage.total_tokens || 0;
+      await reconcileAccountTpm({
+        userId: session.id,
+        parentUserId: session.parent_user_id,
+        modelId,
+        reservedTokens: estimatedTokens,
+        actualTokens: usage.total_tokens || 0,
+      });
       tokensReconciled = true;
       await settleReservation(billingReservation.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`);
       return;
@@ -301,6 +354,19 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
     const data: any = await response.json();
     if (!response.ok) {
+      await logUpstreamFailure({
+        apiKeyId: null,
+        userId: session.id,
+        model: modelId,
+        providerId: upstream.providerId,
+        channelId: upstream.channelId,
+        region: upstream.region,
+        protocol: "playground-openai-chat",
+        latencyMs: Date.now() - startTime,
+        httpStatus: response.status,
+        errorReason: data.error?.message || "Upstream API error",
+        reservationId: billingReservation.id,
+      });
       openAiError(
         res,
         response.status,
@@ -320,6 +386,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
     await logUsage({
       region: upstream.region,
+      providerId: upstream.providerId,
+      channelId: upstream.channelId,
+      protocol: "playground-openai-chat",
       apiKeyId: null,
       userId: session.id,
       model: modelId,
@@ -331,17 +400,29 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
       cachedTokens: playgroundCachedNS,
       cacheCreationTokens: playgroundCreationNS,
+      providerCacheMode: "implicit",
+      providerInputIncludesCache: true,
+      reservationId: billingReservation.id,
     });
-    recordProviderTokens(upstream.providerId, modelId, usage.total_tokens || 0);
-    await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, usage.total_tokens || 0);
+    actualProviderTokens = usage.total_tokens || 0;
+    await reconcileAccountTpm({
+      userId: session.id,
+      parentUserId: session.parent_user_id,
+      modelId,
+      reservedTokens: estimatedTokens,
+      actualTokens: usage.total_tokens || 0,
+    });
     tokensReconciled = true;
     await settleReservation(billingReservation.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`);
 
-    res.setHeader("X-RateLimit-Remaining", rpmCheck.remaining.toString());
+    res.setHeader("X-RateLimit-Remaining", String(rpmCheck.remaining ?? 0));
     res.json(data);
   } catch (err: any) {
     await logUsage({
       region: upstream.region,
+      providerId: upstream.providerId,
+      channelId: upstream.channelId,
+      protocol: "playground-openai-chat",
       apiKeyId: null,
       userId: session.id,
       model: modelId,
@@ -351,6 +432,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       cost: 0,
       status: "error",
       latencyMs: Date.now() - startTime,
+      reservationId: billingReservation.id,
+      errorCode: "upstream_error",
+      errorReason: String(err?.message || err),
     });
     if (res.headersSent) {
       try { res.end(); } catch { /* connection already closed */ }
@@ -361,9 +445,16 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     if (!billableResponseReceived) await releaseReservation(billingReservation.id);
     if (!tokensReconciled) {
       try {
-        await reconcileTokensAsync(`user:${session.id}:${modelId}`, estimatedTokens, 0);
+        await reconcileAccountTpm({
+          userId: session.id,
+          parentUserId: session.parent_user_id,
+          modelId,
+          reservedTokens: estimatedTokens,
+          actualTokens: 0,
+        });
       } catch { /* only affects the current 60-second window */ }
     }
+    await releaseProviderCapacity(providerCapacityLease, actualProviderTokens);
   }
 });
 

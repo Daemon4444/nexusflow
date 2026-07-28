@@ -1,14 +1,45 @@
 import type { NextConfig } from "next";
+import { execFileSync } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
+const fullGitSha = /^[0-9a-f]{40}$/i;
+
+function resolveBuildSha(): string {
+  const fromEnvironment = (process.env.BUILD_SHA || "").trim();
+  if (fullGitSha.test(fromEnvironment)) return fromEnvironment.toLowerCase();
+
+  try {
+    const fromGit = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: path.join(configDir, ".."),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (fullGitSha.test(fromGit)) return fromGit.toLowerCase();
+  } catch {
+    // Release archives do not contain .git and must receive BUILD_SHA.
+  }
+
+  throw new Error(
+    "NexusFlow frontend builds require BUILD_SHA to be a full 40-character Git SHA"
+  );
+}
+
+const buildSha = resolveBuildSha();
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: path.join(configDir, "../"),
+  generateBuildId: async () => buildSha,
   async headers() {
     return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-NexusFlow-Build-Sha", value: buildSha },
+        ],
+      },
       {
         source: "/docs/:path*",
         headers: [

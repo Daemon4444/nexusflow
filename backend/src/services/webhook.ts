@@ -8,6 +8,7 @@
  */
 
 import dotenv from "dotenv";
+import { safeExternalResourceFetch } from "./outbound-url-policy";
 import { getWebhooksByUser } from "../db/pg";
 
 dotenv.config();
@@ -70,7 +71,7 @@ export async function sendWebhook(
     attempts++;
 
     try {
-      const response = await fetch(url, {
+      const response = await safeExternalResourceFetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),

@@ -36,6 +36,7 @@
 
 import { AlipaySdk } from "alipay-sdk";
 import crypto from "crypto";
+import { isExplicitDevelopmentFeatureEnabled } from "../utils/runtime-safety";
 
 // ============ 支付宝客户端 ============
 
@@ -50,7 +51,7 @@ function isAlipayConfigured(): boolean {
 }
 
 export function isMockPaymentAllowed(): boolean {
-  return process.env.ENABLE_MOCK_PAYMENT === "true" && process.env.NODE_ENV !== "production";
+  return isExplicitDevelopmentFeatureEnabled("ENABLE_MOCK_PAYMENT");
 }
 
 export function getAlipayConfigStatus() {

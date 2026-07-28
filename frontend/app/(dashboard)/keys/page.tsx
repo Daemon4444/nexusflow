@@ -32,7 +32,6 @@ export default function KeysPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
-  const [newKeyLimit, setNewKeyLimit] = useState(60);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [createdKey, setCreatedKey] = useState<ApiKey | null>(null);
@@ -71,12 +70,11 @@ export default function KeysPage() {
       const res = await fetchAPI("/api/keys", {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ name: newKeyName, rateLimit: newKeyLimit }),
+        body: JSON.stringify({ name: newKeyName.trim() }),
       });
       if (res.success) {
         setCreatedKey(res.data);
         setNewKeyName("");
-        setNewKeyLimit(60);
         setShowCreate(false);
         setError("");
         await loadKeys();
@@ -176,18 +174,11 @@ export default function KeysPage() {
                   onKeyDown={(e) => e.key === "Enter" && createKey()}
                   style={{ fontSize: 13 }}
                 />
-              </div>
-              <div style={{ width: 130 }}>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-                  {t("rateLimit")}
-                </label>
-                <input
-                  className="input"
-                  type="number"
-                  value={newKeyLimit}
-                  onChange={(e) => setNewKeyLimit(Number(e.target.value))}
-                  style={{ fontSize: 13 }}
-                />
+                <p style={{ margin: "7px 0 0", fontSize: 12, color: "var(--text-tertiary)" }}>
+                  {locale === "zh"
+                    ? "速率额度由当前套餐统一管理；如需提升，请在速率限制页面提交申请。"
+                    : "Rate limits are managed by your plan. Request an increase from the Rate Limits page."}
+                </p>
               </div>
               <button className="btn-primary" onClick={createKey} style={{ fontSize: 13, padding: "9px 20px" }}>
                 {t("create")}

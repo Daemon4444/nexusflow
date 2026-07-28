@@ -2,6 +2,7 @@ import crypto from "crypto";
 import fs from "fs";
 import https from "https";
 import type { IncomingMessage } from "http";
+import { isProductionRuntime } from "../utils/runtime-safety";
 
 type OssObject = {
   body: IncomingMessage;
@@ -16,6 +17,20 @@ const accessKeySecret = process.env.OSS_ACCESS_KEY_SECRET || "";
 
 export function isOssUploadEnabled(): boolean {
   return Boolean(bucket && endpoint && accessKeyId && accessKeySecret);
+}
+
+export function assertUploadStorageConfigured(
+  env: NodeJS.ProcessEnv = process.env
+): void {
+  if (!isProductionRuntime(env)) return;
+  if (
+    !env.OSS_BUCKET
+    || !env.OSS_ENDPOINT
+    || !env.OSS_ACCESS_KEY_ID
+    || !env.OSS_ACCESS_KEY_SECRET
+  ) {
+    throw new Error("Production requires OSS upload storage configuration");
+  }
 }
 
 function assertConfigured(): void {
@@ -101,6 +116,40 @@ export async function getUploadObject(key: string): Promise<OssObject> {
     });
     req.on("error", reject);
     req.setTimeout(10_000, () => req.destroy(new Error("[OSS] GET request timed out")));
+    req.end();
+  });
+}
+
+export async function deleteUploadObject(key: string): Promise<void> {
+  assertConfigured();
+  const date = new Date().toUTCString();
+  const headers = {
+    Date: date,
+    Authorization: signature("DELETE", "", date, key),
+  };
+  await new Promise<void>((resolve, reject) => {
+    const req = https.request(
+      {
+        hostname: objectHostname(),
+        method: "DELETE",
+        path: objectPath(key),
+        headers,
+        timeout: 10_000,
+      },
+      async (res) => {
+        if (
+          res.statusCode === 404
+          || (res.statusCode && res.statusCode >= 200 && res.statusCode < 300)
+        ) {
+          res.resume();
+          resolve();
+          return;
+        }
+        reject(await responseError(res, "DELETE"));
+      }
+    );
+    req.on("error", reject);
+    req.setTimeout(10_000, () => req.destroy(new Error("[OSS] DELETE request timed out")));
     req.end();
   });
 }

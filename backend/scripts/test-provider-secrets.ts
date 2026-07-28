@@ -8,6 +8,12 @@ import {
 import { updateProvider } from "../src/data/providers";
 import { switchProviderChannel } from "../src/data/provider-channels";
 
+process.env.PROVIDER_OUTBOUND_HOST_ALLOWLIST = [
+  "example.invalid",
+  "primary.example.invalid",
+  "secondary.example.invalid",
+].join(",");
+
 const testKey = process.env.PROVIDER_SECRET_KEY || "";
 if (
   process.env.NODE_ENV !== "production" ||

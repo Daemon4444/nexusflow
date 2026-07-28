@@ -19,13 +19,19 @@ import {
   failTask,
   updateTaskStatus
 } from "../data/tasks";
-import { selectProvider, acquireConcurrency, getModelAvailabilityMap, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
+import {
+  acquireProviderCapacity,
+  releaseProviderCapacity,
+  recordSuccess,
+  recordFailure,
+  type ProviderRequestCapacityLease,
+} from "../services/scheduler";
 import { getProviderById } from "../data/providers";
+import { getProviderChannel } from "../data/provider-channels";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
 import { releaseReservation, reserveBalanceWithReason } from "../data/billing";
-import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
-import { checkRPM } from "../services/rate-limiter";
+import { reserveAccountQpm } from "../services/account-rate-limiter";
 import {
   adaptVideoRequest,
   adaptHappyHorseRequest,
@@ -41,6 +47,9 @@ import {
   normalizeDashScopeVideoSize,
   VideoParameterError,
 } from "../utils/video-parameters";
+import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
+import { safeProviderFetch } from "../services/outbound-url-policy";
+import { pollTaskWithControl } from "../services/task-poll-control";
 
 const router = Router();
 
@@ -225,10 +234,13 @@ export const handleGenerate = async (req: Request, res: Response) => {
   }
 
   if (caller.userId) {
-    const userLimits = await getEffectiveRateLimit(caller.userId, modelId);
-    const rpmCheck = await checkRPM(`user:${caller.userId}:${modelId}`, userLimits.qpm);
+    const rpmCheck = await reserveAccountQpm({
+      userId: caller.userId,
+      parentUserId: caller.parentUserId,
+      modelId,
+    });
     if (!rpmCheck.allowed) {
-      res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${userLimits.qpm}/min，请 ${Math.ceil(rpmCheck.resetMs / 1000)} 秒后重试` });
+      res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${rpmCheck.limit}/min` });
       return;
     }
   }
@@ -272,18 +284,29 @@ export const handleGenerate = async (req: Request, res: Response) => {
     }
   }
 
-  // Select provider via scheduler
-  const selected = await selectProvider(modelId, { userId: caller.userId });
-  if (!selected) {
-    const availability = (await getModelAvailabilityMap([modelId])).get(modelId);
-    const providerNotConfigured = availability?.reason === "provider_not_configured";
-    res.status(503).json({
+  const resolvedUpstream = await resolveUpstream(modelId, {
+    region: getRequestedRegion(req),
+    userId: caller.userId,
+  });
+  if (!resolvedUpstream.ok) {
+    res.status(resolvedUpstream.status).json({
       success: false,
-      message: providerNotConfigured ? "该模型的供应商尚未配置" : "当前无可用渠道",
-      code: providerNotConfigured ? "provider_not_configured" : "provider_unavailable",
+      ...upstreamErrorBody(resolvedUpstream),
     });
     return;
   }
+  const selected = {
+    providerId: resolvedUpstream.upstream.providerId,
+    apiKey: resolvedUpstream.upstream.apiKey,
+    apiBaseUrl: resolvedUpstream.upstream.nativeBaseUrl,
+    channelId: resolvedUpstream.upstream.channelId,
+    region: resolvedUpstream.upstream.region,
+    managed: resolvedUpstream.upstream.managed,
+    rpm: resolvedUpstream.upstream.rpm,
+    tpm: resolvedUpstream.upstream.tpm,
+    dailyLimit: resolvedUpstream.upstream.dailyLimit,
+    concurrentLimit: resolvedUpstream.upstream.concurrentLimit,
+  };
   const apiKey = selected.apiKey;
 
   const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, {
@@ -304,6 +327,7 @@ export const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
   const reservation = reservationResult.reservation;
+  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
 
   const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
   const isVolcEngine = selected.apiBaseUrl.includes("volces.com") || selected.apiBaseUrl.includes("genvia.ai");
@@ -311,22 +335,78 @@ export const handleGenerate = async (req: Request, res: Response) => {
   // Create internal task record
   let task;
   try {
+    const capacity = await acquireProviderCapacity(selected, modelId, 0);
+    if (!capacity.ok) {
+      await releaseReservation(reservation.id, "provider_capacity_unavailable");
+      res.status(503).json({
+        success: false,
+        message: capacity.message,
+        code: capacity.code,
+      });
+      return;
+    }
+    providerCapacityLease = capacity.lease;
+
     task = await createTask({
       userId: caller.userId,
       apiKeyId: caller.apiKeyId,
       type: "video",
       model: modelId,
       provider: selected.providerId,
-      input: { prompt, duration, aspect_ratio, quality, negative_prompt, size: normalizedSize, img_url, img_end_url, img_urls, video_url, video_urls, audio_urls, resolution: normalizedResolution, ratio, audio, audio_setting, generate_audio, draft, return_last_frame, camera_fixed, service_tier, callback_url, priority, seed, watermark, style, camera_movement, water_mark, audio_url, shot_type, motion_mode, prompt_extend },
+      input: {
+        prompt,
+        duration,
+        aspect_ratio,
+        quality,
+        negative_prompt,
+        size: normalizedSize,
+        img_url,
+        img_end_url,
+        img_urls,
+        video_url,
+        video_urls,
+        audio_urls,
+        resolution: normalizedResolution,
+        ratio,
+        audio,
+        audio_setting,
+        generate_audio,
+        draft,
+        return_last_frame,
+        camera_fixed,
+        service_tier,
+        callback_url,
+        priority,
+        seed,
+        watermark,
+        style,
+        camera_movement,
+        water_mark,
+        audio_url,
+        shot_type,
+        motion_mode,
+        prompt_extend,
+        _route: {
+          channelId: selected.channelId,
+          region: selected.region,
+          nativeBaseUrl: selected.apiBaseUrl,
+          managed: selected.managed,
+          rpm: selected.rpm,
+          tpm: selected.tpm,
+          dailyLimit: selected.dailyLimit,
+          concurrentLimit: selected.concurrentLimit,
+        },
+      },
       billingReservationId: reservation.id,
     });
   } catch (error) {
     await releaseReservation(reservation.id);
+    await releaseProviderCapacity(providerCapacityLease, 0);
+    providerCapacityLease = null;
     throw error;
   }
 
   // Build request based on provider
-  acquireConcurrency(selected.providerId, modelId);
   try {
     let adapted;
     if (isPixVerseOfficial) {
@@ -403,7 +483,7 @@ export const handleGenerate = async (req: Request, res: Response) => {
       });
     }
 
-    const response = await fetch(adapted.url, {
+    const response = await safeProviderFetch(adapted.url, {
       method: adapted.method,
       headers: adapted.headers,
       body: JSON.stringify(adapted.body),
@@ -502,7 +582,7 @@ export const handleGenerate = async (req: Request, res: Response) => {
       message: `请求失败: ${err.message}`,
     });
   } finally {
-    releaseConcurrency(selected.providerId, modelId);
+    await releaseProviderCapacity(providerCapacityLease, 0);
   }
 };
 
@@ -512,6 +592,11 @@ router.post("/generations", handleGenerate);
 // GET /api/video/status/:taskId - Get video generation status
 export const handleVideoStatus = async (req: Request, res: Response) => {
   const taskId = req.params.taskId as string;
+  const caller = await authenticateCaller(req);
+  if (!caller) {
+    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
+    return;
+  }
   
   // First try to find our internal task
   const task = await getTaskById(taskId);
@@ -567,28 +652,62 @@ export const handleVideoStatus = async (req: Request, res: Response) => {
           res.status(500).json({ success: false, message: "渠道配置不存在" });
           return;
         }
-        pollApiKey = providerRecord.api_key;
-        pollApiBaseUrl = providerRecord.api_base_url;
-        isPixVerseOfficialPoll = providerRecord.api_base_url.includes("pixverse.ai");
-        isVolcEnginePoll = providerRecord.api_base_url.includes("volces.com") || providerRecord.api_base_url.includes("genvia.ai");
+        const taskChannelId = task.input?._route?.channelId;
+        const taskChannel = taskChannelId
+          ? await getProviderChannel(task.provider, taskChannelId)
+          : null;
+        pollApiKey = taskChannel?.api_key || providerRecord.api_key;
+        const resolvedPollBaseUrl = String(
+          task.input?._route?.nativeBaseUrl || providerRecord.api_base_url
+        );
+        pollApiBaseUrl = resolvedPollBaseUrl;
+        isPixVerseOfficialPoll = resolvedPollBaseUrl.includes("pixverse.ai");
+        isVolcEnginePoll = resolvedPollBaseUrl.includes("volces.com") || resolvedPollBaseUrl.includes("genvia.ai");
       }
 
-      const result = isPixVerseOfficialPoll
-        ? await pollPixVerseTask(pollApiKey, task.upstream_task_id, pollApiBaseUrl)
-        : isVolcEnginePoll
-          ? await pollVolcEngineTask(pollApiKey, task.upstream_task_id, pollApiBaseUrl)
-          : await pollDashScopeTask(pollApiKey, task.upstream_task_id);
+      const controlledPoll = await pollTaskWithControl({
+        task,
+        actorId: caller.apiKeyId
+          ? `api-key:${caller.apiKeyId}`
+          : `session:${caller.userId}`,
+        userId: caller.userId,
+        poll: () => isPixVerseOfficialPoll
+          ? pollPixVerseTask(pollApiKey, task.upstream_task_id!, pollApiBaseUrl)
+          : isVolcEnginePoll
+            ? pollVolcEngineTask(pollApiKey, task.upstream_task_id!, pollApiBaseUrl)
+            : pollDashScopeTask(pollApiKey, task.upstream_task_id!, pollApiBaseUrl),
+      });
+      if (!controlledPoll.ok) {
+        const storeUnavailable =
+          controlledPoll.reason === "control_store_unavailable"
+          || controlledPoll.reason === "provider_capacity_store_unavailable";
+        res
+          .status(storeUnavailable ? 503 : 429)
+          .set("Retry-After", storeUnavailable ? "5" : "2")
+          .json({
+            success: false,
+            message: storeUnavailable
+              ? "任务状态服务暂时不可用"
+              : "任务查询过于频繁或供应商容量不足",
+            code: controlledPoll.reason,
+          });
+        return;
+      }
+      if (controlledPoll.state === "in_flight") {
+        sendVideoTaskStatus(res, {
+          taskId: task.id,
+          status: task.status === "running" ? "processing" : "pending",
+          progress: task.progress,
+        });
+        return;
+      }
+      const result = controlledPoll.result;
 
       if (result.status === "succeeded") {
         const model = models.find((m) => m.id === task.model);
         const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
         const won = await completeTask(task.id, result.output, cost);
         if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
-        sendVideoTaskStatus(res, {
-          taskId: task.id,
-          status: "successful",
-          videoUrl: result.output?.video_url,
-        });
       } else if (result.status === "failed") {
         const won = await failTask(task.id, result.error || "Task failed");
         if (won) await billAsyncError(
@@ -597,19 +716,27 @@ export const handleVideoStatus = async (req: Request, res: Response) => {
           Date.now() - new Date(task.created_at).getTime(),
           task.billing_reservation_id,
         );
-        sendVideoTaskStatus(res, {
-          taskId: task.id,
-          status: "failed",
-          error: result.error,
-        });
       } else {
-        await updateTaskStatus(task.id, result.status, result.progress || 0);
-        sendVideoTaskStatus(res, {
-          taskId: task.id,
-          status: result.status === "running" ? "processing" : "pending",
-          progress: result.progress,
-        });
+        await updateTaskStatus(
+          task.id,
+          result.status === "running" ? "running" : "pending",
+          result.progress || 0
+        );
       }
+      const persistedTask = (await getTaskById(task.id)) || task;
+      sendVideoTaskStatus(res, {
+        taskId: persistedTask.id,
+        status: persistedTask.status === "succeeded"
+          ? "successful"
+          : persistedTask.status === "failed"
+            ? "failed"
+            : persistedTask.status === "running"
+              ? "processing"
+              : "pending",
+        videoUrl: persistedTask.output?.video_url,
+        error: persistedTask.error_message,
+        progress: persistedTask.progress,
+      });
       return;
 
     } catch (err: any) {
@@ -623,11 +750,6 @@ export const handleVideoStatus = async (req: Request, res: Response) => {
 
   // Never poll arbitrary upstream task IDs. Legacy creation endpoints now
   // return the internal task ID, which is owner-checked above.
-  if (!(await authenticateCaller(req))) {
-    res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
-    return;
-  }
-
   res.status(404).json({
     success: false,
     message: "任务不存在",

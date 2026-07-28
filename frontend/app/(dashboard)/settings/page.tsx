@@ -62,7 +62,7 @@ export default function SettingsPage() {
       setPwMsg({ type: "error", text: t("enterCurrentPw") });
       return;
     }
-    if (newPassword.length < 6) {
+    if (newPassword.length < 12) {
       setPwMsg({ type: "error", text: t("pwMinLength") });
       return;
     }

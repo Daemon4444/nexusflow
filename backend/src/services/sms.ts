@@ -111,7 +111,11 @@ async function sendAliyunSms(phone: string, code: string): Promise<boolean> {
 /**
  * 发送验证码
  */
-export async function sendVerificationCode(phone: string): Promise<{ success: boolean; message: string }> {
+export async function sendVerificationCode(phone: string): Promise<{
+  success: boolean;
+  message: string;
+  challengeToken?: string;
+}> {
   if (!/^1\d{10}$/.test(phone)) {
     return { success: false, message: "手机号格式不正确" };
   }
@@ -161,15 +165,26 @@ export async function sendVerificationCode(phone: string): Promise<{ success: bo
   return {
     success: true,
     message: isReal ? "验证码已发送" : "验证码已发送（测试模式，请查看服务器日志）",
+    challengeToken: reserved.reservation.token,
   };
 }
 
 /**
  * 验证验证码
  */
-export async function verifyCode(phone: string, code: string): Promise<boolean> {
+export async function verifyCode(
+  phone: string,
+  code: string,
+  challengeToken: string,
+  sourceIp?: string
+): Promise<boolean> {
   try {
-    return await verifyVerificationCode("sms", phone, code);
+    return (
+      await verifyVerificationCode("sms", phone, code, {
+        challengeToken,
+        sourceIp,
+      })
+    ) === "valid";
   } catch {
     console.error("[SMS] 验证码存储不可用，拒绝验证");
     return false;

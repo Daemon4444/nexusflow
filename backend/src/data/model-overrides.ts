@@ -31,7 +31,7 @@ export interface ModelOverrideRow {
 
 // 允许斜杠：DashScope 第三方模型 ID 带厂商前缀（如 kimi/kimi-k3）
 const ID_RE = /^[A-Za-z0-9._:\-\/]+$/;
-const PRICING_TYPES = new Set(["token", "per-image", "per-second"]);
+const PRICING_TYPES = new Set(["token", "per-image", "per-second", "per-10k-characters"]);
 
 function isFiniteNonNegative(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v) && v >= 0;
@@ -95,7 +95,7 @@ export function sanitizeModelDoc(input: unknown): ValidationResult {
 
   if (o.pricingType !== undefined && o.pricingType !== null && o.pricingType !== "") {
     if (typeof o.pricingType !== "string" || !PRICING_TYPES.has(o.pricingType)) {
-      return { ok: false, error: "pricingType 只能是 token / per-image / per-second" };
+      return { ok: false, error: "pricingType 只能是 token / per-image / per-second / per-10k-characters" };
     }
     model.pricingType = o.pricingType as AIModel["pricingType"];
   }

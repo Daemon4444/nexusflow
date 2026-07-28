@@ -83,6 +83,17 @@ export function errorHandler(
     return;
   }
 
+  if ((err as Error & { type?: string }).type === "entity.length.mismatch") {
+    res.status(400).json({
+      error: {
+        message: "JSON body exceeded its declared Content-Length.",
+        type: "invalid_request_error",
+        code: "content_length_mismatch",
+      },
+    });
+    return;
+  }
+
   // body-parser 超过 limit 时抛 PayloadTooLargeError（type=entity.too.large,
   // status=413）。明确返回 413，避免被兜底成 500 误导客户端。
   if ((err as Error & { type?: string; status?: number }).type === "entity.too.large"

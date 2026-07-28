@@ -8,7 +8,7 @@ import {
   type Provider,
 } from "../data/providers";
 import { getAllHealthRecords } from "../services/scheduler";
-import { getProviderUsageStats, getProviderUsageStatsAsync } from "../services/rate-limiter";
+import { getProviderUsageStatsAsync } from "../services/rate-limiter";
 import {
   HealthState,
   latestObservationAt,
@@ -27,15 +27,18 @@ import {
 import { ensureDashScopeChannelConfig } from "../services/upstream";
 import {
   createCostVersion,
-  getActiveCostVersion,
-  getActiveCostVersions,
   getRouteAudits,
   getRoutePolicies,
   recordRouteAudit,
   upsertRoutePolicy,
   deleteRoutePolicy,
 } from "../data/provider-operations";
-import { requireAdmin } from "../middleware/admin";
+import {
+  getAllActiveProviderCostTiers,
+  type ProviderCostTier,
+} from "../services/provider-costs";
+import { requirePermission } from "../middleware/admin-access";
+import { auditAdminWrite, setAdminAuditContext } from "../middleware/admin-audit";
 
 const router = Router();
 
@@ -183,7 +186,13 @@ function getRouteHealth(health: Awaited<ReturnType<typeof getAllHealthRecords>>,
   return health.find((item) => item.providerId === providerId && item.modelId === modelId);
 }
 
-function getSaturation(currentRpm: number, rpmLimit: number, currentTpm: number, tpmLimit: number): number {
+function getSaturation(
+  currentRpm: number | null,
+  rpmLimit: number,
+  currentTpm: number | null,
+  tpmLimit: number
+): number | null {
+  if (currentRpm === null || currentTpm === null) return null;
   const rpmRatio = rpmLimit > 0 ? currentRpm / rpmLimit : 0;
   const tpmRatio = tpmLimit > 0 ? currentTpm / tpmLimit : 0;
   return Number(Math.max(rpmRatio, tpmRatio).toFixed(4));
@@ -193,13 +202,6 @@ function getRecommendedProviderId(modelId: string): string {
   if (modelId.startsWith("claude-")) return "anthropic";
   if (modelId.startsWith("pixverse-")) return "pixverse";
   return "dashscope";
-}
-
-function getDefaultCostFromRetail(promptPrice: number, completionPrice: number) {
-  return {
-    promptCost: Number((promptPrice * 0.72).toFixed(6)),
-    completionCost: Number((completionPrice * 0.72).toFixed(6)),
-  };
 }
 
 function getMarginPercent(revenue: number, cost: number): number {
@@ -228,10 +230,16 @@ async function getProviderRouteModels(providerId: string) {
 
 async function getProviderCard(provider: Provider) {
   const capacity = await getCapacityByProvider(provider.id);
-  const usage = capacity.reduce((acc, cap) => {
-    const current = getProviderUsageStats(provider.id, cap.model_id);
-    acc.currentRpm += current.rpm;
-    acc.currentTpm += current.tpm;
+  const routeUsage = await Promise.all(
+    capacity.map((cap) => getProviderUsageStatsAsync(provider.id, cap.model_id))
+  );
+  const usageAvailable = routeUsage.every((item) => item.available);
+  const usage = capacity.reduce((acc, cap, index) => {
+    const current = routeUsage[index];
+    if (current?.available) {
+      acc.currentRpm += current.rpm;
+      acc.currentTpm += current.tpm;
+    }
     acc.rpmLimit += cap.rpm_limit;
     acc.tpmLimit += cap.tpm_limit;
     acc.concurrentLimit += cap.concurrent_limit;
@@ -256,7 +264,12 @@ async function getProviderCard(provider: Provider) {
     modelCount: capacity.length,
     enabledRoutes: capacity.filter((item) => item.is_enabled).length,
     channelConfig: await getProviderChannelSummary(provider.id),
-    ...usage,
+    currentRpm: usageAvailable ? usage.currentRpm : null,
+    currentTpm: usageAvailable ? usage.currentTpm : null,
+    rpmLimit: usage.rpmLimit,
+    tpmLimit: usage.tpmLimit,
+    concurrentLimit: usage.concurrentLimit,
+    usageAvailable,
   };
 }
 
@@ -282,11 +295,32 @@ router.get("/status/:email", (_req: Request, res: Response) => {
 // 注意：/admin/* 路由必须在 /:providerId/* 路由之前注册，
 // 否则 Express 会把 "admin" 当作 providerId 参数匹配。
 
-router.use("/admin", requireAdmin);
+router.use(auditAdminWrite);
+router.use((req: Request, res: Response, next) => {
+  const permission = ["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())
+    ? "providers.read"
+    : "providers.manage";
+  requirePermission(permission)(req, res, next);
+});
+
+function requireEndpointSecurityPermission(req: Request, res: Response, next: () => void) {
+  requirePermission("security.manage")(req, res, next);
+}
+
+function requireEndpointSecurityWhenChanged(req: Request, res: Response, next: () => void) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  if (
+    Object.prototype.hasOwnProperty.call(body, "api_base_url")
+    || Object.prototype.hasOwnProperty.call(body, "api_key")
+  ) {
+    requireEndpointSecurityPermission(req, res, next);
+    return;
+  }
+  next();
+}
 
 // GET /api/provider/admin/providers — 获取所有供应商
 router.get("/admin/providers", async (_req: Request, res: Response) => {
-  await ensureInternalProviders();
   const providers = await Promise.all((await getAllProviders()).map(getProviderCard));
   res.json({
     success: true,
@@ -296,32 +330,21 @@ router.get("/admin/providers", async (_req: Request, res: Response) => {
 
 // GET /api/provider/admin/operations — 供应商运营工作台
 router.get("/admin/operations", async (_req: Request, res: Response) => {
-  await ensureInternalProviders();
-  let [providers, capacity, health, activeCosts, routePolicies, routeAudits] = await Promise.all([
+  const [providers, capacity, health, activeCostTiers, routePolicies, routeAudits] = await Promise.all([
     getAllProviders(),
     getAllCapacity(),
     getAllHealthRecords(),
-    getActiveCostVersions(),
+    getAllActiveProviderCostTiers(),
     getRoutePolicies(),
     getRouteAudits(12),
   ]);
-  for (const item of capacity) {
-    if (activeCosts.some((cost) => cost.provider_id === item.provider_id && cost.model_id === item.model_id)) continue;
-    const catalog = staticModels.find((model) => model.id === item.model_id);
-    const defaults = getDefaultCostFromRetail(catalog?.promptPrice ?? 0, catalog?.completionPrice ?? 0);
-    await createCostVersion({
-      providerId: item.provider_id,
-      modelId: item.model_id,
-      versionLabel: "auto-baseline",
-      pricingType: catalog?.pricingType || "token",
-      promptCost: defaults.promptCost,
-      completionCost: defaults.completionCost,
-      fixedCost: 0,
-      notes: "系统按零售价 72% 自动生成的基准成本，可在后台创建新版本覆盖。",
-    });
+  const costByRoute = new Map<string, ProviderCostTier[]>();
+  for (const tier of activeCostTiers) {
+    const key = `${tier.providerId}:${tier.modelId}`;
+    const routeTiers = costByRoute.get(key) || [];
+    routeTiers.push(tier);
+    costByRoute.set(key, routeTiers);
   }
-  activeCosts = await getActiveCostVersions();
-  const costByRoute = new Map(activeCosts.map((cost) => [`${cost.provider_id}:${cost.model_id}`, cost]));
   const providerById = new Map(providers.map((provider) => [provider.id, provider]));
   const capacityByModel = new Map<string, typeof capacity>();
   for (const item of capacity) {
@@ -339,9 +362,13 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
   const providerCards = providers.map((provider) => {
     const providerCapacity = capacity.filter((item) => item.provider_id === provider.id);
     const totals = providerCapacity.reduce((acc, item) => {
-      const usage = usageByRoute.get(`${provider.id}:${item.model_id}`) || { rpm: 0, tpm: 0 };
-      acc.currentRpm += usage.rpm;
-      acc.currentTpm += usage.tpm;
+      const usage = usageByRoute.get(`${provider.id}:${item.model_id}`);
+      if (usage?.available) {
+        acc.currentRpm += usage.rpm;
+        acc.currentTpm += usage.tpm;
+      } else {
+        acc.usageAvailable = false;
+      }
       acc.rpmLimit += item.rpm_limit;
       acc.tpmLimit += item.tpm_limit;
       acc.dailyLimit += item.daily_limit;
@@ -356,6 +383,7 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       dailyLimit: 0,
       concurrentLimit: 0,
       enabledRoutes: 0,
+      usageAvailable: true,
     });
     const healthByModel = new Map(
       health
@@ -385,13 +413,19 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         ? Number((observedRoutes / enabledCapacity.length).toFixed(4))
         : 0,
       healthSummary,
-      currentRpm: totals.currentRpm,
-      currentTpm: totals.currentTpm,
+      currentRpm: totals.usageAvailable ? totals.currentRpm : null,
+      currentTpm: totals.usageAvailable ? totals.currentTpm : null,
+      usageAvailable: totals.usageAvailable,
       rpmLimit: totals.rpmLimit,
       tpmLimit: totals.tpmLimit,
       dailyLimit: totals.dailyLimit,
       concurrentLimit: totals.concurrentLimit,
-      saturationRatio: getSaturation(totals.currentRpm, totals.rpmLimit, totals.currentTpm, totals.tpmLimit),
+      saturationRatio: getSaturation(
+        totals.usageAvailable ? totals.currentRpm : null,
+        totals.rpmLimit,
+        totals.usageAvailable ? totals.currentTpm : null,
+        totals.tpmLimit
+      ),
       missingApiKey: !provider.api_key,
     };
   });
@@ -399,15 +433,50 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
   const routes = capacity.map((item) => {
     const provider = providerById.get(item.provider_id);
     const catalog = staticModels.find((model) => model.id === item.model_id);
-    const usage = usageByRoute.get(`${item.provider_id}:${item.model_id}`) || { rpm: 0, tpm: 0 };
+    const usage = usageByRoute.get(`${item.provider_id}:${item.model_id}`);
     const routeHealth = getRouteHealth(health, item.provider_id, item.model_id);
     const currentHealth: HealthState = routeHealth?.status || "unknown";
-    const cost = costByRoute.get(`${item.provider_id}:${item.model_id}`);
+    const costs = costByRoute.get(`${item.provider_id}:${item.model_id}`) || [];
+    const promptCosts = costs.map((cost) => cost.promptCost);
+    const completionCosts = costs.map((cost) => cost.completionCost);
+    const promptCostMin = promptCosts.length ? Math.min(...promptCosts) : null;
+    const promptCostMax = promptCosts.length ? Math.max(...promptCosts) : null;
+    const completionCostMin = completionCosts.length ? Math.min(...completionCosts) : null;
+    const completionCostMax = completionCosts.length ? Math.max(...completionCosts) : null;
+    const conservativeCost = costs.length
+      ? costs.reduce((current, cost) => (
+        cost.promptCost + cost.completionCost + cost.fixedCost
+          > current.promptCost + current.completionCost + current.fixedCost
+          ? cost
+          : current
+      ))
+      : null;
+    const sortedCosts = [...costs].sort(
+      (a, b) => a.inputTierMinTokens - b.inputTierMinTokens
+    );
+    const contiguousTiers = sortedCosts.length > 0
+      && sortedCosts[0].inputTierMinTokens === 0
+      && sortedCosts.every((cost, index) => (
+        index === 0
+        || sortedCosts[index - 1].inputTierMaxTokens === cost.inputTierMinTokens
+      ));
+    const lastTier = sortedCosts[sortedCosts.length - 1];
+    const coversCatalogContext = !!lastTier && (
+      lastTier.inputTierMaxTokens === null
+      || !catalog?.contextLength
+      || lastTier.inputTierMaxTokens >= catalog.contextLength
+    );
+    const fullCostCoverage = costs.length > 0
+      && costs.every((cost) => cost.coverageStatus === "full")
+      && contiguousTiers
+      && coversCatalogContext;
     const priceUnit = catalog?.pricingType === "per-image"
       ? "元/张"
       : catalog?.pricingType === "per-second"
         ? "元/秒"
-        : "元/百万tokens";
+        : catalog?.pricingType === "per-10k-characters"
+          ? "元/万字符"
+          : "元/百万tokens";
     const recommendedProviderId = getRecommendedProviderId(item.model_id);
 
     return {
@@ -423,11 +492,28 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       recommended: item.provider_id === recommendedProviderId,
       promptPrice: catalog?.promptPrice ?? 0,
       completionPrice: catalog?.completionPrice ?? 0,
-      promptCost: cost?.prompt_cost ?? 0,
-      completionCost: cost?.completion_cost ?? 0,
-      fixedCost: cost?.fixed_cost ?? 0,
-      grossMarginPrompt: getMarginPercent(catalog?.promptPrice ?? 0, cost?.prompt_cost ?? 0),
-      grossMarginCompletion: getMarginPercent(catalog?.completionPrice ?? 0, cost?.completion_cost ?? 0),
+      promptCost: promptCostMax,
+      promptCostMin,
+      promptCostMax,
+      completionCost: completionCostMax,
+      completionCostMin,
+      completionCostMax,
+      fixedCost: conservativeCost?.fixedCost ?? null,
+      costKnown: costs.length > 0,
+      costCoverageStatus: costs.length === 0
+        ? "unknown"
+        : fullCostCoverage ? "full" : "partial",
+      costTierCount: costs.length,
+      costTierCoverageComplete: contiguousTiers && coversCatalogContext,
+      costSource: conservativeCost?.source || null,
+      costVersionId: conservativeCost?.id || null,
+      costPriceBookId: conservativeCost?.priceBookId || null,
+      grossMarginPrompt: promptCostMax !== null
+        ? getMarginPercent(catalog?.promptPrice ?? 0, promptCostMax)
+        : null,
+      grossMarginCompletion: completionCostMax !== null
+        ? getMarginPercent(catalog?.completionPrice ?? 0, completionCostMax)
+        : null,
       pricingType: catalog?.pricingType || "token",
       priceUnit,
       rpmLimit: item.rpm_limit,
@@ -436,9 +522,15 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       concurrentLimit: item.concurrent_limit,
       priority: item.priority,
       weight: item.weight,
-      currentRpm: usage.rpm,
-      currentTpm: usage.tpm,
-      saturationRatio: getSaturation(usage.rpm, item.rpm_limit, usage.tpm, item.tpm_limit),
+      currentRpm: usage?.available ? usage.rpm : null,
+      currentTpm: usage?.available ? usage.tpm : null,
+      usageAvailable: usage?.available === true,
+      saturationRatio: getSaturation(
+        usage?.available ? usage.rpm : null,
+        item.rpm_limit,
+        usage?.available ? usage.tpm : null,
+        item.tpm_limit
+      ),
       health: currentHealth,
       healthObserved: !!routeHealth,
       lastObservedAt: latestObservationAt(routeHealth?.lastSuccessAt, routeHealth?.lastFailureAt),
@@ -493,7 +585,7 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         action: "通过真实业务流量或独立探测形成观测；未观测前不要将其视为健康。",
       });
     }
-    if (provider.saturationRatio >= 0.8) {
+    if (provider.saturationRatio !== null && provider.saturationRatio >= 0.8) {
       issues.push({
         level: "warning",
         scope: "provider",
@@ -532,6 +624,17 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
   }
 
   for (const route of routes) {
+    if (route.enabled && route.costCoverageStatus === "partial") {
+      issues.push({
+        level: "info",
+        scope: "route",
+        providerId: route.providerId,
+        modelId: route.modelId,
+        title: `${route.providerName} / ${route.modelName} 成本覆盖不完整`,
+        detail: "基础输入/输出成本可核验，但至少一种缓存计费口径在上游资料中缺失。",
+        action: "发生缺价缓存用量时保持成本 unknown；补充可核验合同或账单后再创建新版本。",
+      });
+    }
     if (route.health === "down" || route.health === "degraded") {
       issues.push({
         level: route.health === "down" ? "critical" : "warning",
@@ -543,7 +646,7 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         action: "检查上游状态、密钥余额、限流和模型名称映射。",
       });
     }
-    if (route.saturationRatio >= 0.8) {
+    if (route.saturationRatio !== null && route.saturationRatio >= 0.8) {
       issues.push({
         level: "warning",
         scope: "route",
@@ -571,20 +674,24 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         enabledRoutes: routes.filter((item) => item.enabled).length,
         criticalIssues,
         warningIssues,
-        costedRoutes: routes.filter((item) => item.promptCost > 0 || item.completionCost > 0 || item.fixedCost > 0).length,
+        costedRoutes: routes.filter((item) => item.costKnown).length,
         routePolicies: routePolicies.length,
         healthyProviders: providerCards.filter((item) => item.health === "healthy").length,
         degradedProviders: providerCards.filter((item) => item.health === "degraded").length,
         downProviders: providerCards.filter((item) => item.health === "down").length,
         unknownProviders: providerCards.filter((item) => item.health === "unknown").length,
-        currentRpm: providerCards.reduce((sum, item) => sum + item.currentRpm, 0),
-        currentTpm: providerCards.reduce((sum, item) => sum + item.currentTpm, 0),
+        currentRpm: providerCards.every((item) => item.currentRpm !== null)
+          ? providerCards.reduce((sum, item) => sum + (item.currentRpm || 0), 0)
+          : null,
+        currentTpm: providerCards.every((item) => item.currentTpm !== null)
+          ? providerCards.reduce((sum, item) => sum + (item.currentTpm || 0), 0)
+          : null,
         rpmLimit: providerCards.reduce((sum, item) => sum + item.rpmLimit, 0),
         tpmLimit: providerCards.reduce((sum, item) => sum + item.tpmLimit, 0),
       },
       providers: providerCards,
       routes,
-      costs: activeCosts,
+      costs: activeCostTiers,
       routePolicies,
       routeAudits,
       issues,
@@ -592,16 +699,47 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         healthSource: "observed_upstream_requests",
         healthUnknownWhenUnobserved: true,
         usageWindowSeconds: 60,
+        usageSource: "redis_provider_capacity_v2",
+        usageUnknownWhenRedisUnavailable: true,
         availabilityPercentageAvailable: false,
         minAvailabilityPolicyMode: "observed_sla_snapshot_fail_closed",
         minAvailabilityEvidence: "success_requests/total_requests",
+        providerCostSource: "provider_cost_versions(source in contract|invoice|manual|import)",
+        missingProviderCost: "null",
+      },
+      truth: {
+        sources: ["providers", "provider_capacity", "provider_health", "provider_cost_versions", "customer_route_policies"],
+        costCoverage: {
+          knownRoutes: routes.filter((item) => item.costKnown).length,
+          totalRoutes: routes.length,
+        },
+        unknownPolicy: "Unknown provider costs and health observations remain null/unknown.",
       },
     },
   });
 });
 
+// Explicit, audited provisioning action. Read endpoints above never create or
+// mutate providers, routes, channel configuration or cost rows.
+router.post("/admin/bootstrap", requireEndpointSecurityPermission, async (req: Request, res: Response) => {
+  const reason = String(req.body?.reason || "").trim();
+  if (reason.length < 3) {
+    res.status(400).json({ success: false, message: "初始化原因至少需要 3 个字符" });
+    return;
+  }
+  await ensureInternalProviders();
+  const providers = await Promise.all((await getAllProviders()).map(getProviderCard));
+  setAdminAuditContext(req, {
+    action: "providers.bootstrap",
+    resourceType: "provider_catalog",
+    reason,
+    afterData: { providerIds: providers.map((provider) => provider.id) },
+  });
+  res.json({ success: true, data: providers, message: "默认渠道与路由已初始化" });
+});
+
 // POST /api/provider/admin/providers — 创建内部渠道
-router.post("/admin/providers", async (req: Request, res: Response) => {
+router.post("/admin/providers", requireEndpointSecurityPermission, async (req: Request, res: Response) => {
   const { name, description, website, api_base_url, api_key, contact_name, contact_email, contact_phone } = req.body || {};
   if (!name || !api_base_url) {
     res.status(400).json({ success: false, message: "请填写渠道名称和 API Base URL" });
@@ -630,7 +768,7 @@ router.post("/admin/providers", async (req: Request, res: Response) => {
 
 // GET /api/provider/admin/costs — 当前生效的供应商成本价版本
 router.get("/admin/costs", async (_req: Request, res: Response) => {
-  const costs = await getActiveCostVersions();
+  const costs = await getAllActiveProviderCostTiers();
   res.json({ success: true, data: costs });
 });
 
@@ -646,20 +784,54 @@ router.post("/admin/providers/:id/costs/:modelId", async (req: Request, res: Res
   const catalog = staticModels.find((model) => model.id === modelId);
   const {
     version_label, pricing_type, prompt_cost, completion_cost, fixed_cost,
-    currency, effective_from, effective_to, notes,
+    currency, effective_from, effective_to, notes, source,
   } = req.body || {};
+  const normalizedSource = String(source || "manual");
+  if (!["contract", "invoice", "manual", "import"].includes(normalizedSource)) {
+    res.status(400).json({ success: false, message: "成本来源仅支持 contract、invoice、manual 或 import" });
+    return;
+  }
+  const normalizedCurrency = String(currency || "CNY").trim().toUpperCase();
+  if (normalizedCurrency !== "CNY") {
+    res.status(400).json({
+      success: false,
+      message: "当前仅支持 CNY 成本；接入可审计汇率账本前，其他币种不能参与路由和毛利计算",
+    });
+    return;
+  }
+  const amounts = [prompt_cost ?? 0, completion_cost ?? 0, fixed_cost ?? 0].map(Number);
+  if (amounts.some((value) => !Number.isFinite(value) || value < 0)) {
+    res.status(400).json({ success: false, message: "成本金额必须是非负数字" });
+    return;
+  }
+  if (effective_from && Number.isNaN(new Date(effective_from).getTime())) {
+    res.status(400).json({ success: false, message: "effective_from 无效" });
+    return;
+  }
+  if (effective_to && (
+    Number.isNaN(new Date(effective_to).getTime())
+    || new Date(effective_to).getTime() <= new Date(effective_from || Date.now()).getTime()
+  )) {
+    res.status(400).json({ success: false, message: "effective_to 必须晚于 effective_from" });
+    return;
+  }
+  if (String(notes || "").trim().length < 3) {
+    res.status(400).json({ success: false, message: "请填写至少 3 个字符的成本依据/原因" });
+    return;
+  }
   const cost = await createCostVersion({
     providerId,
     modelId,
     versionLabel: version_label || "manual",
     pricingType: pricing_type || catalog?.pricingType || "token",
-    promptCost: Number(prompt_cost || 0),
-    completionCost: Number(completion_cost || 0),
-    fixedCost: Number(fixed_cost || 0),
-    currency: currency || "CNY",
+    promptCost: amounts[0],
+    completionCost: amounts[1],
+    fixedCost: amounts[2],
+    currency: normalizedCurrency,
     effectiveFrom: effective_from,
     effectiveTo: effective_to || null,
     notes: notes || "",
+    source: normalizedSource as "contract" | "invoice" | "manual" | "import",
     createdBy: (req as any).admin?.id || null,
   });
   await recordRouteAudit({
@@ -775,7 +947,6 @@ router.delete("/admin/route-policies/:id", async (req: Request, res: Response) =
 
 // GET /api/provider/admin/providers/:id — 获取渠道详情
 router.get("/admin/providers/:id", async (req: Request, res: Response) => {
-  await ensureInternalProviders();
   const provider = await getProviderById(req.params.id as string);
   if (!provider) {
     res.status(404).json({ success: false, message: "渠道不存在" });
@@ -819,7 +990,10 @@ router.get("/admin/providers/:id", async (req: Request, res: Response) => {
 });
 
 // PUT /api/provider/admin/providers/:id — 更新渠道配置
-router.put("/admin/providers/:id", async (req: Request, res: Response) => {
+router.put(
+  "/admin/providers/:id",
+  requireEndpointSecurityWhenChanged,
+  async (req: Request, res: Response) => {
   const providerId = req.params.id as string;
   const provider = await getProviderById(providerId);
   if (!provider) {
@@ -866,7 +1040,8 @@ router.put("/admin/providers/:id", async (req: Request, res: Response) => {
     },
     message: "渠道配置已更新",
   });
-});
+  }
+);
 
 // GET /api/provider/admin/providers/draft — 获取待配置渠道
 router.get("/admin/providers/draft", async (_req: Request, res: Response) => {
@@ -888,14 +1063,18 @@ router.get("/admin/providers/draft", async (_req: Request, res: Response) => {
 });
 
 // POST /api/provider/admin/providers/:id/enable — 启用渠道
-router.post("/admin/providers/:id/enable", async (req: Request, res: Response) => {
+router.post(
+  "/admin/providers/:id/enable",
+  requireEndpointSecurityPermission,
+  async (req: Request, res: Response) => {
   const success = await updateProviderStatus(req.params.id as string, "enabled");
   if (!success) {
     res.status(404).json({ success: false, message: "供应商不存在" });
     return;
   }
   res.json({ success: true, message: "渠道已启用" });
-});
+  }
+);
 
 // POST /api/provider/admin/providers/:id/disable — 停用渠道
 router.post("/admin/providers/:id/disable", async (req: Request, res: Response) => {
@@ -910,13 +1089,12 @@ router.post("/admin/providers/:id/disable", async (req: Request, res: Response) 
 
 // GET /api/provider/admin/models — 获取所有模型
 router.get("/admin/models", async (_req: Request, res: Response) => {
-  await ensureInternalProviders();
   const providers = await getAllProviders();
   const models = await Promise.all(staticModels.map(async (model) => {
     const capacities = await getCapacityByModel(model.id);
-    const routes = capacities.map((capacity) => {
+    const routes = await Promise.all(capacities.map(async (capacity) => {
       const provider = providers.find((item) => item.id === capacity.provider_id);
-      const usage = getProviderUsageStats(capacity.provider_id, model.id);
+      const usage = await getProviderUsageStatsAsync(capacity.provider_id, model.id);
       return {
         providerId: capacity.provider_id,
         providerName: provider?.name || capacity.provider_id,
@@ -931,7 +1109,7 @@ router.get("/admin/models", async (_req: Request, res: Response) => {
         currentRpm: usage.rpm,
         currentTpm: usage.tpm,
       };
-    });
+    }));
     return {
       id: model.id,
       providerId: routes[0]?.providerId || "",
@@ -993,7 +1171,6 @@ router.post("/admin/models/:id/disable", async (req: Request, res: Response) => 
 
 // GET /api/provider/admin/stats — 统计数据
 router.get("/admin/stats", async (_req: Request, res: Response) => {
-  await ensureInternalProviders();
   const providerStats = await getProviderStats();
   const capacityByModel = await Promise.all(staticModels.map((model) => getCapacityByModel(model.id)));
   const enabledModels = capacityByModel.filter((routes) => routes.some((route) => route.is_enabled)).length;
@@ -1034,11 +1211,9 @@ router.get("/admin/capacity", async (_req: Request, res: Response) => {
 });
 
 // GET /api/provider/:providerId/capacity — 获取供应商的容量配置
-// 注意：这三条 capacity 路由注册在文末的 router.use("/:providerId", requireAdmin) 之前，
-// 必须逐条挂 requireAdmin，否则匿名可读/改/删限流与路由配置（曾是线上真实漏洞）
-router.get("/:providerId/capacity", requireAdmin, async (req: Request, res: Response) => {
+// 全部内部路由已由上方 providers.read/providers.manage 中间件统一保护。
+router.get("/:providerId/capacity", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
@@ -1063,11 +1238,10 @@ router.get("/:providerId/capacity", requireAdmin, async (req: Request, res: Resp
 });
 
 // PUT /api/provider/:providerId/capacity/:modelId — 设置/更新容量配置
-router.put("/:providerId/capacity/:modelId", requireAdmin, async (req: Request, res: Response) => {
+router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const modelId = req.params.modelId as string;
 
-  await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
@@ -1114,9 +1288,8 @@ router.put("/:providerId/capacity/:modelId", requireAdmin, async (req: Request, 
 });
 
 // DELETE /api/provider/:providerId/capacity/:modelId — 删除容量配置
-router.delete("/:providerId/capacity/:modelId", requireAdmin, async (req: Request, res: Response) => {
+router.delete("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
@@ -1161,10 +1334,10 @@ router.get("/admin/health", async (_req: Request, res: Response) => {
 });
 
 // GET /api/provider/admin/usage/:providerId/:modelId — 获取实时使用量
-router.get("/admin/usage/:providerId/:modelId", (req: Request, res: Response) => {
+router.get("/admin/usage/:providerId/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const modelId = req.params.modelId as string;
-  const stats = getProviderUsageStats(providerId, modelId);
+  const stats = await getProviderUsageStatsAsync(providerId, modelId);
   res.json({
     success: true,
     data: {
@@ -1178,12 +1351,9 @@ router.get("/admin/usage/:providerId/:modelId", (req: Request, res: Response) =>
 
 // ========== 渠道管理模型（/:providerId 路由放在 /admin 之后） ==========
 
-router.use("/:providerId", requireAdmin);
-
 // POST /api/provider/:providerId/switch-channel — 切换供应商活跃子渠道
 router.post("/:providerId/switch-channel", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
-  await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
@@ -1215,10 +1385,12 @@ router.post("/:providerId/switch-channel", async (req: Request, res: Response) =
 });
 
 // PUT /api/provider/:providerId/channels/:channelId — 新增或更新子渠道（区域）配置
-router.put("/:providerId/channels/:channelId", async (req: Request, res: Response) => {
+router.put(
+  "/:providerId/channels/:channelId",
+  requireEndpointSecurityPermission,
+  async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const channelId = req.params.channelId as string;
-  await ensureInternalProviders();
   const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });
@@ -1250,7 +1422,8 @@ router.put("/:providerId/channels/:channelId", async (req: Request, res: Respons
     data: await getProviderChannelSummary(providerId),
     message: `渠道 ${channelId} 已更新`,
   });
-});
+  }
+);
 
 // GET /api/provider/:providerId/models — 获取供应商的模型列表
 router.get("/:providerId/models", async (req: Request, res: Response) => {

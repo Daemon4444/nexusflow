@@ -1,8 +1,16 @@
 import { Router, Request, Response } from "express";
 import { requireAdmin } from "../middleware/admin";
+import { AdminAuthorizedRequest, requirePermission } from "../middleware/admin-access";
+import {
+  auditAdminWrite,
+  getAdminClientIp,
+  getAdminRequestId,
+  setAdminAuditContext,
+} from "../middleware/admin-audit";
 import { sanitizeError } from "../utils/sanitize-error";
 import { getAdminUserLimitSummaries, getUserLimitsOverview } from "../data/ratelimits";
-import { adminAdjustBalance, adminAdjustCredit, getBillingUsageExport, getTransactions, getBillingSummary, getSubAccountBreakdown } from "../data/billing";
+import { getBillingUsageExport, getTransactions, getBillingSummary, getSubAccountBreakdown } from "../data/billing";
+import { AdminAdjustmentError, applyAdminAdjustment } from "../data/admin-finance";
 import { getByModel, getOverview, getRecent, getUsageSummary } from "../data/usage";
 import {
   getDashboardDailyStats,
@@ -14,7 +22,7 @@ import {
   getModelDistribution,
 } from "../data/dashboard";
 import { listUserModelDiscounts } from "../data/user-discounts";
-import { getUserById, getAllUsers } from "../data/users";
+import { getUserById, getAllUsers, toSafeUser } from "../data/users";
 import { db } from "../db/client";
 import { getSlsClient } from "../services/sls";
 import { models, getStaticModels } from "../data/models";
@@ -29,6 +37,7 @@ import {
 
 const router = Router();
 
+router.use(auditAdminWrite);
 router.use(requireAdmin);
 
 // ========== 监控大盘 ==========
@@ -181,7 +190,7 @@ router.get("/users/:id/detail", async (req: Request, res: Response) => {
   res.json({
     success: true,
     data: {
-      user,
+      user: toSafeUser(user),
       usage,
       byModel,
       recent,
@@ -251,57 +260,66 @@ router.get("/users/:id/billing-export.csv", async (req: Request, res: Response) 
   }
 });
 
-router.post("/users/:id/balance-adjust", async (req: Request, res: Response) => {
-  const session = (req as any).admin;
-
-  const amountDelta = Number(req.body?.amountDelta ?? req.body?.amount_delta);
-  const description = String(req.body?.description || "").trim();
-  if (!Number.isFinite(amountDelta) || amountDelta === 0) {
-    res.status(400).json({ success: false, message: "amountDelta 必须是非 0 数字" });
-    return;
+router.post("/users/:id/balance-adjust", requirePermission("billing.manage"), async (req: Request, res: Response) => {
+  const authorized = req as AdminAuthorizedRequest;
+  try {
+    const result = await applyAdminAdjustment({
+      kind: "balance",
+      userId: String(req.params.id),
+      amountDelta: Number(req.body?.amountDelta ?? req.body?.amount_delta),
+      reason: String(req.body?.reason || req.body?.description || ""),
+      idempotencyKey: typeof req.headers["idempotency-key"] === "string" ? req.headers["idempotency-key"] : "",
+      actorUserId: authorized.admin!.id,
+      actorRole: authorized.adminAccess!.role,
+      actorEmail: authorized.admin!.email,
+      requestId: getAdminRequestId(req, res),
+      ipAddress: getAdminClientIp(req),
+      userAgent: req.headers["user-agent"] || null,
+    });
+    setAdminAuditContext(req, { skipAutomatic: true });
+    res.json({
+      success: true,
+      data: { ...result.transaction, replayed: result.replayed },
+      message: result.replayed ? "已返回原调账结果" : "余额已调整",
+    });
+  } catch (error) {
+    if (error instanceof AdminAdjustmentError) {
+      res.status(error.status).json({ success: false, message: error.message, code: error.code });
+      return;
+    }
+    res.status(500).json({ success: false, message: sanitizeError(error) });
   }
-  if (Math.abs(amountDelta) > 100000) {
-    res.status(400).json({ success: false, message: "单次调账金额不能超过 100000 元" });
-    return;
-  }
-
-  const tx = await adminAdjustBalance({
-    userId: String(req.params.id),
-    amountDelta,
-    description,
-    actorId: session?.id || null,
-  });
-  if (!tx) {
-    res.status(400).json({ success: false, message: "调账失败，请确认用户存在且扣减后余额不为负" });
-    return;
-  }
-  res.json({ success: true, data: tx, message: "余额已调整" });
 });
 
-router.post("/users/:id/credit-adjust", async (req: Request, res: Response) => {
-  const session = (req as any).admin;
-  const amountDelta = Number(req.body?.amountDelta ?? req.body?.amount_delta);
-  const description = String(req.body?.description || "").trim();
-  if (!Number.isFinite(amountDelta) || amountDelta === 0) {
-    res.status(400).json({ success: false, message: "amountDelta 必须是非 0 数字" });
-    return;
+router.post("/users/:id/credit-adjust", requirePermission("billing.manage"), async (req: Request, res: Response) => {
+  const authorized = req as AdminAuthorizedRequest;
+  try {
+    const result = await applyAdminAdjustment({
+      kind: "credit",
+      userId: String(req.params.id),
+      amountDelta: Number(req.body?.amountDelta ?? req.body?.amount_delta),
+      reason: String(req.body?.reason || req.body?.description || ""),
+      idempotencyKey: typeof req.headers["idempotency-key"] === "string" ? req.headers["idempotency-key"] : "",
+      actorUserId: authorized.admin!.id,
+      actorRole: authorized.adminAccess!.role,
+      actorEmail: authorized.admin!.email,
+      requestId: getAdminRequestId(req, res),
+      ipAddress: getAdminClientIp(req),
+      userAgent: req.headers["user-agent"] || null,
+    });
+    setAdminAuditContext(req, { skipAutomatic: true });
+    res.json({
+      success: true,
+      data: { ...result.transaction, replayed: result.replayed },
+      message: result.replayed ? "已返回原调账结果" : "信控已调整",
+    });
+  } catch (error) {
+    if (error instanceof AdminAdjustmentError) {
+      res.status(error.status).json({ success: false, message: error.message, code: error.code });
+      return;
+    }
+    res.status(500).json({ success: false, message: sanitizeError(error) });
   }
-  if (Math.abs(amountDelta) > 100000) {
-    res.status(400).json({ success: false, message: "单次信控调整不能超过 100000 元" });
-    return;
-  }
-
-  const tx = await adminAdjustCredit({
-    userId: String(req.params.id),
-    amountDelta,
-    description,
-    actorId: session?.id || null,
-  });
-  if (!tx) {
-    res.status(400).json({ success: false, message: "信控调整失败，请确认用户为主账号且调整后信控不为负" });
-    return;
-  }
-  res.json({ success: true, data: tx, message: "信控已调整" });
 });
 
 // ========== 账单（全局总览 + 单用户下钻，只读） ==========
@@ -533,7 +551,7 @@ router.get("/models", async (_req: Request, res: Response) => {
 });
 
 // POST /api/admin/models — 新增或覆盖一个模型（全量 doc，严格校验）
-router.post("/models", async (req: Request, res: Response) => {
+router.post("/models", requirePermission("catalog.manage"), async (req: Request, res: Response) => {
   const session = (req as any).admin;
   const result = sanitizeModelDoc(req.body);
   if (!result.ok) {
@@ -550,7 +568,7 @@ router.post("/models", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/models/:id/disable — 从目录中隐藏某个模型
-router.post("/models/:id/disable", async (req: Request, res: Response) => {
+router.post("/models/:id/disable", requirePermission("catalog.manage"), async (req: Request, res: Response) => {
   const session = (req as any).admin;
   const id = String(req.params.id);
   try {
@@ -563,7 +581,7 @@ router.post("/models/:id/disable", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/admin/models/:id — 删除覆盖行（恢复静态默认；新增的模型则被移除）
-router.delete("/models/:id", async (req: Request, res: Response) => {
+router.delete("/models/:id", requirePermission("catalog.manage"), async (req: Request, res: Response) => {
   const id = String(req.params.id);
   try {
     const removed = await deleteOverride(id);

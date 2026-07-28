@@ -1,8 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/client";
-import { User, hashPassword, deleteSessionsByUserId } from "./users";
+import { User, hashPasswordAsync, deleteSessionsByUserId } from "./users";
 import { models } from "./models";
 import { normalizeAllowedModels } from "./model-access";
+import { validateNewPassword } from "../utils/password-policy";
 
 // docs/sub-accounts-spec.md §2
 
@@ -73,7 +74,8 @@ export async function createSubAccount(params: {
   const username = params.username.toLowerCase();
   const usernameError = validateUsername(username);
   if (usernameError) return { error: usernameError, status: 400 };
-  if (!params.password || params.password.length < 6) return { error: "密码至少 6 个字符", status: 400 };
+  const passwordError = validateNewPassword(params.password || "");
+  if (passwordError) return { error: passwordError, status: 400 };
 
   const quotaLimit = normalizeQuota(params.quotaLimit);
   const quotaPeriod = params.quotaPeriod === "monthly" ? "monthly" : params.quotaPeriod === "total" ? "total" : null;
@@ -81,26 +83,68 @@ export async function createSubAccount(params: {
 
   // 新建子账号默认无任何模型权限（[]），须主账号显式授权
   const allowed = sanitizeAllowedModels(params.allowedModels) ?? [];
-
-  const existing = await db.queryOne<{ id: string }>("SELECT id FROM users WHERE username = ?", [username]);
-  if (existing) return { error: "用户名已被占用", status: 409 };
-
-  const count = await countSubAccounts(params.ownerId);
-  if (count >= getSubAccountLimit()) return { error: `子账号数量已达上限（${getSubAccountLimit()}）`, status: 400 };
+  const preflightOwner = await db.queryOne<{
+    status: string | null;
+    parent_user_id: string | null;
+  }>("SELECT status, parent_user_id FROM users WHERE id = ?", [params.ownerId]);
+  if (!preflightOwner) return { error: "主账号不存在", status: 404 };
+  if (preflightOwner.parent_user_id) return { error: "子账号不能创建下级账号", status: 403 };
+  if ((preflightOwner.status || "active") !== "active") {
+    return { error: "主账号当前不可用", status: 403 };
+  }
+  if (await countSubAccounts(params.ownerId) >= getSubAccountLimit()) {
+    return { error: `子账号数量已达上限（${getSubAccountLimit()}）`, status: 400 };
+  }
 
   const id = uuidv4();
   const now = new Date().toISOString();
   const nickname = (params.nickname || username).slice(0, 20);
-  const user = await db.queryOne<User>(
-    `INSERT INTO users (id, phone, email, nickname, balance, password_hash, parent_user_id, username, status,
-                        quota_limit, quota_used, quota_period, quota_reset_at, allowed_models, created_at, updated_at)
-     VALUES (?, NULL, NULL, ?, 0, ?, ?, ?, 'active', ?, 0, ?, ?, ?, ?, ?)
-     RETURNING *`,
-    [id, nickname, hashPassword(params.password), params.ownerId, username,
-     quotaLimit, quotaLimit != null ? (quotaPeriod || "total") : null, quotaPeriod === "monthly" ? now : null,
-     JSON.stringify(allowed), now, now]
-  );
-  return { user: user! };
+  const passwordHash = await hashPasswordAsync(params.password);
+
+  return db.transaction(async (tx) => {
+    // Every creator for this owner serializes on the same authoritative row.
+    // The count and INSERT therefore form one capacity decision across all
+    // backend nodes; a process-local mutex would not protect production.
+    const owner = await tx.queryOne<{
+      id: string;
+      status: string | null;
+      parent_user_id: string | null;
+    }>(
+      "SELECT id, status, parent_user_id FROM users WHERE id = ? FOR UPDATE",
+      [params.ownerId]
+    );
+    if (!owner) return { error: "主账号不存在", status: 404 };
+    if (owner.parent_user_id) return { error: "子账号不能创建下级账号", status: 403 };
+    if ((owner.status || "active") !== "active") {
+      return { error: "主账号当前不可用", status: 403 };
+    }
+
+    const existing = await tx.queryOne<{ id: string }>(
+      "SELECT id FROM users WHERE username = ?",
+      [username]
+    );
+    if (existing) return { error: "用户名已被占用", status: 409 };
+
+    const countRow = await tx.queryOne<{ cnt: string | number }>(
+      "SELECT COUNT(*) as cnt FROM users WHERE parent_user_id = ? AND status != 'deleted'",
+      [params.ownerId]
+    );
+    const limit = getSubAccountLimit();
+    if (Number(countRow?.cnt || 0) >= limit) {
+      return { error: `子账号数量已达上限（${limit}）`, status: 400 };
+    }
+
+    const user = await tx.queryOne<User>(
+      `INSERT INTO users (id, phone, email, nickname, balance, password_hash, parent_user_id, username, status,
+                          quota_limit, quota_used, quota_period, quota_reset_at, allowed_models, created_at, updated_at)
+       VALUES (?, NULL, NULL, ?, 0, ?, ?, ?, 'active', ?, 0, ?, ?, ?, ?, ?)
+       RETURNING *`,
+      [id, nickname, passwordHash, params.ownerId, username,
+       quotaLimit, quotaLimit != null ? (quotaPeriod || "total") : null, quotaPeriod === "monthly" ? now : null,
+       JSON.stringify(allowed), now, now]
+    );
+    return { user: user! };
+  });
 }
 
 export async function listSubAccounts(ownerId: string): Promise<SubAccountSummary[]> {
@@ -210,18 +254,39 @@ export async function updateSubAccount(
 export async function resetSubAccountPassword(
   ownerId: string,
   subId: string,
-  password: string
+  password: string,
+  testHooks?: {
+    afterPasswordUpdate?: () => Promise<void> | void;
+  }
 ): Promise<{ error: string; status: number } | { ok: true }> {
-  if (!password || password.length < 6) return { error: "密码至少 6 个字符", status: 400 };
-  const sub = await getSubAccountForOwner(ownerId, subId);
-  if (!sub) return { error: "子账号不存在", status: 404 };
-  await db.execute("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?", [
-    hashPassword(password),
-    new Date().toISOString(),
-    subId,
-  ]);
-  await deleteSessionsByUserId(subId); // 重置密码后踢下线
-  return { ok: true };
+  const passwordError = validateNewPassword(password || "");
+  if (passwordError) return { error: passwordError, status: 400 };
+  const preflight = await getSubAccountForOwner(ownerId, subId);
+  if (!preflight) return { error: "子账号不存在", status: 404 };
+  const passwordHash = await hashPasswordAsync(password);
+  return db.transaction(async (tx) => {
+    // The ownership check and user-row lock share the transaction with the
+    // credential update and session revocation. Password logins take a shared
+    // lock on this same row, so an old password cannot mint a session in the
+    // update/delete gap.
+    const sub = await tx.queryOne<{ id: string }>(
+      `SELECT id
+         FROM users
+        WHERE id = ? AND parent_user_id = ? AND status != 'deleted'
+        FOR UPDATE`,
+      [subId, ownerId]
+    );
+    if (!sub) return { error: "子账号不存在", status: 404 };
+    await tx.execute(
+      "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+      [passwordHash, new Date().toISOString(), subId]
+    );
+    if (testHooks?.afterPasswordUpdate) {
+      await testHooks.afterPasswordUpdate();
+    }
+    await tx.execute("DELETE FROM sessions WHERE user_id = ?", [subId]);
+    return { ok: true };
+  });
 }
 
 /** 软删除（spec §5）：保留 usage_logs/transactions 历史；删 keys（key 无历史价值）与 sessions；释放 username */

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
-import { requireAdmin } from "../middleware/admin";
+import { requirePermission } from "../middleware/admin-access";
+import { auditAdminWrite } from "../middleware/admin-audit";
 import {
   deleteUserModelDiscount,
   listUserModelDiscounts,
@@ -8,7 +9,14 @@ import {
 
 const router = Router();
 
-router.use("/admin", requireAdmin);
+router.use("/admin", auditAdminWrite, requirePermission("billing.read"));
+router.use("/admin", (req: Request, res: Response, next) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase())) {
+    next();
+    return;
+  }
+  requirePermission("billing.manage")(req, res, next);
+});
 
 router.get("/admin/user-model-discounts", async (req: Request, res: Response) => {
   const userId = typeof req.query.userId === "string" ? req.query.userId : undefined;

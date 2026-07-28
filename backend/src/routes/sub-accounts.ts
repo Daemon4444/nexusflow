@@ -8,6 +8,11 @@ import {
   softDeleteSubAccount,
 } from "../data/sub-accounts";
 import { parseAllowedModels } from "../data/model-access";
+import { getTrustedClientIp } from "../utils/client-ip";
+import {
+  releaseKdfAdmission,
+  reserveKdfAdmission,
+} from "../services/kdf-admission";
 
 // docs/sub-accounts-spec.md §6 — 全部接口要求：已登录 + 发起者是主账号
 const router = Router();
@@ -41,15 +46,33 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const result = await createSubAccount({
-    ownerId: owner.id,
-    username: String(username),
-    password: String(password),
-    nickname: nickname ? String(nickname) : undefined,
-    quotaLimit,
-    quotaPeriod,
-    allowedModels: Array.isArray(allowedModels) ? allowedModels : undefined,
-  });
+  const admission = await reserveKdfAdmission(
+    `subaccount-owner:${owner.id}`,
+    getTrustedClientIp(req)
+  );
+  if (!admission.allowed) {
+    res.status(admission.reason === "redis_unavailable" ? 503 : 429).json({
+      success: false,
+      message: admission.reason === "redis_unavailable"
+        ? "密码服务暂不可用"
+        : "子账号密码操作过于频繁",
+    });
+    return;
+  }
+  let result: Awaited<ReturnType<typeof createSubAccount>>;
+  try {
+    result = await createSubAccount({
+      ownerId: owner.id,
+      username: String(username),
+      password: String(password),
+      nickname: nickname ? String(nickname) : undefined,
+      quotaLimit,
+      quotaPeriod,
+      allowedModels: Array.isArray(allowedModels) ? allowedModels : undefined,
+    });
+  } finally {
+    await releaseKdfAdmission(admission).catch(() => undefined);
+  }
   if ("error" in result) {
     res.status(result.status).json({ success: false, message: result.error });
     return;
@@ -118,7 +141,29 @@ router.post("/:id/reset-password", async (req: Request, res: Response) => {
   if (!owner) return;
 
   const { password } = req.body || {};
-  const result = await resetSubAccountPassword(owner.id, req.params.id as string, String(password || ""));
+  const admission = await reserveKdfAdmission(
+    `subaccount-owner:${owner.id}`,
+    getTrustedClientIp(req)
+  );
+  if (!admission.allowed) {
+    res.status(admission.reason === "redis_unavailable" ? 503 : 429).json({
+      success: false,
+      message: admission.reason === "redis_unavailable"
+        ? "密码服务暂不可用"
+        : "子账号密码操作过于频繁",
+    });
+    return;
+  }
+  let result: Awaited<ReturnType<typeof resetSubAccountPassword>>;
+  try {
+    result = await resetSubAccountPassword(
+      owner.id,
+      req.params.id as string,
+      String(password || "")
+    );
+  } finally {
+    await releaseKdfAdmission(admission).catch(() => undefined);
+  }
   if ("error" in result) {
     res.status(result.status).json({ success: false, message: result.error });
     return;

@@ -26,6 +26,7 @@ import {
   cancelVerificationCode,
   reserveVerificationCode,
   type ReserveVerificationCodeResult,
+  type VerificationCodeResult,
   VerificationStoreUnavailableError,
   verifyVerificationCode,
 } from "./verification-code-store";
@@ -118,6 +119,7 @@ export type SendEmailCodeResult =
   | {
       success: true;
       message: string;
+      challengeToken: string;
     }
   | {
       success: false;
@@ -126,7 +128,10 @@ export type SendEmailCodeResult =
     };
 
 /** 发送邮箱验证码 */
-export async function sendEmailCode(email: string): Promise<SendEmailCodeResult> {
+export async function sendEmailCode(
+  email: string,
+  options: { sourceIp?: string } = {}
+): Promise<SendEmailCodeResult> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { success: false, message: "邮箱格式不正确", status: 400 };
   }
@@ -147,7 +152,7 @@ export async function sendEmailCode(email: string): Promise<SendEmailCodeResult>
   let reserved: ReserveVerificationCodeResult;
 
   try {
-    reserved = await reserveVerificationCode("email", key, code);
+    reserved = await reserveVerificationCode("email", key, code, options);
   } catch (error) {
     if (error instanceof VerificationStoreUnavailableError) {
       console.error("[EMAIL] 验证码存储不可用，拒绝发送");
@@ -190,15 +195,20 @@ export async function sendEmailCode(email: string): Promise<SendEmailCodeResult>
   return {
     success: true,
     message: isReal ? "验证码已发送到您的邮箱" : "验证码已发送（测试模式，请查看服务器日志）",
+    challengeToken: reserved.reservation.token,
   };
 }
 
 /** 验证邮箱验证码 */
-export async function verifyEmailCode(email: string, code: string): Promise<boolean> {
+export async function verifyEmailCode(
+  email: string,
+  code: string,
+  options: { challengeToken: string; sourceIp?: string }
+): Promise<VerificationCodeResult | "unavailable"> {
   try {
-    return await verifyVerificationCode("email", email, code);
+    return await verifyVerificationCode("email", email, code, options);
   } catch {
     console.error("[EMAIL] 验证码存储不可用，拒绝验证");
-    return false;
+    return "unavailable";
   }
 }

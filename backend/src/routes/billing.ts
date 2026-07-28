@@ -15,8 +15,10 @@ import {
   createPaymentOrder,
   getPaymentOrder,
   getPaymentOrderForUser,
-  markOrderPaid,
   markOrderPending,
+  paymentAmountToCents,
+  settlePaidPaymentOrder,
+  settleQueriedPaymentOrder,
   setOrderStatus,
 } from "../data/paymentOrders";
 
@@ -423,51 +425,42 @@ router.post("/alipay/notify", async (req: Request, res: Response) => {
     return;
   }
 
-  // 4. 防止重复处理
-  if (order.status === "paid" && order.processed) {
-    res.send("success");
-    return;
-  }
-
-  // 5. 金额校验
-  if (!Number.isFinite(totalAmount) || Math.abs(totalAmount - order.amount) > 0.01) {
+  // 4. 金额校验
+  const notifiedCents = paymentAmountToCents(totalAmount);
+  const orderCents = paymentAmountToCents(order.amount);
+  if (notifiedCents === null || orderCents === null || notifiedCents !== orderCents) {
     console.error(`[ALIPAY-NOTIFY] 金额不匹配: 订单=${order.amount}, 支付=${totalAmount}`);
     res.status(400).send("fail");
     return;
   }
 
-  // 6. 解析附加参数获取 userId
-  let userId = order.user_id;
-  if (params.passback_params) {
-    try {
-      const extra = JSON.parse(decodeURIComponent(params.passback_params));
-      if (extra.userId) userId = extra.userId;
-    } catch {}
-  }
-
-  // 7. 原子标记订单为已支付（互斥门：只有一个调用者能成功）
-  const claimed = await markOrderPaid({
+  // 5. 订单、余额和充值账本在同一事务内结算。订单记录的 user_id
+  // 是唯一权威主体；不接受回调附加字段覆盖收款目标。
+  const settlement = await settlePaidPaymentOrder({
     orderNo: outTradeNo,
+    paidAmount: totalAmount,
     providerTradeNo: params.trade_no,
     notifyPayload: JSON.stringify(params),
-    processed: true,
   });
-  if (!claimed) {
-    console.log(`[ALIPAY-NOTIFY] 订单已被处理（跳过重复充值）: ${outTradeNo}`);
+  if (settlement.status === "amount_mismatch") {
+    res.status(400).send("fail");
+    return;
+  }
+  if (settlement.status === "order_not_found") {
     res.send("success");
     return;
   }
-
-  // 8. 执行充值（markOrderPaid 已成功，此处为唯一执行者）
-  const tx = await recharge(userId, totalAmount, `支付宝充值 ¥${totalAmount.toFixed(2)} (${outTradeNo})`);
-  if (tx) {
-    console.log(`[ALIPAY-NOTIFY] 充值成功: 用户=${userId}, 金额=¥${totalAmount}, 订单=${outTradeNo}`);
-  } else {
-    console.error(`[ALIPAY-NOTIFY] ⚠️ 订单已标记支付但充值失败，需人工介入: 用户=${userId}, 金额=¥${totalAmount}, 订单=${outTradeNo}`);
-    await setOrderStatus(outTradeNo, "failed");
+  if (settlement.status !== "settled") {
+    console.error(`[ALIPAY-NOTIFY] 结算未提交: status=${settlement.status}, order=${outTradeNo}`);
+    res.status(500).send("fail");
+    return;
   }
+  console.log(
+    `[ALIPAY-NOTIFY] 结算${settlement.replayed ? "重放" : "成功"}: `
+    + `用户=${order.user_id}, 金额=¥${totalAmount}, 订单=${outTradeNo}`
+  );
 
-  // 9. 返回 success 告知支付宝停止通知
+  // 6. 只有完整事务提交后才返回 success，支付宝重试不会重复入账。
   res.send("success");
 });
 
@@ -488,8 +481,23 @@ router.get("/order/status", async (req: Request, res: Response) => {
     return;
   }
 
-  // 如果本地已标记为已支付
+  // 已支付订单也走幂等结算，用于修复旧版本可能留下的
+  // paid/processed 但无充值账本的中间状态。
   if (order.status === "paid") {
+    const settlement = await settlePaidPaymentOrder({
+      orderNo,
+      paidAmount: Number(order.amount),
+      providerTradeNo: order.provider_trade_no || undefined,
+      notifyPayload: order.notify_payload || undefined,
+    });
+    if (settlement.status !== "settled") {
+      res.status(500).json({
+        success: false,
+        message: "支付已确认但本地入账尚未完成，请稍后重试",
+        code: "payment_settlement_pending",
+      });
+      return;
+    }
     res.json({ success: true, data: { status: "paid" } });
     return;
   }
@@ -497,26 +505,37 @@ router.get("/order/status", async (req: Request, res: Response) => {
   // 主动查询支付宝
   const tradeResult = await queryTradeStatus(orderNo);
   if (tradeResult.success && tradeResult.status === "TRADE_SUCCESS") {
-    // 支付成功但回调还没到，手动处理
-    if (!order.processed) {
-      // 原子标记订单为已支付（互斥门：防止与 notify 回调并发充值）
-      const claimed = await markOrderPaid({
-        orderNo,
-        providerTradeNo: tradeResult.tradeNo,
-        notifyPayload: JSON.stringify(tradeResult.raw || {}),
-        processed: true,
+    const settlement = await settleQueriedPaymentOrder({
+      orderNo,
+      providerAmount: tradeResult.amount,
+      providerTradeNo: tradeResult.tradeNo,
+      notifyPayload: JSON.stringify(tradeResult.raw || {}),
+    });
+    if (settlement.status === "invalid_provider_amount") {
+      console.error(`[ALIPAY-POLL] provider amount invalid: order=${orderNo}`);
+      res.status(502).json({
+        success: false,
+        message: "支付渠道返回的金额无效，请稍后重试",
+        code: "payment_provider_amount_invalid",
       });
-      if (claimed) {
-        const tx = await recharge(order.user_id, order.amount, `支付宝充值 ¥${order.amount.toFixed(2)} (${orderNo})`);
-        if (tx) {
-          console.log(`[ALIPAY-POLL] 充值成功: 用户=${order.user_id}, 金额=¥${order.amount}`);
-        } else {
-          console.error(`[ALIPAY-POLL] ⚠️ 订单已标记支付但充值失败，需人工介入: 用户=${order.user_id}, 金额=¥${order.amount}`);
-          await setOrderStatus(orderNo, "failed");
-        }
-      } else {
-        console.log(`[ALIPAY-POLL] 订单已被其他路径处理（跳过重复充值）: ${orderNo}`);
-      }
+      return;
+    }
+    if (settlement.status === "amount_mismatch") {
+      console.error(`[ALIPAY-POLL] provider amount mismatch: order=${orderNo}`);
+      res.status(409).json({
+        success: false,
+        message: "支付金额与订单不一致，已拒绝入账",
+        code: "payment_amount_mismatch",
+      });
+      return;
+    }
+    if (settlement.status !== "settled") {
+      res.status(500).json({
+        success: false,
+        message: "支付已确认但入账失败，请稍后重试",
+        code: "payment_settlement_failed",
+      });
+      return;
     }
     res.json({ success: true, data: { status: "paid" } });
     return;

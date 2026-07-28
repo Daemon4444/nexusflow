@@ -75,20 +75,33 @@ export async function getRecentTasks(limit: number = 50): Promise<AsyncTask[]> {
 }
 
 export async function setUpstreamTaskId(taskId: string, upstreamId: string): Promise<void> {
-  await db.execute("UPDATE async_tasks SET upstream_task_id = ?, status = 'running', updated_at = ? WHERE id = ?", [
-    upstreamId,
-    new Date().toISOString(),
-    taskId,
-  ]);
+  await db.execute(
+    `UPDATE async_tasks
+     SET upstream_task_id = ?, status = 'running', updated_at = ?
+     WHERE id = ? AND status = 'pending' AND upstream_task_id IS NULL`,
+    [upstreamId, new Date().toISOString(), taskId]
+  );
 }
 
-export async function updateTaskStatus(taskId: string, status: string, progress: number): Promise<void> {
-  await db.execute("UPDATE async_tasks SET status = ?, progress = ?, updated_at = ? WHERE id = ?", [
-    status,
-    progress,
-    new Date().toISOString(),
-    taskId,
-  ]);
+export async function updateTaskStatus(
+  taskId: string,
+  status: "pending" | "running",
+  progress: number
+): Promise<boolean> {
+  const nextStatus = status === "running" ? "running" : "pending";
+  const nextProgress = Math.max(0, Math.min(99, Math.floor(progress || 0)));
+  const changed = await db.execute(
+    `UPDATE async_tasks
+     SET status = CASE
+           WHEN status = 'pending' AND ? = 'running' THEN 'running'
+           ELSE status
+         END,
+         progress = CASE WHEN progress < ? THEN ? ELSE progress END,
+         updated_at = ?
+     WHERE id = ? AND status IN ('pending', 'running')`,
+    [nextStatus, nextProgress, nextProgress, new Date().toISOString(), taskId]
+  );
+  return changed > 0;
 }
 
 export async function completeTask(taskId: string, output: any, cost: number = 0): Promise<boolean> {

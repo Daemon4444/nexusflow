@@ -23,7 +23,7 @@ interface AIModel {
   category: string;
   promptPrice: number;
   completionPrice: number;
-  pricingType?: "token" | "per-image" | "per-second";
+  pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   pricingTiers?: PricingTier[];
   tokenPricingTiers?: TokenPricingTier[];
 }
@@ -180,7 +180,9 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
 
                 {/* Model rows */}
                 {providerModels.map((model) => {
-                  const isMedia = model.pricingType === "per-second" || model.pricingType === "per-image";
+                  const isMedia = model.pricingType === "per-second"
+                    || model.pricingType === "per-image"
+                    || model.pricingType === "per-10k-characters";
                   const hasTiers = model.pricingTiers && model.pricingTiers.length > 0;
                   const hasTokenTiers = model.tokenPricingTiers && model.tokenPricingTiers.length > 0;
                   return (
@@ -220,7 +222,13 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                       }}>
                         {model.pricingTiers!.map((tier, idx) => (
                           <span key={idx} style={{ whiteSpace: "nowrap" }}>
-                            {tier.label}：¥{tier.price}{model.pricingType === "per-second" ? "/秒" : "/张"}
+                            {tier.label}：¥{tier.price}{
+                              model.pricingType === "per-second"
+                                ? "/秒"
+                                : model.pricingType === "per-10k-characters"
+                                  ? "/万字符"
+                                  : "/张"
+                            }
                           </span>
                         ))}
                       </span>
@@ -232,7 +240,13 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                         color: "var(--text-primary)",
                         fontVariantNumeric: "tabular-nums",
                       }}>
-                        ¥{model.promptPrice}{model.pricingType === "per-second" ? "/秒" : "/张"}
+                        ¥{model.promptPrice}{
+                          model.pricingType === "per-second"
+                            ? "/秒"
+                            : model.pricingType === "per-10k-characters"
+                              ? "/万字符"
+                              : "/张"
+                        }
                       </span>
                     ) : hasTokenTiers ? (
                       <span style={{

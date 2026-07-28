@@ -24,10 +24,19 @@ import {
 import { adaptImageRequest, pollDashScopeTask } from "../services/adapters";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
 import { releaseReservation, reserveBalanceWithReason } from "../data/billing";
-import { getEffectiveRateLimit } from "../data/ratelimits";
 import { isModelAllowed } from "../data/model-access";
-import { checkRPM } from "../services/rate-limiter";
+import { reserveAccountQpm } from "../services/account-rate-limiter";
 import { sendBillingReservationFailure } from "../utils/billing-response";
+import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
+import { safeProviderFetch } from "../services/outbound-url-policy";
+import { getProviderById } from "../data/providers";
+import { getProviderChannel } from "../data/provider-channels";
+import {
+  acquireProviderCapacity,
+  releaseProviderCapacity,
+  type ProviderRequestCapacityLease,
+} from "../services/scheduler";
+import { pollTaskWithControl } from "../services/task-poll-control";
 
 const router = Router();
 
@@ -38,10 +47,6 @@ type Caller = {
   allowedModels: string | null;
   errorIdentity: { id: string | null; user_id: string | null } | null;
 };
-
-function getApiKey(): string {
-  return process.env.DASHSCOPE_API_KEY || "";
-}
 
 function extractToken(req: Request): string | null {
   const auth = req.headers.authorization;
@@ -139,19 +144,29 @@ router.post("/generate", async (req: Request, res: Response) => {
   }
 
   if (caller.userId) {
-    const userLimits = await getEffectiveRateLimit(caller.userId, modelId);
-    const rpmCheck = await checkRPM(`user:${caller.userId}:${modelId}`, userLimits.qpm);
+    const rpmCheck = await reserveAccountQpm({
+      userId: caller.userId,
+      parentUserId: caller.parentUserId,
+      modelId,
+    });
     if (!rpmCheck.allowed) {
-      res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${userLimits.qpm}/min，请 ${Math.ceil(rpmCheck.resetMs / 1000)} 秒后重试` });
+      res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${rpmCheck.limit}/min` });
       return;
     }
   }
 
-  const DASHSCOPE_API_KEY = getApiKey();
-  if (!DASHSCOPE_API_KEY) {
-    res.status(500).json({ success: false, message: "未配置 API Key" });
+  const resolvedUpstream = await resolveUpstream(modelId, {
+    region: getRequestedRegion(req),
+    userId: caller.userId,
+  });
+  if (!resolvedUpstream.ok) {
+    res.status(resolvedUpstream.status).json({
+      success: false,
+      ...upstreamErrorBody(resolvedUpstream),
+    });
     return;
   }
+  const upstream = resolvedUpstream.upstream;
 
   const requiresPrompt =
     modelId !== "wanx-style-repaint" &&
@@ -194,21 +209,52 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
   const reservation = reservationResult.reservation;
+  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
 
   // Create internal task record
   let task;
   try {
+    const capacity = await acquireProviderCapacity(upstream, modelId, 0);
+    if (!capacity.ok) {
+      await releaseReservation(reservation.id, "provider_capacity_unavailable");
+      res.status(503).json({
+        success: false,
+        message: capacity.message,
+        code: capacity.code,
+      });
+      return;
+    }
+    providerCapacityLease = capacity.lease;
+
     task = await createTask({
       userId: caller.userId,
       apiKeyId: caller.apiKeyId,
       type: "image",
       model: modelId,
-      provider: "dashscope",
-      input: { prompt, negative_prompt, size, n, ref_img },
+      provider: upstream.providerId,
+      input: {
+        prompt,
+        negative_prompt,
+        size,
+        n,
+        ref_img,
+        _route: {
+          channelId: upstream.channelId,
+          region: upstream.region,
+          nativeBaseUrl: upstream.nativeBaseUrl,
+          managed: upstream.managed,
+          rpm: upstream.rpm,
+          tpm: upstream.tpm,
+          dailyLimit: upstream.dailyLimit,
+          concurrentLimit: upstream.concurrentLimit,
+        },
+      },
       billingReservationId: reservation.id,
     });
   } catch (error) {
     await releaseReservation(reservation.id);
+    await releaseProviderCapacity(providerCapacityLease, 0);
+    providerCapacityLease = null;
     throw error;
   }
 
@@ -216,7 +262,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     // Use the correct model ID for the API
     const actualModel = getActualModelId(modelId);
     
-    const adapted = adaptImageRequest(DASHSCOPE_API_KEY, {
+    const adapted = adaptImageRequest(upstream.apiKey, {
       model: actualModel,
       prompt,
       negative_prompt,
@@ -229,9 +275,9 @@ router.post("/generate", async (req: Request, res: Response) => {
       style_ref_url,
       model_version,
       ref_prompt_weight,
-    });
+    }, { nativeBase: upstream.nativeBaseUrl });
 
-    const response = await fetch(adapted.url, {
+    const response = await safeProviderFetch(adapted.url, {
       method: adapted.method,
       headers: adapted.headers,
       body: JSON.stringify(adapted.body),
@@ -306,6 +352,8 @@ router.post("/generate", async (req: Request, res: Response) => {
       success: false,
       message: `请求失败: ${err.message}`,
     });
+  } finally {
+    await releaseProviderCapacity(providerCapacityLease, 0);
   }
 });
 
@@ -313,7 +361,8 @@ router.post("/generate", async (req: Request, res: Response) => {
 router.get("/status/:taskId", async (req: Request, res: Response) => {
   const taskId = req.params.taskId as string;
 
-  if (!(await authenticateCaller(req))) {
+  const caller = await authenticateCaller(req);
+  if (!caller) {
     res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
     return;
   }
@@ -361,8 +410,13 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
 
     // Poll upstream
     try {
-      const DASHSCOPE_API_KEY = getApiKey();
-      if (!DASHSCOPE_API_KEY) {
+      const taskProvider = await getProviderById(task.provider);
+      const taskChannelId = task.input?._route?.channelId;
+      const taskChannel = taskChannelId
+        ? await getProviderChannel(task.provider, taskChannelId)
+        : null;
+      const taskApiKey = taskChannel?.api_key || taskProvider?.api_key || "";
+      if (!taskApiKey) {
         res.status(503).json({
           success: false,
           message: "图像供应商尚未配置",
@@ -370,21 +424,51 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
         });
         return;
       }
-      const result = await pollDashScopeTask(DASHSCOPE_API_KEY, task.upstream_task_id);
+      const controlledPoll = await pollTaskWithControl({
+        task,
+        actorId: caller.apiKeyId
+          ? `api-key:${caller.apiKeyId}`
+          : `session:${caller.userId}`,
+        userId: caller.userId,
+        poll: () => pollDashScopeTask(
+          taskApiKey,
+          task.upstream_task_id!,
+          task.input?._route?.nativeBaseUrl
+        ),
+      });
+      if (!controlledPoll.ok) {
+        const storeUnavailable =
+          controlledPoll.reason === "control_store_unavailable"
+          || controlledPoll.reason === "provider_capacity_store_unavailable";
+        res
+          .status(storeUnavailable ? 503 : 429)
+          .set("Retry-After", storeUnavailable ? "5" : "2")
+          .json({
+            success: false,
+            message: storeUnavailable
+              ? "任务状态服务暂时不可用"
+              : "任务查询过于频繁或供应商容量不足",
+            code: controlledPoll.reason,
+          });
+        return;
+      }
+      if (controlledPoll.state === "in_flight") {
+        res.json({
+          success: true,
+          data: {
+            task_id: task.id,
+            task_status: task.status === "running" ? "RUNNING" : "PENDING",
+          },
+        });
+        return;
+      }
+      const result = controlledPoll.result;
 
       if (result.status === "succeeded") {
         const model = models.find((m) => m.id === task.model);
         const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
         const won = await completeTask(task.id, result.output, cost);
         if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
-        res.json({
-          success: true,
-          data: {
-            task_id: task.id,
-            task_status: "SUCCEEDED",
-            results: result.output?.results,
-          },
-        });
       } else if (result.status === "failed") {
         const won = await failTask(task.id, result.error || "Task failed");
         if (won) await billAsyncError(
@@ -393,24 +477,29 @@ router.get("/status/:taskId", async (req: Request, res: Response) => {
           Date.now() - new Date(task.created_at).getTime(),
           task.billing_reservation_id,
         );
-        res.json({
-          success: true,
-          data: {
-            task_id: task.id,
-            task_status: "FAILED",
-            error: result.error,
-          },
-        });
       } else {
-        await updateTaskStatus(task.id, result.status, result.progress || 0);
-        res.json({
-          success: true,
-          data: {
-            task_id: task.id,
-            task_status: result.status === "running" ? "RUNNING" : "PENDING",
-          },
-        });
+        await updateTaskStatus(
+          task.id,
+          result.status === "running" ? "running" : "pending",
+          result.progress || 0
+        );
       }
+      const persistedTask = (await getTaskById(task.id)) || task;
+      res.json({
+        success: true,
+        data: {
+          task_id: persistedTask.id,
+          task_status: persistedTask.status === "succeeded"
+            ? "SUCCEEDED"
+            : persistedTask.status === "failed"
+              ? "FAILED"
+              : persistedTask.status === "running"
+                ? "RUNNING"
+                : "PENDING",
+          results: persistedTask.output?.results,
+          error: persistedTask.error_message,
+        },
+      });
       return;
 
     } catch (err: any) {

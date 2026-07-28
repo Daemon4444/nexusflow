@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { sanitizeError } from "../utils/sanitize-error";
 import { getOverview, getDaily, getByModel, getRecent, getUsageLogs, getPerformanceOverview, getPerformanceHourly, getPerformanceByModel, getRecentPerformance } from "../data/usage";
 import { validateSession } from "../data/users";
-import { isAdminSession } from "../middleware/admin";
+import { getAdminAccessForUser } from "../data/admin-access";
 import { listUserModelDiscounts, UserModelDiscount } from "../data/user-discounts";
 
 const router = Router();
@@ -22,11 +22,58 @@ async function getSession(req: Request) {
   return await validateSession(auth.slice(7).trim());
 }
 
-async function shouldUseGlobalScope(req: Request) {
-  const session = await getSession(req);
-  if (!session) return false;
-  return req.query.scope === "all" && isAdminSession(session);
+function shouldUseGlobalScope(req: Request): boolean {
+  return (req as Request & { globalUsageScope?: boolean }).globalUsageScope === true;
 }
+
+type GlobalUsageRequest = Request & {
+  globalUsageScope?: boolean;
+  globalUsageCanReadFinancials?: boolean;
+};
+
+function canReadGlobalFinancials(req: Request): boolean {
+  return (req as GlobalUsageRequest).globalUsageCanReadFinancials === true;
+}
+
+function omitUsageFinancialFields<T extends Record<string, any>>(
+  value: T,
+  fields: string[] = ["cost"]
+): Partial<T> {
+  const output: Record<string, any> = { ...value };
+  for (const field of fields) delete output[field];
+  return output as Partial<T>;
+}
+
+// `scope=all` is a privileged cross-tenant read, not a presentation hint.
+// Resolve it through the same role engine and demo hard-deny as the real admin
+// control plane. Unauthorized requests fail explicitly instead of silently
+// falling back to a user scope that can hide authorization regressions.
+router.use(async (req: Request, res: Response, next) => {
+  if (req.query.scope !== "all") {
+    next();
+    return;
+  }
+  const session = await getSession(req);
+  if (!session) {
+    res.status(401).json({ success: false, message: "未登录" });
+    return;
+  }
+  const access = await getAdminAccessForUser(session);
+  if (!access || !access.permissions.includes("traffic.read")) {
+    res.status(403).json({
+      success: false,
+      message: "无权读取全局用量",
+      code: "global_usage_forbidden",
+    });
+    return;
+  }
+  const scoped = req as GlobalUsageRequest;
+  scoped.globalUsageScope = true;
+  scoped.globalUsageCanReadFinancials =
+    access.permissions.includes("billing.read") ||
+    access.permissions.includes("finance.read");
+  next();
+});
 
 router.get("/", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
@@ -35,10 +82,13 @@ router.get("/", async (req: Request, res: Response) => {
     return;
   }
   const limit = Math.min(Number(req.query.limit) || 100, 1000);
-  const globalScope = await shouldUseGlobalScope(req);
+  const globalScope = shouldUseGlobalScope(req);
+  const records = await getUsageLogs(limit, globalScope ? undefined : userId);
   res.json({
     success: true,
-    data: await getUsageLogs(limit, globalScope ? undefined : userId),
+    data: globalScope && !canReadGlobalFinancials(req)
+      ? records.map((item) => omitUsageFinancialFields(item))
+      : records,
   });
 });
 
@@ -48,7 +98,14 @@ router.get("/overview", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: await getOverview((await shouldUseGlobalScope(req)) ? undefined : userId) });
+  const globalScope = shouldUseGlobalScope(req);
+  const data = await getOverview(globalScope ? undefined : userId);
+  res.json({
+    success: true,
+    data: globalScope && !canReadGlobalFinancials(req)
+      ? omitUsageFinancialFields(data, ["totalCost"])
+      : data,
+  });
 });
 
 router.get("/daily", async (req: Request, res: Response) => {
@@ -57,7 +114,14 @@ router.get("/daily", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: await getDaily((await shouldUseGlobalScope(req)) ? undefined : userId) });
+  const globalScope = shouldUseGlobalScope(req);
+  const data = await getDaily(globalScope ? undefined : userId);
+  res.json({
+    success: true,
+    data: globalScope && !canReadGlobalFinancials(req)
+      ? data.map((item: any) => omitUsageFinancialFields(item))
+      : data,
+  });
 });
 
 router.get("/by-model", async (req: Request, res: Response) => {
@@ -66,7 +130,14 @@ router.get("/by-model", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: await getByModel((await shouldUseGlobalScope(req)) ? undefined : userId) });
+  const globalScope = shouldUseGlobalScope(req);
+  const data = await getByModel(globalScope ? undefined : userId);
+  res.json({
+    success: true,
+    data: globalScope && !canReadGlobalFinancials(req)
+      ? data.map((item: any) => omitUsageFinancialFields(item))
+      : data,
+  });
 });
 
 function findMatchingDiscount(modelId: string, discounts: UserModelDiscount[]): UserModelDiscount | null {
@@ -87,9 +158,21 @@ router.get("/recent", async (req: Request, res: Response) => {
     return;
   }
   const limit = Math.min(Number(req.query.limit) || 50, 200);
-  const globalScope = await shouldUseGlobalScope(req);
+  const globalScope = shouldUseGlobalScope(req);
   const records = await getRecent(globalScope ? undefined : userId, limit);
-  const discounts = await listUserModelDiscounts(globalScope ? undefined : userId);
+  if (globalScope) {
+    res.json({
+      success: true,
+      // A cross-tenant row has no single discount owner. Stored realized cost
+      // is authoritative; tenant-specific discounts must never be applied to
+      // another tenant's records.
+      data: canReadGlobalFinancials(req)
+        ? records
+        : records.map((item: any) => omitUsageFinancialFields(item)),
+    });
+    return;
+  }
+  const discounts = await listUserModelDiscounts(userId);
   const enriched = records.map((r: any) => {
     const d = findMatchingDiscount(r.model, discounts);
     const rate = d ? d.discount_rate : 1;
@@ -110,7 +193,7 @@ router.get("/monitor/overview", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: await getPerformanceOverview((await shouldUseGlobalScope(req)) ? undefined : userId) });
+  res.json({ success: true, data: await getPerformanceOverview(shouldUseGlobalScope(req) ? undefined : userId) });
 });
 
 router.get("/monitor/hourly", async (req: Request, res: Response) => {
@@ -119,7 +202,7 @@ router.get("/monitor/hourly", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: await getPerformanceHourly((await shouldUseGlobalScope(req)) ? undefined : userId) });
+  res.json({ success: true, data: await getPerformanceHourly(shouldUseGlobalScope(req) ? undefined : userId) });
 });
 
 router.get("/monitor/by-model", async (req: Request, res: Response) => {
@@ -128,7 +211,7 @@ router.get("/monitor/by-model", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  res.json({ success: true, data: await getPerformanceByModel((await shouldUseGlobalScope(req)) ? undefined : userId) });
+  res.json({ success: true, data: await getPerformanceByModel(shouldUseGlobalScope(req) ? undefined : userId) });
 });
 
 router.get("/monitor/recent", async (req: Request, res: Response) => {
@@ -138,7 +221,14 @@ router.get("/monitor/recent", async (req: Request, res: Response) => {
     return;
   }
   const limit = Math.min(Number(req.query.limit) || 50, 200);
-  res.json({ success: true, data: await getRecentPerformance(limit, (await shouldUseGlobalScope(req)) ? undefined : userId) });
+  const globalScope = shouldUseGlobalScope(req);
+  const data = await getRecentPerformance(limit, globalScope ? undefined : userId);
+  res.json({
+    success: true,
+    data: globalScope && !canReadGlobalFinancials(req)
+      ? data.map((item: any) => omitUsageFinancialFields(item))
+      : data,
+  });
 });
 
 // ========== 日志查询端点 ==========

@@ -8,7 +8,7 @@ export interface ModelSummary {
   maxOutput?: number;
   promptPrice?: number;
   completionPrice?: number;
-  pricingType?: "token" | "per-image" | "per-second";
+  pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   supportedProtocols?: string[];
   supported_protocols?: string[];
   tags?: string[];
@@ -38,6 +38,9 @@ export function formatModelPrice(model: ModelSummary) {
   }
   if (model.pricingType === "per-image") {
     return `¥${formatCompactPrice(model.promptPrice || 0)}/image`;
+  }
+  if (model.pricingType === "per-10k-characters") {
+    return `¥${formatCompactPrice(model.promptPrice || 0)}/10k chars`;
   }
   const input = formatCompactPrice(model.promptPrice || 0);
   const output = formatCompactPrice(model.completionPrice || 0);

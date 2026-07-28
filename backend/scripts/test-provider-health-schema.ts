@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { closeDb, db } from "../src/db/client";
 import { recordFailure } from "../src/services/scheduler";
+import { logUsage } from "../src/data/usage";
 
 async function main(): Promise<void> {
   await db.execute(
@@ -51,6 +52,43 @@ async function main(): Promise<void> {
   );
   assert.equal(failureHealth?.status, "degraded");
   assert.equal(Number(failureHealth?.consecutive_failures), 2);
+
+  await Promise.all(
+    Array.from({ length: 10 }, (_, index) =>
+      recordFailure(
+        "provider-health-schema-test",
+        "model-concurrent-failure",
+        `concurrent failure ${index + 1}`
+      )
+    )
+  );
+  const concurrentFailureHealth = await db.queryOne<{ status: string; consecutive_failures: number }>(
+    "SELECT status, consecutive_failures FROM provider_health WHERE provider_id = ? AND model_id = ?",
+    ["provider-health-schema-test", "model-concurrent-failure"]
+  );
+  assert.equal(Number(concurrentFailureHealth?.consecutive_failures), 10);
+  assert.equal(concurrentFailureHealth?.status, "down");
+
+  await logUsage({
+    logId: "interrupted-stream-health-test",
+    apiKeyId: null,
+    model: "model-interrupted-stream",
+    providerId: "provider-health-schema-test",
+    promptTokens: 10,
+    completionTokens: 5,
+    totalTokens: 15,
+    cost: 0,
+    status: "success",
+    latencyMs: 100,
+    estimated: true,
+    errorReason: "upstream_stream_interrupted",
+  });
+  const interruptedHealth = await db.queryOne<{ status: string; consecutive_failures: number }>(
+    "SELECT status, consecutive_failures FROM provider_health WHERE provider_id = ? AND model_id = ?",
+    ["provider-health-schema-test", "model-interrupted-stream"]
+  );
+  assert.equal(interruptedHealth?.status, "degraded");
+  assert.equal(Number(interruptedHealth?.consecutive_failures), 1);
 
   await assert.rejects(() => db.execute(
     `INSERT INTO provider_sla_snapshots (

@@ -111,13 +111,15 @@ export const SendCodeSchema = z.object({
 export const LoginSchema = z.object({
   email: z.string().email("Invalid email format"),
   code: z.string().regex(/^\d{6}$/, "Code must be 6 digits").or(z.string().regex(/^\d{4}$/, "Code must be 4 digits")),
+  // Optional at schema level so an old cached frontend receives a specific,
+  // actionable "request a new code" response without touching any challenge.
+  challengeToken: z.string().max(64).optional(),
 });
 
 /** API Key 创建请求验证 */
 export const CreateKeySchema = z.object({
   name: z.string().min(1).max(50, "Name must be 1-50 characters"),
-  rate_limit: z.number().int().min(1).max(30000).optional().default(30000),
-});
+}).strict();
 
 /** 充值请求验证 */
 export const RechargeSchema = z.object({

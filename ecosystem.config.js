@@ -1,17 +1,41 @@
 const fs = require("fs");
-const root = "/root/distiny/nexusflow";
-const outboundProxyPath = "/etc/nexusflow/egress-proxy-url";
+const dotenv = require("dotenv");
+const legacyRoot = "/root/distiny/nexusflow";
+const currentLink = process.env.NEXUSFLOW_CURRENT_LINK || "/root/distiny/nexusflow-current";
+let root = process.env.NEXUSFLOW_APP_ROOT;
 
-let outboundProxy;
-try {
-  outboundProxy = fs.readFileSync(outboundProxyPath, "utf8").trim() || undefined;
-} catch (error) {
-  if (error && error.code !== "ENOENT") {
-    throw error;
+if (!root) {
+  try {
+    root = fs.realpathSync(currentLink);
+  } catch (error) {
+    if (error && error.code !== "ENOENT") {
+      throw error;
+    }
+    root = legacyRoot;
   }
 }
 
-const noProxy = "localhost,127.0.0.1,::1,172.27.0.0/16,100.100.100.200";
+if (!fs.existsSync(`${root}/backend/dist/index.js`) || !fs.existsSync(`${root}/frontend/.next/BUILD_ID`)) {
+  throw new Error(`NexusFlow release is incomplete: ${root}`);
+}
+
+const nextBinary = [
+  `${root}/frontend/node_modules/next/dist/bin/next`,
+  `${root}/node_modules/next/dist/bin/next`,
+].find((candidate) => fs.existsSync(candidate));
+
+if (!nextBinary) {
+  throw new Error(`NexusFlow release has no Next.js runtime binary: ${root}`);
+}
+
+const backendRuntimeEnv = dotenv.parse(
+  fs.readFileSync(`${root}/backend/.env`, "utf8")
+);
+const providerOutboundHostAllowlist =
+  backendRuntimeEnv.PROVIDER_OUTBOUND_HOST_ALLOWLIST;
+if (!providerOutboundHostAllowlist) {
+  throw new Error("NexusFlow production provider outbound allowlist is missing");
+}
 
 module.exports = {
   apps: [
@@ -24,29 +48,25 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",
-      node_args: outboundProxy ? "--use-env-proxy" : undefined,
       env: {
         NODE_ENV: "production",
+        NEXUSFLOW_RELEASE_RUNTIME: "true",
+        ENABLE_MOCK_PAYMENT: "false",
+        ENABLE_SEED_API_KEYS: "false",
+        USE_PG_MEM: "false",
+        PROVIDER_OUTBOUND_HOST_ALLOWLIST: providerOutboundHostAllowlist,
         PORT: process.env.BACKEND_PORT || 3001,
         BUILD_SHA: process.env.BUILD_SHA || "unknown",
         BUILD_TIME: process.env.BUILD_TIME || "unknown",
-        ...(outboundProxy
-          ? {
-              HTTP_PROXY: outboundProxy,
-              HTTPS_PROXY: outboundProxy,
-              NO_PROXY: noProxy,
-            }
-          : {}),
       },
     },
     {
       name: "quadrant-frontend",
       cwd: `${root}/frontend`,
-      // Use the workspace-local binary explicitly. npm may hoist Next to the
-      // repository root or keep it under frontend/node_modules; production
-      // must not depend on that incidental layout.
-      script: `${root}/frontend/node_modules/next/dist/bin/next`,
-      args: `start -p ${process.env.FRONTEND_PORT || 19999} -H 0.0.0.0`,
+      // npm workspaces may hoist Next to the repository root or keep it under
+      // frontend/node_modules. Resolve the runtime binary from the artifact.
+      script: nextBinary,
+      args: `start -p ${process.env.FRONTEND_PORT || 19999} -H 127.0.0.1`,
       instances: 1,
       exec_mode: "fork",
       autorestart: true,

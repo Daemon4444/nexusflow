@@ -1,66 +1,238 @@
 import { Router, Request, Response } from "express";
-import { loginByEmail, loginByPassword, loginByUsername, setUserPassword, hasPassword, validateSession, logout, getUserById, updateNickname, verifyPassword } from "../data/users";
+import {
+  changePasswordAndRevokeSessions,
+  getUserById,
+  loginByEmail,
+  loginByPassword,
+  loginByUsername,
+  logout,
+  setInitialPasswordAndRevokeSessions,
+  updateNickname,
+  validateSession,
+} from "../data/users";
 import { sendEmailCode, verifyEmailCode } from "../services/email";
 import { validateBody, SendCodeSchema, LoginSchema } from "../middleware/validation";
 import { getRedis } from "../services/redis";
 import { z } from "zod";
 import { parseAllowedModels } from "../data/model-access";
 import { isDemoAdminSession } from "../middleware/demo-admin";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  isStrongNewPassword,
+  NEW_PASSWORD_POLICY_MESSAGE,
+} from "../utils/password-policy";
+import { getTrustedClientIp } from "../utils/client-ip";
+import {
+  releaseKdfAdmission,
+  reserveKdfAdmission,
+  type KdfAdmission,
+} from "../services/kdf-admission";
 
 const router = Router();
 
 // ── 登录爆破防护（Redis 原子尝试计数 + 锁定；故障时生产环境 fail-closed）──
 const LOGIN_MAX_FAILURES = 5;
+const LOGIN_ACCOUNT_MAX_ATTEMPTS = 25;
 const LOGIN_WINDOW_SEC = 15 * 60; // 15 分钟窗口，达到阈值即锁定该窗口剩余时间
 
-function getClientIp(req: Request): string {
-  // nginx overwrites X-Real-IP from the connection source. The left-most
-  // X-Forwarded-For value is client-controlled unless every proxy hop is
-  // explicitly trusted, so do not use it for brute-force keys.
-  const realIp = req.headers["x-real-ip"];
-  if (typeof realIp === "string" && realIp.length > 0) return realIp.trim();
-  return req.ip || req.socket?.remoteAddress || "unknown";
+function positiveAuthLimit(name: string, fallback: number): number {
+  const parsed = Number(process.env[name]);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function loginFailKey(identity: string, ip: string): string {
-  return `login:fail:${identity.toLowerCase()}:${ip}`;
+export function getAuthClientIp(req: Request): string {
+  return getTrustedClientIp(req);
 }
 
-async function isLoginLocked(identity: string, ip: string): Promise<boolean> {
+function loginIdentityDigest(identity: string): string {
+  return createHash("sha256").update(identity.trim().toLowerCase()).digest("hex");
+}
+
+function loginAttemptKeys(identity: string, ip: string): {
+  accountKey: string;
+  sourceKey: string;
+  ipKey: string;
+  globalKey: string;
+  ipConcurrencyKey: string;
+  globalConcurrencyKey: string;
+} {
+  const identityHash = loginIdentityDigest(identity);
+  const ipHash = loginIdentityDigest(`ip:${ip}`);
+  return {
+    accountKey: `login:attempt:v2:account:${identityHash}`,
+    sourceKey: `login:attempt:v2:source:${identityHash}:${ip}`,
+    ipKey: `login:attempt:v3:ip:${ipHash}`,
+    globalKey: "login:attempt:v3:global",
+    ipConcurrencyKey: `login:concurrency:v1:ip:${ipHash}`,
+    globalConcurrencyKey: "login:concurrency:v1:global",
+  };
+}
+
+type LoginAttemptAdmission =
+  | { allowed: true; leaseId: string }
+  | { allowed: false };
+
+async function reserveLoginAttempt(
+  identity: string,
+  ip: string
+): Promise<LoginAttemptAdmission> {
   if (!process.env.REDIS_HOST) {
     if (process.env.NODE_ENV === "production") {
       throw new Error("Redis is required for password login rate limiting");
     }
-    return false;
+    return { allowed: true, leaseId: "" };
   }
 
+  const keys = loginAttemptKeys(identity, ip);
+  const leaseId = randomUUID();
+  const now = Date.now();
+  const concurrencyTtlSeconds = positiveAuthLimit(
+    "LOGIN_CONCURRENCY_TTL_SECONDS",
+    30
+  );
   const result = (await getRedis().eval(
     `
-      local attempts = redis.call("INCR", KEYS[1])
-      if attempts == 1 then
+      local source = tonumber(redis.call("GET", KEYS[1]) or "0")
+      local account = tonumber(redis.call("GET", KEYS[2]) or "0")
+      local ip = tonumber(redis.call("GET", KEYS[3]) or "0")
+      local global = tonumber(redis.call("GET", KEYS[4]) or "0")
+      local now = tonumber(ARGV[6])
+      local expiresAt = tonumber(ARGV[7])
+      if source == nil or account == nil or ip == nil or global == nil then
+        return redis.error_reply("invalid login rate-limit state")
+      end
+      redis.call("ZREMRANGEBYSCORE", KEYS[5], 0, now)
+      redis.call("ZREMRANGEBYSCORE", KEYS[6], 0, now)
+      if source >= tonumber(ARGV[2])
+        or account >= tonumber(ARGV[3])
+        or ip >= tonumber(ARGV[4])
+        or global >= tonumber(ARGV[5])
+        or redis.call("ZCARD", KEYS[5]) >= tonumber(ARGV[9])
+        or redis.call("ZCARD", KEYS[6]) >= tonumber(ARGV[10]) then
+        return {0}
+      end
+
+      source = redis.call("INCR", KEYS[1])
+      account = redis.call("INCR", KEYS[2])
+      ip = redis.call("INCR", KEYS[3])
+      global = redis.call("INCR", KEYS[4])
+      if source == 1 then
         redis.call("EXPIRE", KEYS[1], tonumber(ARGV[1]))
       end
-      return attempts
+      if account == 1 then
+        redis.call("EXPIRE", KEYS[2], tonumber(ARGV[1]))
+      end
+      if ip == 1 then redis.call("EXPIRE", KEYS[3], tonumber(ARGV[1])) end
+      if global == 1 then redis.call("EXPIRE", KEYS[4], tonumber(ARGV[1])) end
+      redis.call("ZADD", KEYS[5], expiresAt, ARGV[8])
+      redis.call("ZADD", KEYS[6], expiresAt, ARGV[8])
+      redis.call("EXPIRE", KEYS[5], tonumber(ARGV[11]) + 1)
+      redis.call("EXPIRE", KEYS[6], tonumber(ARGV[11]) + 1)
+      return {1}
     `,
-    1,
-    loginFailKey(identity, ip),
-    LOGIN_WINDOW_SEC
-  )) as number;
-  return Number(result) > LOGIN_MAX_FAILURES;
+    6,
+    keys.sourceKey,
+    keys.accountKey,
+    keys.ipKey,
+    keys.globalKey,
+    keys.ipConcurrencyKey,
+    keys.globalConcurrencyKey,
+    LOGIN_WINDOW_SEC,
+    LOGIN_MAX_FAILURES,
+    LOGIN_ACCOUNT_MAX_ATTEMPTS,
+    positiveAuthLimit("LOGIN_IP_MAX_ATTEMPTS", 40),
+    positiveAuthLimit("LOGIN_GLOBAL_MAX_ATTEMPTS", 1000),
+    now,
+    now + concurrencyTtlSeconds * 1000,
+    leaseId,
+    positiveAuthLimit("LOGIN_IP_CONCURRENCY", 4),
+    positiveAuthLimit("LOGIN_GLOBAL_CONCURRENCY", 64),
+    concurrencyTtlSeconds
+  )) as [number];
+  return Number(result[0]) === 1
+    ? { allowed: true, leaseId }
+    : { allowed: false };
 }
 
-async function clearLoginFailures(identity: string, ip: string): Promise<void> {
-  if (!process.env.REDIS_HOST) return;
+async function releaseLoginAttempt(
+  identity: string,
+  ip: string,
+  leaseId: string
+): Promise<void> {
+  if (!process.env.REDIS_HOST || !leaseId) return;
+  const keys = loginAttemptKeys(identity, ip);
   try {
-    await getRedis().del(loginFailKey(identity, ip));
+    await getRedis().eval(
+      `
+        redis.call("ZREM", KEYS[1], ARGV[1])
+        redis.call("ZREM", KEYS[2], ARGV[1])
+        if redis.call("ZCARD", KEYS[1]) == 0 then redis.call("DEL", KEYS[1]) end
+        if redis.call("ZCARD", KEYS[2]) == 0 then redis.call("DEL", KEYS[2]) end
+        return 1
+      `,
+      2,
+      keys.ipConcurrencyKey,
+      keys.globalConcurrencyKey,
+      leaseId
+    );
+  } catch {
+    // Leases have a short TTL, so release failure is fail-safe and bounded.
+  }
+}
+
+async function recordLoginSuccess(identity: string, ip: string): Promise<void> {
+  if (!process.env.REDIS_HOST) return;
+  const keys = loginAttemptKeys(identity, ip);
+  try {
+    await getRedis().eval(
+      `
+        redis.call("DEL", KEYS[1])
+        local account = tonumber(redis.call("GET", KEYS[2]) or "0")
+        if account <= 1 then
+          redis.call("DEL", KEYS[2])
+        else
+          redis.call("DECR", KEYS[2])
+        end
+        return 1
+      `,
+      2,
+      keys.sourceKey,
+      keys.accountKey
+    );
   } catch { /* 清理失败无副作用 */ }
 }
+
+const NewPasswordSchema = z
+  .string()
+  .max(128)
+  .refine(
+    isStrongNewPassword,
+    NEW_PASSWORD_POLICY_MESSAGE
+  );
 
 /** 从请求头提取 session token */
 function extractSessionToken(req: Request): string | null {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith("Bearer ")) return null;
   return auth.slice(7).trim();
+}
+
+async function requireKdfAdmission(
+  req: Request,
+  res: Response,
+  actor: string
+): Promise<Extract<KdfAdmission, { allowed: true }> | null> {
+  const admission = await reserveKdfAdmission(actor, getAuthClientIp(req));
+  if (admission.allowed) return admission;
+  const unavailable = admission.reason === "redis_unavailable";
+  res.status(unavailable ? 503 : 429).json({
+    success: false,
+    message: unavailable
+      ? "密码服务暂不可用，请稍后重试"
+      : "密码操作过于频繁，请稍后重试",
+    code: unavailable ? "kdf_admission_unavailable" : "kdf_rate_limited",
+  });
+  return null;
 }
 
 // POST /api/auth/send-code — 发送邮箱验证码
@@ -73,7 +245,9 @@ router.post("/send-code", async (req: Request, res: Response) => {
 
   const { email } = parsed.data;
 
-  const result = await sendEmailCode(email);
+  const result = await sendEmailCode(email, {
+    sourceIp: getAuthClientIp(req),
+  });
   if (!result.success) {
     res
       .status(result.status)
@@ -81,16 +255,49 @@ router.post("/send-code", async (req: Request, res: Response) => {
     return;
   }
 
-  res.json({ success: true, message: result.message });
+  res.json({
+    success: true,
+    message: result.message,
+    data: { challengeToken: result.challengeToken },
+  });
 });
 
 // POST /api/auth/login — 邮箱 + 验证码登录
 router.post("/login", validateBody(LoginSchema), async (req: Request, res: Response) => {
-  const { email, code } = req.body;
+  const { email, code, challengeToken } = req.body;
+  if (
+    typeof challengeToken !== "string"
+    || !/^[a-f0-9]{48}$/i.test(challengeToken)
+  ) {
+    res.status(400).json({
+      success: false,
+      message: "验证码会话已失效，请重新获取验证码",
+      code: "challenge_token_required",
+    });
+    return;
+  }
 
-  // 验证码校验（异步）
-  const valid = await verifyEmailCode(email, code);
-  if (!valid) {
+  const verification = await verifyEmailCode(email, code, {
+    challengeToken,
+    sourceIp: getAuthClientIp(req),
+  });
+  if (verification === "unavailable") {
+    res.status(503).json({
+      success: false,
+      message: "验证码服务暂不可用，请稍后重试",
+      code: "verification_store_unavailable",
+    });
+    return;
+  }
+  if (verification === "rate_limited") {
+    res.status(429).json({
+      success: false,
+      message: "验证码尝试过于频繁，请重新获取验证码",
+      code: "verification_rate_limited",
+    });
+    return;
+  }
+  if (verification !== "valid") {
     res.status(401).json({ success: false, message: "验证码错误或已过期" });
     return;
   }
@@ -128,28 +335,33 @@ const PasswordLoginSchema = z.object({
 
 router.post("/login-password", validateBody(PasswordLoginSchema), async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  const ip = getClientIp(req);
+  const ip = getAuthClientIp(req);
 
-  let locked: boolean;
+  let admission: LoginAttemptAdmission;
   try {
-    locked = await isLoginLocked(email, ip);
+    admission = await reserveLoginAttempt(email, ip);
   } catch {
     console.error("[AUTH] Redis unavailable; password login rejected");
     res.status(503).json({ success: false, message: "登录服务暂不可用，请稍后重试" });
     return;
   }
 
-  if (locked) {
+  if (!admission.allowed) {
     res.status(429).json({ success: false, message: "登录尝试过于频繁，请 15 分钟后再试" });
     return;
   }
 
-  const result = await loginByPassword(email, password);
+  let result: Awaited<ReturnType<typeof loginByPassword>>;
+  try {
+    result = await loginByPassword(email, password);
+  } finally {
+    await releaseLoginAttempt(email, ip, admission.leaseId);
+  }
   if (!result) {
     res.status(401).json({ success: false, message: "邮箱或密码错误" });
     return;
   }
-  await clearLoginFailures(email, ip);
+  await recordLoginSuccess(email, ip);
 
   res.json({
     success: true,
@@ -178,29 +390,35 @@ const UsernameLoginSchema = z.object({
 
 router.post("/login-username", validateBody(UsernameLoginSchema), async (req: Request, res: Response) => {
   const { username, password } = req.body;
-  const ip = getClientIp(req);
+  const ip = getAuthClientIp(req);
 
-  let locked: boolean;
+  const identity = `u:${username}`;
+  let admission: LoginAttemptAdmission;
   try {
-    locked = await isLoginLocked(`u:${username}`, ip);
+    admission = await reserveLoginAttempt(identity, ip);
   } catch {
     console.error("[AUTH] Redis unavailable; username login rejected");
     res.status(503).json({ success: false, message: "登录服务暂不可用，请稍后重试" });
     return;
   }
 
-  if (locked) {
+  if (!admission.allowed) {
     res.status(429).json({ success: false, message: "登录尝试过于频繁，请 15 分钟后再试" });
     return;
   }
 
-  const result = await loginByUsername(username, password);
+  let result: Awaited<ReturnType<typeof loginByUsername>>;
+  try {
+    result = await loginByUsername(username, password);
+  } finally {
+    await releaseLoginAttempt(identity, ip, admission.leaseId);
+  }
   if (!result) {
     // 统一报错，不区分用户名不存在/密码错误/已停用（防枚举）
     res.status(401).json({ success: false, message: "用户名或密码错误" });
     return;
   }
-  await clearLoginFailures(`u:${username}`, ip);
+  await recordLoginSuccess(identity, ip);
 
   res.json({
     success: true,
@@ -223,9 +441,9 @@ router.post("/login-username", validateBody(UsernameLoginSchema), async (req: Re
   });
 });
 
-// POST /api/auth/set-password — 设置/修改密码（需要登录）
+// POST /api/auth/set-password — 仅首次设置密码（需要登录）
 const SetPasswordSchema = z.object({
-  password: z.string().min(6, "Password must be at least 6 characters").max(128),
+  password: NewPasswordSchema,
 });
 
 router.post("/set-password", validateBody(SetPasswordSchema), async (req: Request, res: Response) => {
@@ -240,15 +458,42 @@ router.post("/set-password", validateBody(SetPasswordSchema), async (req: Reques
     res.status(401).json({ success: false, message: "登录已过期，请重新登录" });
     return;
   }
-
-  const { password } = req.body;
-  const success = await setUserPassword(session.id, password);
-  if (!success) {
-    res.status(500).json({ success: false, message: "设置密码失败" });
+  if (session.password_hash) {
+    res.status(409).json({
+      success: false,
+      message: "密码已设置，请使用修改密码或验证码找回流程",
+      code: "password_already_set",
+    });
     return;
   }
 
-  res.json({ success: true, message: "密码设置成功" });
+  const { password } = req.body;
+  const admission = await requireKdfAdmission(req, res, `session:${session.id}`);
+  if (!admission) return;
+  let result: Awaited<ReturnType<typeof setInitialPasswordAndRevokeSessions>>;
+  try {
+    result = await setInitialPasswordAndRevokeSessions(session.id, password);
+  } finally {
+    await releaseKdfAdmission(admission).catch(() => undefined);
+  }
+  if (result === "already_set") {
+    res.status(409).json({
+      success: false,
+      message: "密码已设置，请使用修改密码或验证码找回流程",
+      code: "password_already_set",
+    });
+    return;
+  }
+  if (result === "not_found") {
+    res.status(401).json({ success: false, message: "用户不存在", code: "user_not_found" });
+    return;
+  }
+
+  res.json({
+    success: true,
+    message: "密码设置成功，所有旧会话已退出，请重新登录",
+    data: { reauthenticationRequired: true },
+  });
 });
 
 // GET /api/auth/me — 获取当前用户信息
@@ -333,7 +578,7 @@ router.put("/profile", validateBody(UpdateProfileSchema), async (req: Request, r
 // POST /api/auth/change-password — 修改密码（需要旧密码验证）
 const ChangePasswordSchema = z.object({
   oldPassword: z.string().min(1, "请输入当前密码"),
-  newPassword: z.string().min(6, "新密码至少 6 个字符").max(128),
+  newPassword: NewPasswordSchema,
 });
 
 router.post("/change-password", validateBody(ChangePasswordSchema), async (req: Request, res: Response) => {
@@ -348,29 +593,45 @@ router.post("/change-password", validateBody(ChangePasswordSchema), async (req: 
     return;
   }
 
-  const user = await getUserById(session.id);
-  if (!user) {
-    res.status(401).json({ success: false, message: "用户不存在" });
-    return;
-  }
-
   const { oldPassword, newPassword } = req.body;
-
-  // 如果已有密码，验证旧密码
-  if (user.password_hash) {
-    if (!verifyPassword(oldPassword, user.password_hash)) {
-      res.status(400).json({ success: false, message: "当前密码错误" });
-      return;
-    }
+  const admission = await requireKdfAdmission(req, res, `session:${session.id}`);
+  if (!admission) return;
+  let result: Awaited<ReturnType<typeof changePasswordAndRevokeSessions>>;
+  try {
+    result = await changePasswordAndRevokeSessions(
+      session.id,
+      oldPassword,
+      newPassword
+    );
+  } finally {
+    await releaseKdfAdmission(admission).catch(() => undefined);
   }
-
-  const success = await setUserPassword(session.id, newPassword);
-  if (!success) {
-    res.status(500).json({ success: false, message: "修改失败" });
+  if (result === "invalid_old_password") {
+    res.status(400).json({
+      success: false,
+      message: "当前密码错误",
+      code: "invalid_current_password",
+    });
+    return;
+  }
+  if (result === "password_not_set") {
+    res.status(409).json({
+      success: false,
+      message: "尚未设置密码，请先使用首次设置密码流程",
+      code: "password_not_set",
+    });
+    return;
+  }
+  if (result === "not_found") {
+    res.status(401).json({ success: false, message: "用户不存在", code: "user_not_found" });
     return;
   }
 
-  res.json({ success: true, message: "密码修改成功" });
+  res.json({
+    success: true,
+    message: "密码修改成功，所有旧会话已退出，请重新登录",
+    data: { reauthenticationRequired: true },
+  });
 });
 
 export default router;

@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import { db } from "../db/client";
 import { decryptProviderSecret, encryptProviderSecret } from "../utils/provider-secrets";
+import { assertProviderEndpointForStorage } from "../services/outbound-url-policy";
 
 export interface Provider {
   id: string;
@@ -93,6 +94,7 @@ export async function createProvider(data: {
   contact_email: string;
   contact_phone?: string;
 }): Promise<Provider> {
+  await assertProviderEndpointForStorage(data.api_base_url);
   const id = uuidv4();
   const slug = data.name.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-").replace(/^-|-$/g, "") || crypto.randomBytes(4).toString("hex");
   const now = new Date().toISOString();
@@ -121,6 +123,7 @@ export async function ensureProvider(data: {
 }): Promise<Provider> {
   const existing = (await getProviderById(data.id)) || (await getProviderBySlug(data.slug));
   if (existing) return existing;
+  await assertProviderEndpointForStorage(data.api_base_url);
   const now = new Date().toISOString();
   const row = await db.queryOne<any>(
     `INSERT INTO providers (id, name, slug, description, logo_url, website, api_base_url, api_key,
@@ -135,6 +138,14 @@ export async function ensureProvider(data: {
 export async function updateProviderStatus(id: string, status: "draft" | "enabled" | "disabled", rejectionReason?: string): Promise<boolean> {
   const now = new Date().toISOString();
   const normalizedStatus = normalizeStatusForStorage(status);
+  if (normalizedStatus === "enabled") {
+    const provider = await db.queryOne<{ api_base_url: string }>(
+      "SELECT api_base_url FROM providers WHERE id = ?",
+      [id]
+    );
+    if (!provider) return false;
+    await assertProviderEndpointForStorage(provider.api_base_url);
+  }
   const approvedAt = normalizedStatus === "enabled" ? now : null;
   const changed = await db.execute("UPDATE providers SET status = ?, rejection_reason = ?, updated_at = ?, approved_at = ? WHERE id = ?", [
     normalizedStatus,
@@ -166,6 +177,8 @@ export async function updateProvider(id: string, data: {
   );
   if (!storedProvider) return false;
   const provider = parseProviderRow(storedProvider);
+  const nextApiBaseUrl = data.api_base_url || provider.api_base_url;
+  await assertProviderEndpointForStorage(nextApiBaseUrl);
   const storedApiKey =
     data.api_key !== undefined && data.api_key !== ""
       ? encryptProviderSecret(data.api_key)
@@ -173,7 +186,7 @@ export async function updateProvider(id: string, data: {
   const changed = await db.execute(
     `UPDATE providers SET name = ?, description = ?, logo_url = ?, website = ?,
       api_base_url = ?, api_key = ?, contact_name = ?, contact_email = ?, contact_phone = ?, updated_at = ? WHERE id = ?`,
-    [data.name || provider.name, data.description || provider.description, data.logo_url !== undefined ? data.logo_url : provider.logo_url, data.website !== undefined ? data.website : provider.website, data.api_base_url || provider.api_base_url, storedApiKey, data.contact_name || provider.contact_name, data.contact_email || provider.contact_email, data.contact_phone !== undefined ? data.contact_phone : provider.contact_phone, new Date().toISOString(), id]
+    [data.name || provider.name, data.description || provider.description, data.logo_url !== undefined ? data.logo_url : provider.logo_url, data.website !== undefined ? data.website : provider.website, nextApiBaseUrl, storedApiKey, data.contact_name || provider.contact_name, data.contact_email || provider.contact_email, data.contact_phone !== undefined ? data.contact_phone : provider.contact_phone, new Date().toISOString(), id]
   );
   return changed > 0;
 }

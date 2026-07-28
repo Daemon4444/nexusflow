@@ -53,7 +53,9 @@
 
 - 先读后改，保留无关的用户改动和线上漂移。
 - 不编辑 `dist/` 或 `.next/` 代替源代码。
-- 数据库变更必须提交新的 migration；下一个编号从 `013` 开始。
+- 数据库变更必须提交新的 migration；编号以
+  `backend/src/db/migrations/` 的实际文件和团队已分配槽位为准，禁止按本文猜下一个
+  编号或复用已有编号。
 - 新模型必须走 `docs/MODEL_ONBOARDING.md` 的代码、浏览器、上游与计费验证。
 - 更新架构、运维、协议、计费或安全事实时，同步更新 `WIKI.md`。
 - `REVIEW_SPEC_*`、`OPTIMIZATION_SPEC.md` 等是时间点快照，不要把已修事项再次当作现状。
@@ -83,6 +85,20 @@ bash scripts/deploy-all-production.sh
 ```
 
 生产是 ALB 双应用节点；完整发布必须使用统一脚本同步并验证两节点，不能只运行单节点的 `deploy-production.sh`。发布后核对两节点 Git、PM2、`/api/health` 和 `/api/version`。文档变更也应让生产工作区与 GitHub main 保持同步，但无需无意义地重建服务。
+
+统一脚本使用不可变 release、ALB 精确健康检查摘流和数据库备份门禁。正式发布前先执行
+`bash scripts/deploy-all-production.sh --dry-run`；任何摘流、备份或回滚预检失败都不得绕过。
+正式发布和 dry-run 还必须用 `NEXUSFLOW_PROVIDER_COST_MANIFEST` 指向随机
+`/run/nexusflow-provider-cost.*/manifest.json`：root:root `0700` 目录只能含一个
+root:root `0600` manifest，价本内容不得进入 Git、制品或日志；旧版回滚前必须由统一
+状态机停用，失败回滚恢复新版时必须用同一 manifest 重激活。
+生产 `.env` 还必须显式包含当前 Provider 出站 host allowlist，且不得包含
+HTTP(S)/ALL proxy 变量；nginx 的 `/v1` 分路由 body cap（大上下文 50 MiB、
+embeddings 8 MiB、audio/其余 1 MiB）、timeout、连接和速率门禁必须由 release
+helper 在两节点通过 preflight，不能只依赖应用层。公开 Next proxy 不得转发任何
+`/v1` 别名；上传必须先鉴权再读 body，下载必须流式转发，并保留 nginx 的
+body/连接/速率/带宽门禁。
+完整操作与权限要求见 `docs/production-release-runbook.md`。
 
 ## 完成标准
 

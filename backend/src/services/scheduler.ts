@@ -1,16 +1,31 @@
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/client";
-import { getProviderUsageStats } from "./rate-limiter";
+import {
+  decrementProviderConcurrencyAsync,
+  getProviderConcurrencyAsync,
+  getProviderDailyUsageAsync,
+  getProviderUsageStatsAsync,
+  incrementProviderConcurrencyAsync,
+  recordProviderTokens,
+  recordRequest,
+  releaseProviderCapacityAsync,
+  reserveProviderCapacityAsync,
+  type ProviderCapacityReservation,
+} from "./rate-limiter";
 import { decryptProviderSecret } from "../utils/provider-secrets";
 import {
-  getActiveCostVersions,
   getLatestProviderSlaEvidence,
   getMatchingRoutePolicy,
 } from "../data/provider-operations";
+import { getAllActiveProviderCostTiers } from "./provider-costs";
 import {
-  healthStateAfterFailure,
   satisfiesMinimumObservedAvailability,
 } from "./provider-monitor-semantics";
+import {
+  channelAllowsModel,
+  getProviderChannelConfig,
+  isChannelUsable,
+} from "../data/provider-channels";
 
 export interface ProviderEndpoint {
   providerId: string;
@@ -31,6 +46,31 @@ export interface ProviderSelectionContext {
   userId?: string | null;
 }
 
+export interface ProviderCapacityRoute {
+  providerId: string;
+  managed: boolean;
+  rpm?: number;
+  tpm?: number;
+  dailyLimit?: number;
+  concurrentLimit?: number;
+}
+
+export interface ProviderRequestCapacityLease {
+  providerId: string;
+  modelId: string;
+  managed: boolean;
+  leaseId: string | null;
+}
+
+export type ProviderCapacityAcquireResult =
+  | { ok: true; lease: ProviderRequestCapacityLease }
+  | {
+      ok: false;
+      code: "provider_capacity_exhausted" | "provider_capacity_store_unavailable";
+      reason: Exclude<ProviderCapacityReservation, { allowed: true }>["reason"];
+      message: string;
+    };
+
 export interface HealthRecord {
   providerId: string;
   modelId: string;
@@ -50,6 +90,22 @@ export type ModelAvailability = {
 const FAILURE_THRESHOLD_DOWN = 10;
 const concurrentRequests = new Map<string, number>();
 
+async function hasUsableProviderCredential(
+  providerId: string,
+  modelId: string,
+  providerApiKey: string
+): Promise<boolean> {
+  if (providerApiKey) return true;
+  try {
+    const config = await getProviderChannelConfig(providerId);
+    return !!config && Object.values(config.channels).some(
+      (channel) => isChannelUsable(channel) && channelAllowsModel(channel, modelId)
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function getHealthRecord(providerId: string, modelId: string): Promise<HealthRecord | null> {
   const row = await db.queryOne<any>("SELECT * FROM provider_health WHERE provider_id = ? AND model_id = ?", [providerId, modelId]);
   if (!row) return null;
@@ -66,11 +122,6 @@ async function getHealthRecord(providerId: string, modelId: string): Promise<Hea
 }
 
 export async function recordSuccess(providerId: string, modelId: string, latencyMs: number): Promise<void> {
-  const existing = await getHealthRecord(providerId, modelId);
-  const hasPriorObservation = !!(existing?.lastSuccessAt || existing?.lastFailureAt);
-  const avgLatency = existing && hasPriorObservation
-    ? Math.round(existing.avgLatencyMs * 0.7 + latencyMs * 0.3)
-    : latencyMs;
   const now = new Date().toISOString();
   await db.execute(
     `INSERT INTO provider_health (id, provider_id, model_id, status, consecutive_failures, last_success_at, last_failure_at, last_error, avg_latency_ms, updated_at)
@@ -79,46 +130,165 @@ export async function recordSuccess(providerId: string, modelId: string, latency
        status = excluded.status,
        consecutive_failures = excluded.consecutive_failures,
        last_success_at = excluded.last_success_at,
-       last_failure_at = excluded.last_failure_at,
        last_error = excluded.last_error,
-       avg_latency_ms = excluded.avg_latency_ms,
-       updated_at = excluded.updated_at`,
-    [uuidv4(), providerId, modelId, "healthy", 0, now, existing?.lastFailureAt || null, null, avgLatency, now]
+       avg_latency_ms = CASE
+         WHEN provider_health.last_success_at IS NOT NULL OR provider_health.last_failure_at IS NOT NULL
+           THEN ROUND(provider_health.avg_latency_ms * 0.7 + excluded.avg_latency_ms * 0.3)
+         ELSE excluded.avg_latency_ms
+       END,
+       updated_at = excluded.updated_at
+     WHERE provider_health.updated_at IS NULL OR provider_health.updated_at <= excluded.updated_at`,
+    [uuidv4(), providerId, modelId, "healthy", 0, now, null, null, Math.max(0, Math.round(latencyMs)), now]
   );
-  releaseConcurrency(providerId, modelId);
 }
 
 export async function recordFailure(providerId: string, modelId: string, error: string): Promise<void> {
-  const existing = await getHealthRecord(providerId, modelId);
-  const failures = (existing?.consecutiveFailures || 0) + 1;
-  // Any observed failure is degraded immediately. The route remains eligible
-  // at reduced weight until the existing down/circuit-open threshold is met.
-  const status = healthStateAfterFailure(failures, FAILURE_THRESHOLD_DOWN);
   const now = new Date().toISOString();
   await db.execute(
     `INSERT INTO provider_health (id, provider_id, model_id, status, consecutive_failures, last_success_at, last_failure_at, last_error, avg_latency_ms, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(provider_id, model_id) DO UPDATE SET
-       status = excluded.status,
-       consecutive_failures = excluded.consecutive_failures,
-       last_success_at = excluded.last_success_at,
+       status = CASE
+         WHEN provider_health.consecutive_failures + 1 >= ? THEN 'down'
+         ELSE 'degraded'
+       END,
+       consecutive_failures = provider_health.consecutive_failures + 1,
        last_failure_at = excluded.last_failure_at,
        last_error = excluded.last_error,
-       avg_latency_ms = excluded.avg_latency_ms,
-       updated_at = excluded.updated_at`,
-    [uuidv4(), providerId, modelId, status, failures, existing?.lastSuccessAt || null, now, error, existing?.avgLatencyMs || 0, now]
+       updated_at = excluded.updated_at
+     WHERE provider_health.updated_at IS NULL OR provider_health.updated_at <= excluded.updated_at`,
+    [uuidv4(), providerId, modelId, "degraded", 1, null, now, error, 0, now, FAILURE_THRESHOLD_DOWN]
   );
-  releaseConcurrency(providerId, modelId);
 }
 
 export function acquireConcurrency(providerId: string, modelId: string): void {
   const key = `${providerId}:${modelId}`;
   concurrentRequests.set(key, (concurrentRequests.get(key) || 0) + 1);
+  void incrementProviderConcurrencyAsync(providerId, modelId).catch((error) => {
+    console.warn("[scheduler] distributed concurrency increment failed:", error instanceof Error ? error.message : String(error));
+  });
 }
 
 export function releaseConcurrency(providerId: string, modelId: string): void {
   const key = `${providerId}:${modelId}`;
   concurrentRequests.set(key, Math.max(0, (concurrentRequests.get(key) || 0) - 1));
+  void decrementProviderConcurrencyAsync(providerId, modelId).catch((error) => {
+    console.warn("[scheduler] distributed concurrency decrement failed:", error instanceof Error ? error.message : String(error));
+  });
+}
+
+export async function acquireProviderCapacity(
+  route: ProviderCapacityRoute,
+  modelId: string,
+  estimatedTokens = 0
+): Promise<ProviderCapacityAcquireResult> {
+  if (!route.managed) {
+    recordRequest(route.providerId, modelId, "capacity-lease", 0);
+    acquireConcurrency(route.providerId, modelId);
+    return {
+      ok: true,
+      lease: {
+        providerId: route.providerId,
+        modelId,
+        managed: false,
+        leaseId: null,
+      },
+    };
+  }
+
+  let reservation: ProviderCapacityReservation;
+  try {
+    reservation = await reserveProviderCapacityAsync({
+      providerId: route.providerId,
+      modelId,
+      estimatedTokens,
+      limits: {
+        rpm: route.rpm || 0,
+        tpm: route.tpm || 0,
+        dailyLimit: route.dailyLimit || 0,
+        concurrentLimit: route.concurrentLimit || 0,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "[scheduler] managed provider capacity reservation failed:",
+      error instanceof Error ? error.message : String(error)
+    );
+    reservation = { allowed: false, reason: "redis_unavailable" };
+  }
+
+  if (!reservation.allowed) {
+    const storeUnavailable =
+      reservation.reason === "redis_unavailable" || reservation.reason === "redis_state_invalid";
+    return {
+      ok: false,
+      code: storeUnavailable
+        ? "provider_capacity_store_unavailable"
+        : "provider_capacity_exhausted",
+      reason: reservation.reason,
+      message: storeUnavailable
+        ? "Managed provider capacity cannot be verified right now."
+        : `Managed provider ${reservation.reason} capacity is exhausted.`,
+    };
+  }
+
+  const key = `${route.providerId}:${modelId}`;
+  concurrentRequests.set(key, (concurrentRequests.get(key) || 0) + 1);
+  return {
+    ok: true,
+    lease: {
+      providerId: route.providerId,
+      modelId,
+      managed: true,
+      leaseId: reservation.leaseId,
+    },
+  };
+}
+
+export async function releaseProviderCapacity(
+  lease: ProviderRequestCapacityLease | null,
+  actualTokens = 0
+): Promise<void> {
+  if (!lease) return;
+  const key = `${lease.providerId}:${lease.modelId}`;
+  concurrentRequests.set(key, Math.max(0, (concurrentRequests.get(key) || 0) - 1));
+
+  if (!lease.managed) {
+    recordProviderTokens(lease.providerId, lease.modelId, actualTokens);
+    void decrementProviderConcurrencyAsync(lease.providerId, lease.modelId).catch((error) => {
+      console.warn("[scheduler] distributed concurrency decrement failed:", error instanceof Error ? error.message : String(error));
+    });
+    return;
+  }
+
+  if (!lease.leaseId) {
+    console.error("[scheduler] managed provider capacity lease is missing its Redis lease id");
+    return;
+  }
+  try {
+    await releaseProviderCapacityAsync({
+      providerId: lease.providerId,
+      modelId: lease.modelId,
+      leaseId: lease.leaseId,
+      actualTokens,
+    });
+  } catch (error) {
+    // The Redis lease and concurrency key both have a bounded TTL. Surface the
+    // failed release loudly; never mutate a per-process fallback for a managed
+    // route because that would hide cross-node capacity state.
+    console.error(
+      "[scheduler] managed provider capacity release failed:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
+export async function getManagedRouteCount(modelId: string): Promise<number> {
+  const row = await db.queryOne<{ count: number }>(
+    "SELECT COUNT(*)::int AS count FROM provider_capacity WHERE model_id = ?",
+    [modelId]
+  );
+  return Number(row?.count || 0);
 }
 
 export async function selectProvider(modelId: string, context: ProviderSelectionContext = {}): Promise<ProviderEndpoint | null> {
@@ -144,13 +314,68 @@ export async function selectProvider(modelId: string, context: ProviderSelection
   );
   if (endpoints.length === 0) return null;
 
-  const [policy, activeCosts] = await Promise.all([
+  const [policy, activeCostTiers] = await Promise.all([
     getMatchingRoutePolicy(context.userId, modelId),
-    getActiveCostVersions(),
+    getAllActiveProviderCostTiers(),
   ]);
-  const costByRoute = new Map(activeCosts.map((cost) => [`${cost.provider_id}:${cost.model_id}`, cost]));
+  const costByRoute = new Map<string, {
+    prompt_cost: number;
+    completion_cost: number;
+    fixed_cost: number;
+  }>();
+  for (const tier of activeCostTiers) {
+    const key = `${tier.providerId}:${tier.modelId}`;
+    const current = costByRoute.get(key);
+    costByRoute.set(key, {
+      // Routing does not currently receive request token counts. Use the
+      // highest active tier as the conservative policy/ranking cost instead
+      // of silently evaluating every request at the cheapest tier.
+      prompt_cost: Math.max(current?.prompt_cost ?? 0, tier.promptCost),
+      completion_cost: Math.max(current?.completion_cost ?? 0, tier.completionCost),
+      fixed_cost: Math.max(current?.fixed_cost ?? 0, tier.fixedCost),
+    });
+  }
 
-  const available: Array<{ ep: any; health: HealthRecord | null; apiKey: string }> = [];
+  const runtimeUsage = new Map<string, {
+    available: boolean;
+    rpm: number;
+    tpm: number;
+    daily: number;
+    distributedConcurrency: number;
+  }>(
+    await Promise.all(
+      endpoints.map(async (ep) => {
+        const [minute, daily, distributedConcurrency] = await Promise.all([
+          getProviderUsageStatsAsync(ep.provider_id, ep.model_id),
+          getProviderDailyUsageAsync(ep.provider_id, ep.model_id),
+          getProviderConcurrencyAsync(ep.provider_id, ep.model_id),
+        ]);
+        return [
+          `${ep.provider_id}:${ep.model_id}`,
+          {
+            available: minute.available && distributedConcurrency !== null,
+            rpm: minute.available ? minute.rpm : 0,
+            tpm: minute.available ? minute.tpm : 0,
+            daily,
+            distributedConcurrency: distributedConcurrency ?? 0,
+          },
+        ] as const;
+      })
+    )
+  );
+
+  const available: Array<{
+    ep: any;
+    health: HealthRecord | null;
+    apiKey: string;
+    usage: {
+      available: boolean;
+      rpm: number;
+      tpm: number;
+      daily: number;
+      distributedConcurrency: number;
+    };
+  }> = [];
   for (const ep of endpoints) {
     if (!ep.is_enabled) continue;
     let apiKey = "";
@@ -159,17 +384,21 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     } catch {
       apiKey = "";
     }
-    // A route without credentials is configuration, not capacity. Excluding it
-    // here prevents paid requests from reaching an upstream with an empty
-    // bearer token and lets callers return provider_not_configured before
-    // creating a billing reservation.
-    if (!apiKey) continue;
+    // A provider-level key is optional when an enabled channel owns its key.
+    // resolveManagedUpstream performs the final channel/region choice; excluding
+    // channel-only credentials here would make a valid managed route unusable.
+    if (!(await hasUsableProviderCredential(ep.provider_id, ep.model_id, apiKey))) continue;
     if (policy?.pinned_provider_id && policy.strategy === "pinned" && ep.provider_id !== policy.pinned_provider_id) continue;
     if (policy?.allowed_providers.length && !policy.allowed_providers.includes(ep.provider_id)) continue;
     if (policy?.blocked_providers.includes(ep.provider_id)) continue;
     const cost = costByRoute.get(`${ep.provider_id}:${ep.model_id}`);
-    if (policy?.max_prompt_cost !== null && policy?.max_prompt_cost !== undefined && cost && cost.prompt_cost > policy.max_prompt_cost) continue;
-    if (policy?.max_completion_cost !== null && policy?.max_completion_cost !== undefined && cost && cost.completion_cost > policy.max_completion_cost) continue;
+    if (policy?.strategy === "lowest_cost" && !cost) continue;
+    if (policy?.max_prompt_cost !== null && policy?.max_prompt_cost !== undefined) {
+      if (!cost || cost.prompt_cost > policy.max_prompt_cost) continue;
+    }
+    if (policy?.max_completion_cost !== null && policy?.max_completion_cost !== undefined) {
+      if (!cost || cost.completion_cost > policy.max_completion_cost) continue;
+    }
     const health = await getHealthRecord(ep.provider_id, ep.model_id);
     if (health?.status === "down") continue;
     if (policy?.min_availability !== null && policy?.min_availability !== undefined) {
@@ -184,15 +413,29 @@ export async function selectProvider(modelId: string, context: ProviderSelection
       )) continue;
     }
     const key = `${ep.provider_id}:${ep.model_id}`;
-    const concurrent = concurrentRequests.get(key) || 0;
-    if (concurrent >= ep.concurrent_limit) continue;
-    available.push({ ep, health, apiKey });
+    const usage = runtimeUsage.get(key) || {
+      available: false,
+      rpm: 0,
+      tpm: 0,
+      daily: 0,
+      distributedConcurrency: 0,
+    };
+    // Cross-node managed capacity is unknown when Redis cannot be read. Do not
+    // turn an unavailable truth source into a routable zero.
+    if (!usage.available) continue;
+    if (ep.rpm > 0 && usage.rpm >= ep.rpm) continue;
+    if (ep.tpm > 0 && usage.tpm >= ep.tpm) continue;
+    if (ep.daily_limit > 0 && usage.daily >= ep.daily_limit) continue;
+    const localConcurrency = concurrentRequests.get(key) || 0;
+    const observedConcurrency = Math.max(localConcurrency, usage.distributedConcurrency);
+    // Zero is an explicit "unlimited" value for synchronous text routes.
+    if (ep.concurrent_limit > 0 && observedConcurrency >= ep.concurrent_limit) continue;
+    available.push({ ep, health, apiKey, usage });
   }
 
   if (available.length === 0) return null;
 
-  const weighted = available.map(({ ep, health, apiKey }) => {
-    const usage = getProviderUsageStats(ep.provider_id, ep.model_id);
+  const weighted = available.map(({ ep, health, apiKey, usage }) => {
     const remainingRpm = Math.max(0, ep.rpm - usage.rpm);
     const healthMultiplier = health?.status === "degraded" ? 0.3 : 1.0;
     const capacityRatio = ep.rpm > 0 ? remainingRpm / ep.rpm : 1;
@@ -231,8 +474,8 @@ export async function selectProvider(modelId: string, context: ProviderSelection
 
 /**
  * Returns catalog-safe availability without exposing provider credentials.
- * A model is available when at least one enabled route has a configured secret
- * and is not marked down by the health circuit breaker.
+ * A model is available when at least one enabled route has a provider- or
+ * channel-level credential and is not marked down by the health circuit breaker.
  */
 export async function getModelAvailabilityMap(modelIds: string[]): Promise<Map<string, ModelAvailability>> {
   const uniqueIds = [...new Set(modelIds.filter(Boolean))];
@@ -244,7 +487,7 @@ export async function getModelAvailabilityMap(modelIds: string[]): Promise<Map<s
 
   const placeholders = uniqueIds.map(() => "?").join(", ");
   const routes = await db.queryMany<any>(
-    `SELECT pc.model_id, p.api_key, ph.status AS health_status
+    `SELECT pc.model_id, pc.provider_id, p.api_key, ph.status AS health_status
        FROM provider_capacity pc
        JOIN providers p ON pc.provider_id = p.id
        LEFT JOIN provider_health ph
@@ -263,7 +506,7 @@ export async function getModelAvailabilityMap(modelIds: string[]): Promise<Map<s
     } catch {
       apiKey = "";
     }
-    if (!apiKey) {
+    if (!(await hasUsableProviderCredential(route.provider_id, route.model_id, apiKey))) {
       const current = result.get(route.model_id);
       if (current?.reason === "no_active_route") {
         result.set(route.model_id, {

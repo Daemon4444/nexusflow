@@ -81,7 +81,7 @@ const translations = {
   currentPassword: { zh: "当前密码", en: "Current Password" },
   newPassword: { zh: "新密码", en: "New Password" },
   confirmNewPassword: { zh: "确认新密码", en: "Confirm New Password" },
-  pwMinLength: { zh: "新密码至少6个字符", en: "New password must be at least 6 characters" },
+  pwMinLength: { zh: "新密码至少12个字符，建议使用16位以上长密码", en: "Use at least 12 characters; 16+ is recommended" },
   pwNoMatch: { zh: "两次密码不一致", en: "Passwords do not match" },
   pwChanged: { zh: "密码已修改", en: "Password changed" },
   pwSet: { zh: "密码已设置", en: "Password set" },

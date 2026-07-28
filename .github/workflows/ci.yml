@@ -10,15 +10,135 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 20
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nexusflow_ci
+          POSTGRES_PASSWORD: nexusflow_ci
+          POSTGRES_DB: nexusflow_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nexusflow_ci -d nexusflow_ci_test"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - name: Install release script checkers
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq nginx shellcheck
+      - run: npm ci --legacy-peer-deps
       - run: npm audit --omit=dev --audit-level=high
+      - name: Validate release script syntax
+        run: |
+          for script in scripts/*.sh; do bash -n "$script"; done
+          for script in scripts/*.mjs; do node --check "$script"; done
+          shellcheck -S warning -x scripts/*.sh
       - run: npm --workspace backend run test:large-json-auth
+      - run: npm --workspace backend run test:request-body-admission
+      - run: npm --workspace backend run test:auth-password-security
+      - run: npm --workspace backend run test:sub-account-rate-limits
+      - run: npm --workspace backend run test:auth-login-rate-limit
+      - run: npm --workspace backend run test:health-compatibility
+      - run: npm --workspace backend run test:runtime-safety
+      - run: npm --workspace backend run test:session-token-security
+      - run: npm --workspace backend run test:api-key-rate-limit-security
+      - run: npm --workspace backend run test:outbound-url-policy
       - run: npm --workspace backend run test:billing
+      - run: npm --workspace backend run test:payment-settlement
+      - run: npm --workspace backend run db:migrate
+        env: &postgres-env
+          PG_HOST: 127.0.0.1
+          PG_PORT: 5432
+          PG_USER: nexusflow_ci
+          PG_PASSWORD: nexusflow_ci
+          PG_DATABASE: nexusflow_ci_test
+      - name: Verify complete and idempotent migration ledger
+        env:
+          <<: *postgres-env
+        run: |
+          npm --workspace backend run db:migrate
+          node - <<'NODE'
+          const fs = require("fs");
+          const path = require("path");
+          const { Client } = require("pg");
+          const directory = path.resolve("backend/src/db/migrations");
+          const expected = fs.readdirSync(directory)
+            .filter((name) => name.endsWith(".sql")).length;
+          const client = new Client({
+            host: process.env.PG_HOST,
+            port: Number(process.env.PG_PORT),
+            user: process.env.PG_USER,
+            password: process.env.PG_PASSWORD,
+            database: process.env.PG_DATABASE,
+          });
+          (async () => {
+            await client.connect();
+            const result = await client.query(
+              "SELECT COUNT(*)::int AS count FROM schema_migrations"
+            );
+            if (result.rows[0].count !== expected) {
+              throw new Error(
+                `migration ledger mismatch: ${result.rows[0].count}/${expected}`
+              );
+            }
+            console.log(`migration-ledger-ok ${expected}/${expected}`);
+          })()
+            .catch((error) => {
+              console.error(error);
+              process.exitCode = 1;
+            })
+            .finally(() => client.end().catch(() => undefined));
+          NODE
+      - run: npm --workspace backend run test:payment-settlement:postgres
+        env:
+          <<: *postgres-env
+          NODE_ENV: test
+          PAYMENT_SETTLEMENT_INTEGRATION: "true"
+      - run: npm --workspace backend run test:session-token-security:postgres
+        env:
+          <<: *postgres-env
+          NODE_ENV: test
+          SESSION_TOKEN_SECURITY_INTEGRATION: "true"
+      - run: npm --workspace backend run test:sub-account-concurrency:postgres
+        env:
+          <<: *postgres-env
+          NODE_ENV: test
+      - run: npm --workspace backend run test:provider-monitor
+      - run: npm --workspace backend run test:provider-cost-import
+      - run: npm --workspace backend run test:managed-routing
+      - run: npm --workspace backend run test:admin-control-plane
+      - run: npm --workspace backend run test:admin-audit-intents
+      - run: npm --workspace backend run test:control-plane-persistence
+      - run: npm --workspace backend run test:audio-pricing
+      - run: npm --workspace backend run test:audio-upload-security
+      - run: npm --workspace backend run test:upload-security
+      - run: npm --workspace backend run test:task-poll-control
+      - run: npm --workspace backend run test:provider-secrets
+      - run: npm --workspace backend run test:demo-admin
+      - run: npm --workspace backend run test:provider-capacity-redis
+        env:
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+      - run: npm run test:release-telemetry
+      - run: npm run test:release-telemetry-reconcile
+      - run: npm run test:release-primitives
+      - run: npm run test:provider-cost-release
+      - run: npm run test:deploy-orchestrator-state
+      - run: npm --workspace frontend run lint -- --quiet
       - run: npm run build:backend
       - run: npm run build:frontend

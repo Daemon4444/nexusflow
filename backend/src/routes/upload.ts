@@ -6,14 +6,23 @@ import { randomUUID } from "crypto";
 import sharp from "sharp";
 import { validateSession } from "../data/users";
 import { validateApiKey } from "../data/apikeys";
-import { checkRPM } from "../services/rate-limiter";
-import { getUploadObject, isOssUploadEnabled, putUploadObject } from "../services/oss";
+import { checkRPMFailClosed } from "../services/rate-limiter";
+import { getUploadObject, isOssUploadEnabled } from "../services/oss";
+import { isProductionRuntime } from "../utils/runtime-safety";
+import {
+  finalizeUploadQuota,
+  reserveUploadQuota,
+  type UploadQuotaReservation,
+} from "../services/upload-quota";
+import { persistUploadObject } from "../services/upload-lifecycle";
+import { registerUploadObject } from "../data/upload-objects";
 
 const router = Router();
 
 const IMAGE_SIZE_LIMIT = 10 * 1024 * 1024; // 10MB
 const JPEG_MIME = "image/jpeg";
 const UPLOAD_RPM = Math.max(1, Number(process.env.UPLOAD_RPM || 10));
+const MAX_UPLOAD_REQUEST_BYTES = 101 * 1024 * 1024;
 
 const MIME_EXTENSIONS: Record<string, string[]> = {
   "image/jpeg": [".jpg", ".jpeg"],
@@ -33,6 +42,15 @@ type UploadResult = {
   mimetype: string;
 };
 
+type AuthorizedUploadRequest = Request & {
+  uploadIdentity?: string;
+  uploadUserId?: string | null;
+  uploadApiKeyId?: string | null;
+  uploadQuota?: UploadQuotaReservation;
+  uploadQuotaFinalized?: boolean;
+  uploadTempPaths?: Set<string>;
+};
+
 // Configure upload directory
 const uploadDir = path.resolve(__dirname, "../../uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -44,6 +62,9 @@ const storage = multer.diskStorage({
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const safeName = `${randomUUID()}${ext}`;
+    const req = _req as AuthorizedUploadRequest;
+    req.uploadTempPaths ||= new Set<string>();
+    req.uploadTempPaths.add(path.join(uploadDir, safeName));
     cb(null, safeName);
   },
 });
@@ -80,16 +101,82 @@ async function requireUploadAuth(req: Request, res: Response, next: NextFunction
   const apiKey = session ? null : await validateApiKey(token);
   const identity = session?.id || apiKey?.user_id || apiKey?.id;
   if (identity) {
-    const rate = await checkRPM(`upload:${identity}`, UPLOAD_RPM);
+    const rate = await checkRPMFailClosed(`upload:${identity}`, UPLOAD_RPM);
+    if (!rate.available) {
+      res.status(503).json({ success: false, message: "上传限流服务暂不可用" });
+      return;
+    }
     if (!rate.allowed) {
       res.status(429).json({ success: false, message: `上传过于频繁，请 ${Math.ceil(rate.resetMs / 1000)} 秒后重试` });
       return;
     }
+    const uploadReq = req as AuthorizedUploadRequest;
+    uploadReq.uploadIdentity = `user:${identity}`;
+    uploadReq.uploadUserId = session?.id || apiKey?.user_id || null;
+    uploadReq.uploadApiKeyId = apiKey?.id || null;
+
+    const rawLength = req.headers["content-length"];
+    const transferEncoding = req.headers["transfer-encoding"];
+    if (isProductionRuntime() && (transferEncoding || rawLength === undefined)) {
+      res.status(411).json({ success: false, message: "上传必须提供有效的 Content-Length" });
+      return;
+    }
+    const declaredBytes = rawLength === undefined
+      ? MAX_UPLOAD_REQUEST_BYTES
+      : typeof rawLength === "string" && /^\d+$/.test(rawLength)
+        ? Number(rawLength)
+        : Number.NaN;
+    if (!Number.isSafeInteger(declaredBytes) || declaredBytes < 0) {
+      res.status(400).json({ success: false, message: "Content-Length 无效" });
+      return;
+    }
+    if (declaredBytes > MAX_UPLOAD_REQUEST_BYTES) {
+      res.status(413).json({ success: false, message: "上传请求过大，最大支持 100MB 文件" });
+      return;
+    }
+    const quota = await reserveUploadQuota(uploadReq.uploadIdentity, declaredBytes);
+    if (!quota.allowed) {
+      const unavailable = quota.reason === "redis_unavailable";
+      res.status(unavailable ? 503 : 429).json({
+        success: false,
+        message: unavailable
+          ? "上传配额服务暂不可用"
+          : quota.reason === "daily_bytes"
+            ? "今日上传流量已达到上限"
+            : "并发上传数量已达到上限",
+      });
+      return;
+    }
+    uploadReq.uploadQuota = quota.reservation;
+    req.once("aborted", () => {
+      cleanupUploadTempPaths(uploadReq);
+      void finalizeUploadRequestQuota(uploadReq, 0);
+    });
     next();
     return;
   }
 
   res.status(401).json({ success: false, message: "上传凭证无效或已过期" });
+}
+
+async function finalizeUploadRequestQuota(
+  req: AuthorizedUploadRequest,
+  actualBytes: number
+): Promise<void> {
+  if (req.uploadQuotaFinalized || !req.uploadQuota) return;
+  req.uploadQuotaFinalized = true;
+  await finalizeUploadQuota(req.uploadQuota, actualBytes);
+}
+
+function cleanupUploadTempPaths(req: AuthorizedUploadRequest): void {
+  for (const filePath of req.uploadTempPaths || []) {
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch {
+      // A retry/cleanup pass will handle tracked OSS objects; local temp
+      // cleanup failures are logged by the caller where useful.
+    }
+  }
 }
 
 async function hasValidFileSignature(file: Express.Multer.File): Promise<boolean> {
@@ -181,65 +268,92 @@ async function compressImageIfNeeded(file: Express.Multer.File): Promise<UploadR
 }
 
 // POST /api/upload - single file upload
-router.post("/", requireUploadAuth, upload.single("file"), async (req, res) => {
+router.post("/", requireUploadAuth, upload.single("file"), async (req: AuthorizedUploadRequest, res) => {
   console.log("[Upload API] Received request, file:", req.file?.originalname, "size:", req.file?.size);
-  if (!req.file) {
-    console.log("[Upload API] No file in request");
-    res.status(400).json({ success: false, message: "未收到文件" });
-    return;
-  }
-
-  let uploaded: UploadResult = {
-    filename: req.file.filename,
-    size: req.file.size,
-    mimetype: req.file.mimetype,
-  };
-
   try {
+    if (!req.file) {
+      console.log("[Upload API] No file in request");
+      res.status(400).json({ success: false, message: "未收到文件" });
+      return;
+    }
+
+    let uploaded: UploadResult = {
+      filename: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    };
+
     if (!(await hasValidFileSignature(req.file))) {
-      fs.unlinkSync(req.file.path);
       res.status(400).json({ success: false, message: "文件内容与声明格式不匹配" });
       return;
     }
-  } catch (err: any) {
-    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    console.error("[Upload API] Signature validation failed:", err.message);
-    res.status(400).json({ success: false, message: "无法验证文件内容" });
-    return;
-  }
 
-  try {
-    uploaded = await compressImageIfNeeded(req.file);
-  } catch (err: any) {
-    console.error("[Upload API] Compression failed:", err.message);
-    // 压缩失败不影响上传，继续用原文件
-  }
-
-  if (isOssUploadEnabled()) {
+    const possibleJpeg = path.join(uploadDir, jpegFilename(req.file.filename));
+    req.uploadTempPaths?.add(possibleJpeg);
+    req.uploadTempPaths?.add(`${possibleJpeg}.tmp`);
     try {
-      await putUploadObject(uploaded.filename, path.join(uploadDir, uploaded.filename), uploaded.mimetype);
-      await fs.promises.unlink(path.join(uploadDir, uploaded.filename));
+      uploaded = await compressImageIfNeeded(req.file);
     } catch (err: any) {
-      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-      console.error("[Upload API] OSS upload failed:", err.message);
-      res.status(503).json({ success: false, message: "文件存储暂不可用，请稍后重试" });
-      return;
+      console.error("[Upload API] Compression failed:", err.message);
+      // 压缩失败不影响上传，继续用原文件
     }
+    const uploadedPath = path.join(uploadDir, uploaded.filename);
+    req.uploadTempPaths?.add(uploadedPath);
+
+    if (isOssUploadEnabled()) {
+      await persistUploadObject({
+        objectKey: uploaded.filename,
+        filePath: uploadedPath,
+        ownerIdentity: req.uploadIdentity!,
+        userId: req.uploadUserId,
+        apiKeyId: req.uploadApiKeyId,
+        sizeBytes: uploaded.size,
+        contentType: uploaded.mimetype,
+      });
+      await fs.promises.unlink(uploadedPath);
+      req.uploadTempPaths?.delete(uploadedPath);
+    } else {
+      await registerUploadObject({
+        objectKey: uploaded.filename,
+        ownerIdentity: req.uploadIdentity!,
+        userId: req.uploadUserId,
+        apiKeyId: req.uploadApiKeyId,
+        storage: "local",
+        sizeBytes: uploaded.size,
+        contentType: uploaded.mimetype,
+      });
+      // Development-only local storage keeps the successfully registered file.
+      req.uploadTempPaths?.delete(uploadedPath);
+    }
+
+    await finalizeUploadRequestQuota(req, uploaded.size);
+    const baseUrl = process.env.PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const publicUrl = `${baseUrl}/api/uploads/${uploaded.filename}`;
+    console.log("[Upload API] Success, url:", publicUrl, "size:", uploaded.size);
+
+    res.json({
+      success: true,
+      data: {
+        url: publicUrl,
+        filename: uploaded.filename,
+        size: uploaded.size,
+        mimetype: uploaded.mimetype,
+      },
+    });
+  } catch (err: any) {
+    console.error("[Upload API] upload failed:", err.message);
+    if (!res.headersSent) {
+      res.status(503).json({ success: false, message: "文件存储暂不可用，请稍后重试" });
+    }
+  } finally {
+    cleanupUploadTempPaths(req);
+    await finalizeUploadRequestQuota(req, 0).catch((error) => {
+      console.error(
+        "[Upload API] quota release failed:",
+        error instanceof Error ? error.message : String(error)
+      );
+    });
   }
-
-  const baseUrl = process.env.PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-  const publicUrl = `${baseUrl}/api/uploads/${uploaded.filename}`;
-  console.log("[Upload API] Success, url:", publicUrl, "size:", uploaded.size);
-
-  res.json({
-    success: true,
-    data: {
-      url: publicUrl,
-      filename: uploaded.filename,
-      size: uploaded.size,
-      mimetype: uploaded.mimetype,
-    },
-  });
 });
 
 // GET /api/uploads/:filename - serve uploaded files through the backend.
@@ -288,7 +402,9 @@ router.get("/:filename", async (req, res) => {
 });
 
 // Error handler for multer errors
-router.use((err: any, _req: any, res: any, _next: any) => {
+router.use(async (err: any, req: AuthorizedUploadRequest, res: any, _next: any) => {
+  cleanupUploadTempPaths(req);
+  await finalizeUploadRequestQuota(req, 0).catch(() => undefined);
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
       res.status(413).json({ success: false, message: "文件过大，最大支持 100MB" });

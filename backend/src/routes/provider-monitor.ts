@@ -25,6 +25,7 @@ router.get("/overview", async (_req: Request, res: Response) => {
   const totals = {
     currentRpm: 0,
     currentTpm: 0,
+    usageAvailable: true,
     rpmLimit: 0,
     tpmLimit: 0,
     concurrentLimit: 0,
@@ -43,9 +44,13 @@ router.get("/overview", async (_req: Request, res: Response) => {
     );
 
     const providerTotals = providerCapacity.reduce((acc, item) => {
-      const usage = usageByModel.get(item.model_id) || { rpm: 0, tpm: 0 };
-      acc.rpm += usage.rpm;
-      acc.tpm += usage.tpm;
+      const usage = usageByModel.get(item.model_id);
+      if (usage?.available) {
+        acc.rpm += usage.rpm;
+        acc.tpm += usage.tpm;
+      } else {
+        acc.usageAvailable = false;
+      }
       acc.rpmLimit += item.rpm_limit;
       acc.tpmLimit += item.tpm_limit;
       acc.concurrentLimit += item.concurrent_limit;
@@ -58,6 +63,7 @@ router.get("/overview", async (_req: Request, res: Response) => {
       tpmLimit: 0,
       concurrentLimit: 0,
       enabledRoutes: 0,
+      usageAvailable: true,
     });
 
     const healthByModel = new Map(providerHealth.map((item) => [item.modelId, item.status]));
@@ -70,7 +76,7 @@ router.get("/overview", async (_req: Request, res: Response) => {
 
     const rpmRatio = providerTotals.rpmLimit > 0 ? providerTotals.rpm / providerTotals.rpmLimit : 0;
     const tpmRatio = providerTotals.tpmLimit > 0 ? providerTotals.tpm / providerTotals.tpmLimit : 0;
-    const saturation = Math.max(rpmRatio, tpmRatio);
+    const saturation = providerTotals.usageAvailable ? Math.max(rpmRatio, tpmRatio) : null;
 
     return {
       providerId: provider.id,
@@ -79,14 +85,17 @@ router.get("/overview", async (_req: Request, res: Response) => {
       health: worstHealth,
       modelCount: providerCapacity.length,
       enabledRoutes: providerTotals.enabledRoutes,
-      currentRpm: providerTotals.rpm,
+      currentRpm: providerTotals.usageAvailable ? providerTotals.rpm : null,
       rpmLimit: providerTotals.rpmLimit,
-      currentTpm: providerTotals.tpm,
+      currentTpm: providerTotals.usageAvailable ? providerTotals.tpm : null,
       tpmLimit: providerTotals.tpmLimit,
       concurrentLimit: providerTotals.concurrentLimit,
-      saturationRatio: Number(saturation.toFixed(4)),
+      saturationRatio: saturation === null ? null : Number(saturation.toFixed(4)),
       fallbackState: getFallbackState(worstHealth),
-      capacityHitRate: Number(Math.min(100, saturation * 100).toFixed(1)),
+      capacityHitRate: saturation === null
+        ? null
+        : Number(Math.min(100, saturation * 100).toFixed(1)),
+      usageAvailable: providerTotals.usageAvailable,
       observedRoutes,
       unknownRoutes: healthSummary.unknown,
       healthCoverageRatio: enabledCapacity.length > 0
@@ -97,8 +106,12 @@ router.get("/overview", async (_req: Request, res: Response) => {
   }));
 
   for (const card of providerCards) {
-    totals.currentRpm += card.currentRpm;
-    totals.currentTpm += card.currentTpm;
+    if (card.currentRpm === null || card.currentTpm === null) {
+      totals.usageAvailable = false;
+    } else {
+      totals.currentRpm += card.currentRpm;
+      totals.currentTpm += card.currentTpm;
+    }
     totals.rpmLimit += card.rpmLimit;
     totals.tpmLimit += card.tpmLimit;
     totals.concurrentLimit += card.concurrentLimit;
@@ -132,7 +145,7 @@ router.get("/overview", async (_req: Request, res: Response) => {
         providerId: card.providerId,
       });
     }
-    if (card.capacityHitRate >= 80) {
+    if (card.capacityHitRate !== null && card.capacityHitRate >= 80) {
       rows.push({
         level: "warning",
         title: `${card.providerName} 容量接近打满`,
@@ -155,8 +168,8 @@ router.get("/overview", async (_req: Request, res: Response) => {
         degradedProviders: providerCards.filter((item) => item.health === "degraded").length,
         downProviders: providerCards.filter((item) => item.health === "down").length,
         unknownProviders: providerCards.filter((item) => item.health === "unknown").length,
-        currentRpm: totals.currentRpm,
-        currentTpm: totals.currentTpm,
+        currentRpm: totals.usageAvailable ? totals.currentRpm : null,
+        currentTpm: totals.usageAvailable ? totals.currentTpm : null,
         rpmLimit: totals.rpmLimit,
         tpmLimit: totals.tpmLimit,
         concurrentLimit: totals.concurrentLimit,
@@ -167,6 +180,8 @@ router.get("/overview", async (_req: Request, res: Response) => {
         healthSource: "observed_upstream_requests",
         healthUnknownWhenUnobserved: true,
         usageWindowSeconds: 60,
+        usageSource: "redis_provider_capacity_v2",
+        usageUnknownWhenRedisUnavailable: true,
         historicalSeriesAvailable: false,
       },
     },
@@ -202,9 +217,9 @@ router.get("/provider/:providerId", async (req: Request, res: Response) => {
       name: catalog?.name || cap.model_id,
       status: cap.is_enabled ? "enabled" : "disabled",
       routeEnabled: cap.is_enabled,
-      currentRpm: usage.rpm,
+      currentRpm: usage.available ? usage.rpm : null,
       rpmLimit,
-      currentTpm: usage.tpm,
+      currentTpm: usage.available ? usage.tpm : null,
       tpmLimit,
       concurrentLimit: cap.concurrent_limit,
       priority: cap.priority,
@@ -219,7 +234,13 @@ router.get("/provider/:providerId", async (req: Request, res: Response) => {
       rpmSeries: unavailableHistoricalSeries(),
       tpmSeries: unavailableHistoricalSeries(),
       seriesSource: "unavailable",
-      saturation: Number(Math.max(usage.rpm / Math.max(rpmLimit, 1), usage.tpm / Math.max(tpmLimit, 1)).toFixed(4)),
+      saturation: usage.available
+        ? Number(Math.max(
+          usage.rpm / Math.max(rpmLimit, 1),
+          usage.tpm / Math.max(tpmLimit, 1)
+        ).toFixed(4))
+        : null,
+      usageAvailable: usage.available,
     };
   }));
 
@@ -236,6 +257,8 @@ router.get("/provider/:providerId", async (req: Request, res: Response) => {
         healthSource: "observed_upstream_requests",
         healthUnknownWhenUnobserved: true,
         usageWindowSeconds: 60,
+        usageSource: "redis_provider_capacity_v2",
+        usageUnknownWhenRedisUnavailable: true,
         historicalSeriesAvailable: false,
       },
     },

@@ -12,19 +12,33 @@ import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
-import { logUsage } from "../data/usage";
+import { logUpstreamFailure, logUsage } from "../data/usage";
 import { releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
 import { sendBillingReservationFailure } from "../utils/billing-response";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
-import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
-import { getEffectiveRateLimit } from "../data/ratelimits";
+import { checkConsumerLimitsAsync } from "../services/rate-limiter";
+import {
+  reconcileAccountTpm,
+  reserveAccountQpm,
+  reserveAccountTpm,
+} from "../services/account-rate-limiter";
 import { isModelAllowed } from "../data/model-access";
-import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
+import {
+  getRequestedRegion,
+  resolveUpstream,
+  upstreamErrorBody,
+  type ResolvedUpstream,
+} from "../services/upstream";
 import { detectModelType } from "../services/adapters";
 import { calculateOpenAiCacheAwareCost, buildApiDescription } from "../utils/cache-billing";
-import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
+import {
+  acquireProviderCapacity,
+  releaseProviderCapacity,
+  type ProviderRequestCapacityLease,
+} from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { db } from "../db/client";
+import { safeProviderFetch } from "../services/outbound-url-policy";
 import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
 
 /** 记录 response 归属（POST 成功后调用）。失败不影响主流程，但会导致该 response 后续不可检索（fail-closed）。 */
@@ -103,6 +117,90 @@ function resolveModelFromBody(body: any): string | null {
   return body?.model || null;
 }
 
+async function proxyResponseControlRequest(params: {
+  req: Request;
+  res: Response;
+  apiKeyRecord: NonNullable<Awaited<ReturnType<typeof validateApiKey>>>;
+  upstream: ResolvedUpstream;
+  url: string;
+  method: "GET" | "DELETE";
+  onSuccess?: () => Promise<void>;
+}): Promise<void> {
+  const modelId = "qwen-plus";
+  const startTime = Date.now();
+  const logId = randomUUID();
+  let capacityLease: ProviderRequestCapacityLease | null = null;
+  let upstreamCompleted = false;
+  try {
+    const capacity = await acquireProviderCapacity(params.upstream, modelId, 0);
+    if (!capacity.ok) {
+      params.res.status(503).json({
+        error: { message: capacity.message, type: "server_error", code: capacity.code },
+      });
+      return;
+    }
+    capacityLease = capacity.lease;
+
+    const response = await safeProviderFetch(params.url, {
+      method: params.method,
+      headers: { Authorization: `Bearer ${params.upstream.apiKey}` },
+      signal: AbortSignal.timeout(30000),
+    });
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      data = {
+        error: {
+          message: "Upstream returned an invalid JSON response.",
+          type: "upstream_error",
+          code: "upstream_invalid_response",
+        },
+      };
+    }
+    if (!response.ok) {
+      await logUpstreamFailure({
+        logId,
+        apiKeyId: params.apiKeyRecord.id,
+        userId: params.apiKeyRecord.user_id,
+        model: modelId,
+        providerId: params.upstream.providerId,
+        channelId: params.upstream.channelId,
+        region: params.upstream.region,
+        protocol: "openai-responses-control",
+        latencyMs: Date.now() - startTime,
+        httpStatus: response.status,
+        errorCode: data?.error?.code || "upstream_error",
+        errorReason: data?.error?.message || "Upstream Responses control request failed.",
+      });
+    }
+    upstreamCompleted = true;
+    if (response.ok && params.onSuccess) await params.onSuccess();
+    params.res.status(response.status).json(data);
+  } catch (error: any) {
+    if (!upstreamCompleted) {
+      await logUpstreamFailure({
+        logId,
+        apiKeyId: params.apiKeyRecord.id,
+        userId: params.apiKeyRecord.user_id,
+        model: modelId,
+        providerId: params.upstream.providerId,
+        channelId: params.upstream.channelId,
+        region: params.upstream.region,
+        protocol: "openai-responses-control",
+        latencyMs: Date.now() - startTime,
+        errorCode: "upstream_exception",
+        errorReason: String(error?.message || error),
+      });
+    }
+    params.res.status(500).json({
+      error: { message: sanitizeUpstreamError(error), type: "server_error", code: "upstream_error" },
+    });
+  } finally {
+    await releaseProviderCapacity(capacityLease, 0);
+  }
+}
+
 // POST /responses — Create a response (proxy to upstream)
 router.post("/", async (req: Request, res: Response) => {
   const token = extractToken(req);
@@ -165,7 +263,10 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const resolvedUpstream = await resolveUpstream(modelId, { region: getRequestedRegion(req) });
+  const resolvedUpstream = await resolveUpstream(modelId, {
+    region: getRequestedRegion(req),
+    userId: apiKeyRecord.user_id,
+  });
   if (!resolvedUpstream.ok) {
     res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
     return;
@@ -223,19 +324,27 @@ router.post("/", async (req: Request, res: Response) => {
     });
     return;
   }
-  const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
-  const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
+  const rpmCheck = await reserveAccountQpm({
+    userId: apiKeyRecord.user_id,
+    parentUserId: apiKeyRecord.parent_user_id,
+    modelId,
+  });
   if (!rpmCheck.allowed) {
     res.status(429).json({
       error: {
-        message: `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'.`,
+        message: `Model-level QPM limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`,
         type: "rate_limit_error",
         code: "rate_limit_exceeded",
       },
     });
     return;
   }
-  const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, estimatedTokens);
+  const tpmCheck = await reserveAccountTpm({
+    userId: apiKeyRecord.user_id,
+    parentUserId: apiKeyRecord.parent_user_id,
+    modelId,
+    estimatedTokens,
+  });
   if (!tpmCheck.allowed) {
     res.status(429).json({
       error: {
@@ -280,15 +389,27 @@ router.post("/", async (req: Request, res: Response) => {
   const logId = randomUUID();
   const isStream = req.body.stream === true;
 
-  recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
-  acquireConcurrency(upstream.providerId, modelId);
-
   // 预占的 TPM 必须在所有出口恰好归还一次；billAndLog 内 reconcile 后置 true，
   // 上游错误/异常路径由 finally 兜底释放。
   let tokensReconciled = false;
   let billableResponseReceived = false;
+  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
+  let actualProviderTokens = 0;
 
   try {
+    const capacity = await acquireProviderCapacity(upstream, modelId, estimatedTokens);
+    if (!capacity.ok) {
+      res.status(503).json({
+        error: {
+          message: capacity.message,
+          type: "server_error",
+          code: capacity.code,
+        },
+      });
+      return;
+    }
+    providerCapacityLease = capacity.lease;
+
     // Build upstream request — pass through body directly, upstream is DashScope Responses API
     const upstreamUrl = `${upstream.baseUrl}/responses`;
     const upstreamHeaders: Record<string, string> = {
@@ -301,7 +422,7 @@ router.post("/", async (req: Request, res: Response) => {
       upstreamHeaders["x-dashscope-session-cache"] = String(sessionCache);
     }
 
-    const response = await fetch(upstreamUrl, {
+    const response = await safeProviderFetch(upstreamUrl, {
       method: "POST",
       headers: upstreamHeaders,
       body: JSON.stringify(req.body),
@@ -314,6 +435,20 @@ router.post("/", async (req: Request, res: Response) => {
         const errJson = await response.json() as any;
         errMsg = errJson?.error?.message || errMsg;
       } catch {}
+      await logUpstreamFailure({
+        logId,
+        apiKeyId: apiKeyRecord.id,
+        userId: apiKeyRecord.user_id,
+        model: modelId,
+        providerId: upstream.providerId,
+        channelId: upstream.channelId,
+        region: upstream.region,
+        protocol: "openai-responses",
+        latencyMs: Date.now() - startTime,
+        httpStatus: response.status,
+        errorReason: errMsg,
+        reservationId: billingReservation.id,
+      });
       res.status(response.status).json({
         error: { message: errMsg, type: "upstream_error", code: "upstream_error" },
       });
@@ -367,7 +502,7 @@ router.post("/", async (req: Request, res: Response) => {
         billableUsage = { input_tokens: est.prompt_tokens, output_tokens: est.completion_tokens, total_tokens: est.total_tokens };
         estimated = true;
       }
-      await billAndLog(billableUsage, {
+      actualProviderTokens = await billAndLog(billableUsage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated,
         onReconciled: () => { tokensReconciled = true; },
       });
@@ -381,7 +516,7 @@ router.post("/", async (req: Request, res: Response) => {
       await recordResponseOwnership(data?.id, apiKeyRecord.user_id);
       // Bill based on response usage
       const usage = data?.usage || {};
-      await billAndLog(usage, {
+      actualProviderTokens = await billAndLog(usage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated: false,
         onReconciled: () => { tokensReconciled = true; },
       });
@@ -389,6 +524,9 @@ router.post("/", async (req: Request, res: Response) => {
   } catch (err: any) {
     await logUsage({
       region: upstream.region,
+      providerId: upstream.providerId,
+      channelId: upstream.channelId,
+      protocol: "openai-responses",
       logId,
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
@@ -399,6 +537,9 @@ router.post("/", async (req: Request, res: Response) => {
       cost: 0,
       status: "error",
       latencyMs: Date.now() - startTime,
+      reservationId: billingReservation.id,
+      errorCode: "upstream_error",
+      errorReason: String(err?.message || err),
     });
     // 流式响应已 end 后（如计费段 DB 异常）不能再写状态码
     if (res.headersSent) {
@@ -416,10 +557,16 @@ router.post("/", async (req: Request, res: Response) => {
     if (!billableResponseReceived) await releaseReservation(billingReservation.id);
     if (!tokensReconciled) {
       try {
-        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedTokens, 0);
+        await reconcileAccountTpm({
+          userId: apiKeyRecord.user_id,
+          parentUserId: apiKeyRecord.parent_user_id,
+          modelId,
+          reservedTokens: estimatedTokens,
+          actualTokens: 0,
+        });
       } catch { /* 归还失败仅影响 60s 窗口，不阻断 */ }
     }
-    releaseConcurrency(upstream.providerId, modelId);
+    await releaseProviderCapacity(providerCapacityLease, actualProviderTokens);
   }
 });
 
@@ -438,26 +585,24 @@ router.get("/:id", async (req: Request, res: Response) => {
   // 归属校验：上游所有用户的 response 存在平台同一账号下，必须校验本人才可读（IDOR 防护）
   if (!(await assertResponseOwnership(responseId, apiKeyRecord.user_id, res))) return;
   // Must resolve a provider to get the upstream URL. Use a default qwen model for routing.
-  const resolvedUpstream = await resolveUpstream("qwen-plus", { region: getRequestedRegion(req) });
+  const resolvedUpstream = await resolveUpstream("qwen-plus", {
+    region: getRequestedRegion(req),
+    userId: apiKeyRecord.user_id,
+  });
   if (!resolvedUpstream.ok) {
     res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
     return;
   }
 
   const upstream = resolvedUpstream.upstream;
-  try {
-    const response = await fetch(`${upstream.baseUrl}/responses/${responseId}`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${upstream.apiKey}` },
-      signal: AbortSignal.timeout(30000),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(500).json({
-      error: { message: sanitizeUpstreamError(err), type: "server_error", code: "upstream_error" },
-    });
-  }
+  await proxyResponseControlRequest({
+    req,
+    res,
+    apiKeyRecord,
+    upstream,
+    url: `${upstream.baseUrl}/responses/${responseId}`,
+    method: "GET",
+  });
 });
 
 // DELETE /responses/:id — Delete a response
@@ -473,32 +618,47 @@ router.delete("/:id", async (req: Request, res: Response) => {
 
   const responseId = String(req.params.id);
   if (!(await assertResponseOwnership(responseId, apiKeyRecord.user_id, res))) return;
-  const resolvedUpstream = await resolveUpstream("qwen-plus", { region: getRequestedRegion(req) });
+  const resolvedUpstream = await resolveUpstream("qwen-plus", {
+    region: getRequestedRegion(req),
+    userId: apiKeyRecord.user_id,
+  });
   if (!resolvedUpstream.ok) {
     res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
     return;
   }
 
   const upstream = resolvedUpstream.upstream;
-  try {
-    const response = await fetch(`${upstream.baseUrl}/responses/${responseId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${upstream.apiKey}` },
-      signal: AbortSignal.timeout(30000),
-    });
-    const data = await response.json();
-    if (response.ok) {
+  await proxyResponseControlRequest({
+    req,
+    res,
+    apiKeyRecord,
+    upstream,
+    url: `${upstream.baseUrl}/responses/${responseId}`,
+    method: "DELETE",
+    onSuccess: async () => {
       try { await db.execute("DELETE FROM response_ownership WHERE response_id = ?", [responseId]); } catch { /* 清理失败不影响主流程 */ }
-    }
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(500).json({
-      error: { message: sanitizeUpstreamError(err), type: "server_error", code: "upstream_error" },
-    });
-  }
+    },
+  });
 });
 
 // GET /responses/:id/input_items — List input items
+export function buildResponseInputItemsUrl(
+  baseUrl: string,
+  responseId: string,
+  query: Record<string, unknown>
+): string {
+  const allowedParams = ["after", "limit", "order"] as const;
+  const forwarded = new URLSearchParams();
+  for (const name of allowedParams) {
+    const value = query[name];
+    if (typeof value === "string" && value.length > 0) forwarded.set(name, value);
+  }
+  const queryString = forwarded.toString();
+  return `${baseUrl}/responses/${encodeURIComponent(responseId)}/input_items${
+    queryString ? `?${queryString}` : ""
+  }`;
+}
+
 router.get("/:id/input_items", async (req: Request, res: Response) => {
   const token = extractToken(req);
   const apiKeyRecord = token ? await validateApiKey(token) : null;
@@ -511,35 +671,19 @@ router.get("/:id/input_items", async (req: Request, res: Response) => {
 
   const responseId = String(req.params.id);
   if (!(await assertResponseOwnership(responseId, apiKeyRecord.user_id, res))) return;
-  const resolvedUpstream = await resolveUpstream("qwen-plus", { region: getRequestedRegion(req) });
+  const resolvedUpstream = await resolveUpstream("qwen-plus", {
+    region: getRequestedRegion(req),
+    userId: apiKeyRecord.user_id,
+  });
   if (!resolvedUpstream.ok) {
     res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
     return;
   }
 
   const upstream = resolvedUpstream.upstream;
-  try {
-    // Forward only whitelisted query params (after, limit, order)
-    const allowedParams = ["after", "limit", "order"] as const;
-    const forwarded = new URLSearchParams();
-    for (const name of allowedParams) {
-      const value = req.query[name];
-      if (typeof value === "string" && value.length > 0) forwarded.set(name, value);
-    }
-    const queryString = forwarded.toString();
-    const url = `${upstream.baseUrl}/responses/${responseId}/input_items${queryString ? `?${queryString}` : ""}`;
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${upstream.apiKey}` },
-      signal: AbortSignal.timeout(30000),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(500).json({
-      error: { message: sanitizeUpstreamError(err), type: "server_error", code: "upstream_error" },
-    });
-  }
+  // Forward only whitelisted query params (after, limit, order).
+  const url = buildResponseInputItemsUrl(upstream.baseUrl, responseId, req.query);
+  await proxyResponseControlRequest({ req, res, apiKeyRecord, upstream, url, method: "GET" });
 });
 
 // --- Helpers ---
@@ -574,7 +718,7 @@ async function billAndLog(
     estimated?: boolean;
     onReconciled?: () => void;
   },
-): Promise<void> {
+): Promise<number> {
   const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId, estimated } = ctx;
   const latencyMs = Date.now() - startTime;
   const inputTokens = usage.input_tokens || 0;
@@ -599,6 +743,9 @@ async function billAndLog(
 
   await logUsage({
     region: upstream.region,
+    providerId: upstream.providerId,
+    channelId: upstream.channelId,
+    protocol: "openai-responses",
     logId,
     apiKeyId: apiKeyRecord.id,
     userId: apiKeyRecord.user_id,
@@ -610,10 +757,18 @@ async function billAndLog(
     status: "success",
     latencyMs,
     cachedTokens: billing.cachedTokens,
+    providerCacheMode: "implicit",
+    providerInputIncludesCache: true,
     estimated,
+    reservationId: billingReservationId,
   });
-  recordProviderTokens(upstream.providerId, modelId, totalTokens);
-  await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, estimatedTokens, totalTokens);
+  await reconcileAccountTpm({
+    userId: apiKeyRecord.user_id,
+    parentUserId: apiKeyRecord.parent_user_id,
+    modelId,
+    reservedTokens: estimatedTokens,
+    actualTokens: totalTokens,
+  });
   ctx.onReconciled?.();
 
   await settleReservation(
@@ -623,6 +778,7 @@ async function billAndLog(
     billing.discountRate,
     billing.discountAmount,
   );
+  return totalTokens;
 }
 
 export default router;

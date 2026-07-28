@@ -26,6 +26,7 @@ function LoginPageInner() {
   const [mode, setMode] = useState<LoginMode>("code");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  const [challengeToken, setChallengeToken] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
@@ -63,12 +64,24 @@ function LoginPageInner() {
         body: JSON.stringify({ email }),
       });
       if (res.success) {
+        const nextChallengeToken = typeof res.data?.challengeToken === "string"
+          ? res.data.challengeToken
+          : "";
+        if (!nextChallengeToken) {
+          setChallengeToken("");
+          setError("验证码会话创建失败，请重新获取");
+          return;
+        }
+        setChallengeToken(nextChallengeToken);
+        setCode("");
         setCountdown(60);
         setInfo(res.message);
       } else {
+        setChallengeToken("");
         setError(res.message || "发送失败");
       }
     } catch {
+      setChallengeToken("");
       setError("网络错误，请重试");
     } finally {
       setSendingCode(false);
@@ -86,7 +99,12 @@ function LoginPageInner() {
 
     if (mode === "code") {
       if (!code || code.length < 4) { setError("请输入验证码"); setSubmitting(false); return; }
-      result = await login(email, code);
+      if (!challengeToken) {
+        setError("验证码会话已失效，请重新获取验证码");
+        setSubmitting(false);
+        return;
+      }
+      result = await login(email, code, challengeToken);
     } else if (mode === "username") {
       if (!username || username.length < 3) { setError("请输入用户名"); setSubmitting(false); return; }
       if (!password || password.length < 6) { setError("密码至少 6 位"); setSubmitting(false); return; }
@@ -105,6 +123,10 @@ function LoginPageInner() {
     setMode(newMode);
     setError("");
     setInfo("");
+    if (newMode !== "code") {
+      setCode("");
+      setChallengeToken("");
+    }
   }
 
   return (
@@ -194,7 +216,12 @@ function LoginPageInner() {
                 type="email"
                 placeholder="your@email.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value.trim())}
+                onChange={(e) => {
+                  setEmail(e.target.value.trim());
+                  setCode("");
+                  setChallengeToken("");
+                  setCountdown(0);
+                }}
                 autoComplete="email"
                 style={{ fontSize: 16 }}
               />

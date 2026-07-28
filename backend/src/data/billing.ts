@@ -56,7 +56,7 @@ export interface BillingUsageExportRow {
   model: string;
   model_name: string;
   provider: string;
-  pricing_type: "token" | "per-image" | "per-second";
+  pricing_type: "token" | "per-image" | "per-second" | "per-10k-characters";
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;

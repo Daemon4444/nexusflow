@@ -32,11 +32,18 @@ import {
   pollPixVerseTask,
   pollVolcEngineTask,
 } from "../services/adapters";
-import { checkConsumerLimitsAsync, checkRPM, recordRequest } from "../services/rate-limiter";
-import { getEffectiveRateLimit } from "../data/ratelimits";
+import { checkConsumerLimitsAsync } from "../services/rate-limiter";
+import { reserveAccountQpm } from "../services/account-rate-limiter";
 import { isModelAllowed } from "../data/model-access";
-import { selectProvider, acquireConcurrency, getModelAvailabilityMap, releaseConcurrency, recordSuccess, recordFailure } from "../services/scheduler";
+import {
+  acquireProviderCapacity,
+  releaseProviderCapacity,
+  recordSuccess,
+  recordFailure,
+  type ProviderRequestCapacityLease,
+} from "../services/scheduler";
 import { getProviderById } from "../data/providers";
+import { getProviderChannel } from "../data/provider-channels";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { BillingReservation, releaseReservation, reserveBalanceWithReason } from "../data/billing";
@@ -46,6 +53,9 @@ import {
   normalizeDashScopeVideoSize,
   VideoParameterError,
 } from "../utils/video-parameters";
+import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
+import { safeProviderFetch } from "../services/outbound-url-policy";
+import { pollTaskWithControl } from "../services/task-poll-control";
 
 const router = Router();
 
@@ -125,12 +135,15 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
-    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
-    const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
+    const rpmCheck = await reserveAccountQpm({
+      userId: apiKeyRecord.user_id,
+      parentUserId: apiKeyRecord.parent_user_id,
+      modelId,
+    });
     if (!rpmCheck.allowed) {
       res.status(429).json({
         error: {
-          message: `Model-level QPM limit exceeded: ${userLimits.qpm} requests/min for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`,
+          message: `Model-level QPM limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`,
           type: "rate_limit_error",
           code: "rate_limit_exceeded",
         },
@@ -221,22 +234,26 @@ router.post("/", async (req: Request, res: Response) => {
     }
   }
 
-  // Select provider via scheduler (respects provider_capacity config)
-  const selected = await selectProvider(modelId, { userId: apiKeyRecord.user_id });
-  if (!selected) {
-    const availability = (await getModelAvailabilityMap([modelId])).get(modelId);
-    const providerNotConfigured = availability?.reason === "provider_not_configured";
-    res.status(503).json({
-      error: {
-        message: providerNotConfigured
-          ? "The provider for this model is not configured."
-          : "No available provider for this model.",
-        type: "server_error",
-        code: providerNotConfigured ? "provider_not_configured" : "provider_unavailable",
-      },
-    });
+  const resolvedUpstream = await resolveUpstream(modelId, {
+    region: getRequestedRegion(req),
+    userId: apiKeyRecord.user_id,
+  });
+  if (!resolvedUpstream.ok) {
+    res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
     return;
   }
+  const selected = {
+    providerId: resolvedUpstream.upstream.providerId,
+    apiKey: resolvedUpstream.upstream.apiKey,
+    apiBaseUrl: resolvedUpstream.upstream.nativeBaseUrl,
+    channelId: resolvedUpstream.upstream.channelId,
+    region: resolvedUpstream.upstream.region,
+    managed: resolvedUpstream.upstream.managed,
+    rpm: resolvedUpstream.upstream.rpm,
+    tpm: resolvedUpstream.upstream.tpm,
+    dailyLimit: resolvedUpstream.upstream.dailyLimit,
+    concurrentLimit: resolvedUpstream.upstream.concurrentLimit,
+  };
   const upstreamApiKey = selected.apiKey;
   const provider = selected.providerId;
   let billingReservation: BillingReservation | null = null;
@@ -255,9 +272,22 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   let keepReservationForPolling = false;
-  acquireConcurrency(selected.providerId, modelId);
+  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
 
   try {
+    const capacity = await acquireProviderCapacity(selected, modelId, 0);
+    if (!capacity.ok) {
+      res.status(503).json({
+        error: {
+          message: capacity.message,
+          type: "server_error",
+          code: capacity.code,
+        },
+      });
+      return;
+    }
+    providerCapacityLease = capacity.lease;
+
     // Create task record
     const task = await createTask({
       userId: apiKeyRecord.user_id,
@@ -265,12 +295,22 @@ router.post("/", async (req: Request, res: Response) => {
       type: modelType as "image" | "video",
       model: modelId,
       provider,
-      input: { prompt, ...params },
+      input: {
+        prompt,
+        ...params,
+        _route: {
+          channelId: selected.channelId,
+          region: selected.region,
+          nativeBaseUrl: selected.apiBaseUrl,
+          managed: selected.managed,
+          rpm: selected.rpm,
+          tpm: selected.tpm,
+          dailyLimit: selected.dailyLimit,
+          concurrentLimit: selected.concurrentLimit,
+        },
+      },
       billingReservationId: billingReservation?.id,
     });
-
-    // Record rate limit
-    recordRequest("system", modelId, apiKeyRecord.id, 0);
 
     // Build upstream request
     const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
@@ -278,7 +318,11 @@ router.post("/", async (req: Request, res: Response) => {
     let adapted;
     try {
       if (modelType === "image") {
-        adapted = adaptImageRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+        adapted = adaptImageRequest(
+          upstreamApiKey,
+          { model: modelId, prompt, ...params },
+          { nativeBase: selected.apiBaseUrl }
+        );
       } else if (isPixVerseOfficial) {
         adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, selected.apiBaseUrl);
       } else if (modelId.startsWith("seedance-")) {
@@ -305,7 +349,7 @@ router.post("/", async (req: Request, res: Response) => {
     // Submit to upstream
     const submitStart = Date.now();
     try {
-      const response = await fetch(adapted.url, {
+      const response = await safeProviderFetch(adapted.url, {
         method: adapted.method,
         headers: adapted.headers,
         body: JSON.stringify(adapted.body),
@@ -414,7 +458,7 @@ router.post("/", async (req: Request, res: Response) => {
     if (billingReservation && !keepReservationForPolling) {
       await releaseReservation(billingReservation.id, "task_submission_not_running");
     }
-    releaseConcurrency(selected.providerId, modelId);
+    await releaseProviderCapacity(providerCapacityLease, 0);
   }
 });
 
@@ -515,17 +559,63 @@ router.get("/:id", async (req: Request, res: Response) => {
         });
         return;
       }
-      pollApiKey = providerRecord.api_key;
-      isPixVerseOfficial = providerRecord.api_base_url.includes("pixverse.ai");
-      isVolcEngine = providerRecord.api_base_url.includes("volces.com") || providerRecord.api_base_url.includes("genvia.ai");
-      pixVerseBaseUrl = providerRecord.api_base_url;
+      const taskChannelId = task.input?._route?.channelId;
+      const taskChannel = taskChannelId
+        ? await getProviderChannel(task.provider, taskChannelId)
+        : null;
+      pollApiKey = taskChannel?.api_key || providerRecord.api_key;
+      const resolvedPollBaseUrl = String(
+        task.input?._route?.nativeBaseUrl || providerRecord.api_base_url
+      );
+      pixVerseBaseUrl = resolvedPollBaseUrl;
+      isPixVerseOfficial = resolvedPollBaseUrl.includes("pixverse.ai");
+      isVolcEngine = resolvedPollBaseUrl.includes("volces.com") || resolvedPollBaseUrl.includes("genvia.ai");
     }
 
-    const result = isPixVerseOfficial
-      ? await pollPixVerseTask(pollApiKey, task.upstream_task_id, pixVerseBaseUrl!)
-      : isVolcEngine
-        ? await pollVolcEngineTask(pollApiKey, task.upstream_task_id, pixVerseBaseUrl)
-        : await pollDashScopeTask(pollApiKey, task.upstream_task_id);
+    const controlledPoll = await pollTaskWithControl({
+      task,
+      actorId: `api-key:${apiKeyRecord.id}`,
+      userId: apiKeyRecord.user_id,
+      poll: () => isPixVerseOfficial
+        ? pollPixVerseTask(pollApiKey, task.upstream_task_id!, pixVerseBaseUrl!)
+        : isVolcEngine
+          ? pollVolcEngineTask(pollApiKey, task.upstream_task_id!, pixVerseBaseUrl)
+          : pollDashScopeTask(pollApiKey, task.upstream_task_id!, pixVerseBaseUrl),
+    });
+    if (!controlledPoll.ok) {
+      const storeUnavailable =
+        controlledPoll.reason === "control_store_unavailable"
+        || controlledPoll.reason === "provider_capacity_store_unavailable";
+      res
+        .status(storeUnavailable ? 503 : 429)
+        .set("Retry-After", storeUnavailable ? "5" : "2")
+        .json({
+          error: {
+            message: storeUnavailable
+              ? "Task polling is temporarily unavailable."
+              : "Task polling rate or provider capacity limit exceeded.",
+            type: storeUnavailable ? "server_error" : "rate_limit_error",
+            code: controlledPoll.reason,
+          },
+        });
+      return;
+    }
+    if (controlledPoll.state === "in_flight") {
+      res.json({
+        id: task.id,
+        object: "task",
+        status: task.status,
+        model: task.model,
+        type: task.type,
+        progress: task.progress,
+        output: task.output,
+        error: task.error_message,
+        created_at: task.created_at,
+        completed_at: task.completed_at,
+      });
+      return;
+    }
+    const result = controlledPoll.result;
 
     // Update task based on result
     if (result.status === "succeeded") {
@@ -544,22 +634,25 @@ router.get("/:id", async (req: Request, res: Response) => {
         );
       }
     } else {
-      await updateTaskStatus(task.id, result.status, result.progress || 0);
+      await updateTaskStatus(
+        task.id,
+        result.status === "running" ? "running" : "pending",
+        result.progress || 0
+      );
     }
 
+    const persistedTask = (await getTaskById(task.id)) || task;
     res.json({
-      id: task.id,
+      id: persistedTask.id,
       object: "task",
-      status: result.status,
-      model: task.model,
-      type: task.type,
-      progress: result.progress || 0,
-      output: result.output,
-      error: result.error,
-      created_at: task.created_at,
-      completed_at: result.status === "succeeded" || result.status === "failed" 
-        ? new Date().toISOString() 
-        : null,
+      status: persistedTask.status,
+      model: persistedTask.model,
+      type: persistedTask.type,
+      progress: persistedTask.progress,
+      output: persistedTask.output,
+      error: persistedTask.error_message,
+      created_at: persistedTask.created_at,
+      completed_at: persistedTask.completed_at,
     });
 
   } catch (err: any) {

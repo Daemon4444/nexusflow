@@ -5,7 +5,9 @@ import { getUsageSummary } from "./usage";
 import {
   createRateLimitRequest,
   getRateLimitRequestById,
+  getRateLimitRequestCounts,
   getRateLimitRequests,
+  getRateLimitRequestsPage,
   reviewRateLimitRequest,
 } from "./rate-limit-requests";
 
@@ -21,6 +23,13 @@ export interface UserRateLimit {
   source: string;
   created_at: string;
   updated_at: string;
+}
+
+export class RateLimitApprovalError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RateLimitApprovalError";
+  }
 }
 
 export async function getUserRateLimits(userId: string): Promise<UserRateLimit[]> {
@@ -40,7 +49,10 @@ export async function getEffectiveRateLimit(userId: string, model: string): Prom
 export async function getUserLimitsOverview(userId: string) {
   const wildcard = await db.queryOne<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'", [userId]);
   const customs = await db.queryMany<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? AND model != '*' ORDER BY model", [userId]);
-  const requests = await getRateLimitRequests(userId);
+  const [requests, requestCounts] = await Promise.all([
+    getRateLimitRequests(userId, undefined, { limit: 100 }),
+    getRateLimitRequestCounts(userId),
+  ]);
   return {
     defaultQpm: wildcard?.qpm ?? DEFAULT_QPM,
     defaultTpm: wildcard?.tpm ?? DEFAULT_TPM,
@@ -50,7 +62,8 @@ export async function getUserLimitsOverview(userId: string) {
     customLimits: customs,
     requests,
     pendingRequests: requests.filter((item) => item.status === "pending"),
-    pendingRequestCount: requests.filter((item) => item.status === "pending").length,
+    pendingRequestCount: requestCounts.pending,
+    requestCount: requestCounts.total,
   };
 }
 
@@ -85,8 +98,16 @@ export async function getAdminUserLimitSummaries() {
   }));
 }
 
-export async function getAdminRateLimitRequests(status?: string) {
-  return getRateLimitRequests(undefined, status);
+export async function getAdminRateLimitRequests(
+  status?: string,
+  options: { query?: string; limit?: number; offset?: number } = {}
+) {
+  return getRateLimitRequestsPage({
+    status,
+    query: options.query,
+    limit: options.limit,
+    offset: options.offset,
+  });
 }
 
 export async function submitRateLimitRequest(data: {
@@ -104,27 +125,54 @@ export async function approveRateLimitRequest(
   reviewer: string,
   overrides?: { model?: string; qpm?: number; tpm?: number; reply?: string }
 ) {
-  const request = await getRateLimitRequestById(requestId);
-  if (!request || request.status !== "pending") return null;
-  const model = overrides?.model?.trim() || request.model || "*";
-  const qpm = overrides?.qpm ?? request.requested_qpm;
-  const tpm = overrides?.tpm ?? request.requested_tpm;
-  await reviewRateLimitRequest(requestId, "approved", {
-    adminReply: overrides?.reply || "已批准",
-    reviewedBy: reviewer,
+  return db.transaction(async (client) => {
+    const request = await client.queryOne<import("./rate-limit-requests").RateLimitRequest>(
+      "SELECT * FROM rate_limit_requests WHERE id = ? FOR UPDATE",
+      [requestId]
+    );
+    if (!request || request.status !== "pending") return null;
+
+    const model = overrides?.model?.trim() || request.model || "*";
+    const qpm = Number(overrides?.qpm ?? request.requested_qpm);
+    const tpm = Number(overrides?.tpm ?? request.requested_tpm);
+    if (!model || model.length > 128) {
+      throw new RateLimitApprovalError("model 必须是 1-128 个字符");
+    }
+    if (!Number.isFinite(qpm) || qpm <= 0) {
+      throw new RateLimitApprovalError("qpm 必须是大于 0 的数字");
+    }
+    if (!Number.isFinite(tpm) || tpm <= 0) {
+      throw new RateLimitApprovalError("tpm 必须是大于 0 的数字");
+    }
+
+    const now = new Date().toISOString();
+    await client.execute(
+      `INSERT INTO user_rate_limits (id, user_id, model, qpm, tpm, source, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'admin', ?, ?)
+       ON CONFLICT (user_id, model) DO UPDATE SET
+         qpm = excluded.qpm,
+         tpm = excluded.tpm,
+         source = excluded.source,
+         updated_at = excluded.updated_at`,
+      [uuid(), request.user_id, model, Math.round(qpm), Math.round(tpm), now, now]
+    );
+
+    return client.queryOne<import("./rate-limit-requests").RateLimitRequest>(
+      `UPDATE rate_limit_requests
+          SET status = 'approved', admin_reply = ?, reviewed_by = ?,
+              reviewed_at = ?, updated_at = ?
+        WHERE id = ? AND status = 'pending'
+        RETURNING *`,
+      [overrides?.reply || "已批准", reviewer, now, now, requestId]
+    );
   });
-  await setUserRateLimit(request.user_id, model, qpm, tpm, "admin");
-  return getRateLimitRequestById(requestId);
 }
 
 export async function rejectRateLimitRequest(requestId: string, reviewer: string, reply?: string) {
-  const request = await getRateLimitRequestById(requestId);
-  if (!request || request.status !== "pending") return null;
-  await reviewRateLimitRequest(requestId, "rejected", {
+  return reviewRateLimitRequest(requestId, "rejected", {
     adminReply: reply || "已拒绝",
     reviewedBy: reviewer,
   });
-  return getRateLimitRequestById(requestId);
 }
 
 export async function setUserRateLimit(userId: string, model: string, qpm: number, tpm: number, source: string = "admin"): Promise<void> {

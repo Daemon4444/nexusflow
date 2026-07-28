@@ -2,7 +2,7 @@
 
 > 本文是 NexusFlow 的**唯一项目事实入口**，供开发者、Codex、Claude、Qoder、Gemini、Copilot 等协作者使用。
 >
-> 最近校准：2026-07-21
+> 最近校准：2026-07-29
 >
 > 校准基线：本地 `main`、GitHub `origin/main` 与生产环境代码；整理时生产版本为 `bb8b817`。
 >
@@ -56,22 +56,22 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 
 ## 3. 当前生产基线
 
-截至 2026-07-21 校准：
+截至 2026-07-28 校准：
 
 | 项目 | 当前状态 |
 | --- | --- |
-| 前端 | Next.js `16.3.0-preview.6`、React 19、Tailwind CSS 4 |
+| 前端 | Next.js `16.3.0-preview.9`、React 19、Tailwind CSS 4 |
 | 后端 | Express 5、TypeScript，生产运行编译后的 `backend/dist/index.js` |
-| Runtime | Node.js 24 |
+| Runtime | 生产 Node.js 22.22.1；CI 使用 Node.js 24 |
 | 数据库 | 阿里云托管 PostgreSQL 16，两应用节点共享 |
 | 缓存/共享状态 | 阿里云托管 Redis 7，两应用节点共享 |
 | 应用节点 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
 | 线上模型目录 | 68 个运行时模型；以 `GET /api/models` 实时结果为准 |
-| 数据库迁移 | `001` 至 `013`，其中历史上存在两个 `006_*` 文件 |
+| 数据库迁移 | 仓库已提交到 `021_control_plane_persistence_limits.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
-| 备份 | 生产每日 PostgreSQL 备份；`small` 服务器每日异地拉取 |
+| 备份 | 新发布脚本强制做 RDS 备份；旧每日任务当前失效，`small` 仍按旧产物异地拉取 |
 
 常用只读检查：
 
@@ -302,9 +302,21 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 011_billing_reservations.sql
 012_credit_balance.sql
 013_observation_safe_health_defaults.sql
+014_admin_control_plane.sql
+015_payment_settlement_atomicity.sql
+016_api_key_rate_limit_guard.sql
+017_session_token_hashes.sql
+018_admin_audit_intents.sql
+019_provider_cost_tiers.sql
+020_upload_object_lifecycle.sql
+021_control_plane_persistence_limits.sql
 ```
 
-历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。未来迁移从 `013_*.sql` 开始，禁止再复用编号。
+历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。
+`017` 是 session hash、`018` 是通用后台审计、`019` 是 Provider 成本分层、`020`
+是上传对象生命周期、`021` 是控制面持久化边界；新增 migration 前必须检查实际目录
+和团队分配，禁止复用编号。
+生产是否已应用以 `schema_migrations` 为准，不能从仓库文件列表推断。
 
 ## 11. 安全与隐私基线
 
@@ -333,6 +345,18 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - SLS 默认只记结构化指标。只有显式设置 `SLS_LOG_FULL_CONTENT=true` 才记录脱敏和截断后的内容；
 - `PROVIDER_SECRET_KEY` 是否配置必须在生产变更前检查；未配置时不能假设数据库中的 Provider Key 已加密；
 - PostgreSQL/Redis 只绑定本机，3001/19999 不允许公网直连；
+- 生产 Provider 出站必须配置
+  `PROVIDER_OUTBOUND_HOST_ALLOWLIST`；受管发布拒绝 HTTP(S)/ALL proxy 环境，
+  Provider URL 仍需逐次执行 scheme、userinfo、端口、DNS 和公网地址校验；
+- nginx 对 `/v1` 分路由设置入口预算：chat/responses/messages 保留 50 MiB，
+  embeddings 为 8 MiB，audio 和其余路由为 1 MiB；统一设置 body inter-read
+  timeout、真实客户端 IP 的连接/请求速率限制，请求不在 nginx 预缓冲以保证应用
+  鉴权与配额先执行，响应不缓冲以保留 SSE。audio 只接受小字段/`file_url` 并拒绝
+  binary file part 落盘；
+- nginx 直接 404 `/proxy/v1*` 和 `/api/proxy/v1*`，禁止 Next proxy 成为 `/v1`
+  门禁绕行路径；`/api/upload` 有 101 MiB（含 multipart overhead）、超时和单 IP
+  并发/速率门禁，`/api/uploads/*` 有连接、速率和单连接带宽保护，Next 必须先鉴权
+  再读上传体并流式转发下载；
 - 内置工具、媒体生成和异步任务的非 Token 成本必须先有计费边界。
 
 ## 12. 可观测性、备份与恢复
@@ -343,10 +367,21 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - `/api/version`：部署版本；
 - PM2：进程、重启、stdout/stderr；
 - 托管 PostgreSQL/Redis 连通性：通过每节点 `/api/health`；
-- 本地备份：`nexus:/root/backups`，每日 03:30，保留约 14 天；
-- 异地备份：`small:/root/offsite/nexusflow-db`，每日 04:30 拉取，保留约 21 天。
+- 发布前备份：统一发布脚本通过 `scripts/db-backup-hook.sh` 从生产 `DATABASE_URL`
+  或 `PG_*` 连接配置把 PostgreSQL custom-format dump 直接流式加密为 `.dump.age`，
+  应用节点只保存 age 公钥 recipient，不保存私钥，也不在磁盘落明文 dump；
+- 恢复门禁：加密备份必须经严格 SSH 主机校验送到异地 verifier；私钥只保留在异地
+  root-only 主机，由 PostgreSQL 16 容器完成整包认证解密、TOC 校验、隔离库完整恢复、
+  核心表和 migration ledger 检查，成功后才允许迁移；
+- 历史本地定时备份：`nexus:/root/backups` 的旧任务仍指向已停用的本地 PostgreSQL
+  容器。2026-07-26 至 2026-07-28 产物只有 20 bytes，不能视为有效备份，必须另行
+  修复为 RDS 备份；仓库已提供 `scripts/daily-db-backup.sh` 复用同一备份门禁，
+  但截至 2026-07-29 尚未安装生产定时任务；
+- 异地备份：目标目录为异地 root-only 加密归档；旧的 04:30 拉取任务不能替代新的
+  age 私钥分权和完整恢复门禁。新脚本与 timer 尚未安装生产前，备份状态仍是 No-Go。
 
-备份“文件存在”不等于可恢复。重大 schema/计费变更后应定期执行解压、SQL 完整性和隔离库恢复演练。
+备份“文件存在”不等于可恢复。重大 schema/计费变更后应定期执行认证解密、PostgreSQL
+16 隔离库完整恢复和业务一致性演练；演练记录不得包含私钥、数据库口令或客户数据。
 
 当前监控仍缺少完整的主动告警闭环。低余额、402 后挽回、服务健康、错误率和备份失败通知仍是高价值改进方向。
 
@@ -374,7 +409,7 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 安装与构建：
 
 ```bash
-npm ci
+npm ci --legacy-peer-deps
 npm run build:backend
 npm run build:frontend
 ```
@@ -403,18 +438,70 @@ npm audit --omit=dev --audit-level=high
 
 生产永远运行构建产物。改 TypeScript 后只 `pm2 restart` 不会生效。
 
-生产是双节点。必须从主节点使用统一发布脚本，它会通过 Git bundle 同步节点 j、分别构建/迁移/reload、检查后端与前端、安装 nginx `/v1` 防护，并验证两节点版本一致：
+生产是双节点。必须从主节点使用统一发布脚本。它会：
+
+1. 从两个在线节点收集上一版静态 chunk，在隔离目录只构建一次前后端；
+2. 生成不可变常规文件 SHA-256 manifest 和确定性 `BUILD_ID=Git SHA`；
+3. 把同一个不可变归档安装到两个节点的 release 目录；
+4. 发版前要求两节点报告并核验同一个旧 SHA，把它锁定为唯一可接受回滚基线；
+5. 创建并校验数据库备份，只在主节点持 PostgreSQL advisory lock 执行一次迁移；
+6. 在 `014` 迁移后记录真实 `deployment_events`，节点直连验证通过后更新
+   `runtime_nodes`；幂等重试不重复写，旧观测不能覆盖新状态；
+7. 通过 nginx 对精确 ALB 健康检查返回 503，按
+   `local-only → peer-only → balanced` 摘流、切换和验证；
+8. 用 `current`/`previous` 原子指针切换 PM2；reload、运行核验或 `pm2 save`
+   任一失败都恢复上一版，只有专用恢复状态加旧 SHA 复核同时通过才重新入流；
+9. 验证两个节点的后端版本、前端 build header、HTML 引用的所有 Next.js chunk、
+   production PM2 环境，以及 3001/19999 只监听 loopback；
+10. 两个新节点直连验证后吊销全部 session 并切到 hash-only。若 legacy rollback 失败，
+    只能把流量隔离到直接验证的新 SHA 节点并恢复 hash-only；不得在 compatibility
+    downgrade 仍由本次发布持有时恢复 balanced；
+11. `019` 后、两个新节点验证完成时，从随机 root-only staging 私下 dry-run/apply
+    指定的 12-tier Provider 成本价本；不兼容旧版回滚前先停用，失败回滚恢复新节点
+    时用同一 manifest 原子重激活，任何 partial 状态都禁止 balanced。
+
+`backend/.env` 不进入制品或 manifest。安装器只在 manifest 通过后创建指向既有
+root-only 配置源的软链，并在安装、激活和核验时检查实际解析目标，防止制品携带
+密钥或运行目录改指其他配置。
 
 ```bash
 ssh nexus
 cd /root/distiny/nexusflow
 git pull --ff-only origin main
+bash scripts/deploy-all-production.sh --dry-run
 bash scripts/deploy-all-production.sh
 ```
 
-`scripts/deploy-production.sh` 只是单节点构建/reload 原语，不得再单独把它当作完整生产发布。节点 j 当前不依赖 GitHub Deploy Key；统一脚本从主节点的已核验 HEAD 生成 bundle 并要求对端只能 fast-forward。
+两条命令都必须通过 `NEXUSFLOW_PROVIDER_COST_MANIFEST` 指向主节点上随机
+`/run/nexusflow-provider-cost.*/manifest.json`。目录必须 root:root `0700`、只含
+一个 root:root `0600` 的 `manifest.json`；内容、source hash 和 manifest hash 不进
+Git、制品或日志。真实发布在成功和可捕获失败时删除该 staging，dry-run 不删除。
 
-脚本负责安装、前后端构建、执行 migrations、注入 `BUILD_SHA/BUILD_TIME`、PM2 reload 和保存进程状态。部署后必须检查：
+`scripts/deploy-production.sh` 只是被统一脚本调用的单节点 install/activate/rollback 原语；
+`activate` 和 `rollback` 没有 `NEXUSFLOW_DRAIN_CONFIRMED=true` 会拒绝执行。不得手工伪造
+该变量或把单节点脚本当作完整生产发布。
+
+运行目录：
+
+```text
+/root/distiny/nexusflow                 # Git 控制面，不承载新 release 的在线构建
+/root/distiny/nexusflow-artifacts       # 单次构建归档及归档校验值
+/root/distiny/nexusflow-releases/<sha>  # 不可变解包目录
+/root/distiny/nexusflow-current         # 当前原子指针
+/root/distiny/nexusflow-previous        # 上一版回滚指针
+```
+
+默认摘流不依赖 ALB RAM 权限。两节点必须先安装 root-owned
+`/etc/nginx/nexusflow-drain.conf` 和
+`/usr/local/sbin/nexusflow-nginx-health-drain-node`，以及 root-owned
+`/etc/nginx/conf.d/nexusflow-audio-guards.conf`。摘流只匹配 ALB 的来源 IP、
+`HEAD /api/health` 与 `SLBHealthCheck` UA，随后等待连续 503、公共 node probe
+仅命中另一节点及现有连接归零。任何失败由 hook 与外层编排 trap 恢复健康检查。
+截至 2026-07-28，`NexusFlowCertSyncRole` 对 ALB ServerGroup 仍为 `ImplicitDeny`，
+所以 `alb-traffic-hook.aliyun.sh` 只是未启用的可选路径，不再阻断默认发布。
+安装、验证和恢复步骤见 `docs/production-release-runbook.md`。
+
+部署后必须检查：
 
 ```bash
 git status --short --branch
@@ -425,9 +512,13 @@ ssh root@172.27.219.55 'curl -fsS http://127.0.0.1:3001/api/health'
 ssh root@172.27.219.55 'curl -fsS http://127.0.0.1:3001/api/version'
 curl -fsS https://nexusflow.hk/api/health
 curl -fsS https://nexusflow.hk/api/version
+bash scripts/deploy-all-production.sh --verify-only
 ```
 
-涉及 migration 时，先备份、确认迁移登记、再 build/reload；不得靠手工改表而不提交 SQL。涉及支付、余额、API Key、权限、上传或 Provider Key 的变更，需要比普通 UI 变更更严格的失败路径与回滚验证。
+涉及 migration 时，统一脚本会先备份、扫描破坏性/contract SQL、持 advisory lock
+执行一次迁移。Schema 必须采用 expand/contract，使上一版应用在回滚窗口内仍可运行；
+不得靠手工改表、不提交 SQL，或依赖破坏性逆迁移回滚。涉及支付、余额、API Key、
+权限、上传或 Provider Key 的变更，需要比普通 UI 变更更严格的失败路径与回滚验证。
 
 ## 16. 修改纪律
 

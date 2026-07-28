@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { validateSession } from "../data/users";
-import { parseEnvList } from "../utils/env-list";
+import { getAdminAccessForUser, isBootstrapAdmin } from "../data/admin-access";
 
 export async function getSessionUser(req: Request, res: Response) {
   const auth = req.headers.authorization;
@@ -19,22 +19,27 @@ export async function getSessionUser(req: Request, res: Response) {
 }
 
 export function isAdminSession(session: { id: string; email: string | null }) {
-  const adminIds = parseEnvList(process.env.ADMIN_USER_IDS);
-  const adminEmails = parseEnvList(process.env.ADMIN_EMAILS);
-  const email = (session.email || "").toLowerCase();
-
-  return adminIds.includes(session.id.toLowerCase()) || (!!email && adminEmails.includes(email));
+  // Synchronous compatibility helper used by legacy UI feature flags. Database
+  // role assignments are resolved by requireAdmin/requirePermission.
+  return isBootstrapAdmin(session);
 }
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const session = await getSessionUser(req, res);
   if (!session) return;
 
-  if (!isAdminSession(session)) {
+  const access = await getAdminAccessForUser(session);
+  if (access) {
+    (req as any).admin = session;
+    (req as any).adminAccess = access;
+  }
+  // Legacy /api/admin surfaces contain broad write capabilities. Only the
+  // explicit admin role (or bootstrap super-admin) may enter them. Lower roles
+  // use /api/admin/control-plane endpoints guarded per permission.
+  if (!access || !access.permissions.includes("legacy.admin")) {
     res.status(403).json({ success: false, message: "需要管理员权限" });
     return;
   }
 
-  (req as any).admin = session;
   next();
 }

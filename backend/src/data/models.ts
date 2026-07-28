@@ -23,7 +23,7 @@ export interface AIModel {
   audioOutputPrice?: number; // per 1M tokens (CNY) for audio output (omni models); text output is free when audio is produced
   cacheReadPrice?: number;   // per 1M tokens (CNY) for cache hit; when set, used instead of the default DashScope multiplier (0.1/0.2)
   anthropicPassThrough?: boolean; // /v1/messages 路由方式：缺省/true=直通上游 anthropic 兼容端点；false=上游未接入该模型，走平台内 anthropic-openai-bridge 协议转换
-  pricingType?: "token" | "per-image" | "per-second"; // default: "token"
+  pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters"; // default: "token"
   pricingTiers?: PricingTier[];  // resolution-based pricing for video/image
   tokenPricingTiers?: TokenPricingTier[]; // input-token-based tier pricing for text models
   category: string;
@@ -576,11 +576,11 @@ const staticModels: AIModel[] = [
     provider: "通义千问",
     description: "Qwen3代语音识别模型，支持11种语言自动检测及转录，支持字级时间戳、情感识别、歌唱识别和说话人分离。实时与非实时双模式。",
     contextLength: 0,
-    promptPrice: 0.23,
+    promptPrice: 0.00022,
     completionPrice: 0,
     pricingType: "per-second",
     pricingTiers: [
-      { label: "实时识别", price: 0.23 },
+      { label: "华北2（北京）", price: 0.00022 },
     ],
     category: "语音模型",
     tags: ["语音识别", "ASR", "多语言", "实时"],
@@ -592,13 +592,13 @@ const staticModels: AIModel[] = [
     id: "qwen3-tts-flash-realtime",
     name: "Qwen3 TTS Flash Realtime",
     provider: "通义千问",
-    description: "Qwen3代实时语音合成模型，通过WebSocket协议进行流式语音合成，支持中文、英文等多种语言和音色，适用于语音助手、有声读物等场景。",
+    description: "Qwen3代语音合成模型。OpenAI 兼容的 HTTP 接口使用 qwen3-tts-flash 非实时模型，按输入字符计费；华北2（北京）目录价为每万字符 0.8 元。",
     contextLength: 0,
-    promptPrice: 1,
+    promptPrice: 0.8,
     completionPrice: 0,
-    pricingType: "per-second",
+    pricingType: "per-10k-characters",
     pricingTiers: [
-      { label: "实时合成", price: 1 },
+      { label: "华北2（北京）", price: 0.8 },
     ],
     category: "语音模型",
     tags: ["语音合成", "TTS", "实时", "多语言"],

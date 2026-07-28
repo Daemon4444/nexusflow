@@ -1,6 +1,11 @@
 import { db } from "../db/client";
 import { logToSLS } from "../services/sls";
 import { randomUUID } from "crypto";
+import { recordFailure, recordSuccess } from "../services/scheduler";
+import {
+  resolveProviderCost,
+  type ProviderCacheMode,
+} from "../services/provider-costs";
 
 const SLS_LOG_FULL_CONTENT = process.env.SLS_LOG_FULL_CONTENT === "true";
 const SLS_CONTENT_LIMIT = Math.max(1_000, Number(process.env.SLS_CONTENT_LIMIT || 16_000));
@@ -56,7 +61,24 @@ export async function logUsage(params: {
   tpotMs?: number;
   cachedTokens?: number;
   cacheCreationTokens?: number;
+  /** Cache contract used by the selected upstream, not the customer retail mode. */
+  providerCacheMode?: ProviderCacheMode | null;
+  /**
+   * OpenAI usage includes cache tokens in prompt_tokens; Anthropic native
+   * usage reports them separately. This must be explicit whenever cache usage
+   * is non-zero so upstream cost is never double-counted.
+   */
+  providerInputIncludesCache?: boolean | null;
   region?: string | null;
+  providerId?: string | null;
+  channelId?: string | null;
+  protocol?: string | null;
+  httpStatus?: number | null;
+  errorCode?: string | null;
+  reservationId?: string | null;
+  transactionId?: string | null;
+  /** Billable upstream units for per-image/per-second contracts. */
+  providerUnits?: number | null;
   route?: string; // 上游路由方式标记（仅 SLS，如 anthropic-passthrough / anthropic-bridge）
   estimated?: boolean; // 是否为断流兜底估费（仅 SLS，真实 usage 缺失时按已收内容估算）
   finishReason?: string; // 仅 SLS
@@ -66,10 +88,44 @@ export async function logUsage(params: {
   responseBody?: any;
 }): Promise<string> {
   const logId = params.logId || randomUUID();
+  let realizedProviderCost: Awaited<ReturnType<typeof resolveProviderCost>>;
+  try {
+    realizedProviderCost = await resolveProviderCost({
+      providerId: params.providerId,
+      modelId: params.model,
+      promptTokens: params.promptTokens,
+      completionTokens: params.completionTokens,
+      cachedTokens: params.cachedTokens,
+      cacheCreationTokens: params.cacheCreationTokens,
+      providerCacheMode: params.providerCacheMode,
+      providerInputIncludesCache: params.providerInputIncludesCache,
+      providerUnits: params.providerUnits,
+      status: params.status,
+      estimated: params.estimated === true,
+    });
+  } catch (error) {
+    console.warn(
+      "[usage] provider cost lookup failed:",
+      error instanceof Error ? error.message : String(error)
+    );
+    realizedProviderCost = {
+      amount: null,
+      costVersionId: null,
+      priceBookId: null,
+      resolution: "lookup_error",
+    };
+  }
   try {
     await db.execute(
-      `INSERT INTO usage_logs (log_id, api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens, cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens, region, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO usage_logs (
+         log_id, api_key_id, user_id, model, prompt_tokens, completion_tokens, total_tokens,
+         cost, status, latency_ms, ttft_ms, tpot_ms, cached_tokens, cache_creation_tokens,
+         region, provider_id, channel_id, protocol, node_id, http_status, error_code,
+         estimated, reservation_id, transaction_id, provider_cost, cost_version_id,
+         provider_cache_mode, provider_input_includes_cache, provider_cost_resolution,
+         created_at
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         logId,
         params.apiKeyId,
@@ -86,6 +142,20 @@ export async function logUsage(params: {
         params.cachedTokens || 0,
         params.cacheCreationTokens || 0,
         params.region || null,
+        params.providerId || null,
+        params.channelId || null,
+        params.protocol || params.route || null,
+        process.env.NEXUSFLOW_NODE_ID || process.env.HOSTNAME || null,
+        params.httpStatus || null,
+        params.errorCode || null,
+        params.estimated === true,
+        params.reservationId || null,
+        params.transactionId || null,
+        realizedProviderCost.amount,
+        realizedProviderCost.costVersionId,
+        params.providerCacheMode || null,
+        params.providerInputIncludesCache ?? null,
+        realizedProviderCost.resolution,
         new Date().toISOString(),
       ]
     );
@@ -99,6 +169,19 @@ export async function logUsage(params: {
     apiKeyId: params.apiKeyId,
     userId: params.userId,
     region: params.region || undefined,
+    providerId: params.providerId || undefined,
+    channelId: params.channelId || undefined,
+    protocol: params.protocol || params.route || undefined,
+    nodeId: process.env.NEXUSFLOW_NODE_ID || process.env.HOSTNAME || undefined,
+    httpStatus: params.httpStatus || undefined,
+    errorCode: params.errorCode || undefined,
+    reservationId: params.reservationId || undefined,
+    transactionId: params.transactionId || undefined,
+    providerCost: realizedProviderCost.amount ?? undefined,
+    costVersionId: realizedProviderCost.costVersionId || undefined,
+    providerCostResolution: realizedProviderCost.resolution,
+    providerCacheMode: params.providerCacheMode || undefined,
+    providerInputIncludesCache: params.providerInputIncludesCache,
     model: params.model,
     promptTokens: params.promptTokens,
     completionTokens: params.completionTokens,
@@ -120,7 +203,61 @@ export async function logUsage(params: {
         }
       : {}),
   });
+
+  if (params.providerId) {
+    try {
+      // A partially delivered/estimated response may still be billable, while
+      // an upstream interruption must count as a provider-health failure.
+      if (params.status === "success" && !params.errorCode && !params.errorReason) {
+        await recordSuccess(params.providerId, params.model, params.latencyMs);
+      } else {
+        const failure = String(params.errorCode || params.errorReason || params.status || "upstream_error").slice(0, 500);
+        await recordFailure(params.providerId, params.model, failure);
+      }
+    } catch (error) {
+      console.warn("[usage] provider health update failed:", error instanceof Error ? error.message : String(error));
+    }
+  }
   return logId;
+}
+
+export async function logUpstreamFailure(params: {
+  logId?: string;
+  apiKeyId: string | null;
+  userId?: string | null;
+  model: string;
+  providerId: string;
+  channelId?: string | null;
+  region?: string | null;
+  protocol: string;
+  latencyMs: number;
+  httpStatus?: number | null;
+  errorCode?: string;
+  errorReason: string;
+  reservationId?: string | null;
+}): Promise<string> {
+  return logUsage({
+    logId: params.logId,
+    apiKeyId: params.apiKeyId,
+    userId: params.userId,
+    model: params.model,
+    providerId: params.providerId,
+    channelId: params.channelId,
+    region: params.region,
+    protocol: params.protocol,
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    cost: 0,
+    status: "error",
+    latencyMs: params.latencyMs,
+    httpStatus: params.httpStatus,
+    errorCode: params.errorCode || (
+      params.httpStatus ? `upstream_http_${params.httpStatus}` : "upstream_error"
+    ),
+    errorReason: params.errorReason,
+    reservationId: params.reservationId,
+  });
 }
 
 function userFilter(userId?: string) {
@@ -159,14 +296,14 @@ export async function getDaily(userId?: string) {
   const { and, params } = userFilter(userId);
   return db.queryMany(
     `SELECT
-      to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'MM-DD') as date,
+      to_char(timezone('Asia/Shanghai', created_at), 'MM-DD') as date,
       COUNT(*)::int as requests,
       COALESCE(SUM(total_tokens), 0)::int as tokens,
       ROUND(COALESCE(SUM(cost), 0)::numeric, 2)::float as cost
     FROM usage_logs
     WHERE created_at >= NOW() - INTERVAL '7 days'
       ${and}
-    GROUP BY to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD'), to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'MM-DD')
+    GROUP BY to_char(timezone('Asia/Shanghai', created_at), 'YYYY-MM-DD'), to_char(timezone('Asia/Shanghai', created_at), 'MM-DD')
     ORDER BY date`,
     params
   );
@@ -202,7 +339,7 @@ export async function getRecent(userId?: string, limit: number = 20) {
   return db.queryMany(
     `SELECT
       log_id,
-      to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'MM-DD HH24:MI') as time,
+      to_char(timezone('Asia/Shanghai', created_at), 'MM-DD HH24:MI') as time,
       model,
       total_tokens as tokens,
       ROUND(cost::numeric, 6)::float as cost,

@@ -19,7 +19,7 @@ interface TokenPricingTier {
 interface AIModel {
   id: string; name: string; provider: string; description: string;
   contextLength: number; promptPrice: number; completionPrice: number;
-  pricingType?: "token" | "per-image" | "per-second";
+  pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   pricingTiers?: PricingTier[];
   tokenPricingTiers?: TokenPricingTier[];
   category: string; tags: string[]; isNew?: boolean; isFeatured?: boolean;
@@ -285,13 +285,27 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
 
                 <div className="model-card-stats" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, padding: "10px 0 0", borderTop: "1px solid var(--border)" }}>
                   {(() => {
-                    const isMedia = model.pricingType === "per-second" || model.pricingType === "per-image";
+                    const isMedia = model.pricingType === "per-second"
+                      || model.pricingType === "per-image"
+                      || model.pricingType === "per-10k-characters";
                     if (isMedia) {
-                      const unit = model.pricingType === "per-second" ? "/秒" : "/张";
+                      const unit = model.pricingType === "per-second"
+                        ? "/秒"
+                        : model.pricingType === "per-10k-characters"
+                          ? "/万字符"
+                          : "/张";
                       return [
                         { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
                         { label: "价格", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}${unit}`, color: "var(--success)" },
-                        { label: "计费", value: model.pricingType === "per-second" ? "按秒" : "按张", color: "var(--warning)" },
+                        {
+                          label: "计费",
+                          value: model.pricingType === "per-second"
+                            ? "按秒"
+                            : model.pricingType === "per-10k-characters"
+                              ? "按字符"
+                              : "按张",
+                          color: "var(--warning)",
+                        },
                       ];
                     }
                     if (model.tokenPricingTiers && model.tokenPricingTiers.length > 0) {

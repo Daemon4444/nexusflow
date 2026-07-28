@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/client";
+import { recordApiKeyUsageSampled } from "../services/api-key-usage";
 
 export interface ApiKey {
   id: string;
@@ -19,6 +20,18 @@ export type ValidApiKey = ApiKey & {
   allowed_models: string | null;
 };
 
+export const MIN_API_KEY_RATE_LIMIT = 1;
+export const MAX_API_KEY_RATE_LIMIT = 30_000;
+export const DEFAULT_SELF_SERVICE_API_KEY_RATE_LIMIT = 60;
+export const MAX_SELF_SERVICE_API_KEYS_PER_USER = 10;
+
+export class ApiKeyLimitError extends Error {
+  constructor(public readonly code: "api_key_limit" | "user_not_found") {
+    super(code);
+    this.name = "ApiKeyLimitError";
+  }
+}
+
 function hashApiKey(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -30,11 +43,22 @@ export function maskApiKey(token: string): string {
 }
 
 export async function getAllKeys(): Promise<ApiKey[]> {
-  return db.queryMany<ApiKey>("SELECT * FROM api_keys ORDER BY created_at DESC");
+  return db.queryMany<ApiKey>(
+    `SELECT id, user_id, name, key, created_at, last_used, usage_count, rate_limit
+       FROM api_keys
+      ORDER BY created_at DESC`
+  );
 }
 
 export async function getKeysByUser(userId: string): Promise<ApiKey[]> {
-  return db.queryMany<ApiKey>("SELECT * FROM api_keys WHERE user_id = ? ORDER BY created_at DESC", [userId]);
+  return db.queryMany<ApiKey>(
+    `SELECT id, user_id, name, key, created_at, last_used, usage_count, rate_limit
+       FROM api_keys
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?`,
+    [userId, MAX_SELF_SERVICE_API_KEYS_PER_USER]
+  );
 }
 
 async function findValidApiKey(token: string, touchUsage: boolean): Promise<ValidApiKey | null> {
@@ -59,10 +83,7 @@ async function findValidApiKey(token: string, touchUsage: boolean): Promise<Vali
     if (key.parent_status != null && key.parent_status !== "active") return null;
   }
   if (touchUsage) {
-    await db.execute("UPDATE api_keys SET last_used = ?, usage_count = usage_count + 1 WHERE id = ?", [
-      new Date().toISOString(),
-      key.id,
-    ]);
+    await recordApiKeyUsageSampled(key.id);
   }
   return key;
 }
@@ -84,6 +105,15 @@ export async function validateApiKey(token: string): Promise<ValidApiKey | null>
 }
 
 export async function createApiKey(name: string, rateLimit = 60, userId?: string): Promise<ApiKey> {
+  if (
+    !Number.isSafeInteger(rateLimit)
+    || rateLimit < MIN_API_KEY_RATE_LIMIT
+    || rateLimit > MAX_API_KEY_RATE_LIMIT
+  ) {
+    throw new RangeError(
+      `API key rate limit must be an integer between ${MIN_API_KEY_RATE_LIMIT} and ${MAX_API_KEY_RATE_LIMIT}`
+    );
+  }
   const id = uuidv4();
   const fullKey = "sk-air-" + crypto.randomBytes(24).toString("hex");
   const keyHash = hashApiKey(fullKey);
@@ -95,6 +125,51 @@ export async function createApiKey(name: string, rateLimit = 60, userId?: string
     [id, userId || null, name, maskApiKey(fullKey), keyHash, now, null, 0, rateLimit]
   );
   return { ...row!, key: fullKey, key_hash: keyHash };
+}
+
+/**
+ * Self-service keys inherit the product's server-owned default. Rate-limit
+ * changes are a plan/admin decision and must not be controlled by a client
+ * request body.
+ */
+export async function createSelfServiceApiKey(name: string, userId: string): Promise<ApiKey> {
+  const id = uuidv4();
+  const fullKey = "sk-air-" + crypto.randomBytes(24).toString("hex");
+  const keyHash = hashApiKey(fullKey);
+  const now = new Date().toISOString();
+  return db.transaction(async (client) => {
+    const user = await client.queryOne<{ id: string }>(
+      "SELECT id FROM users WHERE id = ? FOR UPDATE",
+      [userId]
+    );
+    if (!user) throw new ApiKeyLimitError("user_not_found");
+    const count = await client.queryOne<{ count: number | string }>(
+      "SELECT COUNT(*)::int AS count FROM api_keys WHERE user_id = ?",
+      [userId]
+    );
+    if (Number(count?.count || 0) >= MAX_SELF_SERVICE_API_KEYS_PER_USER) {
+      throw new ApiKeyLimitError("api_key_limit");
+    }
+    const row = await client.queryOne<ApiKey>(
+      `INSERT INTO api_keys (
+         id, user_id, name, key, key_hash, created_at, last_used,
+         usage_count, rate_limit
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING *`,
+      [
+        id,
+        userId,
+        name,
+        maskApiKey(fullKey),
+        keyHash,
+        now,
+        null,
+        0,
+        DEFAULT_SELF_SERVICE_API_KEY_RATE_LIMIT,
+      ]
+    );
+    return { ...row!, key: fullKey, key_hash: keyHash };
+  });
 }
 
 export async function deleteApiKey(id: string): Promise<boolean> {

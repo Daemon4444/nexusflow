@@ -11,16 +11,25 @@ import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import { models, getTokenPricingTier } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
-import { logUsage } from "../data/usage";
+import { logUpstreamFailure, logUsage } from "../data/usage";
 import { BillingReservationFailureReason, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
-import { checkConsumerLimitsAsync, checkRPM, checkTPM, reconcileTokensAsync, recordRequest, recordProviderTokens } from "../services/rate-limiter";
-import { getEffectiveRateLimit } from "../data/ratelimits";
+import { checkConsumerLimitsAsync } from "../services/rate-limiter";
+import {
+  reconcileAccountTpm,
+  reserveAccountQpm,
+  reserveAccountTpm,
+} from "../services/account-rate-limiter";
 import { isModelAllowed } from "../data/model-access";
 import { detectModelType } from "../services/adapters";
 import { getRequestedRegion, resolveUpstream } from "../services/upstream";
+import { safeProviderFetch } from "../services/outbound-url-policy";
 import { buildApiDescription, type AnthropicUsage } from "../utils/cache-billing";
-import { acquireConcurrency, releaseConcurrency } from "../services/scheduler";
+import {
+  acquireProviderCapacity,
+  releaseProviderCapacity,
+  type ProviderRequestCapacityLease,
+} from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import {
   anthropicToOpenAiPayload,
@@ -198,7 +207,10 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const resolvedUpstream = await resolveUpstream(modelId, { region: getRequestedRegion(req) });
+  const resolvedUpstream = await resolveUpstream(modelId, {
+    region: getRequestedRegion(req),
+    userId: apiKeyRecord.user_id,
+  });
   if (!resolvedUpstream.ok) {
     res.status(resolvedUpstream.status).json({
       type: "error",
@@ -226,25 +238,33 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
-    const userLimits = await getEffectiveRateLimit(apiKeyRecord.user_id, modelId);
-    const rpmCheck = await checkRPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.qpm);
+    const rpmCheck = await reserveAccountQpm({
+      userId: apiKeyRecord.user_id,
+      parentUserId: apiKeyRecord.parent_user_id,
+      modelId,
+    });
     if (!rpmCheck.allowed) {
       res.status(429).json({
         type: "error",
         error: {
           type: "rate_limit_error",
-          message: `Model-level QPM limit exceeded for '${modelId}'. Retry after ${Math.ceil(rpmCheck.resetMs / 1000)}s.`,
+          message: `Model-level QPM limit exceeded (${rpmCheck.limit}/min) for '${modelId}'.`,
         },
       });
       return;
     }
-    const tpmCheck = await checkTPM(`user:${apiKeyRecord.user_id}:${modelId}`, userLimits.tpm, reservedMessageTokens);
+    const tpmCheck = await reserveAccountTpm({
+      userId: apiKeyRecord.user_id,
+      parentUserId: apiKeyRecord.parent_user_id,
+      modelId,
+      estimatedTokens: reservedMessageTokens,
+    });
     if (!tpmCheck.allowed) {
       res.status(429).json({
         type: "error",
         error: {
           type: "rate_limit_error",
-          message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`,
+          message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmCheck.remaining || 0} tokens.`,
         },
       });
       return;
@@ -277,23 +297,37 @@ router.post("/", async (req: Request, res: Response) => {
 
   const startTime = Date.now();
   const logId = randomUUID();
-  recordRequest(upstream.providerId, modelId, apiKeyRecord.id, 0);
-  acquireConcurrency(upstream.providerId, modelId);
-
   // 预占 TPM 归还：正常路径按实际 usage 归还，异常/上游错误路径由 finally 兜底释放，且仅一次。
   let tokensReconciled = false;
   let billableResponseReceived = false;
+  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
+  let actualProviderTokens = 0;
   const reconcileOnce = async (actualTokens: number) => {
     if (tokensReconciled) return;
     tokensReconciled = true;
     if (apiKeyRecord.user_id) {
       try {
-        await reconcileTokensAsync(`user:${apiKeyRecord.user_id}:${modelId}`, reservedMessageTokens, actualTokens);
+        await reconcileAccountTpm({
+          userId: apiKeyRecord.user_id,
+          parentUserId: apiKeyRecord.parent_user_id,
+          modelId,
+          reservedTokens: reservedMessageTokens,
+          actualTokens,
+        });
       } catch { /* 归还失败仅影响 60s 窗口 */ }
     }
   };
 
   try {
+  const capacity = await acquireProviderCapacity(upstream, modelId, reservedMessageTokens);
+  if (!capacity.ok) {
+    res.status(503).json({
+      type: "error",
+      error: { type: "api_error", message: capacity.message },
+    });
+    return;
+  }
+  providerCapacityLease = capacity.lease;
 
   // anthropicPassThrough 可由后台「模型目录」按模型覆盖：false = 上游 anthropic
   // 兼容端点未接入该模型，走平台内协议转换（anthropic-openai-bridge）
@@ -311,7 +345,7 @@ router.post("/", async (req: Request, res: Response) => {
       const beta = getAnthropicBeta(req);
       if (beta) headers["anthropic-beta"] = beta;
 
-      const response = await fetch(`${passThroughBase}/messages`, {
+      const response = await safeProviderFetch(`${passThroughBase}/messages`, {
         method: "POST",
         headers,
         body: JSON.stringify(req.body),
@@ -321,6 +355,20 @@ router.post("/", async (req: Request, res: Response) => {
       if (stream) {
         if (!response.ok) {
           const errText = await response.text();
+          await logUpstreamFailure({
+            logId,
+            apiKeyId: apiKeyRecord.id,
+            userId: apiKeyRecord.user_id,
+            model: modelId,
+            providerId: upstream.providerId,
+            channelId: upstream.channelId,
+            region: upstream.region,
+            protocol: "anthropic-messages",
+            latencyMs: Date.now() - startTime,
+            httpStatus: response.status,
+            errorReason: errText || "Upstream API error",
+            reservationId: billingReservation.id,
+          });
           res.status(response.status).json({
             type: "error",
             error: {
@@ -409,6 +457,9 @@ router.post("/", async (req: Request, res: Response) => {
 
         await logUsage({
           region: upstream.region,
+          providerId: upstream.providerId,
+          channelId: upstream.channelId,
+          protocol: "anthropic-messages",
           apiKeyId: apiKeyRecord.id,
           userId: apiKeyRecord.user_id,
           model: modelId,
@@ -422,10 +473,13 @@ router.post("/", async (req: Request, res: Response) => {
           tpotMs,
           cachedTokens: cacheReadInputTokens,
           cacheCreationTokens: cacheCreationInputTokens,
+          providerCacheMode: "explicit",
+          providerInputIncludesCache: false,
           route: "anthropic-passthrough",
           estimated: estimatedBilling,
+          reservationId: billingReservation.id,
         });
-        recordProviderTokens(upstream.providerId, modelId, totalTokens);
+        actualProviderTokens = totalTokens;
         await reconcileOnce(totalTokens);
 
         await settleReservation(
@@ -440,6 +494,20 @@ router.post("/", async (req: Request, res: Response) => {
 
       const data: any = await response.json();
       if (!response.ok) {
+        await logUpstreamFailure({
+          logId,
+          apiKeyId: apiKeyRecord.id,
+          userId: apiKeyRecord.user_id,
+          model: modelId,
+          providerId: upstream.providerId,
+          channelId: upstream.channelId,
+          region: upstream.region,
+          protocol: "anthropic-messages",
+          latencyMs: Date.now() - startTime,
+          httpStatus: response.status,
+          errorReason: data?.error?.message || "Upstream API error",
+          reservationId: billingReservation.id,
+        });
         res.status(response.status).json(data);
         return;
       }
@@ -450,6 +518,9 @@ router.post("/", async (req: Request, res: Response) => {
       const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
       await logUsage({
         region: upstream.region,
+        providerId: upstream.providerId,
+        channelId: upstream.channelId,
+        protocol: "anthropic-messages",
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -461,9 +532,12 @@ router.post("/", async (req: Request, res: Response) => {
         latencyMs: Date.now() - startTime,
         cachedTokens: usage.cache_read_input_tokens || 0,
         cacheCreationTokens: usage.cache_creation_input_tokens || 0,
+        providerCacheMode: "explicit",
+        providerInputIncludesCache: false,
         route: "anthropic-passthrough",
+        reservationId: billingReservation.id,
       });
-      recordProviderTokens(upstream.providerId, modelId, totalTokens);
+      actualProviderTokens = totalTokens;
       await reconcileOnce(totalTokens);
 
       await settleReservation(
@@ -481,6 +555,9 @@ router.post("/", async (req: Request, res: Response) => {
     } catch (err: any) {
       await logUsage({
         region: upstream.region,
+        providerId: upstream.providerId,
+        channelId: upstream.channelId,
+        protocol: "anthropic-messages",
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -491,6 +568,9 @@ router.post("/", async (req: Request, res: Response) => {
         status: "error",
         latencyMs: Date.now() - startTime,
         route: "anthropic-passthrough",
+        reservationId: billingReservation.id,
+        errorCode: "upstream_error",
+        errorReason: String(err?.message || err),
       });
 
       // 流式中途出错时 SSE 头已发出，只能终止连接，不能再写状态码
@@ -513,7 +593,7 @@ router.post("/", async (req: Request, res: Response) => {
   // 把 Anthropic 请求转成 OpenAI 格式打 compatible-mode，响应再转回 Anthropic 格式
   try {
     const payload = anthropicToOpenAiPayload(req.body);
-    const response = await fetch(`${upstream.baseUrl}/chat/completions`, {
+    const response = await safeProviderFetch(`${upstream.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${upstreamApiKey}`,
@@ -529,6 +609,20 @@ router.post("/", async (req: Request, res: Response) => {
         // 上游 4xx 的错误说明对客户端有用（参数错/超长等），透传摘要；5xx 才收敛为通用文案
         let upstreamMsg = "Upstream API error";
         try { upstreamMsg = JSON.parse(errText)?.error?.message || upstreamMsg; } catch { /* 保持通用文案 */ }
+        await logUpstreamFailure({
+          logId,
+          apiKeyId: apiKeyRecord.id,
+          userId: apiKeyRecord.user_id,
+          model: modelId,
+          providerId: upstream.providerId,
+          channelId: upstream.channelId,
+          region: upstream.region,
+          protocol: "anthropic-messages",
+          latencyMs: Date.now() - startTime,
+          httpStatus: response.status,
+          errorReason: upstreamMsg,
+          reservationId: billingReservation.id,
+        });
         res.status(response.status).json({
           type: "error",
           error: {
@@ -600,6 +694,9 @@ router.post("/", async (req: Request, res: Response) => {
 
       await logUsage({
         region: upstream.region,
+        providerId: upstream.providerId,
+        channelId: upstream.channelId,
+        protocol: "anthropic-messages",
         apiKeyId: apiKeyRecord.id,
         userId: apiKeyRecord.user_id,
         model: modelId,
@@ -613,10 +710,13 @@ router.post("/", async (req: Request, res: Response) => {
         tpotMs,
         cachedTokens: billingUsage.cache_read_input_tokens || 0,
         cacheCreationTokens: billingUsage.cache_creation_input_tokens || 0,
+        providerCacheMode: "explicit",
+        providerInputIncludesCache: true,
         route: "anthropic-bridge",
         estimated: estimatedBilling,
+        reservationId: billingReservation.id,
       });
-      recordProviderTokens(upstream.providerId, modelId, totalTokens);
+      actualProviderTokens = totalTokens;
       await reconcileOnce(totalTokens);
       await settleReservation(
         billingReservation.id,
@@ -631,6 +731,20 @@ router.post("/", async (req: Request, res: Response) => {
     const data: any = await response.json();
     if (!response.ok) {
       const upstreamMsg = typeof data?.error?.message === "string" && data.error.message ? data.error.message : "Upstream API error";
+      await logUpstreamFailure({
+        logId,
+        apiKeyId: apiKeyRecord.id,
+        userId: apiKeyRecord.user_id,
+        model: modelId,
+        providerId: upstream.providerId,
+        channelId: upstream.channelId,
+        region: upstream.region,
+        protocol: "anthropic-messages",
+        latencyMs: Date.now() - startTime,
+        httpStatus: response.status,
+        errorReason: upstreamMsg,
+        reservationId: billingReservation.id,
+      });
       res.status(response.status).json({
         type: "error",
         error: {
@@ -648,6 +762,9 @@ router.post("/", async (req: Request, res: Response) => {
     const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
     await logUsage({
       region: upstream.region,
+      providerId: upstream.providerId,
+      channelId: upstream.channelId,
+      protocol: "anthropic-messages",
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -659,9 +776,12 @@ router.post("/", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
       cachedTokens: usage.cache_read_input_tokens || 0,
       cacheCreationTokens: usage.cache_creation_input_tokens || 0,
+      providerCacheMode: "explicit",
+      providerInputIncludesCache: true,
       route: "anthropic-bridge",
+      reservationId: billingReservation.id,
     });
-    recordProviderTokens(upstream.providerId, modelId, totalTokens);
+    actualProviderTokens = totalTokens;
     await reconcileOnce(totalTokens);
     await settleReservation(
       billingReservation.id,
@@ -677,6 +797,9 @@ router.post("/", async (req: Request, res: Response) => {
   } catch (err: any) {
     await logUsage({
       region: upstream.region,
+      providerId: upstream.providerId,
+      channelId: upstream.channelId,
+      protocol: "anthropic-messages",
       apiKeyId: apiKeyRecord.id,
       userId: apiKeyRecord.user_id,
       model: modelId,
@@ -687,6 +810,9 @@ router.post("/", async (req: Request, res: Response) => {
       status: "error",
       latencyMs: Date.now() - startTime,
       route: "anthropic-bridge",
+      reservationId: billingReservation.id,
+      errorCode: "upstream_error",
+      errorReason: String(err?.message || err),
     });
     // 流式中途出错时 SSE 头已发出，只能终止连接，不能再写状态码
     if (res.headersSent) {
@@ -706,7 +832,7 @@ router.post("/", async (req: Request, res: Response) => {
   } finally {
     if (!billableResponseReceived) await releaseReservation(billingReservation.id);
     await reconcileOnce(0);
-    releaseConcurrency(upstream.providerId, modelId);
+    await releaseProviderCapacity(providerCapacityLease, actualProviderTokens);
   }
 });
 

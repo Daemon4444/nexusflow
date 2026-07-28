@@ -13,11 +13,22 @@
     "dev:backend": "cd backend && npm run dev",
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "cd frontend && npm run build",
-    "build:backend": "cd backend && npm run build"
+    "build:backend": "cd backend && npm run build",
+    "test:release-telemetry": "node scripts/test-release-telemetry.mjs",
+    "test:release-telemetry-reconcile": "node scripts/test-reconcile-release-telemetry.mjs",
+    "test:release-primitives": "bash scripts/test-release-primitives.sh",
+    "test:provider-cost-release": "node scripts/test-provider-cost-release.mjs",
+    "test:deploy-orchestrator-state": "node scripts/test-deploy-orchestrator-state.mjs",
+    "reconcile:release-telemetry": "node scripts/reconcile-release-telemetry.mjs"
   },
   "overrides": {
     "body-parser": "2.3.0",
-    "postcss": "^8.5.10",
+    "postcss": "8.5.24",
+    "sharp": "0.35.3",
+    "next": {
+      "postcss": "8.5.24",
+      "sharp": "0.35.3"
+    },
     "@alicloud/log@1.2.6": {
       "protobufjs": "8.7.1"
     }

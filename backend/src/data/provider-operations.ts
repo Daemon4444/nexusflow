@@ -6,14 +6,26 @@ export interface ProviderCostVersion {
   provider_id: string;
   model_id: string;
   version_label: string;
-  pricing_type: "token" | "per-image" | "per-second";
+  pricing_type: "token" | "per-image" | "per-second" | "per-10k-characters";
   prompt_cost: number;
   completion_cost: number;
   fixed_cost: number;
+  price_book_id: string;
+  input_tier_min_tokens: number;
+  input_tier_max_tokens: number | null;
+  cache_read_implicit_cost: number | null;
+  cache_read_explicit_cost: number | null;
+  cache_creation_5m_cost: number | null;
   currency: string;
   effective_from: string;
   effective_to: string | null;
   notes: string;
+  source: "unknown" | "estimate" | "contract" | "invoice" | "manual" | "import";
+  source_reference: string | null;
+  source_sha256: string | null;
+  source_row_reference: string | null;
+  condition_fingerprint: string | null;
+  coverage_status: "full" | "partial" | "legacy" | null;
   created_by: string | null;
   created_at: string;
 }
@@ -61,33 +73,94 @@ export interface ProviderSlaEvidence {
   created_at: string;
 }
 
-export async function getActiveCostVersions(): Promise<ProviderCostVersion[]> {
+// `import` means a traceable external contract/invoice import. It is verified
+// provenance, unlike `estimate` and `unknown`, and is therefore eligible for
+// routing and realized-cost calculations.
+const RECOGNIZED_COST_SOURCES = ["contract", "invoice", "manual", "import"] as const;
+const COST_VERSION_SELECT = `
+  pcv.id, pcv.provider_id, pcv.model_id, pcv.version_label, pcv.pricing_type,
+  COALESCE(pcv.prompt_cost_amount, ROUND(pcv.prompt_cost::numeric, 6)) AS prompt_cost,
+  COALESCE(pcv.completion_cost_amount, ROUND(pcv.completion_cost::numeric, 6)) AS completion_cost,
+  COALESCE(pcv.fixed_cost_amount, ROUND(pcv.fixed_cost::numeric, 6)) AS fixed_cost,
+  COALESCE(pcv.price_book_id, pcv.id) AS price_book_id,
+  pcv.input_tier_min_tokens,
+  pcv.input_tier_max_tokens,
+  pcv.cache_read_implicit_cost_amount AS cache_read_implicit_cost,
+  pcv.cache_read_explicit_cost_amount AS cache_read_explicit_cost,
+  pcv.cache_creation_5m_cost_amount AS cache_creation_5m_cost,
+  pcv.currency, pcv.effective_from, pcv.effective_to, pcv.notes, pcv.source,
+  pcv.source_reference, pcv.source_sha256, pcv.source_row_reference,
+  pcv.condition_fingerprint, pcv.coverage_status,
+  pcv.created_by, pcv.created_at`;
+
+export async function getActiveCostVersions(options: { includeEstimates?: boolean } = {}): Promise<ProviderCostVersion[]> {
+  const allowedSources = options.includeEstimates
+    ? [...RECOGNIZED_COST_SOURCES, "estimate"]
+    : [...RECOGNIZED_COST_SOURCES];
+  const placeholders = allowedSources.map(() => "?").join(", ");
   const rows = await db.queryMany<any>(
-    `SELECT pcv.*
+    `SELECT ${COST_VERSION_SELECT}
        FROM provider_cost_versions pcv
-       JOIN (
-         SELECT provider_id, model_id, MAX(effective_from) as effective_from
-           FROM provider_cost_versions
-          WHERE effective_from <= NOW() AND (effective_to IS NULL OR effective_to > NOW())
-          GROUP BY provider_id, model_id
-       ) latest
-         ON pcv.provider_id = latest.provider_id
-        AND pcv.model_id = latest.model_id
-        AND pcv.effective_from = latest.effective_from`
+      WHERE pcv.effective_from <= NOW()
+        AND (pcv.effective_to IS NULL OR pcv.effective_to > NOW())
+        AND UPPER(pcv.currency) = 'CNY'
+        AND pcv.source IN (${placeholders})
+      ORDER BY pcv.provider_id,
+               pcv.model_id,
+               pcv.effective_from DESC,
+               CASE pcv.source
+                 WHEN 'invoice' THEN 5
+                 WHEN 'contract' THEN 4
+                 WHEN 'import' THEN 3
+                 WHEN 'manual' THEN 2
+                 WHEN 'estimate' THEN 1
+                 ELSE 0
+               END DESC,
+               pcv.created_at DESC,
+               pcv.id DESC`,
+    allowedSources
   );
-  return rows.map(parseCostVersion);
+  // One deterministic row per route. Source filtering happens on the outer
+  // rows themselves, so an estimate/unknown sharing the recognized row's
+  // effective timestamp can never leak back through a timestamp-only join.
+  const activeByRoute = new Map<string, ProviderCostVersion>();
+  for (const row of rows) {
+    const key = `${row.provider_id}:${row.model_id}`;
+    if (!activeByRoute.has(key)) activeByRoute.set(key, parseCostVersion(row));
+  }
+  return [...activeByRoute.values()];
 }
 
-export async function getActiveCostVersion(providerId: string, modelId: string): Promise<ProviderCostVersion | null> {
+export async function getActiveCostVersion(
+  providerId: string,
+  modelId: string,
+  options: { includeEstimates?: boolean } = {}
+): Promise<ProviderCostVersion | null> {
+  const allowedSources = options.includeEstimates
+    ? [...RECOGNIZED_COST_SOURCES, "estimate"]
+    : [...RECOGNIZED_COST_SOURCES];
+  const placeholders = allowedSources.map(() => "?").join(", ");
   const row = await db.queryOne<any>(
-    `SELECT *
-       FROM provider_cost_versions
-      WHERE provider_id = ? AND model_id = ?
-        AND effective_from <= NOW()
-        AND (effective_to IS NULL OR effective_to > NOW())
-      ORDER BY effective_from DESC
+    `SELECT ${COST_VERSION_SELECT}
+       FROM provider_cost_versions pcv
+      WHERE pcv.provider_id = ? AND pcv.model_id = ?
+        AND pcv.effective_from <= NOW()
+        AND (pcv.effective_to IS NULL OR pcv.effective_to > NOW())
+        AND pcv.source IN (${placeholders})
+        AND UPPER(pcv.currency) = 'CNY'
+      ORDER BY pcv.effective_from DESC,
+               CASE pcv.source
+                 WHEN 'invoice' THEN 5
+                 WHEN 'contract' THEN 4
+                 WHEN 'import' THEN 3
+                 WHEN 'manual' THEN 2
+                 WHEN 'estimate' THEN 1
+                 ELSE 0
+               END DESC,
+               pcv.created_at DESC,
+               pcv.id DESC
       LIMIT 1`,
-    [providerId, modelId]
+    [providerId, modelId, ...allowedSources]
   );
   return row ? parseCostVersion(row) : null;
 }
@@ -96,36 +169,109 @@ export async function createCostVersion(data: {
   providerId: string;
   modelId: string;
   versionLabel?: string;
-  pricingType?: "token" | "per-image" | "per-second";
+  pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   promptCost?: number;
   completionCost?: number;
   fixedCost?: number;
+  priceBookId?: string;
+  inputTierMinTokens?: number;
+  inputTierMaxTokens?: number | null;
+  cacheReadImplicitCost?: number | null;
+  cacheReadExplicitCost?: number | null;
+  cacheCreation5mCost?: number | null;
   currency?: string;
   effectiveFrom?: string;
   effectiveTo?: string | null;
   notes?: string;
+  source?: ProviderCostVersion["source"];
+  sourceReference?: string | null;
+  sourceSha256?: string | null;
+  sourceRowReference?: string | null;
+  conditionFingerprint?: string | null;
+  coverageStatus?: ProviderCostVersion["coverage_status"];
   createdBy?: string | null;
 }): Promise<ProviderCostVersion> {
   const now = new Date().toISOString();
+  const currency = String(data.currency || "CNY").trim().toUpperCase();
+  if (currency !== "CNY") {
+    throw new Error("Provider costs must be denominated in CNY until an auditable FX ledger is available");
+  }
+  const promptCost = data.promptCost ?? 0;
+  const completionCost = data.completionCost ?? 0;
+  const fixedCost = data.fixedCost ?? 0;
+  const id = uuidv4();
+  const priceBookId = data.priceBookId || id;
+  const inputTierMinTokens = data.inputTierMinTokens ?? 0;
+  const inputTierMaxTokens = data.inputTierMaxTokens ?? null;
+  const cacheRates = [
+    data.cacheReadImplicitCost,
+    data.cacheReadExplicitCost,
+    data.cacheCreation5mCost,
+  ];
+  if (
+    !Number.isSafeInteger(inputTierMinTokens)
+    || inputTierMinTokens < 0
+    || (
+      inputTierMaxTokens !== null
+      && (
+        !Number.isSafeInteger(inputTierMaxTokens)
+        || inputTierMaxTokens <= inputTierMinTokens
+      )
+    )
+  ) {
+    throw new Error("Provider cost input token tier is invalid");
+  }
+  if (cacheRates.some((value) => (
+    value !== null
+    && value !== undefined
+    && (!Number.isFinite(value) || value < 0)
+  ))) {
+    throw new Error("Provider cache costs must be non-negative numbers or null");
+  }
+  const coverageStatus = data.coverageStatus || (
+    cacheRates.every((value) => value !== null && value !== undefined)
+      ? "full"
+      : "partial"
+  );
   const row = await db.queryOne<any>(
     `INSERT INTO provider_cost_versions (
-      id, provider_id, model_id, version_label, pricing_type, prompt_cost, completion_cost,
-      fixed_cost, currency, effective_from, effective_to, notes, created_by, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, price_book_id, provider_id, model_id, version_label, pricing_type, prompt_cost, completion_cost,
+      fixed_cost, prompt_cost_amount, completion_cost_amount, fixed_cost_amount,
+      input_tier_min_tokens, input_tier_max_tokens,
+      cache_read_implicit_cost_amount, cache_read_explicit_cost_amount,
+      cache_creation_5m_cost_amount, currency, effective_from, effective_to,
+      notes, source, source_reference, source_sha256, source_row_reference,
+      condition_fingerprint, coverage_status, created_by, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     RETURNING *`,
     [
-      uuidv4(),
+      id,
+      priceBookId,
       data.providerId,
       data.modelId,
       data.versionLabel || "default",
       data.pricingType || "token",
-      data.promptCost ?? 0,
-      data.completionCost ?? 0,
-      data.fixedCost ?? 0,
-      data.currency || "CNY",
+      promptCost,
+      completionCost,
+      fixedCost,
+      promptCost,
+      completionCost,
+      fixedCost,
+      inputTierMinTokens,
+      inputTierMaxTokens,
+      data.cacheReadImplicitCost ?? null,
+      data.cacheReadExplicitCost ?? null,
+      data.cacheCreation5mCost ?? null,
+      currency,
       data.effectiveFrom || now,
       data.effectiveTo || null,
       data.notes || "",
+      data.source || "manual",
+      data.sourceReference || null,
+      data.sourceSha256 || null,
+      data.sourceRowReference || null,
+      data.conditionFingerprint || null,
+      coverageStatus,
       data.createdBy || null,
       now,
     ]
@@ -285,6 +431,32 @@ function parseCostVersion(row: any): ProviderCostVersion {
     prompt_cost: Number(row.prompt_cost || 0),
     completion_cost: Number(row.completion_cost || 0),
     fixed_cost: Number(row.fixed_cost || 0),
+    price_book_id: row.price_book_id || row.id,
+    input_tier_min_tokens: Number(row.input_tier_min_tokens || 0),
+    input_tier_max_tokens: row.input_tier_max_tokens === null || row.input_tier_max_tokens === undefined
+      ? null
+      : Number(row.input_tier_max_tokens),
+    cache_read_implicit_cost: row.cache_read_implicit_cost === null || row.cache_read_implicit_cost === undefined
+      ? row.cache_read_implicit_cost_amount === null || row.cache_read_implicit_cost_amount === undefined
+        ? null
+        : Number(row.cache_read_implicit_cost_amount)
+      : Number(row.cache_read_implicit_cost),
+    cache_read_explicit_cost: row.cache_read_explicit_cost === null || row.cache_read_explicit_cost === undefined
+      ? row.cache_read_explicit_cost_amount === null || row.cache_read_explicit_cost_amount === undefined
+        ? null
+        : Number(row.cache_read_explicit_cost_amount)
+      : Number(row.cache_read_explicit_cost),
+    cache_creation_5m_cost: row.cache_creation_5m_cost === null || row.cache_creation_5m_cost === undefined
+      ? row.cache_creation_5m_cost_amount === null || row.cache_creation_5m_cost_amount === undefined
+        ? null
+        : Number(row.cache_creation_5m_cost_amount)
+      : Number(row.cache_creation_5m_cost),
+    source: row.source || "unknown",
+    source_reference: row.source_reference || null,
+    source_sha256: row.source_sha256 || null,
+    source_row_reference: row.source_row_reference || null,
+    condition_fingerprint: row.condition_fingerprint || null,
+    coverage_status: row.coverage_status || null,
   };
 }
 

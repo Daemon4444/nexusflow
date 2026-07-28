@@ -1,5 +1,6 @@
 import { db } from "../db/client";
 import { decryptProviderSecret, encryptProviderSecret } from "../utils/provider-secrets";
+import { assertProviderEndpointForStorage } from "../services/outbound-url-policy";
 
 export type ProviderChannelAdapter = "dashscope" | "pixverse";
 
@@ -72,6 +73,15 @@ export async function getProviderChannelConfig(providerId: string): Promise<Prov
 }
 
 export async function upsertProviderChannelConfig(providerId: string, config: ProviderChannelConfig): Promise<ProviderChannelConfig> {
+  for (const [channelId, channel] of Object.entries(config.channels)) {
+    const validationError = validateChannel(channel);
+    if (validationError) {
+      throw new Error(`channel ${channelId}: ${validationError}`);
+    }
+    if (channel.enabled !== false) {
+      await assertProviderEndpointForStorage(resolveChannelBaseUrl(channel));
+    }
+  }
   const now = new Date().toISOString();
   const existing = await db.queryOne<{ channels: string }>(
     "SELECT channels FROM provider_channel_configs WHERE provider_id = ?",
@@ -100,7 +110,9 @@ export async function upsertProviderChannelConfig(providerId: string, config: Pr
 
 export async function switchProviderChannel(providerId: string, channel: string): Promise<ProviderChannelConfig | null> {
   const config = await getProviderChannelConfig(providerId);
-  if (!config || !config.channels[channel]) return null;
+  const selected = config?.channels[channel];
+  if (!config || !selected || selected.enabled === false) return null;
+  await assertProviderEndpointForStorage(resolveChannelBaseUrl(selected));
   return upsertProviderChannelConfig(providerId, { ...config, active_channel: channel });
 }
 
@@ -125,6 +137,18 @@ export async function upsertProviderChannel(
   };
   const validationError = validateChannel(merged);
   if (validationError) return { error: validationError };
+  // Disabled placeholder channels may be staged before a workspace ID exists.
+  // Every usable endpoint is subjected to the same immutable host policy as
+  // provider-level URLs.
+  if (merged.enabled !== false) {
+    try {
+      await assertProviderEndpointForStorage(resolveChannelBaseUrl(merged));
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "channel endpoint is not allowed",
+      };
+    }
+  }
   const updated = await upsertProviderChannelConfig(providerId, {
     ...config,
     channels: { ...config.channels, [channelId]: merged },
