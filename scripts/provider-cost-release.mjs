@@ -157,6 +157,7 @@ function validateRuntimeOptions(options) {
 
 function runCli(runtime, args, privatePath = "") {
   const result = spawnSync(process.execPath, [runtime.cli, ...args], {
+    cwd: path.join(runtime.releaseDirectory, "backend"),
     encoding: "utf8",
     env: {
       ...process.env,
@@ -168,8 +169,12 @@ function runCli(runtime, args, privatePath = "") {
     maxBuffer: 1_100_000,
   });
   if (result.status !== 0) {
-    const detail = String(result.stderr || "")
-      .replaceAll(privatePath, "[private-manifest]")
+    const rawDetail = String(result.stderr || "");
+    const detail = (
+      privatePath
+        ? rawDetail.replaceAll(privatePath, "[private-manifest]")
+        : rawDetail
+    )
       .trim()
       .slice(0, 2_000);
     fail(detail

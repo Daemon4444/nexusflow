@@ -16,6 +16,7 @@ const release = path.join(fixture, "release");
 const cliDirectory = path.join(release, "backend/dist/cli");
 const backendEnvironment = path.join(fixture, "backend.env");
 const state = path.join(fixture, "state.json");
+let lastStderr = "";
 
 function cleanup() {
   try {
@@ -29,8 +30,15 @@ function cleanup() {
 function run(command, args = [], expectedStatus = 0) {
   const result = spawnSync(process.execPath, [wrapper, command, ...args], {
     encoding: "utf8",
-    env: { ...process.env, PROVIDER_COST_RELEASE_TEST_STATE: state },
+    env: {
+      ...process.env,
+      PROVIDER_COST_RELEASE_TEST_STATE: state,
+      PROVIDER_COST_RELEASE_EXPECTED_CWD: fs.realpathSync(
+        path.join(release, "backend")
+      ),
+    },
   });
+  lastStderr = String(result.stderr || "");
   assert.equal(
     result.status,
     expectedStatus,
@@ -53,7 +61,15 @@ const file = process.env.PROVIDER_COST_RELEASE_TEST_STATE;
 const args = process.argv.slice(2);
 const current = JSON.parse(fs.readFileSync(file, "utf8"));
 const apply = args.includes("--apply");
+if (process.cwd() !== process.env.PROVIDER_COST_RELEASE_EXPECTED_CWD) {
+  console.error("provider-cost CLI started outside the immutable backend directory");
+  process.exit(1);
+}
 if (args.includes("--manifest")) {
+  if (current.manifestFailure === true) {
+    console.error("rejected private input " + args[args.indexOf("--manifest") + 1]);
+    process.exit(1);
+  }
   const wasInactive = current.activeRows === 0 && current.everApplied === true;
   if (apply) {
     current.activeRows = 3;
@@ -77,6 +93,10 @@ if (args.includes("--manifest")) {
     manifestSha256: "b".repeat(64)
   }));
 } else {
+  if (current.queryFailure === true) {
+    console.error("provider-cost query failed safely");
+    process.exit(1);
+  }
   const before = current.activeRows;
   const future = current.futureRows || 0;
   const pending = before + future;
@@ -156,6 +176,15 @@ if (args.includes("--manifest")) {
     futureRows: 1,
     everApplied: true,
   });
+  assert.doesNotMatch(lastStderr, /\[private-manifest\]/);
+
+  fs.writeFileSync(state, JSON.stringify({
+    activeRows: 0,
+    queryFailure: true,
+  }));
+  run("verify-inactive", runtimeArgs, 1);
+  assert.match(lastStderr, /provider-cost query failed safely/);
+  assert.doesNotMatch(lastStderr, /\[private-manifest\]/);
 
   fs.writeFileSync(state, JSON.stringify({
     activeRows: 3,
@@ -185,6 +214,19 @@ if (args.includes("--manifest")) {
     0,
     "an unexpected reviewed count must fail before provider-cost mutation"
   );
+
+  fs.writeFileSync(state, JSON.stringify({
+    activeRows: 0,
+    everApplied: false,
+    manifestFailure: true,
+  }));
+  run("activate", [
+    "--manifest", manifest,
+    ...runtimeArgs,
+    ...importExpectedArgs,
+  ], 1);
+  assert.match(lastStderr, /\[private-manifest\]/);
+  assert.ok(!lastStderr.includes(manifest), "private manifest path must be redacted");
 
   fs.chmodSync(manifest, 0o640);
   run("preflight", ["--manifest", manifest], 1);
