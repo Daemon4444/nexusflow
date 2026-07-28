@@ -105,19 +105,36 @@ if (args.includes("--manifest")) {
     "--release-dir", release,
     "--backend-env", backendEnvironment,
   ];
+  const expectedArgs = [
+    "--expected-tiers", "3",
+    "--expected-models", "2",
+  ];
+  const importExpectedArgs = [
+    ...expectedArgs,
+    "--expected-full-tiers", "2",
+    "--expected-partial-tiers", "1",
+  ];
   run("preflight", ["--manifest", manifest]);
   assert.equal(
-    run("activate", ["--manifest", manifest, ...runtimeArgs]),
+    run("activate", [
+      "--manifest", manifest,
+      ...runtimeArgs,
+      ...importExpectedArgs,
+    ]),
     "3"
   );
   assert.equal(
-    run("verify-active", [...runtimeArgs, "--expected-tiers", "3"]),
+    run("verify-active", [...runtimeArgs, ...expectedArgs]),
     "3"
   );
-  run("deactivate", [...runtimeArgs, "--expected-tiers", "3"]);
+  run("deactivate", [...runtimeArgs, ...expectedArgs]);
   run("verify-inactive", runtimeArgs);
   assert.equal(
-    run("activate", ["--manifest", manifest, ...runtimeArgs]),
+    run("activate", [
+      "--manifest", manifest,
+      ...runtimeArgs,
+      ...importExpectedArgs,
+    ]),
     "3"
   );
 
@@ -125,7 +142,7 @@ if (args.includes("--manifest")) {
     activeRows: 1,
     everApplied: true,
   }));
-  run("deactivate", [...runtimeArgs, "--expected-tiers", "3"], 1);
+  run("deactivate", [...runtimeArgs, ...expectedArgs], 1);
   assert.equal(JSON.parse(fs.readFileSync(state, "utf8")).activeRows, 1);
 
   fs.writeFileSync(state, JSON.stringify({
@@ -133,7 +150,7 @@ if (args.includes("--manifest")) {
     futureRows: 1,
     everApplied: true,
   }));
-  run("deactivate", [...runtimeArgs, "--expected-tiers", "3"], 1);
+  run("deactivate", [...runtimeArgs, ...expectedArgs], 1);
   assert.deepEqual(JSON.parse(fs.readFileSync(state, "utf8")), {
     activeRows: 2,
     futureRows: 1,
@@ -145,7 +162,29 @@ if (args.includes("--manifest")) {
     everApplied: true,
     wrongPriceBook: true,
   }));
-  run("activate", ["--manifest", manifest, ...runtimeArgs], 1);
+  run("activate", [
+    "--manifest", manifest,
+    ...runtimeArgs,
+    ...importExpectedArgs,
+  ], 1);
+
+  fs.writeFileSync(state, JSON.stringify({
+    activeRows: 0,
+    everApplied: false,
+  }));
+  run("activate", [
+    "--manifest", manifest,
+    ...runtimeArgs,
+    "--expected-tiers", "3",
+    "--expected-models", "3",
+    "--expected-full-tiers", "2",
+    "--expected-partial-tiers", "1",
+  ], 1);
+  assert.equal(
+    JSON.parse(fs.readFileSync(state, "utf8")).activeRows,
+    0,
+    "an unexpected reviewed count must fail before provider-cost mutation"
+  );
 
   fs.chmodSync(manifest, 0o640);
   run("preflight", ["--manifest", manifest], 1);

@@ -65,6 +65,13 @@ printf 'loopback\n' > "$STATE/listener-mode"
 printf 'safe\n' > "$STATE/pm2-mode"
 printf 'never\n' > "$STATE/save-mode"
 printf '\n' > "$STATE/health-fail-sha"
+printf '\n' > "$STATE/start-fail-sha"
+printf '0\n' > "$STATE/start-fail-remaining"
+printf '\n' > "$STATE/wrong-path-sha"
+printf '%s\n' "$RELEASES_ROOT/$OLD_SHA" > "$STATE/wrong-path-root"
+printf '%s\n' "$RELEASES_ROOT/$OLD_SHA" > "$STATE/definition-root"
+touch "$STATE/app-quadrant-backend" "$STATE/app-quadrant-frontend"
+: > "$STATE/pm2-command-log"
 
 cat > "$SHIMS/stat" <<'EOF'
 #!/usr/bin/env bash
@@ -168,11 +175,53 @@ cat > "$SHIMS/pm2" <<'EOF'
 #!/usr/bin/env bash
 command="${1:-}"
 case "$command" in
-  startOrReload)
+  start)
+    printf 'start %s\n' "${2:-}" >> "$NEXUSFLOW_TEST_STATE/pm2-command-log"
+    fail_sha="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/start-fail-sha")"
+    fail_remaining="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/start-fail-remaining")"
+    if test -n "$fail_sha" &&
+      test "$BUILD_SHA" = "$fail_sha" &&
+      test "$fail_remaining" -gt 0; then
+      printf '%s\n' "$((fail_remaining - 1))" \
+        > "$NEXUSFLOW_TEST_STATE/start-fail-remaining"
+      printf '%s\n' "$NEXUSFLOW_APP_ROOT" \
+        > "$NEXUSFLOW_TEST_STATE/definition-root"
+      touch "$NEXUSFLOW_TEST_STATE/app-quadrant-backend"
+      rm -f -- "$NEXUSFLOW_TEST_STATE/app-quadrant-frontend"
+      exit 1
+    fi
     printf '%s\n' "$BUILD_SHA" > "$NEXUSFLOW_TEST_STATE/runtime-sha"
+    wrong_path_sha="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/wrong-path-sha")"
+    if test -n "$wrong_path_sha" && test "$BUILD_SHA" = "$wrong_path_sha"; then
+      tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/wrong-path-root" \
+        > "$NEXUSFLOW_TEST_STATE/definition-root"
+      printf '\n' >> "$NEXUSFLOW_TEST_STATE/definition-root"
+    else
+      printf '%s\n' "$NEXUSFLOW_APP_ROOT" > "$NEXUSFLOW_TEST_STATE/definition-root"
+    fi
+    touch \
+      "$NEXUSFLOW_TEST_STATE/app-quadrant-backend" \
+      "$NEXUSFLOW_TEST_STATE/app-quadrant-frontend"
+    ;;
+  delete)
+    shift
+    test "$#" -gt 0
+    for app in "$@"; do
+      case "$app" in
+        quadrant-backend|quadrant-frontend)
+          printf 'delete %s\n' "$app" >> "$NEXUSFLOW_TEST_STATE/pm2-command-log"
+          rm -f -- "$NEXUSFLOW_TEST_STATE/app-$app"
+          ;;
+        *)
+          printf 'unexpected fake pm2 deletion target: %s\n' "$app" >&2
+          exit 1
+          ;;
+      esac
+    done
     ;;
   jlist)
     sha="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/runtime-sha")"
+    root="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/definition-root")"
     mode="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/pm2-mode")"
     node_env="production"
     release_runtime="true"
@@ -183,8 +232,27 @@ case "$command" in
       node_env="development"
       mock="true"
     fi
-    printf '[{"name":"quadrant-backend","pm2_env":{"NODE_ENV":"%s","NEXUSFLOW_RELEASE_RUNTIME":"%s","ENABLE_MOCK_PAYMENT":"%s","ENABLE_SEED_API_KEYS":"%s","USE_PG_MEM":"%s","PROVIDER_OUTBOUND_HOST_ALLOWLIST":"api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai","PORT":3001,"BUILD_SHA":"%s"}}]\n' \
-      "$node_env" "$release_runtime" "$mock" "$seed" "$pg_mem" "$sha"
+    entries=()
+    if test -f "$NEXUSFLOW_TEST_STATE/app-quadrant-backend"; then
+      backend='{"name":"quadrant-backend","pm2_env":{"status":"online","pm_cwd":"%s/backend","pm_exec_path":"%s/backend/dist/index.js","NODE_ENV":"%s","NEXUSFLOW_RELEASE_RUNTIME":"%s","ENABLE_MOCK_PAYMENT":"%s","ENABLE_SEED_API_KEYS":"%s","USE_PG_MEM":"%s","PROVIDER_OUTBOUND_HOST_ALLOWLIST":"api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai","PORT":3001,"BUILD_SHA":"%s"}}'
+      printf -v backend_one "$backend" \
+        "$root" "$root" "$node_env" "$release_runtime" "$mock" "$seed" "$pg_mem" "$sha"
+      printf -v backend_two "$backend" \
+        "$root" "$root" "$node_env" "$release_runtime" "$mock" "$seed" "$pg_mem" "$sha"
+      entries+=("$backend_one" "$backend_two")
+    fi
+    if test -f "$NEXUSFLOW_TEST_STATE/app-quadrant-frontend"; then
+      printf -v frontend '{"name":"quadrant-frontend","pm2_env":{"status":"online","pm_cwd":"%s/frontend","pm_exec_path":"%s/node_modules/next/dist/bin/next","NODE_ENV":"production","PORT":19999}}' \
+        "$root" "$root"
+      entries+=("$frontend")
+    fi
+    entries+=('{"name":"unrelated-worker","pm2_env":{"status":"online"}}')
+    output=""
+    for entry in "${entries[@]}"; do
+      test -z "$output" || output+=","
+      output+="$entry"
+    done
+    printf '[%s]\n' "$output"
     ;;
   save)
     mode="$(tr -d '\r\n' < "$NEXUSFLOW_TEST_STATE/save-mode")"
@@ -369,6 +437,10 @@ printf '1\n' > "$STATE/version-lag-remaining"
 NEXUSFLOW_DRAIN_CONFIRMED=true run_primitive activate --sha "$NEW_SHA"
 test "$(tr -d '\r\n' < "$STATE/version-lag-remaining")" = "0"
 test "$(resolved_path "$CURRENT_LINK")" = "$(resolved_path "$RELEASES_ROOT/$NEW_SHA")"
+test "$(resolved_path "$(tr -d '\r\n' < "$STATE/definition-root")")" = \
+  "$(resolved_path "$RELEASES_ROOT/$NEW_SHA")"
+test -f "$STATE/app-quadrant-backend"
+test -f "$STATE/app-quadrant-frontend"
 
 # A normal rollback to the pre-capability release remains possible even though
 # that old process binds wildcard ports.
@@ -382,6 +454,8 @@ NEXUSFLOW_DRAIN_CONFIRMED=true \
 NEXUSFLOW_SESSION_ROLLBACK_PREPARED=true \
   run_primitive rollback
 test "$(resolved_path "$CURRENT_LINK")" = "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
+test "$(resolved_path "$(tr -d '\r\n' < "$STATE/definition-root")")" = \
+  "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
 
 # A target whose cluster workers keep alternating old/new build identities must
 # fail closed and restore the legacy baseline.
@@ -409,6 +483,39 @@ save_status=$?
 set -e
 test "$save_status" -eq 20
 test "$(resolved_path "$CURRENT_LINK")" = "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
+
+# A PM2 startup failure after removing the stale target definitions must
+# deterministically recreate and persist the old release.
+printf '%s\n' "$NEW_SHA" > "$STATE/start-fail-sha"
+printf '1\n' > "$STATE/start-fail-remaining"
+set +e
+NEXUSFLOW_DRAIN_CONFIRMED=true run_primitive activate --sha "$NEW_SHA"
+start_failure_status=$?
+set -e
+test "$start_failure_status" -eq 20
+test "$(tr -d '\r\n' < "$STATE/start-fail-remaining")" = "0"
+test "$(resolved_path "$CURRENT_LINK")" = "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
+test "$(tr -d '\r\n' < "$STATE/runtime-sha")" = "$OLD_SHA"
+test "$(resolved_path "$(tr -d '\r\n' < "$STATE/definition-root")")" = \
+  "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
+test -f "$STATE/app-quadrant-backend"
+test -f "$STATE/app-quadrant-frontend"
+printf '\n' > "$STATE/start-fail-sha"
+
+# A runtime can report the target SHA while PM2 still points at a stale
+# release directory. The path gate must reject that false-positive and restore
+# the old process definitions.
+printf '%s\n' "$NEW_SHA" > "$STATE/wrong-path-sha"
+set +e
+NEXUSFLOW_DRAIN_CONFIRMED=true run_primitive activate --sha "$NEW_SHA"
+wrong_path_status=$?
+set -e
+test "$wrong_path_status" -eq 20
+test "$(resolved_path "$CURRENT_LINK")" = "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
+test "$(tr -d '\r\n' < "$STATE/runtime-sha")" = "$OLD_SHA"
+test "$(resolved_path "$(tr -d '\r\n' < "$STATE/definition-root")")" = \
+  "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
+printf '\n' > "$STATE/wrong-path-sha"
 
 # Unsafe managed runtime environment is a new-target failure, not a reason to
 # reject the old rollback baseline.
@@ -439,6 +546,10 @@ test "$(resolved_path "$CURRENT_LINK")" = "$(resolved_path "$RELEASES_ROOT/$NEW_
 test "$(resolved_path "$PREVIOUS_LINK")" = "$(resolved_path "$RELEASES_ROOT/$OLD_SHA")"
 test "$(tr -d '\r\n' < "$STATE/runtime-sha")" = "$NEW_SHA"
 test -f "$(resolved_path "$CURRENT_LINK")/.release-capabilities.json"
+if grep -Eq '^delete (all|unrelated-worker)$' "$STATE/pm2-command-log"; then
+  printf 'managed release attempted to delete an unrelated PM2 app\n' >&2
+  exit 1
+fi
 
 # Archive extraction must reject links that escape the private staging root,
 # even when the outer archive checksum itself is valid.
@@ -480,5 +591,5 @@ test "$proxy_status" -ne 0
 
 "$SCRIPT_DIR/test-nginx-health-drain-installer.sh"
 
-printf 'release-primitive-regressions-ok bootstrap=%s ingress_guard=%s nginx_syntax=%s wildcard=%s unprepared=%s mixed=%s save=%s unsafe=%s old_health=%s archive_escape=%s archive_extra=%s proxy=%s\n' \
-  0 0 "$nginx_syntax_status" "$wildcard_status" "$unprepared_rollback_status" "$mixed_version_status" "$save_status" "$unsafe_status" "$old_health_status" "$archive_escape_status" "$archive_extra_status" "$proxy_status"
+printf 'release-primitive-regressions-ok bootstrap=%s ingress_guard=%s nginx_syntax=%s wildcard=%s unprepared=%s mixed=%s save=%s start_failure=%s wrong_path=%s unsafe=%s old_health=%s archive_escape=%s archive_extra=%s proxy=%s\n' \
+  0 0 "$nginx_syntax_status" "$wildcard_status" "$unprepared_rollback_status" "$mixed_version_status" "$save_status" "$start_failure_status" "$wrong_path_status" "$unsafe_status" "$old_health_status" "$archive_escape_status" "$archive_extra_status" "$proxy_status"

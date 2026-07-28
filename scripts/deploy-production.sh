@@ -142,8 +142,60 @@ reject_release_proxy_environment() {
 reload_release() {
   local directory="$1"
   local sha="$2"
+  local managed_apps=""
+  local app=""
   release_require_command pm2
   reject_release_proxy_environment
+
+  # PM2's startOrReload keeps the existing cwd/exec path for an app with the
+  # same name. Immutable releases therefore need an exact, drained-node
+  # replacement of only the two NexusFlow apps. The caller automatically
+  # restores the previous release if either deletion or startup fails.
+  managed_apps="$(
+    pm2 jlist |
+      node -e '
+        let body = "";
+        process.stdin.on("data", (chunk) => { body += chunk; });
+        process.stdin.on("end", () => {
+          let processes;
+          try {
+            processes = JSON.parse(body);
+          } catch {
+            process.exit(1);
+          }
+          if (!Array.isArray(processes)) process.exit(1);
+          const managed = new Set([
+            "quadrant-backend",
+            "quadrant-frontend",
+          ]);
+          const present = new Set(
+            processes
+              .map((entry) => entry?.name)
+              .filter((name) => managed.has(name))
+          );
+          process.stdout.write([...present].sort().join("\n"));
+        });
+      '
+  )" || {
+    release_log "cannot inspect the current PM2 process definitions"
+    return 1
+  }
+
+  while IFS= read -r app; do
+    test -n "$app" || continue
+    case "$app" in
+      quadrant-backend|quadrant-frontend) ;;
+      *)
+        release_log "refusing to delete unexpected PM2 app: $app"
+        return 1
+        ;;
+    esac
+    pm2 delete "$app" || {
+      release_log "cannot remove stale PM2 definition for $app"
+      return 1
+    }
+  done <<< "$managed_apps"
+
   NEXUSFLOW_APP_ROOT="$directory" \
   NEXUSFLOW_CURRENT_LINK="$CURRENT_LINK" \
   NEXUSFLOW_RELEASE_RUNTIME=true \
@@ -153,14 +205,18 @@ reload_release() {
   NODE_ENV=production \
   BUILD_SHA="$sha" \
   BUILD_TIME="$(date -u +%FT%TZ)" \
-    pm2 startOrReload "$directory/ecosystem.config.js" --update-env
+    pm2 start "$directory/ecosystem.config.js" --update-env || {
+      release_log "cannot start PM2 from the requested immutable release"
+      return 1
+    }
 }
 
 verify_pm2_runtime_environment() {
-  local sha="$1"
+  local directory="$1"
+  local sha="$2"
   release_require_command pm2
   pm2 jlist |
-    EXPECTED_SHA="$sha" node -e '
+    EXPECTED_ROOT="$directory" EXPECTED_SHA="$sha" node -e '
       let body = "";
       process.stdin.on("data", (chunk) => { body += chunk; });
       process.stdin.on("end", () => {
@@ -171,7 +227,9 @@ verify_pm2_runtime_environment() {
           process.exit(1);
         }
         const backends = processes.filter((entry) => entry?.name === "quadrant-backend");
-        if (backends.length === 0) process.exit(1);
+        const frontends = processes.filter((entry) => entry?.name === "quadrant-frontend");
+        const root = process.env.EXPECTED_ROOT;
+        if (backends.length !== 2 || frontends.length !== 1) process.exit(1);
         const valid = backends.every((entry) => {
           const env = entry?.pm2_env || {};
           const requiredProviderHosts = [
@@ -196,6 +254,9 @@ verify_pm2_runtime_environment() {
             "all_proxy",
           ];
           return (
+            env.status === "online" &&
+            env.pm_cwd === `${root}/backend` &&
+            env.pm_exec_path === `${root}/backend/dist/index.js` &&
             env.NODE_ENV === "production" &&
             env.NEXUSFLOW_RELEASE_RUNTIME === "true" &&
             env.ENABLE_MOCK_PAYMENT !== "true" &&
@@ -209,10 +270,24 @@ verify_pm2_runtime_environment() {
             proxyKeys.every((key) => !String(env[key] || "").trim())
           );
         });
-        if (!valid) process.exit(1);
+        const validFrontend = frontends.every((entry) => {
+          const env = entry?.pm2_env || {};
+          const executable = String(env.pm_exec_path || "");
+          return (
+            env.status === "online" &&
+            env.pm_cwd === `${root}/frontend` &&
+            (
+              executable === `${root}/frontend/node_modules/next/dist/bin/next` ||
+              executable === `${root}/node_modules/next/dist/bin/next`
+            ) &&
+            env.NODE_ENV === "production" &&
+            String(env.PORT) === "19999"
+          );
+        });
+        if (!valid || !validFrontend) process.exit(1);
       });
     ' || {
-      release_log "PM2 backend runtime invariants are not production-safe"
+      release_log "PM2 runtime definitions are not bound to the expected immutable release"
       return 1
     }
 }
@@ -281,7 +356,7 @@ verify_runtime() {
       release_log "managed-production release capabilities are malformed"
       return 1
     fi
-    verify_pm2_runtime_environment "$sha" || return 1
+    verify_pm2_runtime_environment "$directory" "$sha" || return 1
     verify_loopback_listeners || return 1
   else
     release_log "legacy baseline compatibility: managed PM2/loopback capabilities are not asserted"

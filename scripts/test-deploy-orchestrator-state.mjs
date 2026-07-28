@@ -52,7 +52,7 @@ assertOrdered(rollbackPreparation, [
 
 const recovery = functionBody(
   "provider_cost_recover_after_failed_rollback",
-  "cleanup_provider_cost_manifest"
+  "write_terminal_telemetry_outbox"
 );
 assertOrdered(recovery, [
   '"$TRAFFIC_HOOK" route "$recovery_node"',
@@ -129,6 +129,51 @@ assert.match(
 assert.match(
   source,
   /PEER_BASELINE_PROVIDER_COST_CAPABLE=true/
+);
+assert.match(source, /PROVIDER_COST_EXPECTED_TIERS=12/);
+assert.match(source, /PROVIDER_COST_EXPECTED_MODELS=9/);
+assert.match(source, /PROVIDER_COST_EXPECTED_FULL_TIERS=7/);
+assert.match(source, /PROVIDER_COST_EXPECTED_PARTIAL_TIERS=5/);
+assert.match(
+  activation,
+  /--expected-models "\$PROVIDER_COST_EXPECTED_MODELS"/
+);
+assert.match(
+  activation,
+  /--expected-full-tiers "\$PROVIDER_COST_EXPECTED_FULL_TIERS"/
+);
+assert.match(
+  activation,
+  /--expected-partial-tiers "\$PROVIDER_COST_EXPECTED_PARTIAL_TIERS"/
+);
+assert.match(
+  source,
+  /session_security_command posture --expect hash-only \|\|\n\s+release_die "deployed session token posture is not hash-only"/
+);
+assert.match(
+  source,
+  /flock -n 8 \|\|\n\s+release_die "another NexusFlow database backup is already running"/
+);
+assert.ok(
+  source.indexOf("trap cleanup_early_release_staging EXIT")
+    < source.indexOf("release_require_command curl"),
+  "private manifest cleanup must be armed before command, lock, git, and release preflights"
+);
+assert.match(
+  source,
+  /if ! "\$VERIFY_ONLY" && ! "\$DRY_RUN" &&\n\s+test -n "\$PROVIDER_COST_MANIFEST"; then/
+);
+assert.match(
+  source,
+  /"\$EARLY_MANIFEST_CLEANUP_ARMED" &&\n\s+"\$RELEASE_LOCK_ACQUIRED"; then/
+);
+assert.match(
+  source,
+  /flock -n 9 \|\| release_die "another NexusFlow production release is already running"\nRELEASE_LOCK_ACQUIRED=true/
+);
+assert.match(
+  source,
+  /if ! "\$VERIFY_ONLY" && ! "\$DRY_RUN"; then\n\s+mkdir -p "\$\(dirname "\$DB_BACKUP_LOCK_FILE"\)"/
 );
 
 assert.equal(

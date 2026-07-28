@@ -19,6 +19,7 @@ DB_BACKUP_HOOK="${NEXUSFLOW_DB_BACKUP_HOOK:-$ROOT/scripts/db-backup-hook.sh}"
 PROVIDER_COST_MANIFEST="${NEXUSFLOW_PROVIDER_COST_MANIFEST:-}"
 PUBLIC_URL="${NEXUSFLOW_PUBLIC_URL:-https://nexusflow.hk}"
 LOCK_FILE="${NEXUSFLOW_DEPLOY_LOCK_FILE:-/run/lock/nexusflow-production-release.lock}"
+DB_BACKUP_LOCK_FILE="${NEXUSFLOW_DB_BACKUP_LOCK_FILE:-/run/lock/nexusflow-db-backup.lock}"
 TELEMETRY_OUTBOX_DIR="${NEXUSFLOW_TELEMETRY_OUTBOX_DIR:-/var/lib/nexusflow-release-telemetry-outbox}"
 LOCAL_NODE_ID="${NEXUSFLOW_LOCAL_NODE_ID:-main}"
 PEER_NODE_ID="${NEXUSFLOW_PEER_NODE_ID:-peer}"
@@ -26,7 +27,13 @@ DRY_RUN=false
 VERIFY_ONLY=false
 BUILD_SHA=""
 PROVIDER_COST_EXPECTED_TIERS=12
+PROVIDER_COST_EXPECTED_MODELS=9
+PROVIDER_COST_EXPECTED_FULL_TIERS=7
+PROVIDER_COST_EXPECTED_PARTIAL_TIERS=5
 PROVIDER_COST_CONTROL="$SCRIPT_DIR/provider-cost-release.mjs"
+PROVIDER_COST_MANIFEST_CLEANED=false
+EARLY_MANIFEST_CLEANUP_ARMED=false
+RELEASE_LOCK_ACQUIRED=false
 
 usage() {
   cat <<'EOF'
@@ -69,6 +76,31 @@ while test "$#" -gt 0; do
   esac
 done
 
+cleanup_provider_cost_manifest() {
+  "$PROVIDER_COST_MANIFEST_CLEANED" && return 0
+  test -n "$PROVIDER_COST_MANIFEST" || return 0
+  node "$PROVIDER_COST_CONTROL" cleanup-manifest \
+    --manifest "$PROVIDER_COST_MANIFEST" || return 1
+  PROVIDER_COST_MANIFEST_CLEANED=true
+}
+
+cleanup_early_release_staging() {
+  local code=$?
+  if test "$code" -ne 0 &&
+    "$EARLY_MANIFEST_CLEANUP_ARMED" &&
+    "$RELEASE_LOCK_ACQUIRED"; then
+    cleanup_provider_cost_manifest ||
+      release_log "CRITICAL: early provider-cost staging cleanup failed; remove only the validated private staging directory"
+  fi
+  exit "$code"
+}
+
+if ! "$VERIFY_ONLY" && ! "$DRY_RUN" &&
+  test -n "$PROVIDER_COST_MANIFEST"; then
+  EARLY_MANIFEST_CLEANUP_ARMED=true
+  trap cleanup_early_release_staging EXIT
+fi
+
 release_require_command curl
 release_require_command flock
 release_require_command git
@@ -77,13 +109,20 @@ release_require_command scp
 release_require_command ssh
 release_require_command tar
 
-case "$ROOT:$PEER_ROOT:$RELEASES_ROOT:$ARTIFACTS_ROOT:$CURRENT_LINK:$PREVIOUS_LINK:$PEER_HOST" in
+case "$ROOT:$PEER_ROOT:$RELEASES_ROOT:$ARTIFACTS_ROOT:$CURRENT_LINK:$PREVIOUS_LINK:$LOCK_FILE:$DB_BACKUP_LOCK_FILE:$PEER_HOST" in
   *[!A-Za-z0-9_./:@-]*) release_die "release paths and peer host may only contain safe path characters" ;;
 esac
 
 mkdir -p "$(dirname "$LOCK_FILE")"
 exec 9>"$LOCK_FILE"
 flock -n 9 || release_die "another NexusFlow production release is already running"
+RELEASE_LOCK_ACQUIRED=true
+if ! "$VERIFY_ONLY" && ! "$DRY_RUN"; then
+  mkdir -p "$(dirname "$DB_BACKUP_LOCK_FILE")"
+  exec 8>"$DB_BACKUP_LOCK_FILE"
+  flock -n 8 ||
+    release_die "another NexusFlow database backup is already running"
+fi
 
 cd "$ROOT"
 if "$VERIFY_ONLY"; then
@@ -137,7 +176,6 @@ PROVIDER_COST_BOOK_APPLIED=false
 PROVIDER_COST_ROLLBACK_TRANSITION_STARTED=false
 PROVIDER_COST_DEACTIVATED_FOR_ROLLBACK=false
 PROVIDER_COST_ROLLBACK_COMMITTED=false
-PROVIDER_COST_MANIFEST_CLEANED=false
 
 release_validate_secure_hook "$TRAFFIC_HOOK"
 if ! "$VERIFY_ONLY"; then
@@ -334,7 +372,8 @@ provider_cost_verify_active() {
   local active_rows
   active_rows="$(
     provider_cost_release_command verify-active \
-      --expected-tiers "$PROVIDER_COST_EXPECTED_TIERS"
+      --expected-tiers "$PROVIDER_COST_EXPECTED_TIERS" \
+      --expected-models "$PROVIDER_COST_EXPECTED_MODELS"
   )" || return 1
   test "$active_rows" = "$PROVIDER_COST_EXPECTED_TIERS"
 }
@@ -344,7 +383,11 @@ provider_cost_activate() {
   PROVIDER_COST_ACTIVATION_STARTED=true
   tier_count="$(
     provider_cost_release_command activate \
-      --manifest "$PROVIDER_COST_MANIFEST"
+      --manifest "$PROVIDER_COST_MANIFEST" \
+      --expected-tiers "$PROVIDER_COST_EXPECTED_TIERS" \
+      --expected-models "$PROVIDER_COST_EXPECTED_MODELS" \
+      --expected-full-tiers "$PROVIDER_COST_EXPECTED_FULL_TIERS" \
+      --expected-partial-tiers "$PROVIDER_COST_EXPECTED_PARTIAL_TIERS"
   )" || return 1
   test "$tier_count" = "$PROVIDER_COST_EXPECTED_TIERS" || return 1
   provider_cost_verify_active || return 1
@@ -374,7 +417,8 @@ provider_cost_prepare_baseline_rollback() {
   # inactive book and quarantine traffic on a verified tier-aware binary.
   PROVIDER_COST_ROLLBACK_TRANSITION_STARTED=true
   provider_cost_release_command deactivate \
-    --expected-tiers "$PROVIDER_COST_EXPECTED_TIERS" || return 1
+    --expected-tiers "$PROVIDER_COST_EXPECTED_TIERS" \
+    --expected-models "$PROVIDER_COST_EXPECTED_MODELS" || return 1
   provider_cost_release_command verify-inactive || return 1
   PROVIDER_COST_DEACTIVATED_FOR_ROLLBACK=true
   PROVIDER_COST_BOOK_APPLIED=false
@@ -457,14 +501,6 @@ provider_cost_recover_after_failed_rollback() {
     release_log "CRITICAL: traffic is isolated on a tier-aware binary, but its private price book could not be restored"
     return 1
   }
-}
-
-cleanup_provider_cost_manifest() {
-  "$PROVIDER_COST_MANIFEST_CLEANED" && return 0
-  test -n "$PROVIDER_COST_MANIFEST" || return 0
-  node "$PROVIDER_COST_CONTROL" cleanup-manifest \
-    --manifest "$PROVIDER_COST_MANIFEST" || return 1
-  PROVIDER_COST_MANIFEST_CLEANED=true
 }
 
 write_terminal_telemetry_outbox() {
@@ -682,9 +718,16 @@ if "$VERIFY_ONLY"; then
   if test -f "$RELEASES_ROOT/$BUILD_SHA/.release-capabilities.json"; then
     node -e '
       const value = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-      if (value?.providerCostTiers !== true) process.exit(1);
+      if (
+        value?.providerCostTiers !== true
+        || value?.sessionHashOnlyCutover !== true
+      ) process.exit(1);
     ' "$RELEASES_ROOT/$BUILD_SHA/.release-capabilities.json" ||
-      release_die "deployed release has an invalid provider-cost capability"
+      release_die "deployed release has invalid data-security capabilities"
+    test -f "$SESSION_SECURITY_SCRIPT" ||
+      release_die "deployed session-security verifier is missing"
+    session_security_command posture --expect hash-only ||
+      release_die "deployed session token posture is not hash-only"
     provider_cost_verify_active ||
       release_die "deployed provider cost price book is not fully active"
   fi

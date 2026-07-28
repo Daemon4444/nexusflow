@@ -41,9 +41,22 @@ function parseArguments(argv) {
     command === "preflight" || command === "cleanup-manifest"
       ? ["manifest"]
       : command === "activate"
-        ? ["manifest", "release-dir", "backend-env"]
+        ? [
+            "manifest",
+            "release-dir",
+            "backend-env",
+            "expected-tiers",
+            "expected-models",
+            "expected-full-tiers",
+            "expected-partial-tiers",
+          ]
         : command === "deactivate" || command === "verify-active"
-          ? ["release-dir", "backend-env", "expected-tiers"]
+          ? [
+              "release-dir",
+              "backend-env",
+              "expected-tiers",
+              "expected-models",
+            ]
           : ["release-dir", "backend-env"]
   );
   if (Object.keys(options).some((name) => !allowed.has(name))) {
@@ -172,7 +185,52 @@ function runCli(runtime, args, privatePath = "") {
   return value;
 }
 
-function validateImportSummary(value, dryRun) {
+function positiveIntegerOption(options, name, label) {
+  const value = Number(options[name]);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    fail(`${label} must be a positive integer`);
+  }
+  return value;
+}
+
+function nonnegativeIntegerOption(options, name, label) {
+  const value = Number(options[name]);
+  if (!Number.isSafeInteger(value) || value < 0) {
+    fail(`${label} must be a nonnegative integer`);
+  }
+  return value;
+}
+
+function expectedImportSummary(options) {
+  const expected = {
+    tiers: positiveIntegerOption(
+      options,
+      "expected-tiers",
+      "expected provider-cost tier count"
+    ),
+    models: positiveIntegerOption(
+      options,
+      "expected-models",
+      "expected provider-cost model count"
+    ),
+    fullTiers: nonnegativeIntegerOption(
+      options,
+      "expected-full-tiers",
+      "expected full provider-cost tier count"
+    ),
+    partialTiers: nonnegativeIntegerOption(
+      options,
+      "expected-partial-tiers",
+      "expected partial provider-cost tier count"
+    ),
+  };
+  if (expected.fullTiers + expected.partialTiers !== expected.tiers) {
+    fail("expected provider-cost coverage counts do not equal the tier count");
+  }
+  return expected;
+}
+
+function validateImportSummary(value, dryRun, expected) {
   if (
     !value
     || value.dryRun !== dryRun
@@ -190,6 +248,10 @@ function validateImportSummary(value, dryRun) {
     || typeof value.reactivated !== "boolean"
     || !/^[0-9a-f]{64}$/.test(String(value.sourceSha256 || ""))
     || !/^[0-9a-f]{64}$/.test(String(value.manifestSha256 || ""))
+    || value.models !== expected.models
+    || value.tiers !== expected.tiers
+    || value.fullTiers !== expected.fullTiers
+    || value.partialTiers !== expected.partialTiers
   ) {
     fail("provider-cost import summary failed release validation");
   }
@@ -199,7 +261,7 @@ function validateImportSummary(value, dryRun) {
   if (!dryRun && value.reactivationRequired) {
     fail("provider-cost apply left reactivation pending");
   }
-  return value.tiers;
+  return value;
 }
 
 function validateDeactivationSummary(value, dryRun) {
@@ -223,6 +285,7 @@ function validateDeactivationSummary(value, dryRun) {
     activeRows: value.activeRows,
     pendingRows: value.pendingRows,
     futureRows: value.futureRows,
+    models: value.models,
   };
 }
 
@@ -234,37 +297,64 @@ function queryPriceBookRows(runtime) {
 }
 
 function expectedTiers(options) {
-  const value = Number(options["expected-tiers"]);
-  if (!Number.isSafeInteger(value) || value <= 0) {
-    fail("expected provider-cost tier count must be a positive integer");
-  }
-  return value;
+  return positiveIntegerOption(
+    options,
+    "expected-tiers",
+    "expected provider-cost tier count"
+  );
 }
 
-function activate(runtime, manifestPath) {
+function expectedModels(options) {
+  return positiveIntegerOption(
+    options,
+    "expected-models",
+    "expected provider-cost model count"
+  );
+}
+
+function activate(runtime, manifestPath, expected) {
   const { manifest } = validatePrivateManifest(manifestPath);
-  const dryRun = runCli(runtime, ["--manifest", manifest], manifest);
-  const tiers = validateImportSummary(dryRun, true);
-  const applied = runCli(runtime, ["--manifest", manifest, "--apply"], manifest);
-  const appliedTiers = validateImportSummary(applied, false);
+  const dryRun = validateImportSummary(
+    runCli(runtime, ["--manifest", manifest], manifest),
+    true,
+    expected
+  );
+  const applied = validateImportSummary(
+    runCli(runtime, ["--manifest", manifest, "--apply"], manifest),
+    false,
+    expected
+  );
   const rows = queryPriceBookRows(runtime);
+  const stableFields = [
+    "priceBookId",
+    "providerId",
+    "models",
+    "tiers",
+    "fullTiers",
+    "partialTiers",
+    "sourceSha256",
+    "manifestSha256",
+  ];
   if (
-    appliedTiers !== tiers
-    || rows.activeRows !== tiers
-    || rows.pendingRows !== tiers
+    stableFields.some((field) => dryRun[field] !== applied[field])
+    || rows.activeRows !== expected.tiers
+    || rows.pendingRows !== expected.tiers
     || rows.futureRows !== 0
+    || rows.models !== expected.models
   ) {
     fail("provider-cost price book did not become fully active");
   }
-  return tiers;
+  return expected.tiers;
 }
 
-function deactivate(runtime, tiers) {
+function deactivate(runtime, tiers, models) {
   const before = queryPriceBookRows(runtime);
   if (
     before.futureRows !== 0
     || before.activeRows !== before.pendingRows
     || (before.pendingRows !== 0 && before.pendingRows !== tiers)
+    || (before.pendingRows !== 0 && before.models !== models)
+    || (before.pendingRows === 0 && before.models !== 0)
   ) {
     fail("provider-cost price book has unsafe pending rows; refusing rollback");
   }
@@ -281,6 +371,7 @@ function deactivate(runtime, tiers) {
       applied.pendingRows !== tiers
       || applied.activeRows !== tiers
       || applied.futureRows !== 0
+      || applied.models !== models
     ) {
       fail("provider-cost deactivation changed an unexpected number of tiers");
     }
@@ -290,6 +381,7 @@ function deactivate(runtime, tiers) {
     after.pendingRows !== 0
     || after.activeRows !== 0
     || after.futureRows !== 0
+    || after.models !== 0
   ) {
     fail("provider-cost price book remained active after rollback preparation");
   }
@@ -320,11 +412,13 @@ function main() {
 
   const runtime = validateRuntimeOptions(options);
   if (command === "activate") {
-    process.stdout.write(String(activate(runtime, options.manifest)));
+    process.stdout.write(String(
+      activate(runtime, options.manifest, expectedImportSummary(options))
+    ));
     return;
   }
   if (command === "deactivate") {
-    deactivate(runtime, expectedTiers(options));
+    deactivate(runtime, expectedTiers(options), expectedModels(options));
     return;
   }
   const rows = queryPriceBookRows(runtime);
@@ -334,6 +428,7 @@ function main() {
       rows.activeRows !== tiers
       || rows.pendingRows !== tiers
       || rows.futureRows !== 0
+      || rows.models !== expectedModels(options)
     ) {
       fail("provider-cost price book is not fully active");
     }
