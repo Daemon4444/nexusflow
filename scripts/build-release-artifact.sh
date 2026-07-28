@@ -177,7 +177,7 @@ cat > "$STAGING/.release-metadata.json" <<EOF
 {"sha":"$BUILD_SHA","builtAt":"$BUILD_TIME","node":"$(node --version)","npm":"$(npm --version)"}
 EOF
 cat > "$STAGING/.release-capabilities.json" <<'EOF'
-{"version":2,"loopbackListeners":true,"managedProductionEnv":true,"sessionHashOnlyCutover":true,"providerCostTiers":true}
+{"version":3,"loopbackListeners":true,"managedProductionEnv":true,"sessionHashOnlyCutover":true,"providerCostTiers":true,"frontendRuntimeImmutable":true}
 EOF
 
 release_log "creating SHA-256 manifest"

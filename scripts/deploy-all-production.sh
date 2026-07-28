@@ -599,7 +599,7 @@ direct_local_verify() {
 public_verify() {
   NEXUSFLOW_VERIFY_BACKEND_URL="$PUBLIC_URL" \
   NEXUSFLOW_VERIFY_FRONTEND_URL="$PUBLIC_URL" \
-  NEXUSFLOW_VERIFY_FRONTEND_ROUTES="/ /login /dashboard" \
+  NEXUSFLOW_VERIFY_FRONTEND_ROUTES="/ /login /dashboard /models /pricing" \
     "$SCRIPT_DIR/verify-release.sh" \
       --release-dir "$RELEASES_ROOT/$BUILD_SHA" \
       --sha "$BUILD_SHA"

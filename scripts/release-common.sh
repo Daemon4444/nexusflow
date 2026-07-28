@@ -68,17 +68,113 @@ release_manifest_verify() {
   local directory="$1"
   local expected_files
   local actual_files
+  local verification_manifest
+  local capability_manifest
+  local legacy_runtime_render_outputs="false"
   test -f "$directory/.release-manifest.sha256" ||
     release_die "release manifest is missing: $directory/.release-manifest.sha256"
   expected_files="$(mktemp)"
   actual_files="$(mktemp)"
+  verification_manifest="$(mktemp)"
+  capability_manifest="$(mktemp)"
   cleanup_manifest_lists() {
-    rm -f -- "$expected_files" "$actual_files"
+    rm -f -- \
+      "$expected_files" \
+      "$actual_files" \
+      "$verification_manifest" \
+      "$capability_manifest"
   }
   trap cleanup_manifest_lists RETURN
+
+  if node -e '
+      const fs = require("fs");
+      const input = fs.readFileSync(process.argv[1], "utf8");
+      const lines = input.split("\n").filter(Boolean);
+      const seen = new Set();
+      let capabilityLine = "";
+      for (const line of lines) {
+        if (!/^[0-9a-fA-F]{64}  .+/.test(line)) process.exit(1);
+        const path = line.slice(66);
+        if (seen.has(path)) process.exit(1);
+        seen.add(path);
+        if (path === "./.release-capabilities.json") {
+          if (capabilityLine) process.exit(1);
+          capabilityLine = line;
+        }
+      }
+      if (!capabilityLine) process.exit(1);
+      fs.writeFileSync(process.argv[2], `${capabilityLine}\n`, { mode: 0o600 });
+    ' \
+      "$directory/.release-manifest.sha256" \
+      "$capability_manifest" &&
+    (
+      cd "$directory"
+      sha256sum --quiet -c "$capability_manifest"
+    ) &&
+    node -e '
+      const fs = require("fs");
+      let value;
+      try {
+        value = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      } catch {
+        process.exit(1);
+      }
+      if (
+        value?.version !== 2 ||
+        value?.loopbackListeners !== true ||
+        value?.managedProductionEnv !== true ||
+        value?.sessionHashOnlyCutover !== true ||
+        value?.providerCostTiers !== true ||
+        value?.frontendRuntimeImmutable === true
+      ) {
+        process.exit(1);
+      }
+    ' "$directory/.release-capabilities.json"; then
+    legacy_runtime_render_outputs="true"
+  fi
+
+  if test "$legacy_runtime_render_outputs" = "true"; then
+    release_log "using narrow rendered-output compatibility for legacy v2 release: $directory"
+    node -e '
+      const fs = require("fs");
+      const input = fs.readFileSync(process.argv[1], "utf8");
+      const exact = new Set([
+        "./frontend/.next/server/app/models.html",
+        "./frontend/.next/server/app/models.meta",
+        "./frontend/.next/server/app/models.rsc",
+        "./frontend/.next/server/app/models.segments/!KGRhc2hib2FyZCk/models/__PAGE__.segment.rsc",
+        "./frontend/.next/server/app/models.segments/_full.segment.rsc",
+        "./frontend/.next/server/app/models.segments/_tree.segment.rsc",
+        "./frontend/.next/server/app/pricing.html",
+        "./frontend/.next/server/app/pricing.meta",
+        "./frontend/.next/server/app/pricing.rsc",
+        "./frontend/.next/server/app/pricing.segments/!KGRhc2hib2FyZCk/pricing/__PAGE__.segment.rsc",
+        "./frontend/.next/server/app/pricing.segments/_full.segment.rsc",
+        "./frontend/.next/server/app/pricing.segments/_tree.segment.rsc",
+      ]);
+      const lines = input.split("\n").filter(Boolean);
+      const seen = new Set();
+      const retained = lines.filter((line) => {
+        if (!/^[0-9a-fA-F]{64}  /.test(line)) process.exit(1);
+        const path = line.slice(66);
+        if (seen.has(path)) process.exit(1);
+        seen.add(path);
+        return !exact.has(path);
+      });
+      fs.writeFileSync(process.argv[2], `${retained.join("\n")}\n`, {
+        mode: 0o600,
+      });
+    ' \
+      "$directory/.release-manifest.sha256" \
+      "$verification_manifest" ||
+      release_die "legacy release manifest compatibility filtering failed: $directory"
+  else
+    cp -- "$directory/.release-manifest.sha256" "$verification_manifest"
+  fi
+
   (
     cd "$directory"
-    sha256sum --quiet -c .release-manifest.sha256
+    sha256sum --quiet -c "$verification_manifest"
   ) || release_die "release manifest verification failed: $directory"
   sed -n 's/^[0-9a-fA-F]\{64\}  //p' \
     "$directory/.release-manifest.sha256" |

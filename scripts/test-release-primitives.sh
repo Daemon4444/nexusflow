@@ -31,6 +31,7 @@ mkdir -p \
   "$RELEASES_ROOT/$OLD_SHA/backend/dist" \
   "$RELEASES_ROOT/$OLD_SHA/frontend/.next" \
   "$RELEASES_ROOT/$NEW_SHA/backend/dist" \
+  "$RELEASES_ROOT/$NEW_SHA/frontend/.next/server/app/models.segments" \
   "$RELEASES_ROOT/$NEW_SHA/frontend/.next/static/chunks" \
   "$SHIMS" \
   "$STATE"
@@ -47,8 +48,12 @@ printf '%s\n' "$OLD_SHA" > "$RELEASES_ROOT/$OLD_SHA/frontend/.next/BUILD_ID"
 printf '{"sha":"%s","builtAt":"2026-01-02T00:00:00.000Z"}\n' "$NEW_SHA" \
   > "$RELEASES_ROOT/$NEW_SHA/backend/dist/build-info.json"
 printf '%s\n' "$NEW_SHA" > "$RELEASES_ROOT/$NEW_SHA/frontend/.next/BUILD_ID"
-printf '{"version":2,"loopbackListeners":true,"managedProductionEnv":true,"sessionHashOnlyCutover":true,"providerCostTiers":true}\n' \
+printf '{"version":3,"loopbackListeners":true,"managedProductionEnv":true,"sessionHashOnlyCutover":true,"providerCostTiers":true,"frontendRuntimeImmutable":true}\n' \
   > "$RELEASES_ROOT/$NEW_SHA/.release-capabilities.json"
+printf 'v3 rendered output\n' \
+  > "$RELEASES_ROOT/$NEW_SHA/frontend/.next/server/app/models.rsc"
+printf 'v3 rendered segment\n' \
+  > "$RELEASES_ROOT/$NEW_SHA/frontend/.next/server/app/models.segments/_full.segment.rsc"
 printf 'console.log("fixture");\n' \
   > "$RELEASES_ROOT/$NEW_SHA/frontend/.next/static/chunks/fixture.js"
 ln -s "$BACKEND_ENV" "$RELEASES_ROOT/$NEW_SHA/backend/.env"
@@ -414,6 +419,106 @@ resolved_path() {
   node -e 'process.stdout.write(require("fs").realpathSync(process.argv[1]))' "$1"
 }
 
+verify_manifest_only() {
+  bash -c '
+    set -euo pipefail
+    source "$1"
+    release_manifest_verify "$2"
+  ' _ "$SCRIPT_DIR/release-common.sh" "$1"
+}
+
+# Legacy v2 compatibility ignores checksums only for already-manifested
+# runtime-rendered models/pricing outputs. The exact file set remains
+# immutable, adjacent compiled code remains checksummed, and v3 releases are
+# fully immutable.
+LEGACY_RENDER_FIXTURE="$FIXTURE/legacy-render-v2"
+mkdir -p \
+  "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.segments" \
+  "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/(dashboard)/models"
+printf '{"version":2,"loopbackListeners":true,"managedProductionEnv":true,"sessionHashOnlyCutover":true,"providerCostTiers":true}\n' \
+  > "$LEGACY_RENDER_FIXTURE/.release-capabilities.json"
+printf 'legacy rendered output before revalidation\n' \
+  > "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.rsc"
+printf 'legacy segment before revalidation\n' \
+  > "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.segments/_full.segment.rsc"
+printf 'compiled page code\n' \
+  > "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/(dashboard)/models/page.js"
+(
+  cd "$LEGACY_RENDER_FIXTURE"
+  find . -type f ! -path './.release-manifest.sha256' -print0 |
+    LC_ALL=C sort -z |
+    xargs -0 sha256sum > .release-manifest.sha256
+)
+printf 'legacy rendered output after revalidation\n' \
+  > "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.rsc"
+printf 'legacy segment after revalidation\n' \
+  > "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.segments/_full.segment.rsc"
+verify_manifest_only "$LEGACY_RENDER_FIXTURE"
+
+printf 'unmanifested runtime output\n' \
+  > "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.segments/new.segment.rsc"
+set +e
+verify_manifest_only "$LEGACY_RENDER_FIXTURE" >/dev/null 2>&1
+legacy_unmanifested_status=$?
+set -e
+test "$legacy_unmanifested_status" -ne 0
+rm -f -- "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.segments/new.segment.rsc"
+
+rm -f -- "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.rsc"
+set +e
+verify_manifest_only "$LEGACY_RENDER_FIXTURE" >/dev/null 2>&1
+legacy_missing_status=$?
+set -e
+test "$legacy_missing_status" -ne 0
+printf 'legacy rendered output after revalidation\n' \
+  > "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.rsc"
+
+rm -f -- "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.rsc"
+ln -s /dev/null "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.rsc"
+set +e
+verify_manifest_only "$LEGACY_RENDER_FIXTURE" >/dev/null 2>&1
+legacy_symlink_status=$?
+set -e
+test "$legacy_symlink_status" -ne 0
+rm -f -- "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.rsc"
+printf 'legacy rendered output after revalidation\n' \
+  > "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/models.rsc"
+
+printf 'tampered compiled page code\n' \
+  > "$LEGACY_RENDER_FIXTURE/frontend/.next/server/app/(dashboard)/models/page.js"
+set +e
+verify_manifest_only "$LEGACY_RENDER_FIXTURE" >/dev/null 2>&1
+legacy_adjacent_status=$?
+set -e
+test "$legacy_adjacent_status" -ne 0
+
+printf 'v3 rendered output after mutation\n' \
+  > "$RELEASES_ROOT/$NEW_SHA/frontend/.next/server/app/models.rsc"
+set +e
+verify_manifest_only "$RELEASES_ROOT/$NEW_SHA" >/dev/null 2>&1
+v3_render_status=$?
+set -e
+test "$v3_render_status" -ne 0
+printf 'v3 rendered output\n' \
+  > "$RELEASES_ROOT/$NEW_SHA/frontend/.next/server/app/models.rsc"
+
+cp "$RELEASES_ROOT/$NEW_SHA/.release-capabilities.json" \
+  "$FIXTURE/v3-release-capabilities.json"
+printf '{"version":2,"loopbackListeners":true,"managedProductionEnv":true,"sessionHashOnlyCutover":true,"providerCostTiers":true}\n' \
+  > "$RELEASES_ROOT/$NEW_SHA/.release-capabilities.json"
+printf 'v3 rendered output after forged downgrade\n' \
+  > "$RELEASES_ROOT/$NEW_SHA/frontend/.next/server/app/models.rsc"
+set +e
+verify_manifest_only "$RELEASES_ROOT/$NEW_SHA" >/dev/null 2>&1
+forged_downgrade_status=$?
+set -e
+test "$forged_downgrade_status" -ne 0
+cp "$FIXTURE/v3-release-capabilities.json" \
+  "$RELEASES_ROOT/$NEW_SHA/.release-capabilities.json"
+printf 'v3 rendered output\n' \
+  > "$RELEASES_ROOT/$NEW_SHA/frontend/.next/server/app/models.rsc"
+verify_manifest_only "$RELEASES_ROOT/$NEW_SHA"
+
 # First immutable rollout must accept the legacy wildcard-bound baseline
 # without weakening the requirements attached to the new artifact.
 printf 'wildcard\n' > "$STATE/listener-mode"
@@ -591,5 +696,5 @@ test "$proxy_status" -ne 0
 
 "$SCRIPT_DIR/test-nginx-health-drain-installer.sh"
 
-printf 'release-primitive-regressions-ok bootstrap=%s ingress_guard=%s nginx_syntax=%s wildcard=%s unprepared=%s mixed=%s save=%s start_failure=%s wrong_path=%s unsafe=%s old_health=%s archive_escape=%s archive_extra=%s proxy=%s\n' \
-  0 0 "$nginx_syntax_status" "$wildcard_status" "$unprepared_rollback_status" "$mixed_version_status" "$save_status" "$start_failure_status" "$wrong_path_status" "$unsafe_status" "$old_health_status" "$archive_escape_status" "$archive_extra_status" "$proxy_status"
+printf 'release-primitive-regressions-ok bootstrap=%s ingress_guard=%s nginx_syntax=%s legacy_unmanifested=%s legacy_missing=%s legacy_symlink=%s legacy_adjacent=%s v3_render=%s forged_downgrade=%s wildcard=%s unprepared=%s mixed=%s save=%s start_failure=%s wrong_path=%s unsafe=%s old_health=%s archive_escape=%s archive_extra=%s proxy=%s\n' \
+  0 0 "$nginx_syntax_status" "$legacy_unmanifested_status" "$legacy_missing_status" "$legacy_symlink_status" "$legacy_adjacent_status" "$v3_render_status" "$forged_downgrade_status" "$wildcard_status" "$unprepared_rollback_status" "$mixed_version_status" "$save_status" "$start_failure_status" "$wrong_path_status" "$unsafe_status" "$old_health_status" "$archive_escape_status" "$archive_extra_status" "$proxy_status"

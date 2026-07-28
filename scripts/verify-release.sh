@@ -10,7 +10,7 @@ RELEASE_DIR="${NEXUSFLOW_APP_ROOT:-}"
 EXPECTED_SHA="${BUILD_SHA:-}"
 BACKEND_URL="${NEXUSFLOW_VERIFY_BACKEND_URL:-http://127.0.0.1:3001}"
 FRONTEND_URL="${NEXUSFLOW_VERIFY_FRONTEND_URL:-http://127.0.0.1:19999}"
-FRONTEND_ROUTES="${NEXUSFLOW_VERIFY_FRONTEND_ROUTES:-/ /admin /login /dashboard}"
+FRONTEND_ROUTES="${NEXUSFLOW_VERIFY_FRONTEND_ROUTES:-/ /admin /login /dashboard /models /pricing}"
 ASSET_ROUNDS="${NEXUSFLOW_VERIFY_ASSET_ROUNDS:-3}"
 READY_ATTEMPTS="${NEXUSFLOW_VERIFY_READY_ATTEMPTS:-30}"
 READY_DELAY_SECONDS="${NEXUSFLOW_VERIFY_READY_DELAY_SECONDS:-1}"
@@ -246,4 +246,5 @@ while test "$round" -le "$ASSET_ROUNDS"; do
   round=$((round + 1))
 done
 
+release_manifest_verify "$RELEASE_DIR"
 release_log "runtime, build header, and static chunk verification passed for $EXPECTED_SHA"

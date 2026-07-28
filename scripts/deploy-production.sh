@@ -106,7 +106,11 @@ has_managed_release_capabilities() {
       process.exit(1);
     }
     if (
-      value?.version !== 2 ||
+      (value?.version !== 2 &&
+        !(
+          value?.version === 3 &&
+          value?.frontendRuntimeImmutable === true
+        )) ||
       value?.loopbackListeners !== true ||
       value?.managedProductionEnv !== true ||
       value?.sessionHashOnlyCutover !== true ||
