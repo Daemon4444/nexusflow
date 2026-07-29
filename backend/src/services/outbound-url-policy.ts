@@ -1,5 +1,5 @@
 import { lookup as dnsLookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { isIP, type LookupFunction } from "node:net";
 import { domainToASCII } from "node:url";
 import ipaddr from "ipaddr.js";
 import {
@@ -241,27 +241,51 @@ export async function assertProviderEndpointForStorage(rawUrl: string): Promise<
 
 export function createRestrictedLookup(
   resolver: OutboundDnsResolver = defaultResolver
-): (
-  hostname: string,
-  options: { family?: number },
-  callback: (error: Error | null, address?: string, family?: number) => void
-) => void {
+): LookupFunction {
   return (hostname, options, callback) => {
     resolver(canonicalHostname(hostname))
       .then((addresses) => {
         assertPublicDnsAddresses(hostname, addresses);
-        const requestedFamily = Number(options?.family || 0);
-        const selected = addresses.find((record) =>
-          !requestedFamily || record.family === requestedFamily
-        ) || addresses[0];
+        const requestedFamily = options?.family === "IPv4"
+          ? 4
+          : options?.family === "IPv6"
+            ? 6
+            : Number(options?.family || 0);
+        let eligible = requestedFamily
+          ? addresses.filter((record) => record.family === requestedFamily)
+          : [...addresses];
+        if (eligible.length === 0) {
+          throw new OutboundUrlPolicyError(
+            `endpoint hostname has no address for requested family: ${hostname}`
+          );
+        }
+
+        const order = options?.order
+          || (options?.verbatim === false ? "ipv4first" : "verbatim");
+        if (order === "ipv4first" || order === "ipv6first") {
+          const preferredFamily = order === "ipv4first" ? 4 : 6;
+          eligible = eligible.sort((a, b) =>
+            Number(b.family === preferredFamily) - Number(a.family === preferredFamily)
+          );
+        }
+
+        // Node 20+ / Undici requests `{ all: true }` so it can perform
+        // auto-family selection. Its callback contract requires the complete
+        // address array in that mode; returning the legacy scalar tuple makes
+        // Undici read `address.address` from a string and fail with
+        // ERR_INVALID_IP_ADDRESS before opening any provider connection.
+        if (options?.all) {
+          callback(null, eligible);
+          return;
+        }
+        const selected = eligible[0];
         callback(null, selected.address, selected.family);
       })
       .catch((error) => {
-        callback(
-          error instanceof Error
-            ? error
-            : new OutboundUrlPolicyError("endpoint DNS lookup failed")
-        );
+        const lookupError = error instanceof Error
+          ? error
+          : new OutboundUrlPolicyError("endpoint DNS lookup failed");
+        callback(lookupError, options?.all ? [] : "");
       });
   };
 }
@@ -272,7 +296,7 @@ function getRestrictedDispatcher(): Dispatcher {
   if (!directDispatcher) {
     directDispatcher = new Agent({
       connect: {
-        lookup: createRestrictedLookup() as any,
+        lookup: createRestrictedLookup(),
       },
     });
   }

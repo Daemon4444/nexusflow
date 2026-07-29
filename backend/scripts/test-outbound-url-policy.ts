@@ -183,6 +183,62 @@ async function main(): Promise<void> {
     /non-public/
   );
 
+  // Node 20+ / Undici invokes custom socket lookup with `all: true`. The
+  // callback must then receive an address array, not the legacy scalar tuple.
+  const allAddressLookup = createRestrictedLookup(async () => [publicV6, publicV4]);
+  const allAddresses = await new Promise<Array<{ address: string; family: number }>>(
+    (resolve, reject) => {
+      allAddressLookup(
+        "allowed.example",
+        { all: true, order: "ipv4first" },
+        (error, address) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          if (!Array.isArray(address)) {
+            reject(new Error("all-address lookup returned a scalar result"));
+            return;
+          }
+          resolve(address);
+        }
+      );
+    }
+  );
+  assert.deepEqual(allAddresses, [publicV4, publicV6]);
+
+  const ipv6Only = await new Promise<{ address: string; family: number }>(
+    (resolve, reject) => {
+      allAddressLookup(
+        "allowed.example",
+        { family: "IPv6" },
+        (error, address, family) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          if (typeof address !== "string" || family === undefined) {
+            reject(new Error("single-address lookup returned an array result"));
+            return;
+          }
+          resolve({ address, family });
+        }
+      );
+    }
+  );
+  assert.deepEqual(ipv6Only, publicV6);
+
+  await assert.rejects(
+    new Promise<void>((resolve, reject) => {
+      createRestrictedLookup(async () => [publicV4])(
+        "allowed.example",
+        { family: 6 },
+        (error) => error ? reject(error) : resolve()
+      );
+    }),
+    /no address for requested family/
+  );
+
   assertBlocked(
     () => assertRedirectBlocked(
       302,

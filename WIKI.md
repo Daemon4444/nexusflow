@@ -4,7 +4,8 @@
 >
 > 最近校准：2026-07-29
 >
-> 校准基线：本地 `main`、GitHub `origin/main` 与生产环境代码；整理时生产版本为 `bb8b817`。
+> 校准基线：本地分支、GitHub `origin/main` 与生产环境代码；2026-07-29 低峰不可变
+> v3 发布基线为 `1a6ecbc`，后续版本仍以 `/api/version` 为准。
 >
 > 重要：提交号和运行状态会变化，执行任务前仍应以当前代码、数据库迁移和生产探针为准。
 
@@ -71,7 +72,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 线上模型目录 | 68 个运行时模型；以 `GET /api/models` 实时结果为准 |
 | 数据库迁移 | 仓库已提交到 `021_control_plane_persistence_limits.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
-| 备份 | 新发布脚本强制做 RDS 备份；旧每日任务当前失效，`small` 仍按旧产物异地拉取 |
+| 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
 
 常用只读检查：
 
@@ -348,6 +349,9 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - 生产 Provider 出站必须配置
   `PROVIDER_OUTBOUND_HOST_ALLOWLIST`；受管发布拒绝 HTTP(S)/ALL proxy 环境，
   Provider URL 仍需逐次执行 scheme、userinfo、端口、DNS 和公网地址校验；
+- Provider socket DNS lookup 必须同时遵守 Node/Undici 的单地址和
+  `{ all: true }` 两种回调契约；`all=true` 必须返回全部已验证的公网地址数组，
+  否则 Node 22 会在连接上游前抛 `ERR_INVALID_IP_ADDRESS`；
 - nginx 对 `/v1` 分路由设置入口预算：chat/responses/messages 保留 50 MiB，
   embeddings 为 8 MiB，audio 和其余路由为 1 MiB；统一设置 body inter-read
   timeout、真实客户端 IP 的连接/请求速率限制，请求不在 nginx 预缓冲以保证应用
@@ -373,12 +377,12 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - 恢复门禁：加密备份必须经严格 SSH 主机校验送到异地 verifier；私钥只保留在异地
   root-only 主机，由 PostgreSQL 16 容器完成整包认证解密、TOC 校验、隔离库完整恢复、
   核心表和 migration ledger 检查，成功后才允许迁移；
-- 历史本地定时备份：`nexus:/root/backups` 的旧任务仍指向已停用的本地 PostgreSQL
-  容器。2026-07-26 至 2026-07-28 产物只有 20 bytes，不能视为有效备份，必须另行
-  修复为 RDS 备份；仓库已提供 `scripts/daily-db-backup.sh` 复用同一备份门禁，
-  但截至 2026-07-29 尚未安装生产定时任务；
-- 异地备份：目标目录为异地 root-only 加密归档；旧的 04:30 拉取任务不能替代新的
-  age 私钥分权和完整恢复门禁。新脚本与 timer 尚未安装生产前，备份状态仍是 No-Go。
+- 历史本地定时备份曾指向已停用的 PostgreSQL 容器，2026-07-26 至 07-28 的
+  20-byte 产物不可恢复；该旧任务已于 2026-07-29 被新的 RDS-aware
+  `scripts/daily-db-backup.sh` 精确替换，每日 03:30 执行；
+- 异地 root-only 加密归档使用独立 age 私钥完成认证解密、PostgreSQL 16 隔离库
+  全量恢复和核心 schema 检查；每日 04:30 拉取任务已安装。2026-07-29 的正式发布
+  备份与手工备份均已通过主机/异地哈希一致性及完整恢复验证。
 
 备份“文件存在”不等于可恢复。重大 schema/计费变更后应定期执行认证解密、PostgreSQL
 16 隔离库完整恢复和业务一致性演练；演练记录不得包含私钥、数据库口令或客户数据。
