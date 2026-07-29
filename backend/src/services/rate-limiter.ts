@@ -447,6 +447,7 @@ export async function getProviderUsageStatsAsync(
         end
 
         local totalRaw = redis.call("GET", totalKey)
+        local totalTtl = redis.call("PTTL", totalKey)
         local total = tonumber(totalRaw or "0")
         local eventCount = tonumber(redis.call("ZCARD", eventsKey) or "0")
         local weightCount = tonumber(redis.call("HLEN", weightsKey) or "0")
@@ -475,7 +476,12 @@ export async function getProviderUsageStatsAsync(
         if nextTotal == 0 then
           redis.call("DEL", eventsKey, weightsKey, totalKey)
         else
-          redis.call("SET", totalKey, nextTotal, "KEEPTTL")
+          redis.call("SET", totalKey, nextTotal)
+          if totalTtl > 0 then
+            redis.call("PEXPIRE", totalKey, totalTtl)
+          else
+            redis.call("EXPIRE", totalKey, ARGV[3])
+          end
         end
         return {1, redis.call("ZCARD", rpmKey), nextTotal}
       `,
@@ -485,7 +491,8 @@ export async function getProviderUsageStatsAsync(
       weightsKey,
       totalKey,
       now,
-      now - PROVIDER_CAPACITY_WINDOW_MS
+      now - PROVIDER_CAPACITY_WINDOW_MS,
+      Math.ceil(PROVIDER_CAPACITY_WINDOW_MS / 1000) + 1
     ) as [number, number, number];
 
     if (Number(result[0]) !== 1) {
@@ -726,6 +733,7 @@ export async function reserveProviderCapacityAsync(params: {
 
       local rpm = tonumber(redis.call("ZCARD", rpmKey) or "0")
       local tpmTotalRaw = redis.call("GET", tpmTotalKey)
+      local tpmTotalTtl = redis.call("PTTL", tpmTotalKey)
       local tpm = tonumber(tpmTotalRaw or "0")
       local daily = tonumber(redis.call("GET", dailyKey) or "0")
       local tpmEventCount = tonumber(redis.call("ZCARD", tpmEventsKey) or "0")
@@ -757,7 +765,12 @@ export async function reserveProviderCapacityAsync(params: {
       if activeTpm == 0 then
         redis.call("DEL", tpmEventsKey, tpmWeightsKey, tpmTotalKey)
       else
-        redis.call("SET", tpmTotalKey, activeTpm, "KEEPTTL")
+        redis.call("SET", tpmTotalKey, activeTpm)
+        if tpmTotalTtl > 0 then
+          redis.call("PEXPIRE", tpmTotalKey, tpmTotalTtl)
+        else
+          redis.call("EXPIRE", tpmTotalKey, rpmTtl)
+        end
       end
       redis.call("ZREMRANGEBYSCORE", concurrencyKey, 0, now)
       local concurrency = tonumber(redis.call("ZCARD", concurrencyKey) or "0")
@@ -885,6 +898,7 @@ export async function releaseProviderCapacityAsync(params: {
       end
 
       local totalRaw = redis.call("GET", tpmTotalKey)
+      local totalTtl = redis.call("PTTL", tpmTotalKey)
       local currentTpm = tonumber(totalRaw or "0")
       local eventCount = tonumber(redis.call("ZCARD", tpmEventsKey) or "0")
       local weightCount = tonumber(redis.call("HLEN", tpmWeightsKey) or "0")
@@ -931,7 +945,12 @@ export async function releaseProviderCapacityAsync(params: {
         if nextTpm == 0 then
           redis.call("DEL", tpmEventsKey, tpmWeightsKey, tpmTotalKey)
         else
-          redis.call("SET", tpmTotalKey, nextTpm, "KEEPTTL")
+          redis.call("SET", tpmTotalKey, nextTpm)
+          if totalTtl > 0 then
+            redis.call("PEXPIRE", tpmTotalKey, totalTtl)
+          else
+            redis.call("EXPIRE", tpmTotalKey, tpmTtl)
+          end
         end
         return 0
       end

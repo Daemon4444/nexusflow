@@ -239,6 +239,34 @@ async function main(): Promise<void> {
     assert.equal(Number(await redis.get(tpmTotalKey)), 35);
     assert.equal(await redis.zcard(concurrencyKey), 0);
 
+    // Alibaba Cloud Redis proxy rejects SET ... KEEPTTL inside EVAL even
+    // though standalone Redis versions may accept it. Exercise a populated
+    // rolling window while rejecting that syntax so production-compatible
+    // explicit PTTL/PEXPIRE preservation cannot regress.
+    await clearCounters();
+    const originalEvalForProxyCompatibility = redis.eval.bind(redis);
+    (redis as any).eval = async (...args: any[]) => {
+      assert.equal(
+        String(args[0]).includes("KEEPTTL"),
+        false,
+        "managed capacity Lua must not use proxy-incompatible KEEPTTL"
+      );
+      return (originalEvalForProxyCompatibility as any)(...args);
+    };
+    try {
+      const firstProxyCompatible = await reserve({ ...unlimited, tpm: 100 }, 45);
+      assert.equal(firstProxyCompatible.allowed, true);
+      await release(firstProxyCompatible, 40);
+      const populatedObservation = await getProviderUsageStatsAsync(runId, modelId);
+      assert.equal(populatedObservation.available, true);
+      if (populatedObservation.available) assert.equal(populatedObservation.tpm, 40);
+      const immediateContinuation = await reserve({ ...unlimited, tpm: 100 }, 50);
+      assert.equal(immediateContinuation.allowed, true);
+      await release(immediateContinuation, 50);
+    } finally {
+      (redis as any).eval = originalEvalForProxyCompatibility;
+    }
+
     // Daily is consumed by upstream attempts and intentionally survives release.
     await clearCounters();
     const dailyOne = await reserve({ ...unlimited, dailyLimit: 2 });

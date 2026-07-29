@@ -572,6 +572,9 @@ Expected:
   once, and release reconciles the same TPM event.
 - A persistent Redis failure still fails closed with
   `provider_capacity_store_unavailable`.
+- With a non-empty TPM rolling window, an immediate second reservation and
+  usage read succeed without `SET ... KEEPTTL`; TTL is preserved explicitly
+  with proxy-compatible `PTTL`/`PEXPIRE`.
 
 Suggested quick concurrency command:
 
