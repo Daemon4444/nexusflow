@@ -17,8 +17,14 @@ import {
   WORKSPACE_ID_PLACEHOLDER,
   type ProviderChannel,
 } from "../data/provider-channels";
-import { getManagedRouteCount, selectProvider, type ProviderEndpoint } from "./scheduler";
+import {
+  getManagedRouteCount,
+  selectProviderDetailed,
+  type ProviderEndpoint,
+  type ProviderSelectionResult,
+} from "./scheduler";
 import { parseAndValidateOutboundUrl } from "./outbound-url-policy";
+import { logToSLS } from "./sls";
 
 export const DEFAULT_REGION = "cn-beijing";
 export const REGION_HEADER = "x-nf-region";
@@ -49,6 +55,12 @@ export type ResolveUpstreamResult =
   | { ok: true; upstream: ResolvedUpstream }
   | { ok: false; status: number; code: string; message: string };
 
+const CAPACITY_STATE_RETRY_DELAYS_MS = [0, 40, 120] as const;
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function toNativeBaseUrl(baseUrl: string): string {
   return baseUrl.replace(/\/compatible-mode\/v1\/?$/, "");
 }
@@ -78,8 +90,57 @@ export async function resolveUpstream(
 ): Promise<ResolveUpstreamResult> {
   const managedRouteCount = await getManagedRouteCount(modelId);
   if (managedRouteCount > 0) {
-    const selected = await selectProvider(modelId, { userId: options.userId });
-    if (!selected) {
+    let selection: ProviderSelectionResult | null = null;
+    let selectionAttempts = 0;
+    let firstTransientFilters: Record<string, number> | null = null;
+    for (const delayMs of CAPACITY_STATE_RETRY_DELAYS_MS) {
+      if (delayMs > 0) await wait(delayMs);
+      selectionAttempts++;
+      selection = await selectProviderDetailed(modelId, { userId: options.userId });
+      if (
+        !selection.ok &&
+        selection.reason === "capacity_state_unavailable" &&
+        !firstTransientFilters
+      ) {
+        firstTransientFilters = selection.filters;
+      }
+      if (selection.ok || selection.reason !== "capacity_state_unavailable") break;
+    }
+    if (selection?.ok && selectionAttempts > 1) {
+      logToSLS({
+        status: "warning",
+        model: modelId,
+        errorCode: "provider_capacity_state_recovered",
+        errorReason: "managed_provider_selection_recovered_after_retry",
+        attempts: selectionAttempts,
+        routeFilters: firstTransientFilters || {},
+      });
+    }
+    if (!selection || !selection.ok) {
+      const reason = selection?.reason || "route_filtered";
+      logToSLS({
+        status: "rejected",
+        model: modelId,
+        errorCode: reason,
+        errorReason: "managed_provider_selection_failed",
+        routeFilters: selection?.filters || {},
+      });
+      if (reason === "capacity_state_unavailable") {
+        return {
+          ok: false,
+          status: 503,
+          code: "provider_capacity_store_unavailable",
+          message: "Managed provider capacity cannot be verified right now.",
+        };
+      }
+      if (reason === "capacity_exhausted") {
+        return {
+          ok: false,
+          status: 503,
+          code: "provider_capacity_exhausted",
+          message: "Managed provider capacity is temporarily exhausted.",
+        };
+      }
       return {
         ok: false,
         status: 503,
@@ -87,7 +148,7 @@ export async function resolveUpstream(
         message: `No active provider route is currently available for model '${modelId}'.`,
       };
     }
-    return resolveManagedUpstream(modelId, selected, options.region);
+    return resolveManagedUpstream(modelId, selection.endpoint, options.region);
   }
 
   // Backward-compatible fallback for installations that have not bootstrapped

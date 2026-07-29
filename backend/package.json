@@ -27,6 +27,7 @@
     "test:provider-capacity-redis": "ts-node scripts/test-provider-capacity-isolated.ts",
     "test:provider-cost-import": "USE_PG_MEM=true ts-node scripts/test-provider-cost-import.ts",
     "test:managed-routing": "USE_PG_MEM=true ts-node scripts/test-managed-routing.ts",
+    "test:stream-reliability": "ts-node scripts/test-openai-stream-state.ts",
     "test:admin-control-plane": "USE_PG_MEM=true ts-node scripts/test-admin-control-plane.ts",
     "test:admin-audit-intents": "USE_PG_MEM=true ts-node scripts/test-admin-audit-intents.ts",
     "test:audio-pricing": "ts-node scripts/test-audio-pricing.ts",

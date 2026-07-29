@@ -345,6 +345,10 @@ Expected:
 - Balance is charged once per call.
 - Prompt, completion, total tokens are present if upstream returns usage.
 - Streaming usage is not double-counted.
+- A normally finished stream ends with exactly one `[DONE]`; if an otherwise
+  complete upstream omits the sentinel, the proxy synthesizes it once.
+- A stream interrupted before `finish_reason` is logged as `error` with a
+  stable `upstream_stream_*` code even though HTTP 200 headers were already sent.
 
 ### 6.2 Anthropic Messages Billing
 

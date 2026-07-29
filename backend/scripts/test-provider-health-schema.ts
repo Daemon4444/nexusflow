@@ -78,11 +78,18 @@ async function main(): Promise<void> {
     completionTokens: 5,
     totalTokens: 15,
     cost: 0,
-    status: "success",
+    status: "error",
     latencyMs: 100,
     estimated: true,
+    errorCode: "upstream_stream_interrupted",
     errorReason: "upstream_stream_interrupted",
   });
+  const interruptedUsage = await db.queryOne<{ status: string; error_code: string }>(
+    "SELECT status, error_code FROM usage_logs WHERE log_id = ?",
+    ["interrupted-stream-health-test"]
+  );
+  assert.equal(interruptedUsage?.status, "error");
+  assert.equal(interruptedUsage?.error_code, "upstream_stream_interrupted");
   const interruptedHealth = await db.queryOne<{ status: string; consecutive_failures: number }>(
     "SELECT status, consecutive_failures FROM provider_health WHERE provider_id = ? AND model_id = ?",
     ["provider-health-schema-test", "model-interrupted-stream"]

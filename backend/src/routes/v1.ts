@@ -39,6 +39,11 @@ import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { logToSLS } from "../services/sls";
 import { sendBillingReservationFailure } from "../utils/billing-response";
 import { getTrustedClientIp } from "../utils/client-ip";
+import {
+  createOpenAiStreamState,
+  finishOpenAiStream,
+  observeOpenAiStreamLine,
+} from "../utils/openai-stream-state";
 
 const router = Router();
 
@@ -887,7 +892,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       let chunkCount = 0;
       let firstChunkTime = 0;
       let lastChunkTime = 0;
-      let streamError = false;
+      let streamReadError: { name?: string; code?: string } | null = null;
+      let errorEventForwarded = false;
+      const streamState = createOpenAiStreamState();
       const reader = response.body as any;
       let sseBuffer = "";
       const forwardStreamText = (text: string, flush = false) => {
@@ -899,6 +906,22 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           sseBuffer = "";
         }
         for (const line of lines) {
+          const observation = observeOpenAiStreamLine(streamState, line);
+          if (observation.kind === "error") {
+            if (!errorEventForwarded) {
+              const safeError = `data: ${JSON.stringify({
+                error: {
+                  message: "The upstream stream ended with an error.",
+                  type: "server_error",
+                  code: "upstream_stream_error",
+                },
+              })}`;
+              fullResponse += `${safeError}\n\n`;
+              res.write(`${safeError}\n\n`);
+              errorEventForwarded = true;
+            }
+            continue;
+          }
           const rewritten = normalizeOpenAiStreamLine(line, logId);
           fullResponse += `${rewritten}\n`;
           res.write(`${rewritten}\n`);
@@ -937,10 +960,36 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         }
         forwardStreamText("", true);
       } catch (streamErr: any) {
-        streamError = true;
-        // Headers already sent — write an SSE error event so the client knows
-        const errMsg = streamErr?.name === "AbortError" ? "upstream_timeout" : "upstream_stream_error";
-        res.write(`event: error\ndata: ${JSON.stringify({ error: { message: errMsg, type: "server_error" } })}\n\n`);
+        streamReadError = {
+          name: typeof streamErr?.name === "string" ? streamErr.name : undefined,
+          code: typeof streamErr?.code === "string" ? streamErr.code : undefined,
+        };
+      }
+      const streamOutcome = finishOpenAiStream(streamState, streamReadError);
+      if (streamOutcome.ok && streamOutcome.synthesizeDone) {
+        fullResponse += "data: [DONE]\n\n";
+        res.write("data: [DONE]\n\n");
+        logToSLS({
+          logId,
+          model: modelId,
+          providerId: upstream.providerId,
+          channelId: upstream.channelId,
+          status: "warning",
+          errorReason: streamReadError
+            ? "upstream_stream_terminal_recovered_after_read_error"
+            : "upstream_stream_terminal_synthesized",
+        });
+      } else if (!streamOutcome.ok && !errorEventForwarded) {
+        const safeError = `data: ${JSON.stringify({
+          error: {
+            message: "The upstream stream was interrupted before completion.",
+            type: "server_error",
+            code: streamOutcome.code,
+          },
+        })}`;
+        fullResponse += `${safeError}\n\n`;
+        res.write(`${safeError}\n\n`);
+        errorEventForwarded = true;
       }
       res.end();
 
@@ -976,6 +1025,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       // Log usage and bill
       const latencyMs = Date.now() - startTime;
+      const streamFailed = !streamOutcome.ok;
       const billing = await calculateOpenAiCacheAwareCost({
         userId: apiKeyRecord.user_id,
         model,
@@ -1002,7 +1052,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         completionTokens: streamTokens.completion_tokens,
         totalTokens: streamTokens.total_tokens,
         cost: billing.finalAmount,
-        status: "success",
+        status: streamFailed ? "error" : "success",
         latencyMs,
         ttftMs,
         tpotMs,
@@ -1011,9 +1061,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         providerCacheMode: explicitCache ? "explicit" : "implicit",
         providerInputIncludesCache: true,
         estimated: estimatedBilling,
-        finishReason: streamFinishReason || (streamError ? "interrupted" : undefined),
+        finishReason: streamFinishReason || (streamFailed ? "interrupted" : undefined),
         clientIp,
-        errorReason: streamError ? "upstream_stream_interrupted" : undefined,
+        errorCode: streamFailed ? streamOutcome.code : undefined,
+        errorReason: streamFailed ? streamOutcome.code : undefined,
         requestBody: req.body,
         responseBody: fullResponse,
         reservationId: chatReservation.id,

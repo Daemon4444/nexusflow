@@ -31,6 +31,7 @@ async function main(): Promise<void> {
   const { upsertRoutePolicy } = await import("../src/data/provider-operations");
   const { upsertProviderChannelConfig } = await import("../src/data/provider-channels");
   const { resolveUpstream } = await import("../src/services/upstream");
+  const { getRedis } = await import("../src/services/redis");
 
   await ensureProvider({
     id: "managed-primary",
@@ -145,6 +146,31 @@ async function main(): Promise<void> {
     assert.equal(channelOnly.upstream.channelId, "owned-key");
     assert.equal(channelOnly.upstream.apiKey, "channel-only-secret");
   }
+
+  const redis = getRedis();
+  const channelOnlyTpmEventsKey =
+    "provider-capacity:v2:tpm-events:provider:managed-channel-only:channel-only-model";
+
+  // A single inconsistent Redis read must recover inside the bounded retry
+  // budget without bypassing the cross-node capacity truth source.
+  await redis.set(channelOnlyTpmEventsKey, "wrong-type");
+  const repairTimer = setTimeout(() => {
+    void redis.del(channelOnlyTpmEventsKey);
+  }, 10);
+  const recoveredCapacityState = await resolveUpstream("channel-only-model");
+  clearTimeout(repairTimer);
+  assert.equal(recoveredCapacityState.ok, true, JSON.stringify(recoveredCapacityState));
+
+  // Persistent invalid state remains fail-closed and now exposes the precise
+  // machine-readable reason instead of collapsing into provider_unavailable.
+  await redis.set(channelOnlyTpmEventsKey, "wrong-type");
+  const unavailableCapacityState = await resolveUpstream("channel-only-model");
+  assert.equal(unavailableCapacityState.ok, false);
+  if (!unavailableCapacityState.ok) {
+    assert.equal(unavailableCapacityState.status, 503);
+    assert.equal(unavailableCapacityState.code, "provider_capacity_store_unavailable");
+  }
+  await redis.del(channelOnlyTpmEventsKey);
 
   // Models without any managed row retain the legacy fallback during rollout.
   const legacy = await resolveUpstream("qwen-plus");

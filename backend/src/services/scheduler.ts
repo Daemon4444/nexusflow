@@ -46,6 +46,20 @@ export interface ProviderSelectionContext {
   userId?: string | null;
 }
 
+export type ProviderSelectionFailureReason =
+  | "no_enabled_route"
+  | "route_filtered"
+  | "capacity_exhausted"
+  | "capacity_state_unavailable";
+
+export type ProviderSelectionResult =
+  | { ok: true; endpoint: ProviderEndpoint }
+  | {
+      ok: false;
+      reason: ProviderSelectionFailureReason;
+      filters: Record<string, number>;
+    };
+
 export interface ProviderCapacityRoute {
   providerId: string;
   managed: boolean;
@@ -291,7 +305,10 @@ export async function getManagedRouteCount(modelId: string): Promise<number> {
   return Number(row?.count || 0);
 }
 
-export async function selectProvider(modelId: string, context: ProviderSelectionContext = {}): Promise<ProviderEndpoint | null> {
+export async function selectProviderDetailed(
+  modelId: string,
+  context: ProviderSelectionContext = {}
+): Promise<ProviderSelectionResult> {
   const endpoints = await db.queryMany<any>(
     `SELECT
       p.id as provider_id,
@@ -312,7 +329,9 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     ORDER BY pc.priority DESC, pc.weight DESC`,
     [modelId]
   );
-  if (endpoints.length === 0) return null;
+  if (endpoints.length === 0) {
+    return { ok: false, reason: "no_enabled_route", filters: { no_enabled_route: 1 } };
+  }
 
   const [policy, activeCostTiers] = await Promise.all([
     getMatchingRoutePolicy(context.userId, modelId),
@@ -338,6 +357,7 @@ export async function selectProvider(modelId: string, context: ProviderSelection
 
   const runtimeUsage = new Map<string, {
     available: boolean;
+    stateError: string | null;
     rpm: number;
     tpm: number;
     daily: number;
@@ -354,6 +374,13 @@ export async function selectProvider(modelId: string, context: ProviderSelection
           `${ep.provider_id}:${ep.model_id}`,
           {
             available: minute.available && distributedConcurrency !== null,
+            stateError: !minute.available
+              ? minute.error === "redis_state_invalid"
+                ? "redis_state_invalid"
+                : "redis_read_unavailable"
+              : distributedConcurrency === null
+                ? "concurrency_state_unavailable"
+                : null,
             rpm: minute.available ? minute.rpm : 0,
             tpm: minute.available ? minute.tpm : 0,
             daily,
@@ -370,14 +397,22 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     apiKey: string;
     usage: {
       available: boolean;
+      stateError: string | null;
       rpm: number;
       tpm: number;
       daily: number;
       distributedConcurrency: number;
     };
   }> = [];
+  const filters: Record<string, number> = {};
+  const reject = (reason: string) => {
+    filters[reason] = (filters[reason] || 0) + 1;
+  };
   for (const ep of endpoints) {
-    if (!ep.is_enabled) continue;
+    if (!ep.is_enabled) {
+      reject("disabled");
+      continue;
+    }
     let apiKey = "";
     try {
       apiKey = decryptProviderSecret(ep.api_key || "").trim();
@@ -387,20 +422,44 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     // A provider-level key is optional when an enabled channel owns its key.
     // resolveManagedUpstream performs the final channel/region choice; excluding
     // channel-only credentials here would make a valid managed route unusable.
-    if (!(await hasUsableProviderCredential(ep.provider_id, ep.model_id, apiKey))) continue;
-    if (policy?.pinned_provider_id && policy.strategy === "pinned" && ep.provider_id !== policy.pinned_provider_id) continue;
-    if (policy?.allowed_providers.length && !policy.allowed_providers.includes(ep.provider_id)) continue;
-    if (policy?.blocked_providers.includes(ep.provider_id)) continue;
+    if (!(await hasUsableProviderCredential(ep.provider_id, ep.model_id, apiKey))) {
+      reject("credential");
+      continue;
+    }
+    if (policy?.pinned_provider_id && policy.strategy === "pinned" && ep.provider_id !== policy.pinned_provider_id) {
+      reject("policy");
+      continue;
+    }
+    if (policy?.allowed_providers.length && !policy.allowed_providers.includes(ep.provider_id)) {
+      reject("policy");
+      continue;
+    }
+    if (policy?.blocked_providers.includes(ep.provider_id)) {
+      reject("policy");
+      continue;
+    }
     const cost = costByRoute.get(`${ep.provider_id}:${ep.model_id}`);
-    if (policy?.strategy === "lowest_cost" && !cost) continue;
+    if (policy?.strategy === "lowest_cost" && !cost) {
+      reject("cost_policy");
+      continue;
+    }
     if (policy?.max_prompt_cost !== null && policy?.max_prompt_cost !== undefined) {
-      if (!cost || cost.prompt_cost > policy.max_prompt_cost) continue;
+      if (!cost || cost.prompt_cost > policy.max_prompt_cost) {
+        reject("cost_policy");
+        continue;
+      }
     }
     if (policy?.max_completion_cost !== null && policy?.max_completion_cost !== undefined) {
-      if (!cost || cost.completion_cost > policy.max_completion_cost) continue;
+      if (!cost || cost.completion_cost > policy.max_completion_cost) {
+        reject("cost_policy");
+        continue;
+      }
     }
     const health = await getHealthRecord(ep.provider_id, ep.model_id);
-    if (health?.status === "down") continue;
+    if (health?.status === "down") {
+      reject("health_down");
+      continue;
+    }
     if (policy?.min_availability !== null && policy?.min_availability !== undefined) {
       // min_availability is only enforceable with request-count evidence.
       // Missing evidence is unknown and fails closed; circuit state is never
@@ -410,11 +469,15 @@ export async function selectProvider(modelId: string, context: ProviderSelection
         policy.min_availability,
         slaEvidence?.total_requests,
         slaEvidence?.success_requests
-      )) continue;
+      )) {
+        reject("sla_policy");
+        continue;
+      }
     }
     const key = `${ep.provider_id}:${ep.model_id}`;
     const usage = runtimeUsage.get(key) || {
       available: false,
+      stateError: "missing_runtime_state",
       rpm: 0,
       tpm: 0,
       daily: 0,
@@ -422,18 +485,43 @@ export async function selectProvider(modelId: string, context: ProviderSelection
     };
     // Cross-node managed capacity is unknown when Redis cannot be read. Do not
     // turn an unavailable truth source into a routable zero.
-    if (!usage.available) continue;
-    if (ep.rpm > 0 && usage.rpm >= ep.rpm) continue;
-    if (ep.tpm > 0 && usage.tpm >= ep.tpm) continue;
-    if (ep.daily_limit > 0 && usage.daily >= ep.daily_limit) continue;
+    if (!usage.available) {
+      reject(`capacity_state:${usage.stateError || "unknown"}`);
+      continue;
+    }
+    if (ep.rpm > 0 && usage.rpm >= ep.rpm) {
+      reject("capacity_limit:rpm");
+      continue;
+    }
+    if (ep.tpm > 0 && usage.tpm >= ep.tpm) {
+      reject("capacity_limit:tpm");
+      continue;
+    }
+    if (ep.daily_limit > 0 && usage.daily >= ep.daily_limit) {
+      reject("capacity_limit:daily");
+      continue;
+    }
     const localConcurrency = concurrentRequests.get(key) || 0;
     const observedConcurrency = Math.max(localConcurrency, usage.distributedConcurrency);
     // Zero is an explicit "unlimited" value for synchronous text routes.
-    if (ep.concurrent_limit > 0 && observedConcurrency >= ep.concurrent_limit) continue;
+    if (ep.concurrent_limit > 0 && observedConcurrency >= ep.concurrent_limit) {
+      reject("capacity_limit:concurrency");
+      continue;
+    }
     available.push({ ep, health, apiKey, usage });
   }
 
-  if (available.length === 0) return null;
+  if (available.length === 0) {
+    const filterNames = Object.keys(filters);
+    const reason: ProviderSelectionFailureReason = filterNames.some((name) =>
+      name.startsWith("capacity_state:")
+    )
+      ? "capacity_state_unavailable"
+      : filterNames.some((name) => name.startsWith("capacity_limit:"))
+        ? "capacity_exhausted"
+        : "route_filtered";
+    return { ok: false, reason, filters };
+  }
 
   const weighted = available.map(({ ep, health, apiKey, usage }) => {
     const remainingRpm = Math.max(0, ep.rpm - usage.rpm);
@@ -457,19 +545,30 @@ export async function selectProvider(modelId: string, context: ProviderSelection
   const selectedRoute = weighted[0];
   const selected = selectedRoute.endpoint;
   return {
-    providerId: selected.provider_id,
-    providerName: selected.provider_name,
-    apiBaseUrl: selected.api_base_url,
-    apiKey: selectedRoute.apiKey,
-    modelId: selected.model_id,
-    rpm: selected.rpm,
-    tpm: selected.tpm,
-    dailyLimit: selected.daily_limit,
-    concurrentLimit: selected.concurrent_limit,
-    weight: selected.weight,
-    priority: selected.priority,
-    isEnabled: !!selected.is_enabled,
+    ok: true,
+    endpoint: {
+      providerId: selected.provider_id,
+      providerName: selected.provider_name,
+      apiBaseUrl: selected.api_base_url,
+      apiKey: selectedRoute.apiKey,
+      modelId: selected.model_id,
+      rpm: selected.rpm,
+      tpm: selected.tpm,
+      dailyLimit: selected.daily_limit,
+      concurrentLimit: selected.concurrent_limit,
+      weight: selected.weight,
+      priority: selected.priority,
+      isEnabled: !!selected.is_enabled,
+    },
   };
+}
+
+export async function selectProvider(
+  modelId: string,
+  context: ProviderSelectionContext = {}
+): Promise<ProviderEndpoint | null> {
+  const result = await selectProviderDetailed(modelId, context);
+  return result.ok ? result.endpoint : null;
 }
 
 /**

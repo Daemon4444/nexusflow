@@ -58,6 +58,7 @@ jobs:
       - run: npm --workspace backend run test:session-token-security
       - run: npm --workspace backend run test:api-key-rate-limit-security
       - run: npm --workspace backend run test:outbound-url-policy
+      - run: npm --workspace backend run test:stream-reliability
       - run: npm --workspace backend run test:billing
       - run: npm --workspace backend run test:payment-settlement
       - run: npm --workspace backend run db:migrate
