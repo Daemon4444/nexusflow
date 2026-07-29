@@ -395,7 +395,9 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 受管 Provider 路由读取 Redis 容量状态时保持 fail-closed；瞬时不可读只允许在固定的
 毫秒级预算内重读，持续不可读与真实容量耗尽必须分别返回
 `provider_capacity_store_unavailable` 和 `provider_capacity_exhausted`，并写入不含客户
-内容的结构化过滤原因，不能统一折叠为 `provider_unavailable`。
+内容的结构化过滤原因，不能统一折叠为 `provider_unavailable`。真正的容量预占也必须
+使用同一个稳定租约身份做有界重试：Redis 已提交但回执丢失时视为幂等成功，RPM、每日
+次数、TPM 和并发均不能重复占用；无法核实提交状态时继续 fail-closed。
 
 ## 13. 前端与产品面
 

@@ -55,7 +55,7 @@ export type ResolveUpstreamResult =
   | { ok: true; upstream: ResolvedUpstream }
   | { ok: false; status: number; code: string; message: string };
 
-const CAPACITY_STATE_RETRY_DELAYS_MS = [0, 40, 120] as const;
+const CAPACITY_STATE_RETRY_DELAYS_MS = [0, 50, 150, 350, 750] as const;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

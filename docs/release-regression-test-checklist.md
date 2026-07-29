@@ -566,6 +566,12 @@ Expected:
 - Only one request is accepted in the active window.
 - Other requests return `429`.
 - No multi-instance overshoot is observed.
+- Inject a lost Redis acknowledgement after a successful managed-provider
+  reservation; the bounded retry must recover the same lease identity.
+- The recovered reservation consumes RPM, daily, TPM, and concurrency exactly
+  once, and release reconciles the same TPM event.
+- A persistent Redis failure still fails closed with
+  `provider_capacity_store_unavailable`.
 
 Suggested quick concurrency command:
 

@@ -26,6 +26,7 @@ import {
   getProviderChannelConfig,
   isChannelUsable,
 } from "../data/provider-channels";
+import { logToSLS } from "./sls";
 
 export interface ProviderEndpoint {
   providerId: string;
@@ -102,7 +103,12 @@ export type ModelAvailability = {
 };
 
 const FAILURE_THRESHOLD_DOWN = 10;
+const CAPACITY_RESERVATION_RETRY_DELAYS_MS = [0, 50, 150, 350, 750] as const;
 const concurrentRequests = new Map<string, number>();
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function hasUsableProviderCredential(
   providerId: string,
@@ -210,25 +216,54 @@ export async function acquireProviderCapacity(
     };
   }
 
-  let reservation: ProviderCapacityReservation;
-  try {
-    reservation = await reserveProviderCapacityAsync({
+  let reservation: ProviderCapacityReservation = {
+    allowed: false,
+    reason: "redis_unavailable",
+  };
+  const reservationId = uuidv4();
+  const reservationStartedAt = Date.now();
+  let reservationAttempts = 0;
+  for (const delayMs of CAPACITY_RESERVATION_RETRY_DELAYS_MS) {
+    if (delayMs > 0) await wait(delayMs);
+    reservationAttempts++;
+    try {
+      reservation = await reserveProviderCapacityAsync({
+        providerId: route.providerId,
+        modelId,
+        estimatedTokens,
+        reservationId,
+        reservationStartedAt,
+        limits: {
+          rpm: route.rpm || 0,
+          tpm: route.tpm || 0,
+          dailyLimit: route.dailyLimit || 0,
+          concurrentLimit: route.concurrentLimit || 0,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "[scheduler] managed provider capacity reservation attempt failed:",
+        error instanceof Error ? error.message : String(error)
+      );
+      reservation = { allowed: false, reason: "redis_unavailable" };
+    }
+    if (
+      reservation.allowed
+      || (reservation.reason !== "redis_unavailable" && reservation.reason !== "redis_state_invalid")
+    ) {
+      break;
+    }
+  }
+
+  if (reservation.allowed && reservationAttempts > 1) {
+    logToSLS({
+      status: "warning",
+      model: modelId,
       providerId: route.providerId,
-      modelId,
-      estimatedTokens,
-      limits: {
-        rpm: route.rpm || 0,
-        tpm: route.tpm || 0,
-        dailyLimit: route.dailyLimit || 0,
-        concurrentLimit: route.concurrentLimit || 0,
-      },
+      errorCode: "provider_capacity_reservation_recovered",
+      errorReason: "managed_provider_capacity_reservation_recovered_after_retry",
+      attempts: reservationAttempts,
     });
-  } catch (error) {
-    console.error(
-      "[scheduler] managed provider capacity reservation failed:",
-      error instanceof Error ? error.message : String(error)
-    );
-    reservation = { allowed: false, reason: "redis_unavailable" };
   }
 
   if (!reservation.allowed) {

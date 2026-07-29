@@ -191,6 +191,54 @@ async function main(): Promise<void> {
     await release(recovered, 30);
     assert.equal(await getProviderConcurrencyAsync(runId, modelId), 0);
 
+    // If Redis commits a reservation but its acknowledgement is lost, the
+    // scheduler must retry the same lease identity without double-consuming
+    // RPM, daily, TPM, or concurrency.
+    await clearCounters();
+    const originalEvalForLostAck = redis.eval.bind(redis);
+    let injectLostAck = true;
+    (redis as any).eval = async (...args: any[]) => {
+      const result = await (originalEvalForLostAck as any)(...args);
+      if (injectLostAck) {
+        injectLostAck = false;
+        throw new Error("injected lost Redis acknowledgement");
+      }
+      return result;
+    };
+    let recoveredLostAck;
+    try {
+      recoveredLostAck = await acquireProviderCapacity(
+        {
+          providerId: runId,
+          managed: true,
+          rpm: 10,
+          tpm: 100,
+          dailyLimit: 10,
+          concurrentLimit: 2,
+        },
+        modelId,
+        40
+      );
+    } finally {
+      (redis as any).eval = originalEvalForLostAck;
+    }
+    assert.equal(recoveredLostAck.ok, true);
+    if (!recoveredLostAck.ok) throw new Error("lost acknowledgement was not recovered");
+    assert.equal(await redis.zcard(rpmKey), 1);
+    assert.equal(await redis.zcard(tpmEventsKey), 1);
+    assert.equal(await redis.hlen(tpmWeightsKey), 1);
+    assert.equal(Number(await redis.get(tpmTotalKey)), 40);
+    assert.equal(Number(await redis.get(dailyKey)), 1);
+    assert.equal(await redis.zcard(concurrencyKey), 1);
+    await releaseProviderCapacityAsync({
+      providerId: runId,
+      modelId,
+      leaseId: recoveredLostAck.lease.leaseId!,
+      actualTokens: 35,
+    });
+    assert.equal(Number(await redis.get(tpmTotalKey)), 35);
+    assert.equal(await redis.zcard(concurrencyKey), 0);
+
     // Daily is consumed by upstream attempts and intentionally survives release.
     await clearCounters();
     const dailyOne = await reserve({ ...unlimited, dailyLimit: 2 });

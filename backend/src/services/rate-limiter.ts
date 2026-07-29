@@ -638,6 +638,13 @@ export async function reserveProviderCapacityAsync(params: {
   modelId: string;
   limits: ProviderCapacityLimits;
   estimatedTokens: number;
+  /**
+   * Stable identity for a retried atomic reservation. Reusing both values
+   * makes an ambiguous Redis acknowledgement safe to retry without consuming
+   * RPM, daily, TPM, or concurrency twice.
+   */
+  reservationId?: string;
+  reservationStartedAt?: number;
 }): Promise<ProviderCapacityReservation> {
   if (!USE_REDIS) return { allowed: false, reason: "redis_unavailable" };
 
@@ -650,9 +657,9 @@ export async function reserveProviderCapacityAsync(params: {
   } = providerCapacityTpmKeys(providerKey);
   const dailyKey = `daily:${providerKey}:${providerDayKey()}`;
   const concurrencyKey = providerCapacityConcurrencyKey(providerKey);
-  const leaseId = randomUUID();
+  const leaseId = params.reservationId || randomUUID();
   const leaseKey = providerCapacityLeaseKey(leaseId);
-  const now = Date.now();
+  const now = params.reservationStartedAt ?? Date.now();
   const reservedTokens = Math.max(0, Math.ceil(params.estimatedTokens || 0));
   const result = await getRedis().eval(
     `
@@ -691,8 +698,30 @@ export async function reserveProviderCapacityAsync(params: {
         or (tpmTotalType ~= "none" and tpmTotalType ~= "string")
         or (dailyType ~= "none" and dailyType ~= "string")
         or (concurrencyType ~= "none" and concurrencyType ~= "zset")
-        or leaseType ~= "none" then
+        or (leaseType ~= "none" and leaseType ~= "string") then
         return {0, 6}
+      end
+
+      -- A prior attempt may have committed successfully while its Redis
+      -- acknowledgement was lost. The same stable lease identity is an
+      -- idempotent success only when every reserved structure still matches.
+      local leaseValue = tostring(reservedTokens) .. ":" .. tostring(now)
+      if leaseType == "string" then
+        local existingLeaseValue = redis.call("GET", leaseKey)
+        local concurrencyScore = redis.call("ZSCORE", concurrencyKey, leaseId)
+        local eventScore = redis.call("ZSCORE", tpmEventsKey, leaseId)
+        local eventWeight = redis.call("HGET", tpmWeightsKey, leaseId)
+        if existingLeaseValue ~= leaseValue or not concurrencyScore then
+          return {0, 6}
+        end
+        if reservedTokens > 0 then
+          if not eventScore or tonumber(eventWeight) ~= reservedTokens then
+            return {0, 6}
+          end
+        elseif eventScore or eventWeight then
+          return {0, 6}
+        end
+        return {1, 7}
       end
 
       local rpm = tonumber(redis.call("ZCARD", rpmKey) or "0")
@@ -738,7 +767,6 @@ export async function reserveProviderCapacityAsync(params: {
       if dailyLimit > 0 and daily >= dailyLimit then return {0, 3} end
       if concurrencyLimit > 0 and concurrency >= concurrencyLimit then return {0, 4} end
 
-      local leaseValue = tostring(reservedTokens) .. ":" .. tostring(now)
       local leaseCreated = redis.call("SET", leaseKey, leaseValue, "EX", leaseTtl, "NX")
       if not leaseCreated then return {0, 6} end
 
