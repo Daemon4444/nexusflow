@@ -57,6 +57,7 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
     "qwen3.7-plus",
     "deepseek-v4-pro",
     "glm-5.2",
+    "glm-5.2-fast-preview",
     "qwen3.6-plus",
     "claude-haiku-4-5",
     "qwen3-max",
