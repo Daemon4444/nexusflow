@@ -159,6 +159,259 @@ function CylinderCarousel({ items }: { items: CarouselModel[] }) {
   );
 }
 
+interface FlagshipSlide {
+  key: string;
+  accent: string;
+  border: string;
+  gradient: string;
+  glow: string;
+  btnGradient: string;
+  btnShadow: string;
+  primaryBadge: string;
+  secondaryBadge: string;
+  byline: string;
+  title: string;
+  titleGradient: string;
+  lead: string;
+  modelCode?: string;
+  sub: string;
+  primaryHref: string;
+  primaryLabel: string;
+  docsHref: string;
+  stats: { v: string; l: string }[];
+}
+
+const flagshipSlides: FlagshipSlide[] = [
+  {
+    key: "kimi-k3",
+    accent: "#99f6e4",
+    border: "rgba(45,212,191,0.28)",
+    gradient: "linear-gradient(135deg, #04070d 0%, #0b1f24 48%, #114b4f 100%)",
+    glow: "rgba(45,212,191,0.24)",
+    btnGradient: "linear-gradient(135deg, #2dd4bf, #0d9488)",
+    btnShadow: "0 6px 20px rgba(13,148,136,0.4)",
+    primaryBadge: "Flagship LLM",
+    secondaryBadge: "最新上线",
+    byline: "by 月之暗面 Moonshot AI",
+    title: "Kimi K3",
+    titleGradient: "linear-gradient(135deg, #f8fafc 0%, #99f6e4 48%, #2dd4bf 100%)",
+    lead: "Kimi 迄今能力最强的旗舰模型：2.8 万亿参数，基于 KDA 混合线性注意力与注意力残差架构，原生视觉理解 + 深度思考，100 万 token 上下文。面向长程编程、知识工作与推理场景——OpenAI 与 Anthropic 协议均可直接调用 ",
+    modelCode: "kimi/kimi-k3",
+    sub: "全球首个开源的 3 万亿级别模型。输入 ¥20/M、输出 ¥100/M、缓存命中低至 ¥2/M，与 Qwen、GLM、DeepSeek 共用同一个 API Key 与计费体系。",
+    primaryHref: "/models/kimi/kimi-k3",
+    primaryLabel: "了解 Kimi K3",
+    docsHref: "/docs/api/kimi",
+    stats: [
+      { v: "2.8T", l: "万亿级参数" },
+      { v: "1M", l: "Token 上下文窗口" },
+      { v: "1M", l: "最大输出长度" },
+      { v: "¥2/M", l: "缓存命中输入价" },
+    ],
+  },
+  {
+    key: "glm-5.2-fast",
+    accent: "#c4b5fd",
+    border: "rgba(167,139,250,0.3)",
+    gradient: "linear-gradient(135deg, #07040d 0%, #170f2e 48%, #3b1d78 100%)",
+    glow: "rgba(167,139,250,0.22)",
+    btnGradient: "linear-gradient(135deg, #a78bfa, #7c3aed)",
+    btnShadow: "0 6px 20px rgba(124,58,237,0.4)",
+    primaryBadge: "Speed LLM",
+    secondaryBadge: "新品预览",
+    byline: "by 智谱AI Zhipu AI",
+    title: "GLM 5.2 Fast",
+    titleGradient: "linear-gradient(135deg, #f8fafc 0%, #ddd6fe 48%, #a78bfa 100%)",
+    lead: "GLM-5.2 的高速版本：能力对齐标准版，1M 超长上下文，输出 TPS 可达标准版的 1.5~2 倍。为实时对话、Agent 多轮调用与流式代码生成而生——直接调用 ",
+    modelCode: "glm-5.2-fast-preview",
+    sub: "推理加速不减智商。输入 ¥16/M、输出 ¥56/M、缓存命中 ¥4/M，支持思考模式、函数调用与结构化输出。",
+    primaryHref: "/models/glm-5.2-fast-preview",
+    primaryLabel: "了解 GLM 5.2 Fast",
+    docsHref: "/docs/api/glm",
+    stats: [
+      { v: "1.5~2×", l: "输出速度提升" },
+      { v: "1M", l: "Token 上下文窗口" },
+      { v: "131K", l: "最大输出长度" },
+      { v: "¥4/M", l: "缓存命中输入价" },
+    ],
+  },
+  {
+    key: "seedance-2.0",
+    accent: "#fdba74",
+    border: "rgba(251,146,60,0.3)",
+    gradient: "linear-gradient(135deg, #0d0704 0%, #241209 48%, #6b2a10 100%)",
+    glow: "rgba(251,146,60,0.2)",
+    btnGradient: "linear-gradient(135deg, #fb923c, #ea580c)",
+    btnShadow: "0 6px 20px rgba(234,88,12,0.4)",
+    primaryBadge: "Video Gen",
+    secondaryBadge: "4K HDR",
+    byline: "by 火山方舟 Volcengine",
+    title: "Seedance 2.0",
+    titleGradient: "linear-gradient(135deg, #f8fafc 0%, #fed7aa 48%, #fb923c 100%)",
+    lead: "火山引擎最新一代旗舰视频生成模型：多模态参考生视频（图 + 视频 + 音频），4K HDR 10bit 输出，有声视频自动生成，支持首尾帧图生视频与文生视频。",
+    sub: "时长 4-15 秒，4K / 1080P / 720P 多档分辨率，按秒计费、异步任务制，与文本模型共用同一个 API Key 与余额。",
+    primaryHref: "/models/seedance-2.0",
+    primaryLabel: "了解 Seedance 2.0",
+    docsHref: "/docs/api/seedance",
+    stats: [
+      { v: "4K", l: "HDR 10bit 输出" },
+      { v: "15s", l: "单次最长时长" },
+      { v: "9图", l: "多模态参考输入" },
+      { v: "有声", l: "音画同步生成" },
+    ],
+  },
+];
+
+function FlagshipCarousel() {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const count = flagshipSlides.length;
+
+  useEffect(() => {
+    if (paused) return;
+    const timer = setInterval(() => setIndex((i) => (i + 1) % count), 6000);
+    return () => clearInterval(timer);
+  }, [paused, count]);
+
+  const go = (next: number) => setIndex(((next % count) + count) % count);
+  const active = flagshipSlides[index];
+
+  const arrowStyle: React.CSSProperties = {
+    position: "absolute", top: "50%", transform: "translateY(-50%)", zIndex: 2,
+    width: 38, height: 38, borderRadius: "50%", cursor: "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.16)",
+    color: "#e2e8f0",
+  };
+
+  return (
+    <section
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      style={{
+        position: "relative",
+        margin: "8px auto 0",
+        maxWidth: 1180,
+        borderRadius: 28,
+        overflow: "hidden",
+        background: active.gradient,
+        border: `1px solid ${active.border}`,
+        boxShadow: "0 36px 90px rgba(4,16,20,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
+        transition: "background 600ms ease, border-color 600ms ease",
+      }}
+    >
+      <div style={{
+        display: "flex",
+        width: `${count * 100}%`,
+        transform: `translateX(-${index * (100 / count)}%)`,
+        transition: "transform 600ms cubic-bezier(0.4, 0, 0.2, 1)",
+      }}>
+        {flagshipSlides.map((slide) => (
+          <div key={slide.key} style={{ width: `${100 / count}%`, flexShrink: 0, position: "relative", padding: "48px clamp(24px, 5vw, 56px) 64px" }}>
+            <div style={{
+              position: "absolute", top: "-28%", right: "-6%", width: 460, height: 460,
+              borderRadius: "50%", background: `radial-gradient(circle, ${slide.glow}, transparent 70%)`,
+              filter: "blur(70px)", pointerEvents: "none",
+            }} />
+            <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 40, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ flex: "1 1 440px", minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+                  <span style={{
+                    padding: "6px 15px", borderRadius: 999, fontSize: 11, fontWeight: 800,
+                    letterSpacing: "0.16em", textTransform: "uppercase",
+                    background: "rgba(255,255,255,0.1)",
+                    color: slide.accent, border: `1px solid ${slide.border}`,
+                  }}>
+                    {slide.primaryBadge}
+                  </span>
+                  <span style={{
+                    padding: "6px 13px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                    background: "rgba(250,204,21,0.15)", color: "#fde68a", border: "1px solid rgba(250,204,21,0.3)",
+                  }}>
+                    {slide.secondaryBadge}
+                  </span>
+                  <span style={{ fontSize: 12, color: "rgba(226,232,240,0.5)" }}>{slide.byline}</span>
+                </div>
+
+                <h2 style={{
+                  fontSize: "clamp(36px, 5vw, 52px)", lineHeight: 1.05, fontWeight: 800,
+                  letterSpacing: "-0.04em", margin: "0 0 16px",
+                  background: slide.titleGradient,
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+                }}>
+                  {slide.title}
+                </h2>
+                <p style={{ fontSize: 16, lineHeight: 1.75, color: "rgba(226,232,240,0.85)", margin: "0 0 14px", maxWidth: 560 }}>
+                  {slide.lead}
+                  {slide.modelCode ? (
+                    <code style={{ fontFamily: "var(--font-mono, monospace)", color: slide.accent }}>{slide.modelCode}</code>
+                  ) : null}
+                  {slide.modelCode ? "。" : null}
+                </p>
+                <p style={{ fontSize: 13.5, lineHeight: 1.7, color: "rgba(148,163,184,0.78)", margin: "0 0 28px", maxWidth: 540 }}>
+                  {slide.sub}
+                </p>
+
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  <Link href={slide.primaryHref} style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    padding: "13px 28px", borderRadius: 12,
+                    background: slide.btnGradient,
+                    color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none",
+                    boxShadow: slide.btnShadow,
+                  }}>
+                    {slide.primaryLabel}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </Link>
+                  <Link href={slide.docsHref} style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "13px 24px", borderRadius: 12,
+                    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)",
+                    color: "#e2e8f0", fontSize: 14, fontWeight: 500, textDecoration: "none",
+                  }}>
+                    API 文档
+                  </Link>
+                </div>
+              </div>
+
+              <div style={{ flex: "0 0 auto", display: "grid", gridTemplateColumns: "repeat(2, minmax(96px, auto))", gap: "16px 32px" }}>
+                {slide.stats.map((s) => (
+                  <div key={s.l} style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: 30, fontWeight: 800, color: slide.accent, letterSpacing: "-1px" }}>{s.v}</div>
+                    <div style={{ fontSize: 11.5, color: "rgba(226,232,240,0.58)", marginTop: 4 }}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button type="button" aria-label="上一个" onClick={() => go(index - 1)} style={{ ...arrowStyle, left: 14 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <button type="button" aria-label="下一个" onClick={() => go(index + 1)} style={{ ...arrowStyle, right: 14 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+
+      <div style={{ position: "absolute", bottom: 20, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 8, zIndex: 2 }}>
+        {flagshipSlides.map((slide, i) => (
+          <button
+            key={slide.key}
+            type="button"
+            aria-label={`第 ${i + 1} 帧：${slide.title}`}
+            onClick={() => go(i)}
+            style={{
+              width: i === index ? 22 : 8, height: 8, borderRadius: 999, border: "none", cursor: "pointer",
+              background: i === index ? slide.accent : "rgba(255,255,255,0.25)",
+              transition: "all 300ms ease", padding: 0,
+            }}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function LandingPage() {
   const { user } = useAuth();
   const { t } = useI18n();
@@ -257,101 +510,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ═══ FLAGSHIP — Kimi K3（最新上线旗舰，醒目主推；上一任主推 Seedance 2.0 保留在 hero 指标） ═══ */}
-      <section style={{
-        position: "relative",
-        margin: "8px auto 0",
-        maxWidth: 1180,
-        padding: "48px clamp(24px, 5vw, 56px)",
-        borderRadius: 28,
-        overflow: "hidden",
-        background: "linear-gradient(135deg, #04070d 0%, #0b1f24 48%, #114b4f 100%)",
-        border: "1px solid rgba(45,212,191,0.28)",
-        boxShadow: "0 36px 90px rgba(4,16,20,0.5), inset 0 1px 0 rgba(255,255,255,0.06)",
-      }}>
-        <div style={{
-          position: "absolute", top: "-28%", right: "-6%", width: 460, height: 460,
-          borderRadius: "50%", background: "radial-gradient(circle, rgba(45,212,191,0.24), transparent 70%)",
-          filter: "blur(70px)", pointerEvents: "none",
-        }} />
-        <div style={{
-          position: "absolute", bottom: "-30%", left: "0%", width: 380, height: 380,
-          borderRadius: "50%", background: "radial-gradient(circle, rgba(34,211,238,0.18), transparent 70%)",
-          filter: "blur(64px)", pointerEvents: "none",
-        }} />
+      <FlagshipCarousel />
 
-        <div style={{ position: "relative", zIndex: 1, display: "flex", gap: 40, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ flex: "1 1 440px", minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
-              <span style={{
-                padding: "6px 15px", borderRadius: 999, fontSize: 11, fontWeight: 800,
-                letterSpacing: "0.16em", textTransform: "uppercase",
-                background: "linear-gradient(135deg, rgba(45,212,191,0.3), rgba(34,211,238,0.22))",
-                color: "#99f6e4", border: "1px solid rgba(45,212,191,0.38)",
-              }}>
-                Flagship LLM
-              </span>
-              <span style={{
-                padding: "6px 13px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-                background: "rgba(250,204,21,0.15)", color: "#fde68a", border: "1px solid rgba(250,204,21,0.3)",
-              }}>
-                最新上线
-              </span>
-              <span style={{ fontSize: 12, color: "rgba(226,232,240,0.5)" }}>by 月之暗面 Moonshot AI</span>
-            </div>
-
-            <h2 style={{
-              fontSize: "clamp(36px, 5vw, 52px)", lineHeight: 1.05, fontWeight: 800,
-              letterSpacing: "-0.04em", margin: "0 0 16px",
-              background: "linear-gradient(135deg, #f8fafc 0%, #99f6e4 48%, #2dd4bf 100%)",
-              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-            }}>
-              Kimi K3
-            </h2>
-            <p style={{ fontSize: 16, lineHeight: 1.75, color: "rgba(226,232,240,0.85)", margin: "0 0 14px", maxWidth: 560 }}>
-              Kimi 迄今能力最强的旗舰模型：2.8 万亿参数，基于 KDA 混合线性注意力与注意力残差架构，原生视觉理解 + 深度思考，100 万 token 上下文。面向长程编程、知识工作与推理场景——OpenAI 与 Anthropic 协议均可直接调用 <code style={{ fontFamily: "var(--font-mono, monospace)", color: "#99f6e4" }}>kimi/kimi-k3</code>。
-            </p>
-            <p style={{ fontSize: 13.5, lineHeight: 1.7, color: "rgba(148,163,184,0.78)", margin: "0 0 28px", maxWidth: 540 }}>
-              全球首个开源的 3 万亿级别模型。输入 ¥20/M、输出 ¥100/M、缓存命中低至 ¥2/M，与 Qwen、GLM、DeepSeek 共用同一个 API Key 与计费体系。
-            </p>
-
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <Link href="/models/kimi/kimi-k3" style={{
-                display: "inline-flex", alignItems: "center", gap: 8,
-                padding: "13px 28px", borderRadius: 12,
-                background: "linear-gradient(135deg, #2dd4bf, #0d9488)",
-                color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none",
-                boxShadow: "0 6px 20px rgba(13,148,136,0.4)",
-              }}>
-                了解 Kimi K3
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </Link>
-              <Link href="/docs/api/kimi" style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "13px 24px", borderRadius: 12,
-                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)",
-                color: "#e2e8f0", fontSize: 14, fontWeight: 500, textDecoration: "none",
-              }}>
-                API 文档
-              </Link>
-            </div>
-          </div>
-
-          <div style={{ flex: "0 0 auto", display: "grid", gridTemplateColumns: "repeat(2, minmax(96px, auto))", gap: "16px 32px" }}>
-            {[
-              { v: "2.8T", l: "万亿级参数" },
-              { v: "1M", l: "Token 上下文窗口" },
-              { v: "1M", l: "最大输出长度" },
-              { v: "¥2/M", l: "缓存命中输入价" },
-            ].map((s) => (
-              <div key={s.l} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 30, fontWeight: 800, color: "#99f6e4", letterSpacing: "-1px" }}>{s.v}</div>
-                <div style={{ fontSize: 11.5, color: "rgba(226,232,240,0.58)", marginTop: 4 }}>{s.l}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       <section className="nf-section nf-section-tight">
         <div className="nf-section-head">
