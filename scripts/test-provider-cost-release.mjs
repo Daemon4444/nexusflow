@@ -86,7 +86,7 @@ if (args.includes("--manifest")) {
     idempotent: !wasInactive && current.everApplied === true,
     reactivationRequired: !apply && wasInactive,
     reactivated: apply && wasInactive,
-    priceBookId: wrong ? "pb-000000000000000000000000" : "pb-03c8336c30be1e4f6d18ae9d",
+    priceBookId: wrong ? "pb-000000000000000000000000" : "pb-19cfc14c11f74a74ac7438c5",
     providerId: "dashscope",
     models: 2,
     tiers: 3,
@@ -115,7 +115,7 @@ if (args.includes("--manifest")) {
   }
   console.log(JSON.stringify({
     dryRun: !apply,
-    priceBookId: "pb-03c8336c30be1e4f6d18ae9d",
+    priceBookId: "pb-19cfc14c11f74a74ac7438c5",
     activeRows: before,
     pendingRows: pending,
     futureRows: future,

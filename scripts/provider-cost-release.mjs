@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const PRICE_BOOK_ID = "pb-03c8336c30be1e4f6d18ae9d";
+const PRICE_BOOK_ID = "pb-19cfc14c11f74a74ac7438c5";
 const MAX_MANIFEST_BYTES = 1_000_000;
 const STAGING_DIRECTORY = /^nexusflow-provider-cost\.[A-Za-z0-9]{6,32}$/;
 

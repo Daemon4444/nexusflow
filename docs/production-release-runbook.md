@@ -23,7 +23,7 @@ The production release has these invariants:
 - The reviewed private Provider cost manifest is never committed or packaged.
   Only after migration `019` and both new binaries verify, it is dry-run,
   applied, and checked as the exact 12-tier price book
-  `pb-03c8336c30be1e4f6d18ae9d`.
+  `pb-19cfc14c11f74a74ac7438c5`.
 - Deployment events and verified runtime-node facts are recorded only after
   migration `014` has created their real control-plane tables.
 - The current and previous releases are atomic symbolic links.
