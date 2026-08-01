@@ -42,6 +42,10 @@ jobs:
       - name: Install release script checkers
         run: sudo apt-get update -qq && sudo apt-get install -y -qq nginx shellcheck
       - run: npm ci --legacy-peer-deps
+        env:
+          # Redis integration tests request their pinned 7.2.7 binary at runtime.
+          # Avoid compiling the unrelated moving "stable" Redis Stack in postinstall.
+          REDISMS_DISABLE_POSTINSTALL: "true"
       - run: npm audit --omit=dev --audit-level=high
       - name: Validate release script syntax
         run: |
