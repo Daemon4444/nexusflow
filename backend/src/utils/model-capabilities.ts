@@ -160,7 +160,7 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     supports_thinking_budget: supportsThinkingBudget,
     supports_preserve_thinking: PRESERVE_THINKING_MODELS.has(model.id),
     supports_search: supportsSearch,
-    supports_context_caching: isQwenChat || isGLM,
+    supports_context_caching: isQwenChat || isGLM || (isDeepSeek && model.id.startsWith("deepseek-v4")),
     supports_parallel_tool_calls: supportsTools && (isQwenChat || isDeepSeek || isGLM || model.provider === "Anthropic"),
     supports_top_k: isQwenChat || isGLM,
     supports_seed: isQwenChat || isGLM,

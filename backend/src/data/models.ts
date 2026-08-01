@@ -31,7 +31,20 @@ export interface AIModel {
   isNew?: boolean;
   isFeatured?: boolean;
   maxOutput: number;
+  /** 未显式传 max_tokens 时用于余额预占；缺省仍按 maxOutput，避免改变既有模型行为。 */
+  defaultOutputReservation?: number;
   supported: string[];
+}
+
+export function getReservedOutputTokens(model: AIModel, requestedTokens?: number): number {
+  const maximum = Math.max(1, Number(model.maxOutput) || 4096);
+  const fallback = Math.min(
+    maximum,
+    Math.max(1, Number(model.defaultOutputReservation) || maximum)
+  );
+  const requested = Number(requestedTokens);
+  const selected = Number.isFinite(requested) && requested > 0 ? requested : fallback;
+  return Math.max(1, Math.min(Math.floor(selected), maximum));
 }
 
 export function getTokenPricingTier(model: AIModel, promptTokens: number): TokenPricingTier | null {
@@ -973,16 +986,18 @@ const staticModels: AIModel[] = [
     id: "deepseek-v4-flash",
     name: "DeepSeek V4 Flash",
     provider: "DeepSeek",
-    description: "百炼接入的 DeepSeek V4 Flash 高速模型，适合低延迟和高并发在线对话场景。",
+    description: "高效轻量化 MoE 模型，总参 284B、激活 13B，原生支持百万超长上下文。推理速度快、延迟低、调用成本低，适合日常对话、内容创作、基础 RAG 与批量文案处理。NexusFlow 稳定别名当前指向百炼 0731 快照。",
     contextLength: 1000000,
     promptPrice: 1,
     completionPrice: 2,
     cacheReadPrice: 0.2,
     category: "大语言模型",
-    tags: ["V4", "极速", "高并发", "性价比"],
+    tags: ["V4", "0731快照", "极速", "高并发", "混合思考", "性价比"],
+    isFeatured: true,
     isNew: true,
-    maxOutput: 16384,
-    supported: ["文本", "函数调用"]
+    maxOutput: 393216,
+    defaultOutputReservation: 16384,
+    supported: ["文本", "函数调用", "思考模式", "联网搜索", "上下文缓存"]
   },
   {
     id: "deepseek-v4-pro",

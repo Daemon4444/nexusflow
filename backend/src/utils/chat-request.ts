@@ -1,5 +1,6 @@
 import type { AIModel } from "../data/models";
 import { getAllowedChatParameters, getModelCapabilities } from "./model-capabilities";
+import { getUpstreamModelId } from "./upstream-model-aliases";
 
 export function buildUpstreamChatRequest(model: AIModel, body: any, options: { forceStream?: boolean } = {}): any {
   const allowed = new Set(getAllowedChatParameters(model));
@@ -9,7 +10,7 @@ export function buildUpstreamChatRequest(model: AIModel, body: any, options: { f
   const forceStream = !!options.forceStream || wantsAudioOutput;
 
   const requestBody: any = {
-    model: body.model,
+    model: getUpstreamModelId(body.model),
     messages: body.messages,
     stream: !!body.stream || forceStream,
   };

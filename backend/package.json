@@ -24,6 +24,7 @@
     "test:payment-settlement": "USE_PG_MEM=true ts-node scripts/test-payment-settlement.ts",
     "test:payment-settlement:postgres": "ts-node scripts/test-payment-settlement-postgres.ts",
     "test:provider-monitor": "ts-node scripts/test-provider-monitor-semantics.ts && USE_PG_MEM=true ts-node scripts/test-provider-health-schema.ts",
+    "test:model-catalog": "ts-node scripts/test-model-catalog.ts",
     "test:provider-capacity-redis": "ts-node scripts/test-provider-capacity-isolated.ts",
     "test:provider-cost-import": "USE_PG_MEM=true ts-node scripts/test-provider-cost-import.ts",
     "test:managed-routing": "USE_PG_MEM=true ts-node scripts/test-managed-routing.ts",

@@ -6,6 +6,8 @@
  * 转成 OpenAI 格式打 compatible-mode，再把响应（含流式）转回 Anthropic 格式。
  */
 
+import { getUpstreamModelId } from "./upstream-model-aliases";
+
 type AnyRecord = Record<string, any>;
 
 function blockText(content: unknown): string {
@@ -92,7 +94,7 @@ export function anthropicToOpenAiPayload(body: AnyRecord): AnyRecord {
     }
   }
 
-  const payload: AnyRecord = { model: body.model, messages: openAiMessages };
+  const payload: AnyRecord = { model: getUpstreamModelId(body.model), messages: openAiMessages };
   if (body.max_tokens != null) payload.max_tokens = body.max_tokens;
   if (body.temperature != null) payload.temperature = body.temperature;
   if (body.top_p != null) payload.top_p = body.top_p;

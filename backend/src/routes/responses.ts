@@ -10,7 +10,7 @@
 
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { models } from "../data/models";
+import { getReservedOutputTokens, models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUpstreamFailure, logUsage } from "../data/usage";
 import { releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
@@ -40,6 +40,11 @@ import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { db } from "../db/client";
 import { safeProviderFetch } from "../services/outbound-url-policy";
 import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
+import {
+  getUpstreamModelId,
+  restorePublicModelAlias,
+  rewriteUpstreamModelAliasText,
+} from "../utils/upstream-model-aliases";
 
 /** 记录 response 归属（POST 成功后调用）。失败不影响主流程，但会导致该 response 后续不可检索（fail-closed）。 */
 async function recordResponseOwnership(responseId: string | null | undefined, userId: string | null): Promise<void> {
@@ -312,7 +317,7 @@ router.post("/", async (req: Request, res: Response) => {
 
   // Rate limiting
   const estimatedInputTokens = Math.max(1, roughTokenCount(req.body.input) + roughTokenCount(req.body.tools));
-  const estimatedOutputTokens = model.maxOutput || 4096;
+  const estimatedOutputTokens = getReservedOutputTokens(model, req.body.max_output_tokens);
   const estimatedTokens = estimatedInputTokens + estimatedOutputTokens;
   if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
     res.status(403).json({
@@ -425,7 +430,7 @@ router.post("/", async (req: Request, res: Response) => {
     const response = await safeProviderFetch(upstreamUrl, {
       method: "POST",
       headers: upstreamHeaders,
-      body: JSON.stringify(req.body),
+      body: JSON.stringify({ ...req.body, model: getUpstreamModelId(modelId) }),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
     });
 
@@ -471,8 +476,9 @@ router.post("/", async (req: Request, res: Response) => {
           const iterDecoder = new TextDecoder();
           for await (const chunk of reader) {
             const text = typeof chunk === "string" ? chunk : iterDecoder.decode(chunk, { stream: true });
-            fullResponse += text;
-            res.write(text);
+            const rewritten = rewriteUpstreamModelAliasText(text, modelId);
+            fullResponse += rewritten;
+            res.write(rewritten);
           }
         } else if (reader && reader.getReader) {
           const r = reader.getReader();
@@ -480,9 +486,9 @@ router.post("/", async (req: Request, res: Response) => {
           while (true) {
             const { done, value } = await r.read();
             if (done) break;
-            const text = decoder.decode(value, { stream: true });
-            fullResponse += text;
-            res.write(text);
+            const rewritten = rewriteUpstreamModelAliasText(decoder.decode(value, { stream: true }), modelId);
+            fullResponse += rewritten;
+            res.write(rewritten);
           }
         }
       } catch (streamErr: any) {
@@ -509,6 +515,7 @@ router.post("/", async (req: Request, res: Response) => {
     } else {
       // Non-streaming: parse response and return
       const data: any = await response.json();
+      restorePublicModelAlias(data, modelId);
 
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
       res.json(data);

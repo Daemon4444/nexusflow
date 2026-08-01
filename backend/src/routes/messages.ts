@@ -9,7 +9,7 @@
 
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { models, getTokenPricingTier } from "../data/models";
+import { getReservedOutputTokens, models, getTokenPricingTier } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUpstreamFailure, logUsage } from "../data/usage";
 import { BillingReservationFailureReason, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
@@ -39,6 +39,11 @@ import {
 } from "../utils/anthropic-openai-bridge";
 import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
 import { getBillingFailurePayload } from "../utils/billing-response";
+import {
+  getUpstreamModelId,
+  restorePublicModelAlias,
+  rewriteUpstreamModelAliasText,
+} from "../utils/upstream-model-aliases";
 
 const router = Router();
 
@@ -79,13 +84,13 @@ function roughTokenCount(value: unknown): number {
 
 async function estimateMessageMaxCost(userId: string | null | undefined, model: any, body: any): Promise<number> {
   const promptTokens = Math.max(1, roughTokenCount(body.system) + roughTokenCount(body.messages));
-  const completionTokens = Math.max(1, Math.min(Number(body.max_tokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  const completionTokens = getReservedOutputTokens(model, body.max_tokens);
   return (await calculateDiscountedTokenCost(userId, model, promptTokens, completionTokens)).finalAmount;
 }
 
 function estimateMessageTokens(model: any, body: any): number {
   const promptTokens = Math.max(1, roughTokenCount(body.system) + roughTokenCount(body.messages));
-  const completionTokens = Math.max(1, Math.min(Number(body.max_tokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  const completionTokens = getReservedOutputTokens(model, body.max_tokens);
   return promptTokens + completionTokens;
 }
 
@@ -348,7 +353,7 @@ router.post("/", async (req: Request, res: Response) => {
       const response = await safeProviderFetch(`${passThroughBase}/messages`, {
         method: "POST",
         headers,
-        body: JSON.stringify(req.body),
+        body: JSON.stringify({ ...req.body, model: getUpstreamModelId(modelId) }),
         signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
       });
 
@@ -407,7 +412,10 @@ router.post("/", async (req: Request, res: Response) => {
           chunkCount++;
           const text = typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
           // 只重写 Anthropic 事件 id（msg_ 前缀），避免误伤正文中的 JSON 示例
-          const rewritten = text.replace(/"id":"msg_[^"]*"/, `"id":"msg_${logId}"`);
+          const rewritten = rewriteUpstreamModelAliasText(
+            text.replace(/"id":"msg_[^"]*"/, `"id":"msg_${logId}"`),
+            modelId
+          );
           fullResponse += rewritten;
           res.write(rewritten);
         };
@@ -493,6 +501,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       const data: any = await response.json();
+      restorePublicModelAlias(data, modelId);
       if (!response.ok) {
         await logUpstreamFailure({
           logId,

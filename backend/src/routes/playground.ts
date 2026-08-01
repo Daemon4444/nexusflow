@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { models } from "../data/models";
+import { getReservedOutputTokens, models } from "../data/models";
 import { validateSession } from "../data/users";
 import { logUpstreamFailure, logUsage } from "../data/usage";
 import { releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
@@ -15,6 +15,7 @@ import {
   reserveAccountTpm,
 } from "../services/account-rate-limiter";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
+import { restorePublicModelAlias, rewriteUpstreamModelAliasText } from "../utils/upstream-model-aliases";
 import { calculateOpenAiCacheAwareCost } from "../utils/cache-billing";
 import { sendBillingReservationFailure } from "../utils/billing-response";
 import {
@@ -46,13 +47,13 @@ function roughTokenCount(value: unknown): number {
 
 async function estimateChatMaxCost(userId: string, model: any, messages: unknown[], maxTokens?: number): Promise<number> {
   const promptTokens = Math.max(1, roughTokenCount(messages));
-  const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  const completionTokens = getReservedOutputTokens(model, maxTokens);
   return (await calculateDiscountedTokenCost(userId, model, promptTokens, completionTokens)).finalAmount;
 }
 
 function estimateChatTokens(model: any, messages: unknown[], maxTokens?: number): number {
   const promptTokens = Math.max(1, roughTokenCount(messages));
-  const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  const completionTokens = getReservedOutputTokens(model, maxTokens);
   return promptTokens + completionTokens;
 }
 
@@ -287,8 +288,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           }
           lastChunkTime = now;
           chunkCount++;
-          fullResponse += typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
-          res.write(chunk);
+          const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
+          const rewritten = rewriteUpstreamModelAliasText(text, modelId);
+          fullResponse += rewritten;
+          res.write(rewritten);
         }
       } else if (reader?.getReader) {
         const r = reader.getReader();
@@ -303,8 +306,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           }
           lastChunkTime = now;
           chunkCount++;
-          fullResponse += decoder.decode(value, { stream: true });
-          res.write(value);
+          const rewritten = rewriteUpstreamModelAliasText(decoder.decode(value, { stream: true }), modelId);
+          fullResponse += rewritten;
+          res.write(rewritten);
         }
       }
       res.end();
@@ -353,6 +357,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     }
 
     const data: any = await response.json();
+    restorePublicModelAlias(data, modelId);
     if (!response.ok) {
       await logUpstreamFailure({
         apiKeyId: null,

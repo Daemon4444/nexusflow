@@ -9,7 +9,7 @@
 
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { models } from "../data/models";
+import { getReservedOutputTokens, models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUpstreamFailure, logUsage } from "../data/usage";
 import { BillingReservationFailureReason, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
@@ -44,6 +44,7 @@ import {
   finishOpenAiStream,
   observeOpenAiStreamLine,
 } from "../utils/openai-stream-state";
+import { restorePublicModelAlias } from "../utils/upstream-model-aliases";
 
 const router = Router();
 
@@ -74,7 +75,7 @@ function extractImageUrls(data: any): string[] {
   return [...choiceUrls, ...resultUrls];
 }
 
-function normalizeOpenAiStreamLine(line: string, logId: string): string {
+function normalizeOpenAiStreamLine(line: string, logId: string, modelId: string): string {
   const hasCarriageReturn = line.endsWith("\r");
   const content = hasCarriageReturn ? line.slice(0, -1) : line;
   const trimmed = content.trim();
@@ -86,6 +87,7 @@ function normalizeOpenAiStreamLine(line: string, logId: string): string {
     const event = JSON.parse(payload);
     if (event && typeof event === "object") {
       event.id = logId;
+      restorePublicModelAlias(event, modelId);
       if (event.usage && typeof event.usage === "object") {
         const details =
           event.usage.prompt_tokens_details &&
@@ -181,13 +183,13 @@ function roughTokenCount(value: unknown): number {
 
 function estimateChatTokens(model: any, messages: unknown[], maxTokens?: number): number {
   const promptTokens = Math.max(1, roughTokenCount(messages));
-  const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  const completionTokens = getReservedOutputTokens(model, maxTokens);
   return promptTokens + completionTokens;
 }
 
 async function estimateChatMaxCost(userId: string | null | undefined, model: any, messages: unknown[], maxTokens?: number): Promise<number> {
   const promptTokens = Math.max(1, roughTokenCount(messages));
-  const completionTokens = Math.max(1, Math.min(Number(maxTokens) || model.maxOutput || 4096, model.maxOutput || 4096));
+  const completionTokens = getReservedOutputTokens(model, maxTokens);
   return (await calculateDiscountedTokenCost(userId, model, promptTokens, completionTokens)).finalAmount;
 }
 
@@ -922,7 +924,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
             }
             continue;
           }
-          const rewritten = normalizeOpenAiStreamLine(line, logId);
+          const rewritten = normalizeOpenAiStreamLine(line, logId, modelId);
           fullResponse += `${rewritten}\n`;
           res.write(`${rewritten}\n`);
         }
@@ -1147,6 +1149,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       const events = parseSseEvents(fullResponse);
       const data = buildChatCompletionFromSse(events, !!include_reasoning);
+      data.model = modelId;
       const latencyMs = Date.now() - startTime;
       const usage = data.usage || {};
       const billing = await calculateOpenAiCacheAwareCost({
@@ -1214,6 +1217,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         };
       }
       data.id = logId;
+      data.model = modelId;
       res.json(data);
       return;
     }
@@ -1325,6 +1329,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     // Add rate limit headers
     res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
     data.id = logId;
+    data.model = modelId;
     res.json(data);
 
   } catch (err: any) {
