@@ -10,7 +10,7 @@ type TabKey = "chat" | "reasoning";
 
 const models = [
   { id: "deepseek-v4-pro", category: "推理模型", context: "1M", input: 12, output: 24, desc: "V4 旗舰推理模型" },
-  { id: "deepseek-v4-flash", category: "大语言模型", context: "1M", input: 1, output: 2, desc: "V4 Flash 0731 高速快照（稳定别名）" },
+  { id: "deepseek-v4-flash", category: "大语言模型", context: "1M", input: 1, output: 2, desc: "高效轻量 MoE，低延迟、高并发" },
   { id: "deepseek-v3.2", category: "大语言模型", context: "128K", input: 2, output: 3, desc: "V3.2 通用模型" },
   { id: "deepseek-r1", category: "推理模型", context: "128K", input: 4, output: 16, desc: "R1 推理模型" },
   { id: "deepseek-v3", category: "大语言模型", context: "128K", input: 2, output: 8, desc: "V3 通用模型" },

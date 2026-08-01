@@ -26,6 +26,8 @@ assert.equal(getReservedOutputTokens(snapshot, 500_000), 393_216);
 assert.equal(snapshot.promptPrice, 1);
 assert.equal(snapshot.completionPrice, 2);
 assert.equal(snapshot.cacheReadPrice, 0.2);
+assert.doesNotMatch(snapshot.description, /0731|快照|稳定别名/);
+assert.equal(snapshot.tags.some((tag) => /0731|快照|稳定别名/.test(tag)), false);
 assert.equal(findProvider(snapshot.id)?.id, "dashscope");
 assert.equal(getUpstreamModelId(snapshot.id), "deepseek-v4-flash-0731");
 assert.equal(getUpstreamModelId("deepseek-v4-pro"), "deepseek-v4-pro");

@@ -123,7 +123,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
-| `deepseek-v4-flash` | DeepSeek V4 Flash | 1M | 384K | ¥1/M | ¥2/M | 稳定别名→百炼0731快照，混合思考 |
+| `deepseek-v4-flash` | DeepSeek V4 Flash | 1M | 384K | ¥1/M | ¥2/M | 高速轻量 MoE，混合思考 |
 | `deepseek-v3.2` | DeepSeek V3.2 | 131K | 16K | ¥2/M | ¥3/M | 最新通用 |
 | `deepseek-v3` | DeepSeek V3 | 65K | 8K | ¥2/M | ¥8/M | MoE架构 |
 

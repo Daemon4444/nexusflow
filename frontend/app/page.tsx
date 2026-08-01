@@ -185,6 +185,32 @@ interface FlagshipSlide {
 
 const flagshipSlides: FlagshipSlide[] = [
   {
+    key: "deepseek-v4-flash",
+    accent: "#7dd3fc",
+    border: "rgba(56,189,248,0.3)",
+    gradient: "linear-gradient(135deg, #030712 0%, #071b2b 48%, #0c4a6e 100%)",
+    glow: "rgba(56,189,248,0.24)",
+    btnGradient: "linear-gradient(135deg, #38bdf8, #0284c7)",
+    btnShadow: "0 6px 20px rgba(2,132,199,0.4)",
+    primaryBadge: "Fast LLM",
+    secondaryBadge: "最新上线",
+    byline: "by DeepSeek · 阿里云百炼",
+    title: "DeepSeek V4 Flash",
+    titleGradient: "linear-gradient(135deg, #f8fafc 0%, #bae6fd 48%, #38bdf8 100%)",
+    lead: "高效轻量化 MoE 模型：总参 284B、激活 13B，原生支持百万超长上下文。推理速度快、延迟低、成本低，面向高并发对话、内容创作、基础 RAG 与批量任务——直接调用 ",
+    modelCode: "deepseek-v4-flash",
+    sub: "支持混合思考、Function Calling、联网搜索与上下文缓存。输入 ¥1/M、输出 ¥2/M、缓存命中输入低至 ¥0.2/M。",
+    primaryHref: "/models/deepseek-v4-flash",
+    primaryLabel: "了解 DeepSeek V4 Flash",
+    docsHref: "/docs/api/deepseek",
+    stats: [
+      { v: "284B", l: "MoE 总参数" },
+      { v: "13B", l: "单次激活参数" },
+      { v: "1M", l: "Token 上下文窗口" },
+      { v: "¥0.2/M", l: "缓存命中输入价" },
+    ],
+  },
+  {
     key: "kimi-k3",
     accent: "#99f6e4",
     border: "rgba(45,212,191,0.28)",
