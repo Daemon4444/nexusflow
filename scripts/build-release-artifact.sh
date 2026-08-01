@@ -117,7 +117,10 @@ fi
 release_log "installing locked dependencies in isolated release"
 (
   cd "$STAGING"
-  npm ci --legacy-peer-deps
+  # redis-memory-server is a test-only dependency. Its postinstall downloads or
+  # compiles Redis Stack modules and can make production artifact builds depend
+  # on Python/compiler tooling that the application runtime does not use.
+  REDISMS_DISABLE_POSTINSTALL=true npm ci --legacy-peer-deps
 )
 
 BUILD_TIME="$(date -u +%FT%TZ)"
