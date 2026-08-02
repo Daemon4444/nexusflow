@@ -1,0 +1,5 @@
+NexusFlow manifests rendered successfully.
+
+This chart does not create Secrets, an AlbConfig, databases, Redis, or a public
+load balancer. Create and validate those resources separately before enabling
+Ingress or migrations. Production images must be supplied by immutable digest.

@@ -59,6 +59,7 @@ jobs:
       - run: npm --workspace backend run test:auth-login-rate-limit
       - run: npm --workspace backend run test:health-compatibility
       - run: npm --workspace backend run test:runtime-safety
+      - run: npm --workspace backend run test:runtime-lifecycle
       - run: npm --workspace backend run test:session-token-security
       - run: npm --workspace backend run test:api-key-rate-limit-security
       - run: npm --workspace backend run test:outbound-url-policy
@@ -162,4 +163,42 @@ jobs:
       - run: npm run test:deploy-orchestrator-state
       - run: npm --workspace frontend run lint -- --quiet
       - run: npm run build:backend
+      - name: Verify production migration artifacts
+        run: |
+          test -f backend/dist/db/migrate.js
+          test "$(find backend/dist/db/migrations -type f -name '*.sql' | wc -l | tr -d ' ')" -gt 0
       - run: npm run build:frontend
+
+  container-and-serverless:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v4.2.3
+      - name: Validate ACK Serverless chart
+        run: |
+          digest="sha256:$(printf '0%.0s' {1..64})"
+          common=(
+            --set images.backend.repository=example.invalid/nexusflow/backend
+            --set images.backend.digest="$digest"
+            --set images.frontend.repository=example.invalid/nexusflow/frontend
+            --set images.frontend.digest="$digest"
+          )
+          helm lint deploy/helm/nexusflow "${common[@]}"
+          helm template nexusflow deploy/helm/nexusflow \
+            --namespace nexusflow-staging \
+            "${common[@]}" \
+            --set ingress.enabled=true \
+            --set ingress.albConfigName=nexusflow-staging \
+            > /tmp/nexusflow-rendered.yaml
+          docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0 \
+            -strict -summary -kubernetes-version 1.31.0 \
+            < /tmp/nexusflow-rendered.yaml
+      - name: Build immutable production images
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          bash scripts/test-container-images.sh
+          bash scripts/test-container-runtime.sh

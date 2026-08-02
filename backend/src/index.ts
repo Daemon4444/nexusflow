@@ -44,12 +44,30 @@ import { errorHandler, notFoundHandler } from "./middleware/error";
 import { requireApiKeyBeforeLargeJson } from "./middleware/large-json-auth";
 import { parsePublicApiJson } from "./middleware/large-json-auth";
 import { getBuildInfo } from "./utils/build-info";
-import { HEALTH_PATHS, healthCheckHandler } from "./services/health-check";
+import {
+  createLivenessHandler,
+  createReadinessHandler,
+  HEALTH_PATHS,
+  healthCheckHandler,
+  LIVENESS_PATH,
+  READINESS_PATH,
+} from "./services/health-check";
+import { createRuntimeLifecycle } from "./services/runtime-lifecycle";
+import { closeDb } from "./db/client";
+import { closeRedis } from "./services/redis";
+import { flushSlsLogs } from "./services/sls";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = resolveBackendBindHost();
 const buildInfo = getBuildInfo();
+const lifecycle = createRuntimeLifecycle({
+  shutdownTimeoutMs: Number(process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS || 540_000),
+  closeDependencies: async () => {
+    await Promise.allSettled([closeDb(), closeRedis()]);
+  },
+  flushTelemetry: flushSlsLogs,
+});
 
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
@@ -75,6 +93,8 @@ app.use(cors({
 // dependency-aware implementation. Register before /v1 parsers/routers so the
 // read-only probe never requires an API key or buffers a request body.
 app.get([...HEALTH_PATHS], healthCheckHandler);
+app.get(LIVENESS_PATH, createLivenessHandler());
+app.get(READINESS_PATH, createReadinessHandler(lifecycle.isReady));
 // Audio has its own 64 KB parser and performs API-key admission before reading
 // any request body. Mount it before the broad model-context JSON parser.
 app.use("/v1/audio", audioRouter);
@@ -167,6 +187,16 @@ process.on("uncaughtException", (error) => {
   scheduleFatalExit();
 });
 
+process.on("SIGUSR2", () => {
+  lifecycle.beginDrain("preStop");
+});
+
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.on(signal, () => {
+    void lifecycle.shutdown(signal).finally(() => process.exit(0));
+  });
+}
+
 async function start() {
   try {
     await cleanExpiredSessions();
@@ -191,9 +221,11 @@ async function start() {
   startModelRefreshLoop();
   startUploadCleanupLoop();
 
-  app.listen(PORT, HOST, () => {
+  const server = app.listen(PORT, HOST, () => {
+    lifecycle.markReady();
     console.log(`[Quadrant API] 服务已启动: http://${HOST}:${PORT}`);
   });
+  lifecycle.attachServer(server);
 }
 
 start().catch((error) => {

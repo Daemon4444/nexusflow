@@ -2,7 +2,7 @@
 
 > 本文是 NexusFlow 的**唯一项目事实入口**，供开发者、Codex、Claude、Qoder、Gemini、Copilot 等协作者使用。
 >
-> 最近校准：2026-07-29
+> 最近校准：2026-08-02
 >
 > 校准基线：本地分支、GitHub `origin/main` 与生产环境代码；2026-07-29 低峰不可变
 > v3 发布基线为 `1a6ecbc`，后续版本仍以 `/api/version` 为准。
@@ -50,6 +50,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | `README.md` | 面向开发者和 GitHub 访客的快速介绍 |
 | `docs/MODEL_ONBOARDING.md` | 新模型上线的强制 Playbook |
 | `docs/cloud-native-microservices-architecture-spec.md` | ACK 云原生与微服务目标架构、迁移门禁和验收设计；Draft，不代表已上线 |
+| `docs/ack-serverless-deployment-runbook.md` | ACK Serverless/ECI 预发部署、验收、灰度和 ECS 回滚流程；入口默认关闭，不代表已上线 |
 | `docs/whole-site-reliability-ux-spec-2026-07-21.md` | 2026-07-21 整站功能、协议、视觉与发布验收记录 |
 | `MODELS.md` | 人工维护的模型说明；运行时目录以 API/代码/DB 覆盖层为准 |
 | `REVIEW_SPEC_2026-07.md` | 2026-07-20 审计快照，不代表所有事项仍未完成 |
@@ -74,6 +75,8 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 数据库迁移 | 仓库已提交到 `023_provider_list_price_fallback.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
+
+2026-08-02 已在开发分支加入 ACK Serverless Pro/ECI 容器化基线：前后端生产镜像、Helm chart、独立 live/ready 探针、SSE 排空与 CI 校验。该基线尚未创建云资源、尚未接入生产流量；当前生产仍是上表所述的双 ECS + PM2 + nginx。Serverless Ingress 和 migration 在 chart 中默认关闭。
 
 常用只读检查：
 
@@ -131,6 +134,8 @@ nexusflow/
 │   ├── components/             # 控制台、主题、通用组件
 │   └── lib/                    # API、模型、金额、i18n、认证
 ├── docs/                       # 专项 runbook 与回归清单
+├── docker/                     # Backend/Frontend 不可变生产镜像定义
+├── deploy/helm/nexusflow/      # ACK Serverless/ECI Helm chart（默认不开放 Ingress）
 ├── internal/model-sources/     # 上游模型资料快照
 ├── ops/nginx/                  # 双节点共享的 nginx /v1 防洪配置
 ├── scripts/deploy-all-production.sh
@@ -371,13 +376,17 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
   门禁绕行路径；`/api/upload` 有 101 MiB（含 multipart overhead）、超时和单 IP
   并发/速率门禁，`/api/uploads/*` 有连接、速率和单连接带宽保护，Next 必须先鉴权
   再读上传体并流式转发下载；
+- ACK Ingress 必须保持相同的不变量：`/proxy/v1*` 和 `/api/proxy/v1*` 必须进入
+  无对应路由的 API 服务返回 404；ALB 长连接、body、慢请求、连接和速率保护未经
+  等价验收前不得切生产流量；
 - 内置工具、媒体生成和异步任务的非 Token 成本必须先有计费边界。
 
 ## 12. 可观测性、备份与恢复
 
 - PostgreSQL `usage_logs`：用户侧统计和结算关联数据；
 - SLS：路由、延迟、缓存、错误、断流估算等运营遥测；
-- `/api/health`：进程存活；
+- `/api/health` 与 `/v1/health`：PostgreSQL/Redis 依赖健康；
+- `/api/health/live`：仅进程存活；`/api/health/ready`：依赖健康且未进入 drain；
 - `/api/version`：部署版本；
 - PM2：进程、重启、stdout/stderr；
 - 托管 PostgreSQL/Redis 连通性：通过每节点 `/api/health`；

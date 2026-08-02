@@ -1,6 +1,5 @@
 import pg from "pg";
 import dotenv from "dotenv";
-import { getMemoryPgAdapter } from "./memory";
 
 dotenv.config({ quiet: true });
 
@@ -13,6 +12,10 @@ let pool: pg.Pool | null = null;
 function getPool(): pg.Pool {
   if (!pool) {
     if (process.env.USE_PG_MEM === "true") {
+      // pg-mem is a test-only dependency. Keep it out of the production
+      // module graph so minimal runtime images do not need development tools.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { getMemoryPgAdapter } = require("./memory") as typeof import("./memory");
       const memoryPg = getMemoryPgAdapter();
       pool = new memoryPg.Pool() as pg.Pool;
       return pool;
