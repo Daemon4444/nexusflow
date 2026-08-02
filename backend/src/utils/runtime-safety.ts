@@ -20,22 +20,30 @@ export function isManagedReleaseRuntime(env: RuntimeEnvironment = process.env): 
   return env.NEXUSFLOW_RELEASE_RUNTIME === "true";
 }
 
+export function isContainerRuntime(env: RuntimeEnvironment = process.env): boolean {
+  return env.NEXUSFLOW_CONTAINER_RUNTIME === "true";
+}
+
+export function isManagedRuntime(env: RuntimeEnvironment = process.env): boolean {
+  return isManagedReleaseRuntime(env) || isContainerRuntime(env);
+}
+
 export function isProductionRuntime(env: RuntimeEnvironment = process.env): boolean {
   return env.NODE_ENV === "production"
     || env.NEXUSFLOW_ENV === "production"
-    || isManagedReleaseRuntime(env);
+    || isManagedRuntime(env);
 }
 
 export function assertSafeManagedReleaseRuntime(env: RuntimeEnvironment = process.env): void {
-  if (!isManagedReleaseRuntime(env)) return;
+  if (!isManagedRuntime(env)) return;
   if (env.NODE_ENV !== "production") {
-    throw new Error("Managed release runtime requires NODE_ENV=production");
+    throw new Error("Managed runtime requires NODE_ENV=production");
   }
   if (FORBIDDEN_MANAGED_RELEASE_FLAGS.some((key) => env[key] === "true")) {
-    throw new Error("Managed release runtime rejected an unsafe development flag");
+    throw new Error("Managed runtime rejected an unsafe development flag");
   }
   if (FORBIDDEN_MANAGED_PROXY_FLAGS.some((key) => !!env[key]?.trim())) {
-    throw new Error("Managed release runtime rejected an outbound proxy environment");
+    throw new Error("Managed runtime rejected an outbound proxy environment");
   }
 }
 
@@ -44,6 +52,7 @@ export function assertSafeManagedReleaseRuntime(env: RuntimeEnvironment = proces
  * accidentally reopen the API server on a public interface.
  */
 export function resolveBackendBindHost(env: RuntimeEnvironment = process.env): string {
+  if (isContainerRuntime(env)) return "0.0.0.0";
   return isProductionRuntime(env) ? "127.0.0.1" : (env.HOST || "0.0.0.0");
 }
 

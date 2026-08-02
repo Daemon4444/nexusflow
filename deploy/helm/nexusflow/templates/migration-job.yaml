@@ -1,0 +1,51 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nexusflow-migrate-{{ .Release.Revision }}
+  labels:
+    {{- include "nexusflow.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nexusflow
+        app.kubernetes.io/component: migration
+        alibabacloud.com/eci: "true"
+      annotations:
+        k8s.aliyun.com/eci-use-specs: "0.5-1Gi,0.5-2Gi"
+        k8s.aliyun.com/eci-compute-category: "general,economy"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: nexusflow-runtime
+      automountServiceAccountToken: false
+      containers:
+        - name: migrate
+          image: {{ include "nexusflow.image" .Values.images.backend | quote }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: ["node", "backend/dist/db/migrate.js"]
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NEXUSFLOW_ENV
+              value: production
+            - name: NEXUSFLOW_CONTAINER_RUNTIME
+              value: "true"
+          envFrom:
+            - secretRef:
+                name: {{ .Values.runtime.existingSecret }}
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+{{- end }}

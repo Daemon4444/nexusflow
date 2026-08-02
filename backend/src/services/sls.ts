@@ -76,10 +76,12 @@ export function getSlsClient() {
 
 process.on('beforeExit', flush);
 
-async function gracefulFlush() {
+export async function flushSlsLogs(): Promise<void> {
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
   try {
     await flush();
   } catch { /* ignore */ }
 }
-process.on('SIGTERM', () => { gracefulFlush().finally(() => process.exit(0)); });
-process.on('SIGINT', () => { gracefulFlush().finally(() => process.exit(0)); });
