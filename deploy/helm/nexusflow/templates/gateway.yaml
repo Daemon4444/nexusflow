@@ -1,0 +1,328 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nexusflow-gateway
+  labels:
+    {{- include "nexusflow.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+    worker_processes auto;
+    pid /tmp/nginx.pid;
+    error_log /dev/stderr notice;
+
+    events {
+      worker_connections 4096;
+    }
+
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+      access_log /dev/stdout;
+      server_tokens off;
+
+      client_body_temp_path /tmp/client_temp;
+      proxy_temp_path /tmp/proxy_temp;
+      fastcgi_temp_path /tmp/fastcgi_temp;
+      uwsgi_temp_path /tmp/uwsgi_temp;
+      scgi_temp_path /tmp/scgi_temp;
+
+      map $http_x_forwarded_proto $nf_forwarded_proto {
+        default $http_x_forwarded_proto;
+        "" $scheme;
+      }
+      map $http_upgrade $connection_upgrade {
+        default upgrade;
+        "" close;
+      }
+
+      {{- range .Values.gateway.trustedProxyCidrs }}
+      set_real_ip_from {{ . }};
+      {{- end }}
+      real_ip_header X-Forwarded-For;
+      real_ip_recursive on;
+
+      limit_req_status 429;
+      limit_conn_status 429;
+      limit_req_zone $binary_remote_addr zone=nf_v1:10m rate=600r/m;
+      limit_conn_zone $binary_remote_addr zone=nf_v1_conn:10m;
+      limit_req_zone $binary_remote_addr zone=nf_auth:10m rate=30r/m;
+      limit_req_zone $binary_remote_addr zone=nf_admin:10m rate=30r/m;
+      limit_conn_zone $binary_remote_addr zone=nf_audio_conn:10m;
+      limit_req_zone $binary_remote_addr zone=nf_audio_rate:10m rate=6r/m;
+      limit_conn_zone $binary_remote_addr zone=nf_large_conn:10m;
+      limit_req_zone $binary_remote_addr zone=nf_large_rate:10m rate=120r/m;
+      limit_conn_zone $binary_remote_addr zone=nf_embedding_conn:10m;
+      limit_req_zone $binary_remote_addr zone=nf_embedding_rate:10m rate=120r/m;
+      limit_conn_zone $binary_remote_addr zone=nf_upload_conn:10m;
+      limit_req_zone $binary_remote_addr zone=nf_upload_rate:10m rate=12r/m;
+      limit_conn_zone $binary_remote_addr zone=nf_download_conn:10m;
+      limit_req_zone $binary_remote_addr zone=nf_download_rate:10m rate=120r/m;
+
+      upstream nexusflow_api {
+        server nexusflow-api:3001;
+        keepalive 64;
+      }
+      upstream nexusflow_web {
+        server nexusflow-web:3000;
+        keepalive 32;
+      }
+
+      server {
+        listen 8080;
+        server_name _;
+        client_max_body_size 1m;
+        client_body_timeout 10s;
+
+        location = /_gateway/health {
+          access_log off;
+          default_type text/plain;
+          return 200 "ok\n";
+        }
+        location = /_internal { return 404; }
+        location ^~ /_internal/ { return 404; }
+        location = /proxy/v1 { return 404; }
+        location ^~ /proxy/v1/ { return 404; }
+        location = /api/proxy/v1 { return 404; }
+        location ^~ /api/proxy/v1/ { return 404; }
+
+        location = /v1/chat/completions { include /etc/nginx/snippets/nexusflow-large.conf; }
+        location = /v1/responses { include /etc/nginx/snippets/nexusflow-large.conf; }
+        location = /v1/messages { include /etc/nginx/snippets/nexusflow-large.conf; }
+
+        location = /v1/embeddings {
+          client_max_body_size 8m;
+          client_body_timeout 15s;
+          limit_conn nf_embedding_conn 10;
+          limit_req zone=nf_embedding_rate burst=20 nodelay;
+          include /etc/nginx/snippets/nexusflow-api-proxy.conf;
+        }
+
+        location = /v1/audio/transcriptions {
+          client_max_body_size 1m;
+          client_body_timeout 10s;
+          client_body_buffer_size 128k;
+          limit_conn nf_audio_conn 2;
+          limit_req zone=nf_audio_rate burst=2 nodelay;
+          include /etc/nginx/snippets/nexusflow-api-proxy.conf;
+        }
+
+        location = /api/upload {
+          client_max_body_size 101m;
+          client_body_timeout 30s;
+          limit_conn nf_upload_conn 2;
+          limit_req zone=nf_upload_rate burst=2 nodelay;
+          include /etc/nginx/snippets/nexusflow-web-proxy.conf;
+        }
+        location = /api/uploads { return 404; }
+        location ^~ /api/uploads/ {
+          client_max_body_size 1m;
+          client_body_timeout 10s;
+          limit_conn nf_download_conn 8;
+          limit_req zone=nf_download_rate burst=20 nodelay;
+          limit_rate_after 1m;
+          limit_rate 10m;
+          include /etc/nginx/snippets/nexusflow-web-proxy.conf;
+        }
+
+        location = /v1 {
+          limit_req zone=nf_v1 burst=100 nodelay;
+          limit_conn nf_v1_conn 50;
+          include /etc/nginx/snippets/nexusflow-api-proxy.conf;
+        }
+        location /v1/ {
+          limit_req zone=nf_v1 burst=100 nodelay;
+          limit_conn nf_v1_conn 50;
+          include /etc/nginx/snippets/nexusflow-api-proxy.conf;
+        }
+        location /api/auth/ {
+          limit_req zone=nf_auth burst=20 nodelay;
+          include /etc/nginx/snippets/nexusflow-api-proxy.conf;
+        }
+        location /api/ {
+          include /etc/nginx/snippets/nexusflow-api-proxy.conf;
+        }
+        location /admin {
+          auth_basic "Admin Dashboard";
+          auth_basic_user_file /etc/nginx/auth/.htpasswd;
+          limit_req zone=nf_admin burst=10 nodelay;
+          include /etc/nginx/snippets/nexusflow-web-proxy.conf;
+        }
+        location / {
+          include /etc/nginx/snippets/nexusflow-web-proxy.conf;
+        }
+      }
+    }
+  nexusflow-api-proxy.conf: |
+    proxy_pass http://nexusflow_api;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header Connection "";
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
+    proxy_set_header X-Request-ID $request_id;
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 3600s;
+    proxy_request_buffering off;
+    proxy_buffering off;
+    add_header X-Accel-Buffering no;
+  nexusflow-web-proxy.conf: |
+    proxy_pass http://nexusflow_web;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
+    proxy_set_header X-Request-ID $request_id;
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 3600s;
+    proxy_request_buffering off;
+    proxy_buffering off;
+  nexusflow-large.conf: |
+    client_max_body_size 50m;
+    client_body_timeout 30s;
+    limit_conn nf_large_conn 10;
+    limit_req zone=nf_large_rate burst=20 nodelay;
+    include /etc/nginx/snippets/nexusflow-api-proxy.conf;
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nexusflow-gateway
+  labels:
+    {{- include "nexusflow.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  replicas: {{ .Values.gateway.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nexusflow
+      app.kubernetes.io/component: gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nexusflow
+        app.kubernetes.io/component: gateway
+        alibabacloud.com/eci: "true"
+      annotations:
+        k8s.aliyun.com/eci-use-specs: {{ .Values.gateway.eciSpecs | quote }}
+        k8s.aliyun.com/eci-compute-category: {{ .Values.gateway.computeCategory | quote }}
+        # Gateway config changes require a chart version bump; the release
+        # checksum then forces a zero-downtime rolling update.
+        checksum/config: {{ printf "%s:%s" .Chart.Version (toJson .Values.gateway) | sha256sum }}
+    spec:
+      serviceAccountName: nexusflow-runtime
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 620
+      topologySpreadConstraints:
+        - maxSkew: 1
+          minDomains: 2
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: nexusflow
+              app.kubernetes.io/component: gateway
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          image: {{ include "nexusflow.image" .Values.images.gateway | quote }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            {{- toYaml .Values.gateway.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /_gateway/health
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /_gateway/health
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health/ready
+              port: http
+            periodSeconds: 3
+            timeoutSeconds: 2
+            failureThreshold: 2
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10; nginx -s quit"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: config
+              mountPath: /etc/nginx/snippets
+              readOnly: true
+            - name: auth
+              mountPath: /etc/nginx/auth
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          configMap:
+            name: nexusflow-gateway
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+              - key: nexusflow-api-proxy.conf
+                path: nexusflow-api-proxy.conf
+              - key: nexusflow-web-proxy.conf
+                path: nexusflow-web-proxy.conf
+              - key: nexusflow-large.conf
+                path: nexusflow-large.conf
+        - name: auth
+          secret:
+            secretName: {{ .Values.gateway.existingAuthSecret }}
+            items:
+              - key: .htpasswd
+                path: .htpasswd
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexusflow-gateway
+  labels:
+    {{- include "nexusflow.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  selector:
+    app.kubernetes.io/name: nexusflow
+    app.kubernetes.io/component: gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+  type: ClusterIP

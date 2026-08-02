@@ -45,6 +45,7 @@ import {
   restorePublicModelAlias,
   rewriteUpstreamModelAliasText,
 } from "../utils/upstream-model-aliases";
+import { startSseHeartbeat } from "../utils/sse-heartbeat";
 
 /** 记录 response 归属（POST 成功后调用）。失败不影响主流程，但会导致该 response 后续不可检索（fail-closed）。 */
 async function recordResponseOwnership(responseId: string | null | undefined, userId: string | null): Promise<void> {
@@ -474,6 +475,7 @@ router.post("/", async (req: Request, res: Response) => {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      const heartbeat = startSseHeartbeat(res);
 
       let fullResponse = "";
       const reader = response.body as any;
@@ -485,7 +487,7 @@ router.post("/", async (req: Request, res: Response) => {
             const text = typeof chunk === "string" ? chunk : iterDecoder.decode(chunk, { stream: true });
             const rewritten = rewriteUpstreamModelAliasText(text, modelId);
             fullResponse += rewritten;
-            res.write(rewritten);
+            heartbeat.write(rewritten);
           }
         } else if (reader && reader.getReader) {
           const r = reader.getReader();
@@ -495,12 +497,12 @@ router.post("/", async (req: Request, res: Response) => {
             if (done) break;
             const rewritten = rewriteUpstreamModelAliasText(decoder.decode(value, { stream: true }), modelId);
             fullResponse += rewritten;
-            res.write(rewritten);
+            heartbeat.write(rewritten);
           }
         }
       } catch (streamErr: any) {
         const errMsg = streamErr?.name === "AbortError" ? "upstream_timeout" : "upstream_stream_error";
-        res.write(`event: error\ndata: ${JSON.stringify({ error: { message: errMsg, type: "server_error" } })}\n\n`);
+        heartbeat.write(`event: error\ndata: ${JSON.stringify({ error: { message: errMsg, type: "server_error" } })}\n\n`);
       }
       res.end();
 

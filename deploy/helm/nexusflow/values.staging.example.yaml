@@ -1,0 +1,39 @@
+# Safe staging overrides. Image repositories and immutable digests must be
+# supplied by the release command and are intentionally absent here.
+runtime:
+  existingSecret: nexusflow-runtime-secrets
+  backendUrl: http://nexusflow-api:3001
+  shutdownTimeoutMs: 540000
+  sseHeartbeatIntervalMs: 15000
+
+backend:
+  replicas: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 65
+    # Enable only after the Prometheus Adapter Custom Metrics API has been
+    # verified to return this per-Pod metric.
+    inflight:
+      enabled: false
+      metricName: nexusflow_public_api_inflight_requests
+      targetAverageValue: "20"
+
+frontend:
+  replicas: 2
+
+gateway:
+  replicas: 2
+  existingAuthSecret: nexusflow-gateway-auth
+  trustedProxyCidrs:
+    - 172.27.0.0/16
+
+ingress:
+  enabled: false
+  className: alb
+  host: staging.nexusflow.hk
+  albConfigName: ""
+
+migrations:
+  enabled: false

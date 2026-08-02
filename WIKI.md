@@ -51,6 +51,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | `docs/MODEL_ONBOARDING.md` | 新模型上线的强制 Playbook |
 | `docs/cloud-native-microservices-architecture-spec.md` | ACK 云原生与微服务目标架构、迁移门禁和验收设计；Draft，不代表已上线 |
 | `docs/ack-serverless-deployment-runbook.md` | ACK Serverless/ECI 预发部署、验收、灰度和 ECS 回滚流程；入口默认关闭，不代表已上线 |
+| `docs/ack-serverless-cloud-change-plan.md` | ACK 风控解除后的云侧只读门禁、唯一执行顺序和禁止项 |
 | `docs/whole-site-reliability-ux-spec-2026-07-21.md` | 2026-07-21 整站功能、协议、视觉与发布验收记录 |
 | `MODELS.md` | 人工维护的模型说明；运行时目录以 API/代码/DB 覆盖层为准 |
 | `REVIEW_SPEC_2026-07.md` | 2026-07-20 审计快照，不代表所有事项仍未完成 |
@@ -67,7 +68,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 后端 | Express 5、TypeScript，生产运行编译后的 `backend/dist/index.js` |
 | Runtime | 生产 Node.js 22.22.1；CI 使用 Node.js 24 |
 | 数据库 | 阿里云托管 PostgreSQL 16，两应用节点共享 |
-| 缓存/共享状态 | 阿里云托管 Redis 7，两应用节点共享 |
+| 缓存/共享状态 | 阿里云托管 Redis 5.0 双副本，两应用节点共享；升级 Redis 7 必须独立演练，不与 ACK 迁移混做 |
 | 应用节点 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
@@ -76,7 +77,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
 
-2026-08-02 已在开发分支加入 ACK Serverless Pro/ECI 容器化基线：前后端生产镜像、Helm chart、独立 live/ready 探针、SSE 排空与 CI 校验。该基线尚未创建云资源、尚未接入生产流量；当前生产仍是上表所述的双 ECS + PM2 + nginx。Serverless Ingress 和 migration 在 chart 中默认关闭。
+2026-08-02 已在开发分支加入 ACK Serverless Pro/ECI 容器化基线：前后端生产镜像、双副本入口 Gateway、Helm chart、独立 live/ready 探针、SSE 排空与 15 秒心跳、私网 Prometheus inflight 指标和 CI 校验。Gateway 固化现网 body、限速、Basic Auth 与禁止代理绕行规则，ALB 不直接暴露 API/Web。该基线尚未创建集群、尚未接入生产流量；当前生产仍是上表所述的双 ECS + PM2 + nginx。Serverless Ingress、migration 和 inflight HPA 在 chart 中默认关闭，后者必须等 Custom Metrics API 验证后才允许开启。
 
 常用只读检查：
 
@@ -108,7 +109,7 @@ Internet
 
 共享托管服务
   ├─ PostgreSQL 16
-  └─ Redis 7
+  └─ Redis 5.0（现网兼容基线）
 ```
 
 后端虽然监听 `0.0.0.0:3001` 以兼容 PM2 cluster，但主机防火墙阻止公网直连；外部流量应只经 ALB 和 nginx。不要未经验证就把 cluster 模式改为 `app.listen(..., "127.0.0.1")`，历史上这会导致 PM2 cluster 不监听并产生 502。
@@ -378,9 +379,10 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
   门禁绕行路径；`/api/upload` 有 101 MiB（含 multipart overhead）、超时和单 IP
   并发/速率门禁，`/api/uploads/*` 有连接、速率和单连接带宽保护，Next 必须先鉴权
   再读上传体并流式转发下载；
-- ACK Ingress 必须保持相同的不变量：`/proxy/v1*` 和 `/api/proxy/v1*` 必须进入
-  无对应路由的 API 服务返回 404；ALB 长连接、body、慢请求、连接和速率保护未经
-  等价验收前不得切生产流量；
+- ACK Ingress 只允许转发到集群内 Gateway；Gateway 直接 404 `/proxy/v1*` 和
+  `/api/proxy/v1*`，并保持现网 body、慢请求、连接、速率与 Basic Auth 门禁。
+  阿里云 ALB idle/request 上限为 60/180 秒，所有 SSE 路径必须以默认 15 秒合法
+  注释心跳覆盖上游静默窗口；等价验收前不得切生产流量；
 - 内置工具、媒体生成和异步任务的非 Token 成本必须先有计费边界。
 
 ## 12. 可观测性、备份与恢复

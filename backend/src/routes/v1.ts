@@ -45,6 +45,7 @@ import {
   observeOpenAiStreamLine,
 } from "../utils/openai-stream-state";
 import { restorePublicModelAlias } from "../utils/upstream-model-aliases";
+import { startSseHeartbeat } from "../utils/sse-heartbeat";
 
 const router = Router();
 
@@ -890,6 +891,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      const heartbeat = startSseHeartbeat(res);
 
       // Collect all chunks for billing + track TTFT/TPOT
       let fullResponse = "";
@@ -922,14 +924,14 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
                 },
               })}`;
               fullResponse += `${safeError}\n\n`;
-              res.write(`${safeError}\n\n`);
+              heartbeat.write(`${safeError}\n\n`);
               errorEventForwarded = true;
             }
             continue;
           }
           const rewritten = normalizeOpenAiStreamLine(line, logId, modelId);
           fullResponse += `${rewritten}\n`;
-          res.write(`${rewritten}\n`);
+          heartbeat.write(`${rewritten}\n`);
         }
       };
       try {
@@ -973,7 +975,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const streamOutcome = finishOpenAiStream(streamState, streamReadError);
       if (streamOutcome.ok && streamOutcome.synthesizeDone) {
         fullResponse += "data: [DONE]\n\n";
-        res.write("data: [DONE]\n\n");
+        heartbeat.write("data: [DONE]\n\n");
         logToSLS({
           logId,
           model: modelId,
@@ -993,7 +995,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           },
         })}`;
         fullResponse += `${safeError}\n\n`;
-        res.write(`${safeError}\n\n`);
+        heartbeat.write(`${safeError}\n\n`);
         errorEventForwarded = true;
       }
       res.end();

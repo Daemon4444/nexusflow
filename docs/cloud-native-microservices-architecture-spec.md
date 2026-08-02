@@ -38,7 +38,7 @@ Internet
      -> ECS node A -> nginx -> Express/PM2 cluster + Next.js
      -> ECS node B -> nginx -> Express/PM2 cluster + Next.js
                          |-> RDS PostgreSQL 16
-                         |-> Redis 7
+                         |-> Redis 5.0（现网基线，独立评审后再升级）
                          |-> Provider APIs
                          |-> SLS
 ```
