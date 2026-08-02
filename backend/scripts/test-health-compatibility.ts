@@ -3,7 +3,11 @@ import express from "express";
 import type { Server } from "node:http";
 import {
   createHealthCheckHandler,
+  createLivenessHandler,
+  createReadinessHandler,
   HEALTH_PATHS,
+  LIVENESS_PATH,
+  READINESS_PATH,
   type HealthCheckDependencies,
 } from "../src/services/health-check";
 
@@ -29,6 +33,20 @@ async function withHealthServer(
     [...HEALTH_PATHS],
     createHealthCheckHandler(dependencies, (message) => failures.push(message))
   );
+  let ready = true;
+  app.get(LIVENESS_PATH, createLivenessHandler());
+  app.get(
+    READINESS_PATH,
+    createReadinessHandler(
+      () => ready,
+      dependencies,
+      (message) => failures.push(message)
+    )
+  );
+  app.post("/__test/drain", (_req, res) => {
+    ready = false;
+    res.status(204).end();
+  });
   const server: Server = await new Promise((resolve) => {
     const listening = app.listen(0, "127.0.0.1", () => resolve(listening));
   });
@@ -36,7 +54,7 @@ async function withHealthServer(
   assert(address && typeof address === "object");
   try {
     await run(`http://127.0.0.1:${address.port}`);
-    assert.equal(failures.length, state === "ok" ? 0 : HEALTH_PATHS.length + 1);
+    assert.equal(failures.length, state === "ok" ? 0 : HEALTH_PATHS.length + 2);
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => error ? reject(error) : resolve());
@@ -79,6 +97,16 @@ async function assertState(state: DependencyState): Promise<void> {
     const head = await fetch(`${base}/api/health`, { method: "HEAD" });
     assert.equal(head.status, expectedStatus);
     assert.equal(await head.text(), "");
+
+    const live = await fetch(`${base}${LIVENESS_PATH}`);
+    assert.equal(live.status, 200, "liveness must not depend on PostgreSQL or Redis");
+
+    const readyBeforeDrain = await fetch(`${base}${READINESS_PATH}`);
+    assert.equal(readyBeforeDrain.status, expectedStatus);
+    await fetch(`${base}/__test/drain`, { method: "POST" });
+    const readyAfterDrain = await fetch(`${base}${READINESS_PATH}`);
+    assert.equal(readyAfterDrain.status, 503);
+    assert.equal((await readyAfterDrain.json() as any).status, "draining");
   });
 }
 

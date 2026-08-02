@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --watch src --exec ts-node src/index.ts",
-    "build": "tsc && node scripts/write-build-info.js",
+    "build": "tsc && node scripts/copy-migrations.js && node scripts/write-build-info.js",
     "start": "node dist/index.js",
     "test": "echo \"Use npm run test:smoke\" && exit 1",
     "test:smoke": "ts-node scripts/smoke.ts",
@@ -17,6 +17,7 @@
     "test:auth-login-rate-limit": "ts-node scripts/test-auth-login-rate-limit-isolated.ts",
     "test:health-compatibility": "ts-node scripts/test-health-compatibility.ts",
     "test:runtime-safety": "ts-node scripts/test-runtime-safety.ts",
+    "test:runtime-lifecycle": "ts-node scripts/test-runtime-lifecycle.ts",
     "test:session-token-security": "USE_PG_MEM=true ts-node scripts/test-session-token-security.ts",
     "test:session-token-security:postgres": "ts-node scripts/test-session-token-security-postgres.ts",
     "test:api-key-rate-limit-security": "USE_PG_MEM=true ts-node scripts/test-api-key-rate-limit-security.ts",

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["images", "runtime", "backend", "frontend", "ingress"],
+  "properties": {
+    "images": {
+      "type": "object",
+      "required": ["backend", "frontend"],
+      "properties": {
+        "backend": { "$ref": "#/definitions/image" },
+        "frontend": { "$ref": "#/definitions/image" },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["existingSecret", "backendUrl", "shutdownTimeoutMs"],
+      "properties": {
+        "existingSecret": { "type": "string", "minLength": 1 },
+        "backendUrl": { "type": "string", "pattern": "^http://[a-z0-9.-]+:[0-9]+$" },
+        "shutdownTimeoutMs": { "type": "integer", "minimum": 10000, "maximum": 540000 }
+      }
+    },
+    "backend": { "$ref": "#/definitions/workload" },
+    "frontend": { "$ref": "#/definitions/workload" },
+    "ingress": {
+      "type": "object",
+      "required": ["enabled", "className", "host", "albConfigName"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "className": { "type": "string", "minLength": 1 },
+        "host": { "type": "string", "minLength": 1 },
+        "albConfigName": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "enabled": { "const": true } } },
+          "then": { "properties": { "albConfigName": { "minLength": 1 } } }
+        }
+      ]
+    }
+  },
+  "definitions": {
+    "image": {
+      "type": "object",
+      "required": ["repository", "digest"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "required": ["replicas", "eciSpecs", "computeCategory", "resources"],
+      "properties": {
+        "replicas": { "type": "integer", "minimum": 2 },
+        "eciSpecs": { "type": "string", "minLength": 1 },
+        "computeCategory": { "type": "string", "minLength": 1 },
+        "resources": { "type": "object" },
+        "autoscaling": { "type": "object" }
+      }
+    }
+  }
+}

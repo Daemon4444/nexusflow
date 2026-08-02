@@ -2,7 +2,7 @@
 
 > 状态：Draft / 待评审
 >
-> 版本：v0.1
+> 版本：v0.2
 >
 > 日期：2026-08-02
 >
@@ -12,7 +12,7 @@
 
 ## 1. 摘要与结论
 
-NexusFlow 的目标形态是以阿里云 ACK Auto Mode 为主要计算底座、ACR 为镜像仓库、ALB Ingress 为公网入口，继续使用托管 RDS PostgreSQL、Tair/Redis、SLS，并按需接入 ARMS Prometheus、RocketMQ 与 MSE。
+NexusFlow 的目标形态是以阿里云 ACK Serverless Pro（ECI Pod）为当前主要计算底座、ACR 为镜像仓库、ALB Ingress 为公网入口，继续使用托管 RDS PostgreSQL、Tair/Redis、SLS，并按需接入 ARMS Prometheus、RocketMQ 与 MSE。流量和常驻资源达到明确阈值后，再比较固定节点 ACK/Auto Mode 的单位成本；应用 Helm 与服务边界不因底层计算形态变化而重写。
 
 本次设计不把现有单体一次拆成大量服务，也不改变公开 API 地址。迁移遵循“先容器化并保证行为完全一致，再按扩缩容、数据一致性和故障域拆分”的顺序。MSE 是后续的流量治理和微服务治理层，不是承载应用实例的计算平台；第一阶段不引入 Nacos，也不让 MSE 成为迁移前置条件。
 
@@ -118,15 +118,18 @@ Internet
 
 ## 4. 平台选型
 
-### 4.1 选择 ACK Auto Mode
+### 4.1 当前选择 ACK Serverless Pro
 
-ACK Auto Mode 作为目标计算平台，理由如下：
+ACK Serverless Pro + ECI 作为当前目标计算平台，理由如下：
 
 - 适合部署多个具有不同扩缩容特征的容器工作负载。
-- 支持 HPA、自定义指标和节点自动扩容。
+- 当前流量下无需预购常驻 Worker ECS，按 Pod 实际规格和运行时间计费。
+- 支持 HPA、自定义指标和弹性 Pod，仍保留标准 Kubernetes API。
 - 可使用托管 ALB Ingress，保持当前 ALB 能力并获得声明式路由。
 - 能用 Deployment、PDB、拓扑分布、NetworkPolicy 和 ServiceAccount 表达运行约束。
 - 后续可平滑接入 MSE、Prometheus、GitOps 与多环境治理。
+
+Serverless 不等于天然无风险。ECI 出网需要 NAT/SNAT，RDS/Redis 必须放行 Pod 地址段，ALB idle timeout 必须覆盖长 SSE，扩缩容不能只看 CPU。ACK Serverless Pro 控制面当前处于公测免管理费阶段，正式采购前必须重新确认价格；当常驻 Pod 成本持续高于固定节点时，评估迁移到 ACK Auto Mode/托管版节点池。
 
 ### 4.2 MSE 的定位
 
@@ -541,9 +544,9 @@ P95 延迟用于触发预警和辅助扩容，不能单独作为缩容依据，�
 
 交付：
 
-- 50%/100% 灰度，启用 HPA 与节点弹性。
+- 50%/100% 灰度，启用 HPA 与 ECI Pod 弹性。
 - ECS 进入热备观察期，不立刻销毁。
-- 验证扩容、缩容、节点维护、Pod 驱逐和长流排空。
+- 验证扩容、缩容、底层设施维护、Pod 驱逐和长流排空。
 
 退出条件：连续 7 天达到 SLO，峰值扩缩容与回退均演练通过。
 
@@ -622,7 +625,9 @@ P95 延迟用于触发预警和辅助扩容，不能单独作为缩容依据，�
 
 | 风险 | 缓解措施 |
 | --- | --- |
-| Kubernetes 增加运维复杂度 | 使用 ACK Auto Mode；小步迁移；先三个工作负载；标准 Helm/runbook |
+| Kubernetes 增加运维复杂度 | 使用 ACK Serverless Pro 避免首期节点管理；小步迁移；先三个工作负载；标准 Helm/runbook |
+| Serverless 长期常驻成本高于固定节点 | 记录 Pod 实际规格与利用率；达到稳定负载阈值后复算 ACK Auto Mode/节点池，不绑定计算形态 |
+| ECI 出网或数据层网络未打通 | 切流前验证 NAT/SNAT、RDS/Redis 白名单、DNS 和 Provider allowlist；入口默认关闭 |
 | Pod 扩容压垮 RDS | 全局连接预算、连接池代理评估、HPA 上限和 DB 指标门禁 |
 | 长 SSE 阻止缩容 | active stream 指标、drain、PDB、长 grace period、异步任务分离 |
 | 服务拆分导致资金不一致 | Billing 最后拆；同步事务不变；outbox + 幂等；持续对账 |
@@ -684,9 +689,10 @@ P95 延迟用于触发预警和辅助扩容，不能单独作为缩容依据，�
 
 ## 24. 官方参考
 
-- [ACK Auto Mode 概述](https://help.aliyun.com/en/ack/ack-managed-and-ack-dedicated/user-guide/auto-mode-overview/)
-- [ACK 弹性伸缩概述](https://help.aliyun.com/en/ack/ack-managed-and-ack-dedicated/user-guide/auto-scaling-overview/)
-- [ACK ALB Ingress 管理](https://help.aliyun.com/en/ack/ack-managed-and-ack-dedicated/user-guide/alb-ingress-management-1/)
+- [ACK Serverless 集群计费说明](https://help.aliyun.com/en/ack/serverless-kubernetes/product-overview/ack-serverless-cluster-billing-instructions)
+- [ECI 产品计费](https://help.aliyun.com/en/eci/product-overview/elastic-container-instances)
+- [ECI Pod 规格](https://help.aliyun.com/en/eci/user-guide/specify-the-number-of-vcpus-and-memory-size-to-create-a-pod)
+- [ACK Serverless ALB Ingress](https://help.aliyun.com/en/ack/serverless-kubernetes/user-guide/advanced-alb-ingress-settings)
 - [MSE 产品概述](https://help.aliyun.com/en/mse/product-overview/what-is-mse/)
 - [MSE 路由管理](https://help.aliyun.com/en/mse/user-guide/routing-management-new-version/)
 - [MSE 云原生网关能力](https://help.aliyun.com/en/mse/user-guide/cloud-native-gateway-features)

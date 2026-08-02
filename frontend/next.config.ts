@@ -30,6 +30,7 @@ const buildSha = resolveBuildSha();
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  output: "standalone",
   outputFileTracingRoot: path.join(configDir, "../"),
   generateBuildId: async () => buildSha,
   async headers() {

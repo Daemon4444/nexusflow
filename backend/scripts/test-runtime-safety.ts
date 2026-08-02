@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import {
   assertSafeManagedReleaseRuntime,
   isExplicitDevelopmentFeatureEnabled,
+  isContainerRuntime,
+  isManagedRuntime,
   resolveBackendBindHost,
 } from "../src/utils/runtime-safety";
 
@@ -16,6 +18,16 @@ assert.equal(
 );
 assert.equal(resolveBackendBindHost(env({ NODE_ENV: "development", HOST: "127.0.0.2" })), "127.0.0.2");
 assert.equal(resolveBackendBindHost(env({ NODE_ENV: "development" })), "0.0.0.0");
+assert.equal(
+  resolveBackendBindHost(env({
+    NODE_ENV: "production",
+    NEXUSFLOW_CONTAINER_RUNTIME: "true",
+    HOST: "127.0.0.1",
+  })),
+  "0.0.0.0"
+);
+assert.equal(isContainerRuntime(env({ NEXUSFLOW_CONTAINER_RUNTIME: "true" })), true);
+assert.equal(isManagedRuntime(env({ NEXUSFLOW_CONTAINER_RUNTIME: "true" })), true);
 
 assert.doesNotThrow(() => assertSafeManagedReleaseRuntime(env({
   NODE_ENV: "production",
@@ -31,6 +43,13 @@ assert.throws(
   })),
   /requires NODE_ENV=production/
 );
+assert.throws(
+  () => assertSafeManagedReleaseRuntime(env({
+    NODE_ENV: "development",
+    NEXUSFLOW_CONTAINER_RUNTIME: "true",
+  })),
+  /requires NODE_ENV=production/
+);
 for (const unsafeFlag of [
   "ENABLE_MOCK_PAYMENT",
   "ENABLE_SEED_API_KEYS",
@@ -41,6 +60,14 @@ for (const unsafeFlag of [
     () => assertSafeManagedReleaseRuntime(env({
       NODE_ENV: "production",
       NEXUSFLOW_RELEASE_RUNTIME: "true",
+      [unsafeFlag]: "true",
+    })),
+    /rejected an unsafe development flag/
+  );
+  assert.throws(
+    () => assertSafeManagedReleaseRuntime(env({
+      NODE_ENV: "production",
+      NEXUSFLOW_CONTAINER_RUNTIME: "true",
       [unsafeFlag]: "true",
     })),
     /rejected an unsafe development flag/

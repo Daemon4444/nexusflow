@@ -3,6 +3,8 @@ import { db } from "../db/client";
 import { getRedis } from "./redis";
 
 export const HEALTH_PATHS = ["/api/health", "/v1/health"] as const;
+export const LIVENESS_PATH = "/api/health/live" as const;
+export const READINESS_PATH = "/api/health/ready" as const;
 
 export interface HealthCheckDependencies {
   checkPostgres: () => Promise<unknown>;
@@ -44,6 +46,30 @@ export function createHealthCheckHandler(
         timestamp: new Date().toISOString(),
       });
     }
+  };
+}
+
+export function createLivenessHandler(): RequestHandler {
+  return (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  };
+}
+
+export function createReadinessHandler(
+  isReady: () => boolean,
+  dependencies: HealthCheckDependencies = runtimeDependencies,
+  logFailure?: HealthFailureLogger
+): RequestHandler {
+  const dependencyHandler = createHealthCheckHandler(dependencies, logFailure);
+  return (req, res, next) => {
+    if (!isReady()) {
+      res.status(503).json({
+        status: "draining",
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+    void dependencyHandler(req, res, next);
   };
 }
 

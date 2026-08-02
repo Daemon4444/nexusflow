@@ -1,0 +1,73 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nexusflow-api
+  labels:
+    {{- include "nexusflow.labels" . | nindent 4 }}
+  annotations:
+    alb.ingress.kubernetes.io/albconfig: {{ .Values.ingress.albConfigName | quote }}
+    alb.ingress.kubernetes.io/healthcheck-enabled: "true"
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health/ready
+    alb.ingress.kubernetes.io/healthcheck-method: GET
+    alb.ingress.kubernetes.io/healthcheck-code: http_2xx
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "3"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          # Preserve the current nginx security invariant: legacy Next proxy
+          # aliases must never become a second public /v1 admission path. The
+          # API service has no /proxy/v1 route and therefore returns 404.
+          - path: /proxy/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: nexusflow-api
+                port:
+                  number: 3001
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: nexusflow-api
+                port:
+                  number: 3001
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: nexusflow-api
+                port:
+                  number: 3001
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nexusflow-web
+  labels:
+    {{- include "nexusflow.labels" . | nindent 4 }}
+  annotations:
+    alb.ingress.kubernetes.io/albconfig: {{ .Values.ingress.albConfigName | quote }}
+    alb.ingress.kubernetes.io/healthcheck-enabled: "true"
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-method: GET
+    alb.ingress.kubernetes.io/healthcheck-code: http_2xx
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nexusflow-web
+                port:
+                  number: 3000
+{{- end }}

@@ -130,10 +130,10 @@ assert.match(
   source,
   /PEER_BASELINE_PROVIDER_COST_CAPABLE=true/
 );
-assert.match(source, /PROVIDER_COST_EXPECTED_TIERS=12/);
-assert.match(source, /PROVIDER_COST_EXPECTED_MODELS=9/);
+assert.match(source, /PROVIDER_COST_EXPECTED_TIERS=13/);
+assert.match(source, /PROVIDER_COST_EXPECTED_MODELS=10/);
 assert.match(source, /PROVIDER_COST_EXPECTED_FULL_TIERS=7/);
-assert.match(source, /PROVIDER_COST_EXPECTED_PARTIAL_TIERS=5/);
+assert.match(source, /PROVIDER_COST_EXPECTED_PARTIAL_TIERS=6/);
 assert.match(
   activation,
   /--expected-models "\$PROVIDER_COST_EXPECTED_MODELS"/
