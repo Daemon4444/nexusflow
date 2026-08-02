@@ -224,6 +224,8 @@ Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720
 
 Provider 选择综合静态注册、数据库 Provider、`provider_capacity`、渠道配置、健康、区域和用户策略。区域支持已预埋北京/新加坡/美国/法兰克福，但只有配置了对应渠道与区域 Key 才生效；不能因为代码存在就宣称海外区域已可用。
 
+Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移时同时拆分。当调用规模和多 Provider 复杂度足够大后，它将独立为 NexusFlow 核心平台能力，覆盖同模型多 Provider、动态权重/优先级、主备切换、客户/地区/价格/SLA 路由、容量租约、熔断/恢复/健康评分、手动锁定和成本质量最优选路。自动优化必须先满足模型兼容、客户 SLA、地域合规、容量和健康门禁，未知成本不得当作 0。每笔选路必须保存策略版本、候选集、中选理由、重试/熔断链、价本版本和人工干预，使决策可解释、可回放、可审计。
+
 `GET /api/models` 与 `GET /v1/models` 会返回模型渠道可用性。启用映射但缺少 Provider 凭据时，目录标记 `temporarily_unavailable`，收费接口在预占前返回 `provider_not_configured`；不得把空凭据请求发到上游后再暴露 401。该状态是平台级渠道状态，不替代用户级模型白名单或路由策略判断。
 
 上线新模型必须完整阅读 `docs/MODEL_ONBOARDING.md`。至少覆盖：

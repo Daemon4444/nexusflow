@@ -5,13 +5,26 @@
 ## 开始任务前必须执行
 
 1. **完整阅读 [`WIKI.md`](WIKI.md)**。它是项目全景、架构、不变量、部署和当前边界的唯一事实入口。
-2. 根据任务再读专项文档：
+2. **完整阅读 [`docs/AGENT_PROJECT_MEMORY.md`](docs/AGENT_PROJECT_MEMORY.md)**。它把业务域、请求链路、计费、Provider 路由、双节点发布和历史故障收敛为 Agent 必须掌握的长期记忆。
+3. 根据任务再读专项文档：
    - 新模型：`docs/MODEL_ONBOARDING.md`
    - 模型目录：`MODELS.md` 与实际 `/api/models`
    - 发布回归：`docs/release-regression-test-checklist.md`
    - 海外区域：`docs/overseas-region-deployment-todo.md`
    - 历史审计：`REVIEW_SPEC_2026-07.md`
-3. 先检查当前分支、工作区、GitHub 和必要的生产状态。不要把历史记忆当成当前运行事实。
+4. 先检查当前分支、工作区、GitHub 和必要的生产状态。不要把历史记忆当成当前运行事实。
+
+## 最高优先级生产约束：永远是双应用节点
+
+NexusFlow 现网不是单机，也不存在“只把主节点部署好就完成”的操作。
+
+- ALB 后同时有两个生产应用节点；登录 `ssh nexus` 只是进入编排主机，不代表另一节点不需要变更和验证。
+- 任何会影响运行时的代码、构建产物、migration、nginx、PM2、配置契约、回滚或健康检查变更，必须覆盖两节点。
+- 必须只构建一次，将同一 Git SHA 的不可变制品分发到两节点；禁止两台分别 build。
+- 必须从编排主机运行 `scripts/deploy-all-production.sh`；`deploy-production.sh` 只是被调用的单节点原语，不是完整发布命令。
+- 发布不允许两节点同时离流。必须逐节点摘流、排空、切换、直连验证，再恢复 balanced。
+- 任务只验证了当前主机、只看了公网 ALB 结果、或两节点 SHA/前端 build/PM2/配置不一致时，必须报告“未完成”，不得宣称上线成功。
+- 只修文档可不重建或重启服务，但 GitHub main、主节点和副节点工作区仍应最终收敛到同一版本。
 
 事实优先级：
 
@@ -31,7 +44,7 @@
 - 生产：SSH `nexus`，目录 `/root/distiny/nexusflow`
 - 前端：Next.js 16 preview、React 19、Tailwind 4
 - 后端：Express 5、TypeScript；生产运行 `backend/dist/index.js`
-- 数据：PostgreSQL 16 + Redis 7
+- 数据：PostgreSQL 16 + Redis 5.0 双副本（现网真实基线）
 - 进程：PM2 后端 cluster ×2、前端 ×1
 - 部署版本：`GET /api/version`
 
