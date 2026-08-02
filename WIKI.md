@@ -49,6 +49,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | `.github/copilot-instructions.md` | GitHub Copilot 自动入口 |
 | `README.md` | 面向开发者和 GitHub 访客的快速介绍 |
 | `docs/MODEL_ONBOARDING.md` | 新模型上线的强制 Playbook |
+| `docs/cloud-native-microservices-architecture-spec.md` | ACK 云原生与微服务目标架构、迁移门禁和验收设计；Draft，不代表已上线 |
 | `docs/whole-site-reliability-ux-spec-2026-07-21.md` | 2026-07-21 整站功能、协议、视觉与发布验收记录 |
 | `MODELS.md` | 人工维护的模型说明；运行时目录以 API/代码/DB 覆盖层为准 |
 | `REVIEW_SPEC_2026-07.md` | 2026-07-20 审计快照，不代表所有事项仍未完成 |
