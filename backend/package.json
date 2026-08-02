@@ -18,6 +18,8 @@
     "test:health-compatibility": "ts-node scripts/test-health-compatibility.ts",
     "test:runtime-safety": "ts-node scripts/test-runtime-safety.ts",
     "test:runtime-lifecycle": "ts-node scripts/test-runtime-lifecycle.ts",
+    "test:runtime-metrics": "ts-node scripts/test-runtime-metrics.ts",
+    "test:sse-heartbeat": "ts-node scripts/test-sse-heartbeat.ts",
     "test:session-token-security": "USE_PG_MEM=true ts-node scripts/test-session-token-security.ts",
     "test:session-token-security:postgres": "ts-node scripts/test-session-token-security-postgres.ts",
     "test:api-key-rate-limit-security": "USE_PG_MEM=true ts-node scripts/test-api-key-rate-limit-security.ts",

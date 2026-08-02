@@ -36,12 +36,24 @@ docker build \
   --tag "nexusflow-frontend:${BUILD_SHA}" \
   .
 
-for image in "nexusflow-backend:${BUILD_SHA}" "nexusflow-frontend:${BUILD_SHA}"; do
+docker build \
+  --file docker/gateway.Dockerfile \
+  --build-arg "BUILD_SHA=$BUILD_SHA" \
+  --build-arg "BUILD_TIME=$BUILD_TIME" \
+  --tag "nexusflow-gateway:${BUILD_SHA}" \
+  .
+
+for image in \
+  "nexusflow-backend:${BUILD_SHA}" \
+  "nexusflow-frontend:${BUILD_SHA}" \
+  "nexusflow-gateway:${BUILD_SHA}"; do
   docker image inspect "$image" >/dev/null
   revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")"
   created="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.created" }}' "$image")"
   [[ "$revision" == "$BUILD_SHA" ]]
   [[ "$created" == "$BUILD_TIME" ]]
 done
+
+[[ "$(docker image inspect --format '{{.Config.User}}' "nexusflow-gateway:${BUILD_SHA}")" == "101" ]]
 
 echo "container images built successfully for ${BUILD_SHA}"

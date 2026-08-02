@@ -53,6 +53,10 @@ import {
   READINESS_PATH,
 } from "./services/health-check";
 import { createRuntimeLifecycle } from "./services/runtime-lifecycle";
+import {
+  createRuntimeMetrics,
+  RUNTIME_METRICS_PATH,
+} from "./services/runtime-metrics";
 import { closeDb } from "./db/client";
 import { closeRedis } from "./services/redis";
 import { flushSlsLogs } from "./services/sls";
@@ -68,6 +72,7 @@ const lifecycle = createRuntimeLifecycle({
   },
   flushTelemetry: flushSlsLogs,
 });
+const runtimeMetrics = createRuntimeMetrics(lifecycle.phase);
 
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
@@ -95,6 +100,11 @@ app.use(cors({
 app.get([...HEALTH_PATHS], healthCheckHandler);
 app.get(LIVENESS_PATH, createLivenessHandler());
 app.get(READINESS_PATH, createReadinessHandler(lifecycle.isReady));
+// Scraped only through the private Pod network. The public Ingress terminates
+// at the Gateway, which explicitly rejects /_internal, so runtime capacity
+// signals never become a public diagnostics endpoint.
+app.get(RUNTIME_METRICS_PATH, runtimeMetrics.handler);
+app.use(runtimeMetrics.middleware);
 // Audio has its own 64 KB parser and performs API-key admission before reading
 // any request body. Mount it before the broad model-context JSON parser.
 app.use("/v1/audio", audioRouter);

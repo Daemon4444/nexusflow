@@ -19,12 +19,13 @@ SMOKE_SUFFIX="$$"
 NETWORK_NAME="nexusflow-runtime-smoke-${SMOKE_SUFFIX}"
 API_CONTAINER="nexusflow-api-smoke-${SMOKE_SUFFIX}"
 WEB_CONTAINER="nexusflow-web-smoke-${SMOKE_SUFFIX}"
+GATEWAY_CONTAINER="nexusflow-gateway-smoke-${SMOKE_SUFFIX}"
 PG_CONTAINER="nexusflow-pg-smoke-${SMOKE_SUFFIX}"
 REDIS_CONTAINER="nexusflow-redis-smoke-${SMOKE_SUFFIX}"
 
 cleanup() {
   docker rm -f \
-    "$API_CONTAINER" "$WEB_CONTAINER" "$PG_CONTAINER" "$REDIS_CONTAINER" \
+    "$API_CONTAINER" "$WEB_CONTAINER" "$GATEWAY_CONTAINER" "$PG_CONTAINER" "$REDIS_CONTAINER" \
     >/dev/null 2>&1 || true
   docker network rm "$NETWORK_NAME" >/dev/null 2>&1 || true
 }
@@ -35,7 +36,7 @@ docker run -d --name "$PG_CONTAINER" --network "$NETWORK_NAME" \
   -e POSTGRES_USER=smoke -e POSTGRES_PASSWORD=smoke -e POSTGRES_DB=smoke \
   postgres:16-alpine >/dev/null
 docker run -d --name "$REDIS_CONTAINER" --network "$NETWORK_NAME" \
-  redis:7-alpine >/dev/null
+  redis:5-alpine >/dev/null
 
 dependencies_ready=false
 for _ in {1..60}; do
@@ -111,5 +112,27 @@ fi
 [[ "$(docker inspect --format '{{.Config.User}}' "$WEB_CONTAINER")" == "node" ]]
 [[ "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$WEB_CONTAINER")" == "true" ]]
 docker stop -t 15 "$WEB_CONTAINER" >/dev/null
+
+docker run -d --name "$GATEWAY_CONTAINER" --network "$NETWORK_NAME" \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,size=256m \
+  "nexusflow-gateway:${BUILD_SHA}" >/dev/null
+
+gateway_ready=false
+for _ in {1..30}; do
+  if docker exec "$GATEWAY_CONTAINER" wget -qO- http://127.0.0.1:8080/ >/dev/null 2>&1; then
+    gateway_ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$gateway_ready" != "true" ]]; then
+  docker logs "$GATEWAY_CONTAINER" >&2
+  exit 1
+fi
+
+[[ "$(docker inspect --format '{{.Config.User}}' "$GATEWAY_CONTAINER")" == "101" ]]
+[[ "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$GATEWAY_CONTAINER")" == "true" ]]
+docker stop -t 15 "$GATEWAY_CONTAINER" >/dev/null
 
 echo "container runtime smoke checks passed for ${BUILD_SHA}"
