@@ -44,6 +44,7 @@ import {
   restorePublicModelAlias,
   rewriteUpstreamModelAliasText,
 } from "../utils/upstream-model-aliases";
+import { startSseHeartbeat } from "../utils/sse-heartbeat";
 
 const router = Router();
 
@@ -388,6 +389,7 @@ router.post("/", async (req: Request, res: Response) => {
         res.setHeader("Content-Type", "text/event-stream");
         res.setHeader("Cache-Control", "no-cache");
         res.setHeader("Connection", "keep-alive");
+        const heartbeat = startSseHeartbeat(res);
 
         let fullResponse = "";
         let inputTokens = 0;
@@ -417,7 +419,7 @@ router.post("/", async (req: Request, res: Response) => {
             modelId
           );
           fullResponse += rewritten;
-          res.write(rewritten);
+          heartbeat.write(rewritten);
         };
 
         if (reader && typeof reader[Symbol.asyncIterator] === "function") {
@@ -646,12 +648,13 @@ router.post("/", async (req: Request, res: Response) => {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
+      const heartbeat = startSseHeartbeat(res);
 
       let ttftMs = 0;
       let chunkCount = 0;
       let firstChunkTime = 0;
       let lastChunkTime = 0;
-      const translator = createAnthropicStreamTranslator(`msg_${logId}`, modelId, (text) => res.write(text));
+      const translator = createAnthropicStreamTranslator(`msg_${logId}`, modelId, heartbeat.write);
       const decoder = new TextDecoder();
       let rawUpstream = ""; // 累积上游原始 OpenAI SSE，供断流时估费
       const feed = (chunk: any) => {

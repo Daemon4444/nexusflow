@@ -23,6 +23,7 @@ import {
   releaseProviderCapacity,
   type ProviderRequestCapacityLease,
 } from "../services/scheduler";
+import { startSseHeartbeat } from "../utils/sse-heartbeat";
 
 const router = Router();
 const UPSTREAM_TIMEOUT = 600000; // 10分钟
@@ -271,6 +272,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
       res.setHeader("X-RateLimit-Remaining", String(rpmCheck.remaining ?? 0));
+      const heartbeat = startSseHeartbeat(res);
 
       let fullResponse = "";
       let ttftMs = 0;
@@ -291,7 +293,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           const text = typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
           const rewritten = rewriteUpstreamModelAliasText(text, modelId);
           fullResponse += rewritten;
-          res.write(rewritten);
+          heartbeat.write(rewritten);
         }
       } else if (reader?.getReader) {
         const r = reader.getReader();
@@ -308,7 +310,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           chunkCount++;
           const rewritten = rewriteUpstreamModelAliasText(decoder.decode(value, { stream: true }), modelId);
           fullResponse += rewritten;
-          res.write(rewritten);
+          heartbeat.write(rewritten);
         }
       }
       res.end();

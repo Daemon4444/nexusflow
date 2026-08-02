@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       redis:
-        image: redis:7-alpine
+        image: redis:5-alpine
         ports:
           - 6379:6379
         options: >-
@@ -39,12 +39,15 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - uses: azure/setup-helm@v4
+        with:
+          version: v4.2.3
       - name: Install release script checkers
         run: sudo apt-get update -qq && sudo apt-get install -y -qq nginx shellcheck
       - run: npm ci --legacy-peer-deps
         env:
-          # Redis integration tests request their pinned 7.2.7 binary at runtime.
-          # Avoid compiling the unrelated moving "stable" Redis Stack in postinstall.
+          # Avoid compiling the unrelated moving Redis Stack in postinstall;
+          # the service container above is the authoritative Redis 5 baseline.
           REDISMS_DISABLE_POSTINSTALL: "true"
       - run: npm audit --omit=dev --audit-level=high
       - name: Validate release script syntax
@@ -52,6 +55,30 @@ jobs:
           for script in scripts/*.sh; do bash -n "$script"; done
           for script in scripts/*.mjs; do node --check "$script"; done
           shellcheck -S warning -x scripts/*.sh
+      - name: Validate ACK runtime secret guard
+        run: |
+          env_file="$(mktemp)"
+          chmod 600 "$env_file"
+          for key in \
+            ADMIN_EMAILS ALIPAY_APP_ID ALIPAY_GATEWAY ALIPAY_NOTIFY_URL \
+            ALIPAY_PRIVATE_KEY ALIPAY_PUBLIC_KEY ALIPAY_RETURN_URL \
+            DASHSCOPE_API_KEY OSS_ACCESS_KEY_ID OSS_ACCESS_KEY_SECRET \
+            OSS_BUCKET OSS_ENDPOINT PG_DATABASE PG_HOST PG_PASSWORD PG_PORT \
+            PG_USER PROVIDER_OUTBOUND_HOST_ALLOWLIST PROVIDER_SECRET_KEY \
+            PUBLIC_BASE_URL REDIS_HOST REDIS_PASSWORD REDIS_PORT \
+            SLS_ACCESS_KEY_ID SLS_ACCESS_KEY_SECRET SLS_LOGSTORE SLS_PROJECT \
+            SLS_REGION SMTP_FROM SMTP_HOST SMTP_PASS SMTP_PORT SMTP_USER; do
+            printf '%s=test-value\n' "$key" >> "$env_file"
+          done
+          bash scripts/prepare-ack-runtime-secret.sh --env-file "$env_file"
+      - name: Validate ACK gateway auth guard
+        run: |
+          auth_file="$(mktemp)"
+          chmod 600 "$auth_file"
+          printf 'admin:$2y$10$abcdefghijklmnopqrstuvwxyz01234567890123456789012\n' > "$auth_file"
+          bash scripts/prepare-ack-gateway-auth.sh --htpasswd-file "$auth_file"
+      - name: Validate rendered ACK gateway nginx configuration
+        run: node scripts/test-helm-gateway-config.mjs
       - run: npm --workspace backend run test:large-json-auth
       - run: npm --workspace backend run test:request-body-admission
       - run: npm --workspace backend run test:auth-password-security
@@ -60,6 +87,8 @@ jobs:
       - run: npm --workspace backend run test:health-compatibility
       - run: npm --workspace backend run test:runtime-safety
       - run: npm --workspace backend run test:runtime-lifecycle
+      - run: npm --workspace backend run test:runtime-metrics
+      - run: npm --workspace backend run test:sse-heartbeat
       - run: npm --workspace backend run test:session-token-security
       - run: npm --workspace backend run test:api-key-rate-limit-security
       - run: npm --workspace backend run test:outbound-url-policy
@@ -185,6 +214,8 @@ jobs:
             --set images.backend.digest="$digest"
             --set images.frontend.repository=example.invalid/nexusflow/frontend
             --set images.frontend.digest="$digest"
+            --set images.gateway.repository=example.invalid/nexusflow/nginx-unprivileged
+            --set images.gateway.digest="$digest"
           )
           helm lint deploy/helm/nexusflow "${common[@]}"
           helm template nexusflow deploy/helm/nexusflow \
