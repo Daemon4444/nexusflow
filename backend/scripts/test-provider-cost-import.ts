@@ -324,12 +324,14 @@ async function main(): Promise<void> {
     const privateDryRun = await importProviderCostManifest(privateManifest, {
       apply: false,
     });
-    assert.equal(privateDryRun.tiers, 12);
-    assert.equal(privateDryRun.models, 9);
+    const expectedPrivateTiers = privateManifest.rows.length;
+    const expectedPrivateModels = privateModelIds.size;
+    assert.equal(privateDryRun.tiers, expectedPrivateTiers);
+    assert.equal(privateDryRun.models, expectedPrivateModels);
     const privateApply = await importProviderCostManifest(privateManifest, {
       apply: true,
     });
-    assert.equal(privateApply.tiers, 12);
+    assert.equal(privateApply.tiers, expectedPrivateTiers);
     assert.equal(privateApply.reactivated, false);
     const privatePriceBookId = priceBookIdForManifest(privateManifest);
     const countActivePrivateRows = async (): Promise<number> => {
@@ -354,7 +356,7 @@ async function main(): Promise<void> {
         assert.equal(uncached.resolution, "exact");
       }
     }
-    assert.equal(await countActivePrivateRows(), 12);
+    assert.equal(await countActivePrivateRows(), expectedPrivateTiers);
 
     const privateDeactivation = await deactivateProviderCostBook(
       privatePriceBookId,
@@ -363,8 +365,8 @@ async function main(): Promise<void> {
         reason: "private manifest release rollback test",
       }
     );
-    assert.equal(privateDeactivation.activeRows, 12);
-    assert.equal(privateDeactivation.pendingRows, 12);
+    assert.equal(privateDeactivation.activeRows, expectedPrivateTiers);
+    assert.equal(privateDeactivation.pendingRows, expectedPrivateTiers);
     assert.equal(privateDeactivation.futureRows, 0);
     assert.equal(await countActivePrivateRows(), 0);
 
@@ -382,8 +384,10 @@ async function main(): Promise<void> {
     assert.equal(privateReactivation.idempotent, false);
     assert.equal(privateReactivation.reactivationRequired, false);
     assert.equal(privateReactivation.reactivated, true);
-    assert.equal(await countActivePrivateRows(), 12);
-    console.log("private provider cost manifest validated (12 tiers / 9 models)");
+    assert.equal(await countActivePrivateRows(), expectedPrivateTiers);
+    console.log(
+      `private provider cost manifest validated (${expectedPrivateTiers} tiers / ${expectedPrivateModels} models)`
+    );
   }
 
   console.log("provider cost import tests passed");

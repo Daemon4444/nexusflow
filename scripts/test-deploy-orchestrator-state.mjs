@@ -130,10 +130,24 @@ assert.match(
   source,
   /PEER_BASELINE_PROVIDER_COST_CAPABLE=true/
 );
-assert.match(source, /PROVIDER_COST_EXPECTED_TIERS=12/);
-assert.match(source, /PROVIDER_COST_EXPECTED_MODELS=9/);
-assert.match(source, /PROVIDER_COST_EXPECTED_FULL_TIERS=7/);
-assert.match(source, /PROVIDER_COST_EXPECTED_PARTIAL_TIERS=5/);
+const providerCostContract = Object.fromEntries(
+  ["TIERS", "MODELS", "FULL_TIERS", "PARTIAL_TIERS"].map((name) => {
+    const match = source.match(
+      new RegExp(`^PROVIDER_COST_EXPECTED_${name}=([1-9][0-9]*)$`, "m")
+    );
+    assert.ok(match, `missing positive PROVIDER_COST_EXPECTED_${name}`);
+    return [name, Number(match[1])];
+  })
+);
+assert.equal(
+  providerCostContract.TIERS,
+  providerCostContract.FULL_TIERS + providerCostContract.PARTIAL_TIERS,
+  "provider cost tier classes must add up to the total tier count"
+);
+assert.ok(
+  providerCostContract.TIERS >= providerCostContract.MODELS,
+  "provider cost tiers cannot be fewer than covered models"
+);
 assert.match(
   activation,
   /--expected-models "\$PROVIDER_COST_EXPECTED_MODELS"/

@@ -22,7 +22,7 @@ The production release has these invariants:
 - Migrations run once while holding a PostgreSQL advisory lock.
 - The reviewed private Provider cost manifest is never committed or packaged.
   Only after migration `019` and both new binaries verify, it is dry-run,
-  applied, and checked as the exact 12-tier price book
+  applied, and checked as the exact 13-tier price book
   `pb-19cfc14c11f74a74ac7438c5`.
 - Deployment events and verified runtime-node facts are recorded only after
   migration `014` has created their real control-plane tables.

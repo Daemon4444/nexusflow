@@ -29,7 +29,7 @@ Minimum release gate:
 - Production provider outbound allowlist is explicit, proxy variables are
   absent, and backend/frontend ports listen on loopback only.
 - The private Provider cost manifest passes root-only staging validation; the
-  exact 12-tier price book activates only after both new nodes verify, is
+  exact 13-tier price book activates only after both new nodes verify, is
   deactivated before any incompatible rollback runtime receives traffic, and
   is reapplied on failed-rollback recovery before that new runtime is admitted.
 

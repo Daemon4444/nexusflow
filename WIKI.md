@@ -474,7 +474,7 @@ npm audit --omit=dev --audit-level=high
     只能把流量隔离到直接验证的新 SHA 节点并恢复 hash-only；不得在 compatibility
     downgrade 仍由本次发布持有时恢复 balanced；
 11. `019` 后、两个新节点验证完成时，从随机 root-only staging 私下 dry-run/apply
-    指定的 12-tier Provider 成本价本；不兼容旧版回滚前先停用，失败回滚恢复新节点
+    指定的 13-tier Provider 成本价本；不兼容旧版回滚前先停用，失败回滚恢复新节点
     时用同一 manifest 原子重激活，任何 partial 状态都禁止 balanced。
 
 `backend/.env` 不进入制品或 manifest。安装器只在 manifest 通过后创建指向既有
