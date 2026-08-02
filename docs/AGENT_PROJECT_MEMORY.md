@@ -206,7 +206,7 @@ API Key / 身份验证
 | 新模型/替换模型 | `docs/MODEL_ONBOARDING.md`、`MODELS.md`、运行时 `/api/models` |
 | 价本/采购成本/毛利 | `docs/provider-cost-price-book.md`、账本代码与 migration 019 |
 | 发布 | `docs/release-regression-test-checklist.md`、`docs/production-release-runbook.md` |
-| ACK/容器 | 本文第 10 节与 `WIKI.md`；实施前再以当时已合并的云原生 Spec/Runbook 为准 |
+| ACK/容器 | `docs/cloud-native-microservices-architecture-spec.md`、`docs/ack-serverless-deployment-runbook.md`、`docs/ack-serverless-cloud-change-plan.md` |
 | 子账号 | `docs/sub-accounts-spec.md` |
 | 支付 | `docs/PAYMENT_SETUP.md`、支付/账本 migrations |
 | 安全审计 | `REVIEW_SPEC_2026-07.md`（快照）+当前代码/WIKI |
