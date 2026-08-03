@@ -5,6 +5,7 @@ import {
   reserveRequestBodyAdmission,
 } from "../src/services/request-body-admission";
 import {
+  BODY_ADMISSION_RELEASE,
   getPublicJsonBodyLimitBytes,
   requireApiKeyBeforeLargeJson,
   verifyDeclaredJsonLength,
@@ -165,12 +166,17 @@ async function main(): Promise<void> {
     50 * 1024 * 1024
   );
 
-  const accepted = await runMiddleware(request({
+  const acceptedReq = request({
     ...authHeaders,
     "content-length": "100",
-  }));
+  });
+  const accepted = await runMiddleware(acceptedReq);
   assert.equal(accepted.next, true);
-  accepted.response.emit("finish");
+  // Body-parse completion releases the lease; the response "close" backstop
+  // stays idempotent for requests that never reach the parser.
+  assert.equal(typeof acceptedReq[BODY_ADMISSION_RELEASE], "function");
+  acceptedReq[BODY_ADMISSION_RELEASE]();
+  accepted.response.emit("close");
 
   assert.throws(
     () => verifyDeclaredJsonLength(

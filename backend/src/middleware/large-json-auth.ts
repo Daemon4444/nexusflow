@@ -3,10 +3,15 @@ import express from "express";
 import { inspectApiKey } from "../data/apikeys";
 import { getTrustedClientIp } from "../utils/client-ip";
 import { isProductionRuntime } from "../utils/runtime-safety";
+import { logToSLS } from "../services/sls";
 import {
   releaseRequestBodyAdmission,
   reserveRequestBodyAdmission,
 } from "../services/request-body-admission";
+
+export const BODY_ADMISSION_RELEASE = Symbol("bodyAdmissionRelease");
+
+type RequestWithAdmission = Request & { [BODY_ADMISSION_RELEASE]?: () => void };
 
 const LARGE_JSON_BYTES = 50 * 1024 * 1024;
 const STANDARD_JSON_BYTES = 1024 * 1024;
@@ -73,7 +78,18 @@ export function parsePublicApiJson(
   const parser = getPublicJsonBodyLimitBytes(req) === LARGE_JSON_BYTES
     ? largeJsonParser
     : standardJsonParser;
-  parser(req, res, next);
+  const release = (req as RequestWithAdmission)[BODY_ADMISSION_RELEASE];
+  if (typeof release !== "function") {
+    parser(req, res, next);
+    return;
+  }
+  // The admission lease only guards the in-memory buffering of the JSON body;
+  // release it as soon as parsing settles instead of holding it through the
+  // (potentially minutes-long) upstream call and streamed response.
+  parser(req, res, (error?: unknown) => {
+    release();
+    next(error);
+  });
 }
 
 /**
@@ -183,11 +199,20 @@ export async function requireApiKeyBeforeLargeJson(
     });
     if (!admission.allowed) {
       const unavailable = admission.reason === "redis_unavailable";
+      logToSLS({
+        apiKeyId: apiKey.id,
+        userId: apiKey.user_id,
+        status: "rejected",
+        errorReason: `body_admission_${admission.reason}`,
+        clientIp,
+        path: normalizedPublicPath(req),
+        declaredBytes,
+      });
       res.status(unavailable ? 503 : 429).json({
         error: {
           message: unavailable
             ? "Request-body admission control is temporarily unavailable."
-            : "Too many concurrent or oversized request bodies.",
+            : `Too many concurrent or oversized request bodies (${admission.reason}).`,
           type: unavailable ? "server_error" : "rate_limit_error",
           code: unavailable ? "body_admission_unavailable" : "body_admission_exceeded",
         },
@@ -210,8 +235,10 @@ export async function requireApiKeyBeforeLargeJson(
         );
       });
     };
+    (req as RequestWithAdmission)[BODY_ADMISSION_RELEASE] = release;
     if (typeof res.once === "function") {
-      res.once("finish", release);
+      // Backstop for requests that never reach parsePublicApiJson (e.g. the
+      // socket dies mid-upload); the normal release happens after body parse.
       res.once("close", release);
     }
     next();
