@@ -359,8 +359,8 @@ export default function ModelDetailPage() {
     ["视觉输入", model.capabilities.supports_vision ? "支持" : "未声明"],
     ["视频输入", model.capabilities.supports_video_input ? "支持" : "未声明"],
     ["音频输入", model.capabilities.supports_audio_input ? "支持" : "未声明"],
-    ["thinking_budget", model.capabilities.supports_thinking_budget ? "上游支持，当前 public chat 未透传" : "未声明"],
-    ["preserve_thinking", model.capabilities.supports_preserve_thinking ? "上游支持，当前 public chat 未透传" : "未声明"],
+    ["thinking_budget", model.capabilities.supports_thinking_budget ? "支持，public chat 已透传" : "未声明"],
+    ["preserve_thinking", model.capabilities.supports_preserve_thinking ? "支持，public chat 已透传" : "未声明"],
     ["搜索参数", model.capabilities.supports_search ? "支持" : "当前未开放"],
   ] : [];
 
