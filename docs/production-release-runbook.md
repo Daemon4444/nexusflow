@@ -401,9 +401,10 @@ no destructive-migration bypass; rewrite the migration or use a separately
 reviewed maintenance procedure.
 
 The current committed sequence continues through
-`021_control_plane_persistence_limits.sql`: `017` is session security, `018`
+`022_usage_retail_pricing_evidence.sql`: `017` is session security, `018`
 is the generic admin audit trail, `019` is Provider cost tiers, `020` is upload
-object lifecycle, and `021` bounds durable control-plane inputs. Migration
+object lifecycle, `021` bounds durable control-plane inputs, and `022` preserves
+settlement-time retail price, discount, and thinking-mode evidence. Migration
 numbers are authoritative only from the actual files in
 `backend/src/db/migrations` plus active team allocation. Re-check both before
 writing or documenting a new migration—do not infer production application

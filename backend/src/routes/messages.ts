@@ -178,7 +178,7 @@ async function calculateAnthropicUsageCost(
     + (cacheReadTokens / 1_000_000) * cacheReadPrice
     + (outputTokens / 1_000_000) * completionPrice;
   const discounted = await applyUserModelDiscount(userId, model.id, listAmount);
-  return { ...discounted, cachedTokens: cacheReadTokens, cacheCreationTokens };
+  return { ...discounted, cachedTokens: cacheReadTokens, cacheCreationTokens, thinkingOutput: isThinking };
 }
 
 function getAnthropicVersion(req: Request): string {
@@ -528,7 +528,11 @@ router.post("/", async (req: Request, res: Response) => {
           tpotMs,
           cachedTokens: cacheReadInputTokens,
           cacheCreationTokens: cacheCreationInputTokens,
-          providerCacheMode: "explicit",
+          retailListCost: billing.listAmount,
+          retailDiscountRate: billing.discountRate,
+          retailDiscountAmount: billing.discountAmount,
+          thinkingOutput: billing.thinkingOutput,
+          providerCacheMode: explicitCache ? "explicit" : "implicit",
           providerInputIncludesCache: false,
           route: "anthropic-passthrough",
           estimated: estimatedBilling,
@@ -588,7 +592,11 @@ router.post("/", async (req: Request, res: Response) => {
         latencyMs: Date.now() - startTime,
         cachedTokens: usage.cache_read_input_tokens || 0,
         cacheCreationTokens: usage.cache_creation_input_tokens || 0,
-        providerCacheMode: "explicit",
+        retailListCost: billing.listAmount,
+        retailDiscountRate: billing.discountRate,
+        retailDiscountAmount: billing.discountAmount,
+        thinkingOutput: billing.thinkingOutput,
+        providerCacheMode: explicitCache ? "explicit" : "implicit",
         providerInputIncludesCache: false,
         route: "anthropic-passthrough",
         reservationId: billingReservation.id,
@@ -769,7 +777,11 @@ router.post("/", async (req: Request, res: Response) => {
         tpotMs,
         cachedTokens: billingUsage.cache_read_input_tokens || 0,
         cacheCreationTokens: billingUsage.cache_creation_input_tokens || 0,
-        providerCacheMode: "explicit",
+        retailListCost: billing.listAmount,
+        retailDiscountRate: billing.discountRate,
+        retailDiscountAmount: billing.discountAmount,
+        thinkingOutput: billing.thinkingOutput,
+        providerCacheMode: explicitCache ? "explicit" : "implicit",
         providerInputIncludesCache: true,
         route: "anthropic-bridge",
         estimated: estimatedBilling,
@@ -835,7 +847,11 @@ router.post("/", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
       cachedTokens: usage.cache_read_input_tokens || 0,
       cacheCreationTokens: usage.cache_creation_input_tokens || 0,
-      providerCacheMode: "explicit",
+      retailListCost: billing.listAmount,
+      retailDiscountRate: billing.discountRate,
+      retailDiscountAmount: billing.discountAmount,
+      thinkingOutput: billing.thinkingOutput,
+      providerCacheMode: explicitCache ? "explicit" : "implicit",
       providerInputIncludesCache: true,
       route: "anthropic-bridge",
       reservationId: billingReservation.id,

@@ -70,7 +70,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
 | 线上模型目录 | 71 个运行时模型；以 `GET /api/models` 实时结果为准 |
-| 数据库迁移 | 仓库已提交到 `021_control_plane_persistence_limits.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
+| 数据库迁移 | 仓库已提交到 `022_usage_retail_pricing_evidence.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
 
@@ -316,11 +316,12 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 019_provider_cost_tiers.sql
 020_upload_object_lifecycle.sql
 021_control_plane_persistence_limits.sql
+022_usage_retail_pricing_evidence.sql
 ```
 
 历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。
 `017` 是 session hash、`018` 是通用后台审计、`019` 是 Provider 成本分层、`020`
-是上传对象生命周期、`021` 是控制面持久化边界；新增 migration 前必须检查实际目录
+是上传对象生命周期、`021` 是控制面持久化边界、`022` 保存结算时零售价/折扣/思考模式证据；新增 migration 前必须检查实际目录
 和团队分配，禁止复用编号。
 生产是否已应用以 `schema_migrations` 为准，不能从仓库文件列表推断。
 

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { closeDb, db } from "../src/db/client";
-import { adminAdjustCredit, reserveBalance, reserveBalanceWithReason, settleReservation } from "../src/data/billing";
+import { adminAdjustCredit, getBillingUsageExport, reserveBalance, reserveBalanceWithReason, settleReservation } from "../src/data/billing";
+import { logUsage } from "../src/data/usage";
 import {
   normalizeDashScopeVideoResolution,
   normalizeDashScopeVideoSize,
@@ -105,6 +106,78 @@ async function main(): Promise<void> {
     () => normalizeDashScopeVideoSize({ resolution: "720P", ratio: "4:3" }),
     VideoParameterError
   );
+
+  // Settlement-time retail pricing evidence is authoritative. In particular,
+  // thinking output cannot be reconstructed later from prompt/output counts.
+  await db.execute(
+    `INSERT INTO users
+      (id, phone, email, nickname, balance, password_hash, username, status, created_at, updated_at)
+     VALUES (?, NULL, ?, ?, 10, NULL, ?, 'active', NOW(), NOW())`,
+    ["billing-pricing-evidence-user", "billing-pricing-evidence@example.invalid", "计价证据测试", "billing_pricing_evidence"]
+  );
+  const thinkingLogId = await logUsage({
+    logId: "billing-pricing-thinking",
+    apiKeyId: null,
+    userId: "billing-pricing-evidence-user",
+    model: "qwen-plus",
+    promptTokens: 1_000,
+    completionTokens: 1_000,
+    totalTokens: 2_000,
+    cost: 0.0088,
+    status: "success",
+    latencyMs: 1,
+    retailListCost: 0.0088,
+    retailDiscountRate: 1,
+    retailDiscountAmount: 0,
+    thinkingOutput: true,
+    providerCacheMode: "implicit",
+    providerInputIncludesCache: true,
+  });
+  await logUsage({
+    logId: "billing-pricing-nonthinking-discounted",
+    apiKeyId: null,
+    userId: "billing-pricing-evidence-user",
+    model: "qwen-plus",
+    promptTokens: 1_000,
+    completionTokens: 1_000,
+    totalTokens: 2_000,
+    cost: 0.0014,
+    status: "success",
+    latencyMs: 1,
+    retailListCost: 0.0028,
+    retailDiscountRate: 0.5,
+    retailDiscountAmount: 0.0014,
+    thinkingOutput: false,
+    providerCacheMode: "implicit",
+    providerInputIncludesCache: true,
+  });
+
+  const pricingExport = await getBillingUsageExport("billing-pricing-evidence-user", {});
+  const thinkingRow = pricingExport.rows.find((row) => row.billed_amount_cny === 0.0088);
+  assert.ok(thinkingRow, "thinking usage must appear in billing export");
+  assert.equal(thinkingRow.completion_unit_price_cny_per_1m, 8);
+  assert.equal(thinkingRow.list_amount_cny, 0.0088);
+  assert.equal(thinkingRow.discount_rate, 1);
+  assert.equal(thinkingRow.rounding_delta_cny, 0);
+
+  const nonThinkingRow = pricingExport.rows.find((row) => row.billed_amount_cny === 0.0014);
+  assert.ok(nonThinkingRow, "non-thinking discounted usage must appear in billing export");
+  assert.equal(nonThinkingRow.completion_unit_price_cny_per_1m, 2);
+  assert.equal(nonThinkingRow.list_amount_cny, 0.0028);
+  assert.equal(nonThinkingRow.discount_rate, 0.5);
+  assert.equal(nonThinkingRow.discount_amount_cny, 0.0014);
+
+  const storedEvidence = await db.queryOne<{
+    retail_list_cost: number;
+    thinking_output: boolean;
+    provider_cache_mode: string;
+  }>(
+    "SELECT retail_list_cost, thinking_output, provider_cache_mode FROM usage_logs WHERE log_id = ?",
+    [thinkingLogId]
+  );
+  assert.equal(Number(storedEvidence?.retail_list_cost), 0.0088);
+  assert.equal(Boolean(storedEvidence?.thinking_output), true);
+  assert.equal(storedEvidence?.provider_cache_mode, "implicit");
 
   console.log("billing reservations, failure codes, and video parameter contracts: ok");
 }

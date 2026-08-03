@@ -317,7 +317,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const playgroundCached = usage.prompt_tokens_details?.cached_tokens || 0;
       const playgroundCreation = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
       // 与 /v1/chat 实扣同一函数：分层价 + per-model/档位 cacheReadPrice + omni 分模态
-      const totalCost = (await calculateOpenAiCacheAwareCost({ userId: session.id, model, usage, explicitCache: false })).finalAmount;
+      const billing = await calculateOpenAiCacheAwareCost({ userId: session.id, model, usage, explicitCache: false });
+      const totalCost = billing.finalAmount;
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = usage.completion_tokens > 1 ? streamDuration / (usage.completion_tokens - 1) : 0;
 
@@ -339,6 +340,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         tpotMs,
         cachedTokens: playgroundCached,
         cacheCreationTokens: playgroundCreation,
+        retailListCost: billing.listAmount,
+        retailDiscountRate: billing.discountRate,
+        retailDiscountAmount: billing.discountAmount,
+        thinkingOutput: billing.thinkingOutput,
         providerCacheMode: "implicit",
         providerInputIncludesCache: true,
         reservationId: billingReservation.id,
@@ -352,7 +357,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         actualTokens: usage.total_tokens || 0,
       });
       tokensReconciled = true;
-      await settleReservation(billingReservation.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`);
+      await settleReservation(
+        billingReservation.id,
+        totalCost,
+        `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`,
+        billing.discountRate,
+        billing.discountAmount,
+      );
       return;
     }
 
@@ -387,7 +398,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     const playgroundCachedNS = usage.prompt_tokens_details?.cached_tokens || 0;
     const playgroundCreationNS = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
     // 与 /v1/chat 实扣同一函数：分层价 + per-model/档位 cacheReadPrice + omni 分模态
-    const totalCost = (await calculateOpenAiCacheAwareCost({ userId: session.id, model, usage, explicitCache: false })).finalAmount;
+    const billing = await calculateOpenAiCacheAwareCost({ userId: session.id, model, usage, explicitCache: false });
+    const totalCost = billing.finalAmount;
 
     await logUsage({
       region: upstream.region,
@@ -405,6 +417,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
       cachedTokens: playgroundCachedNS,
       cacheCreationTokens: playgroundCreationNS,
+      retailListCost: billing.listAmount,
+      retailDiscountRate: billing.discountRate,
+      retailDiscountAmount: billing.discountAmount,
+      thinkingOutput: billing.thinkingOutput,
       providerCacheMode: "implicit",
       providerInputIncludesCache: true,
       reservationId: billingReservation.id,
@@ -418,7 +434,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       actualTokens: usage.total_tokens || 0,
     });
     tokensReconciled = true;
-    await settleReservation(billingReservation.id, totalCost, `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`);
+    await settleReservation(
+      billingReservation.id,
+      totalCost,
+      `Playground 对话: ${modelId} (${usage.total_tokens || 0} tokens)`,
+      billing.discountRate,
+      billing.discountAmount,
+    );
 
     res.setHeader("X-RateLimit-Remaining", String(rpmCheck.remaining ?? 0));
     res.json(data);

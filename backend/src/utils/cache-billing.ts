@@ -92,6 +92,7 @@ export interface BillingResult {
   discountAmount: number;
   cachedTokens: number;
   cacheCreationTokens: number;
+  thinkingOutput: boolean;
 }
 
 export async function calculateOpenAiCacheAwareCost(params: {
@@ -106,7 +107,8 @@ export async function calculateOpenAiCacheAwareCost(params: {
   // 官方对部分模型的思考模式单独定价（思维链+回答整体按思考价）。
   // 上游在 completion_tokens_details.reasoning_tokens 返回思维链长度，是唯一权威信号。
   const reasoningTokens = toTokenCount(params.usage?.completion_tokens_details?.reasoning_tokens);
-  const completionPrice = resolveCompletionPrice(params.model, tier, reasoningTokens > 0);
+  const thinkingOutput = reasoningTokens > 0;
+  const completionPrice = resolveCompletionPrice(params.model, tier, thinkingOutput);
   // 缓存价由 data/models 的唯一解析器给出，与对外展示同源，不在此重复倍率。
   const cachePricing = resolveCachePricing(params.model, tier);
   const cacheReadPrice = params.explicitCache ? cachePricing.explicitHit : cachePricing.implicitHit;
@@ -152,6 +154,7 @@ export async function calculateOpenAiCacheAwareCost(params: {
     discountAmount: discounted.discountAmount,
     cachedTokens,
     cacheCreationTokens,
+    thinkingOutput,
   };
 }
 

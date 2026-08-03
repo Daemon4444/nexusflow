@@ -743,7 +743,17 @@ async function billAndLog(
     completion_tokens: outputTokens,
     total_tokens: totalTokens,
     prompt_tokens_details: { cached_tokens: cachedTokens },
+    completion_tokens_details: {
+      reasoning_tokens: usage.output_tokens_details?.reasoning_tokens
+        ?? usage.completion_tokens_details?.reasoning_tokens
+        ?? 0,
+    },
   };
+
+  const explicitCache = isExplicitCacheRequested(
+    (requestBody as Record<string, unknown> | undefined)?.input,
+    requestBody
+  );
 
   const billing = await calculateOpenAiCacheAwareCost({
     userId: apiKeyRecord.user_id,
@@ -751,10 +761,7 @@ async function billAndLog(
     usage: billingUsage,
     // 本路由把整个 req.body 原样透传上游，用户可经 input 里的 cache_control
     // 或 enable_context_caching 开启显式缓存；硬编码 false 会按隐式价多收。
-    explicitCache: isExplicitCacheRequested(
-      (requestBody as Record<string, unknown> | undefined)?.input,
-      requestBody
-    ),
+    explicitCache,
   });
 
   await logUsage({
@@ -773,7 +780,12 @@ async function billAndLog(
     status: "success",
     latencyMs,
     cachedTokens: billing.cachedTokens,
-    providerCacheMode: "implicit",
+    cacheCreationTokens: billing.cacheCreationTokens,
+    retailListCost: billing.listAmount,
+    retailDiscountRate: billing.discountRate,
+    retailDiscountAmount: billing.discountAmount,
+    thinkingOutput: billing.thinkingOutput,
+    providerCacheMode: explicitCache ? "explicit" : "implicit",
     providerInputIncludesCache: true,
     estimated,
     reservationId: billingReservationId,

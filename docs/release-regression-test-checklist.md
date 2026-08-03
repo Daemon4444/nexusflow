@@ -694,6 +694,7 @@ These invariants must hold after every test run:
 - A successful billable call consumes balance exactly once.
 - `total_tokens = prompt_tokens + completion_tokens` when both components exist.
 - Discounted amount is never greater than list amount.
+- Thinking-priced and non-thinking calls export the exact settlement-time list price; `discount_rate` stays within `[0,1]` and does not depend on the current catalog.
 - A disabled discount never applies to new calls.
 - Historical usage does not change when a discount is edited later.
 - Free discount records usage but bills `0`.

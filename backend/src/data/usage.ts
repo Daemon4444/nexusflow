@@ -61,6 +61,12 @@ export async function logUsage(params: {
   tpotMs?: number;
   cachedTokens?: number;
   cacheCreationTokens?: number;
+  /** Authoritative retail pricing snapshot used for this settlement. */
+  retailListCost?: number | null;
+  retailDiscountRate?: number | null;
+  retailDiscountAmount?: number | null;
+  /** Whether output was charged using the model's thinking-mode price. */
+  thinkingOutput?: boolean | null;
   /** Cache contract used by the selected upstream, not the customer retail mode. */
   providerCacheMode?: ProviderCacheMode | null;
   /**
@@ -123,9 +129,10 @@ export async function logUsage(params: {
          region, provider_id, channel_id, protocol, node_id, http_status, error_code,
          estimated, reservation_id, transaction_id, provider_cost, cost_version_id,
          provider_cache_mode, provider_input_includes_cache, provider_cost_resolution,
+         retail_list_cost, retail_discount_rate, retail_discount_amount, thinking_output,
          created_at
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         logId,
         params.apiKeyId,
@@ -156,6 +163,10 @@ export async function logUsage(params: {
         params.providerCacheMode || null,
         params.providerInputIncludesCache ?? null,
         realizedProviderCost.resolution,
+        params.retailListCost ?? null,
+        params.retailDiscountRate ?? null,
+        params.retailDiscountAmount ?? null,
+        params.thinkingOutput ?? null,
         new Date().toISOString(),
       ]
     );
@@ -182,6 +193,10 @@ export async function logUsage(params: {
     providerCostResolution: realizedProviderCost.resolution,
     providerCacheMode: params.providerCacheMode || undefined,
     providerInputIncludesCache: params.providerInputIncludesCache,
+    retailListCost: params.retailListCost ?? undefined,
+    retailDiscountRate: params.retailDiscountRate ?? undefined,
+    retailDiscountAmount: params.retailDiscountAmount ?? undefined,
+    thinkingOutput: params.thinkingOutput ?? undefined,
     model: params.model,
     promptTokens: params.promptTokens,
     completionTokens: params.completionTokens,

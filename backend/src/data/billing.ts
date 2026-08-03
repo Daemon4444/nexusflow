@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/client";
 import { logToSLS } from "../services/sls";
 import { getUserById } from "./users";
-import { AIModel, calculateTokenCost, getTokenPricingTier, models } from "./models";
+import { AIModel, calculateTokenCost, getTokenPricingTier, models, resolveCompletionPrice } from "./models";
 
 export interface Transaction {
   id: string;
@@ -120,7 +120,13 @@ function getModelBillingBreakdown(
   completionTokens: number,
   billedAmount: number,
   cachedTokens: number = 0,
-  cacheCreationTokens: number = 0
+  cacheCreationTokens: number = 0,
+  pricingEvidence?: {
+    listCost?: number | null;
+    discountRate?: number | null;
+    discountAmount?: number | null;
+    thinkingOutput?: boolean | null;
+  }
 ) {
   const prompt = Math.max(0, Number(promptTokens || 0));
   const completion = Math.max(0, Number(completionTokens || 0));
@@ -128,13 +134,26 @@ function getModelBillingBreakdown(
   const cacheCreation = Math.max(0, Number(cacheCreationTokens || 0));
   const tier = model ? getTokenPricingTier(model, prompt) : null;
   const promptUnit = tier?.promptPrice ?? model?.promptPrice ?? 0;
-  const completionUnit = tier?.completionPrice ?? model?.completionPrice ?? 0;
-  // 与下方展示用的 completionUnit 保持同一口径（非思考价）。
-  // 不传 isThinking 会走预占语义取较大值，让思考定价模型的账单出现虚高的
-  // list_amount_cny 与虚假折扣率；usage_logs 未存思维链 token，无法还原真实模式。
-  const recalculatedAmount = model
-    ? calculateTokenCost(model, prompt, completion, cached, cacheCreation, { isThinking: false })
+  const thinkingOutput = pricingEvidence?.thinkingOutput;
+  const completionUnit = model
+    ? resolveCompletionPrice(model, tier, thinkingOutput === true)
+    : 0;
+  const authoritativeListCost = Number(pricingEvidence?.listCost);
+  const hasAuthoritativeListCost = pricingEvidence?.listCost !== null
+    && pricingEvidence?.listCost !== undefined
+    && Number.isFinite(authoritativeListCost)
+    && authoritativeListCost >= 0;
+  const hasModeDependentPrice = !!model
+    && resolveCompletionPrice(model, tier, false) !== resolveCompletionPrice(model, tier, true);
+  const cannotReconstructLegacyMode = hasModeDependentPrice && thinkingOutput == null;
+  const reconstructedAmount = model && !cannotReconstructLegacyMode
+    ? calculateTokenCost(model, prompt, completion, cached, cacheCreation, {
+        isThinking: thinkingOutput === true,
+      })
     : Number(billedAmount || 0);
+  const recalculatedAmount = hasAuthoritativeListCost
+    ? authoritativeListCost
+    : reconstructedAmount;
   const promptAmount = (prompt / 1_000_000) * promptUnit;
   const completionAmount = (completion / 1_000_000) * completionUnit;
   const hasCache = cached > 0 || cacheCreation > 0;
@@ -147,10 +166,20 @@ function getModelBillingBreakdown(
     completionUnit,
     promptAmount: money6(promptAmount),
     completionAmount: money6(completionAmount),
-    recalculatedAmount: hasCache ? money6(Number(billedAmount || 0)) : money6(recalculatedAmount),
-    roundingDelta: hasCache ? 0 : money6(Number(billedAmount || 0) - recalculatedAmount),
-    pricingNote: hasCache
-      ? "Cache-aware billed amount preserved from usage log; cached token fields show cache savings separately"
+    recalculatedAmount: money6(recalculatedAmount),
+    roundingDelta: hasAuthoritativeListCost
+      ? 0
+      : hasCache || cannotReconstructLegacyMode
+        ? 0
+        : money6(Number(billedAmount || 0) - recalculatedAmount),
+    discountRate: pricingEvidence?.discountRate,
+    discountAmount: pricingEvidence?.discountAmount,
+    pricingNote: hasAuthoritativeListCost
+      ? "Authoritative settlement-time retail pricing snapshot"
+      : cannotReconstructLegacyMode
+        ? "Legacy row predates thinking-mode pricing evidence; billed amount preserved"
+        : hasCache
+          ? "Legacy cache-aware row predates retail pricing evidence; billed amount preserved"
       : tier
         ? "Input-length tier selected by prompt_tokens for this request"
         : model
@@ -828,6 +857,10 @@ export async function getBillingUsageExport(
        COALESCE(ul.cached_tokens, 0) as cached_tokens,
        COALESCE(ul.cache_creation_tokens, 0) as cache_creation_tokens,
        ul.cost,
+       ul.retail_list_cost,
+       ul.retail_discount_rate,
+       ul.retail_discount_amount,
+       ul.thinking_output,
        ul.status,
        ul.created_at
      FROM usage_logs ul
@@ -848,7 +881,20 @@ export async function getBillingUsageExport(
     const completionTokens = Number(row.completion_tokens || 0);
     const cachedTokens = Number(row.cached_tokens || 0);
     const cacheCreationTokens = Number(row.cache_creation_tokens || 0);
-    const breakdown = getModelBillingBreakdown(model, promptTokens, completionTokens, billedAmount, cachedTokens, cacheCreationTokens);
+    const breakdown = getModelBillingBreakdown(
+      model,
+      promptTokens,
+      completionTokens,
+      billedAmount,
+      cachedTokens,
+      cacheCreationTokens,
+      {
+        listCost: row.retail_list_cost === null ? null : Number(row.retail_list_cost),
+        discountRate: row.retail_discount_rate === null ? null : Number(row.retail_discount_rate),
+        discountAmount: row.retail_discount_amount === null ? null : Number(row.retail_discount_amount),
+        thinkingOutput: row.thinking_output === null ? null : Boolean(row.thinking_output),
+      }
+    );
     return {
       usage_id: Number(row.usage_id),
       account_id: row.account_id || "",
@@ -873,8 +919,14 @@ export async function getBillingUsageExport(
       prompt_amount_cny: breakdown.promptAmount,
       completion_amount_cny: breakdown.completionAmount,
       list_amount_cny: breakdown.recalculatedAmount,
-      discount_rate: breakdown.recalculatedAmount > 0 ? money6(billedAmount / breakdown.recalculatedAmount) : 1,
-      discount_amount_cny: money6(Math.max(0, breakdown.recalculatedAmount - billedAmount)),
+      discount_rate: breakdown.discountRate !== null && breakdown.discountRate !== undefined
+        ? money6(Number(breakdown.discountRate))
+        : breakdown.recalculatedAmount > 0
+          ? money6(Math.min(1, billedAmount / breakdown.recalculatedAmount))
+          : 1,
+      discount_amount_cny: breakdown.discountAmount !== null && breakdown.discountAmount !== undefined
+        ? money6(Number(breakdown.discountAmount))
+        : money6(Math.max(0, breakdown.recalculatedAmount - billedAmount)),
       billed_amount_cny: billedAmount,
       recalculated_amount_cny: breakdown.recalculatedAmount,
       rounding_delta_cny: breakdown.roundingDelta,
