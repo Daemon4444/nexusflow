@@ -62,6 +62,18 @@
 6. **WIKI.md/wiki.md 大小写冲突**：macOS 上同一文件，WIKI.md 永远显示脏。`git update-index --skip-worktree WIKI.md` 后 rebase/push 不再被卡。
 7. **流式路由的 catch 里禁止裸调 `res.status()`**：SSE 头已发出会抛 ERR_HTTP_HEADERS_SENT，必须先判 `res.headersSent`。
 8. **omni 类模型**：音频分模态计费走 `audioInputPrice/audioOutputPrice`，漏配会按文本价少收 7-8 倍。
+9. **别把缓存倍率当配置用（qwen3.8-max，2026-08-03）**：平台按 DashScope 标准倍率兜底（隐式 20% / 显式 10% / 创建 125%），这三个数是官方规则、对多数模型是对的，但官方对个别模型另有定价。qwen3.8-max 就是例外（隐式 ¥1.5=12.5%、显式 ¥1=8.3%）。用官方全量价本逐字段机器比对，别肉眼看：`npm --workspace backend run test:official-pricing` 必须 0 偏差。首次跑该脚本在 42 个在售模型里查出 **26 处偏差**（11 个模型售价错、5 个模型上下文/最大输出错）。
+10. **拆开「显式/隐式」两个缓存价会引爆四条下游路径（同上）**：两个价原本相等时，下面这些判定错了也没后果；一旦不等，全部变成真金白银的错账。加价格字段时必须同时检查：
+    - `explicitCache` 的判定源：显式缓存有 **两条** 开启途径 —— Anthropic 风格的 `messages[].cache_control` **和** DashScope 的 `enable_context_caching` 参数。只认前者会把显式命中按隐式价收（多收 50%~100%）。统一走 `cache-billing.ts` 的 `isExplicitCacheRequested(messages, requestBody)`。
+    - `/v1/responses` 曾把 `explicitCache` 硬编码为 `false`，而该路由把整个 `req.body` 透传上游，等于用户开了显式缓存却按隐式价结算。
+    - `/v1/messages` **不能** 凭 `usage.cache_read_input_tokens` 非零就按显式价：`anthropic-openai-bridge.ts` 会把 OpenAI 的隐式 `cached_tokens` 映射进该字段（少收 33%~50%）。必须按请求判定。
+    - `playground` 硬编码 `false` 是对的 —— 它不透传用户 body，不存在缓存开关。
+11. **思考模式可能是另一个价（同上）**：官方对部分模型的思考模式单独定价，且「思维链+回答」整体按思考价计费（`qwen-plus` 分档 ¥8/¥24/¥64 vs 非思考 ¥2/¥20/¥48，`qwen3-32b`/`qwen3-235b-a22b` ¥20 vs ¥8）。用 `thinkingCompletionPrice` 表达，判定信号是上游 `completion_tokens_details.reasoning_tokens > 0`（已实测流式末 chunk 也带该字段）。
+    ⚠ **断流估费会丢这个信号**：`estimate-stream-usage.ts` 原本只返回三个计数，思考模式断流请求会掉回非思考价（少收 4 倍）。估费必须一并输出 `completion_tokens_details.reasoning_tokens`。
+12. **新价格字段必须同步登记 `model-overrides` 白名单（同上）**：`sanitizeModelDoc` 是白名单，未登记的字段被**静默丢弃**，后台改价即失效。这是 `74bc436d` 修过的同类漏损，`cacheReadExplicitPrice` / `thinkingCompletionPrice` 又踩了一次。已加断言把 5 个价格字段 + `anthropicPassThrough` 全部纳入回归门。
+13. **披露价必须与实扣价同源（同上）**：平台对 37 个模型收缓存费但从未公示过价格。现由 `resolveCachePricing` / `resolveCompletionPrice` 作为唯一入口，计费与 `/api/models` 的 `cachePricing`/`thinkingPricing` 共用，前端只渲染不重算倍率。披露边界记得按账本精度取整（曾输出 `0.16000000000000003`）。
+14. **`/api/models` 的动态合并会吞掉计费字段（同上）**：模型同时存在于静态目录与 `provider_models` 时，合并只回填了 `promptPrice`/`completionPrice`/三个 tier 字段，把 `cacheReadPrice`、音频价、`anthropicPassThrough`、`defaultOutputReservation` 全丢了。计费不受影响（直接 import `models`），但披露会错。
+15. **`npm audit` 要显式指定官方源**：本机默认源是 npmmirror，不实现 audit 端点，会报 `[NOT_IMPLEMENTED]` 被误判成门失败。用 `npm audit --registry=https://registry.npmjs.org --omit=dev --audit-level=high`。
 
 ## 5. 验证清单（全过才算上线完成）
 
