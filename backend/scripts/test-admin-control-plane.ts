@@ -873,11 +873,12 @@ async function main() {
       retailListCost: 0.099,
     });
     const verifiedProviderCost = await db.queryOne<any>(
-      "SELECT provider_cost, cost_version_id FROM usage_logs WHERE log_id = ?",
+      "SELECT provider_cost, cost_version_id, provider_cost_basis FROM usage_logs WHERE log_id = ?",
       ["verified-cny-provider-cost"]
     );
     assert.equal(Number(verifiedProviderCost?.provider_cost), 0.012);
     assert.equal(verifiedProviderCost?.cost_version_id, cnyCost.body.data.id);
+    assert.equal(verifiedProviderCost?.provider_cost_basis, "price_book");
 
     const auditEvents = await call("/api/admin/audit-events", "sess-local-test");
     assert.equal(auditEvents.status, 200);

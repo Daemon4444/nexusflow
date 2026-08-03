@@ -7,6 +7,7 @@ import {
 } from "../data/models";
 import {
   applyRetailListPriceFallback,
+  providerCostStorageFields,
   resolveProviderCost,
   type ProviderCacheMode,
   type ProviderCostResolution,
@@ -251,13 +252,20 @@ export async function backfillProviderCosts(
     changed = await db.transaction(async (client) => {
       let count = 0;
       for (const update of updates) {
+        const storage = providerCostStorageFields({
+          amount: update.amount,
+          costVersionId: update.costVersionId,
+          priceBookId: null,
+          resolution: update.resolution,
+        });
         count += await client.execute(
           `UPDATE usage_logs
               SET provider_id = COALESCE(provider_id, ?),
                   provider_cache_mode = COALESCE(provider_cache_mode, ?),
                   provider_input_includes_cache = COALESCE(provider_input_includes_cache, ?),
                   retail_list_cost = COALESCE(retail_list_cost, ?),
-                  provider_cost = ?, cost_version_id = ?, provider_cost_resolution = ?
+                  provider_cost = ?, cost_version_id = ?, provider_cost_resolution = ?,
+                  provider_cost_basis = ?
             WHERE id = ? AND provider_cost IS NULL`,
           [
             update.providerId,
@@ -266,7 +274,8 @@ export async function backfillProviderCosts(
             update.retailListCost,
             update.amount,
             update.costVersionId,
-            update.resolution,
+            storage.resolution,
+            storage.basis,
             update.id,
           ]
         );

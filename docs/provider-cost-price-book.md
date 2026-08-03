@@ -18,6 +18,9 @@ same settlement facts.
   used as the provider list-price fallback. Missing provider identity,
   estimated usage, lookup failures, and internally inconsistent usage still
   fail closed.
+- Stored exact costs distinguish `provider_cost_basis=price_book` from
+  `provider_cost_basis=official_list`; the latter deliberately has no private
+  cost-version ID.
 - Imported source references, SHA-256, source rows, and condition fingerprints
   are retained without putting the source workbook or commercial rates in Git.
 

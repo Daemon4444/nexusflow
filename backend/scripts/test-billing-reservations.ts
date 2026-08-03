@@ -190,9 +190,10 @@ async function main(): Promise<void> {
     provider_cache_mode: string;
     provider_cost: number;
     provider_cost_resolution: string;
+    provider_cost_basis: string;
   }>(
     `SELECT retail_list_cost, thinking_output, provider_cache_mode,
-            provider_cost, provider_cost_resolution
+            provider_cost, provider_cost_resolution, provider_cost_basis
        FROM usage_logs WHERE log_id = ?`,
     [thinkingLogId]
   );
@@ -200,17 +201,20 @@ async function main(): Promise<void> {
   assert.equal(Boolean(storedEvidence?.thinking_output), true);
   assert.equal(storedEvidence?.provider_cache_mode, "implicit");
   assert.equal(Number(storedEvidence?.provider_cost), 0.0088);
-  assert.equal(storedEvidence?.provider_cost_resolution, "list_price_fallback");
+  assert.equal(storedEvidence?.provider_cost_resolution, "exact");
+  assert.equal(storedEvidence?.provider_cost_basis, "official_list");
 
   const discountedProviderCost = await db.queryOne<{
     provider_cost: number;
     provider_cost_resolution: string;
+    provider_cost_basis: string;
   }>(
-    "SELECT provider_cost, provider_cost_resolution FROM usage_logs WHERE log_id = ?",
+    "SELECT provider_cost, provider_cost_resolution, provider_cost_basis FROM usage_logs WHERE log_id = ?",
     ["billing-pricing-nonthinking-discounted"]
   );
   assert.equal(Number(discountedProviderCost?.provider_cost), 0.0028);
-  assert.equal(discountedProviderCost?.provider_cost_resolution, "list_price_fallback");
+  assert.equal(discountedProviderCost?.provider_cost_resolution, "exact");
+  assert.equal(discountedProviderCost?.provider_cost_basis, "official_list");
 
   console.log("billing reservations, failure codes, and video parameter contracts: ok");
 }

@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { recordFailure, recordSuccess } from "../services/scheduler";
 import {
   applyRetailListPriceFallback,
+  providerCostStorageFields,
   resolveProviderCost,
   type ProviderCacheMode,
 } from "../services/provider-costs";
@@ -122,6 +123,7 @@ export async function logUsage(params: {
       resolution: "lookup_error",
     };
   }
+  const providerCostStorage = providerCostStorageFields(realizedProviderCost);
   try {
     await db.execute(
       `INSERT INTO usage_logs (
@@ -130,10 +132,11 @@ export async function logUsage(params: {
          region, provider_id, channel_id, protocol, node_id, http_status, error_code,
          estimated, reservation_id, transaction_id, provider_cost, cost_version_id,
          provider_cache_mode, provider_input_includes_cache, provider_cost_resolution,
+         provider_cost_basis,
          retail_list_cost, retail_discount_rate, retail_discount_amount, thinking_output,
          created_at
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         logId,
         params.apiKeyId,
@@ -163,7 +166,8 @@ export async function logUsage(params: {
         realizedProviderCost.costVersionId,
         params.providerCacheMode || null,
         params.providerInputIncludesCache ?? null,
-        realizedProviderCost.resolution,
+        providerCostStorage.resolution,
+        providerCostStorage.basis,
         params.retailListCost ?? null,
         params.retailDiscountRate ?? null,
         params.retailDiscountAmount ?? null,

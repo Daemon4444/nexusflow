@@ -62,6 +62,19 @@ export interface ProviderCostResult {
   resolution: ProviderCostResolution;
 }
 
+export function providerCostStorageFields(result: ProviderCostResult): {
+  resolution: Exclude<ProviderCostResolution, "list_price_fallback">;
+  basis: "price_book" | "official_list" | null;
+} {
+  if (result.resolution === "list_price_fallback") {
+    return { resolution: "exact", basis: "official_list" };
+  }
+  return {
+    resolution: result.resolution,
+    basis: result.resolution === "exact" ? "price_book" : null,
+  };
+}
+
 const LIST_PRICE_FALLBACK_RESOLUTIONS = new Set<ProviderCostResolution>([
   "missing_version",
   "missing_tier",

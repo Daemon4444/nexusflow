@@ -1,26 +1,16 @@
--- When no verified negotiated/imported price applies, a successful request may
--- use its immutable settlement-time retail list-price snapshot as upstream
--- list cost. The negotiated price-book lookup still runs first.
+-- Expand-only evidence for the source of an exact realized provider cost.
+-- The existing provider_cost_resolution constraint remains untouched so the
+-- previous binary can continue writing usage throughout a rolling release.
 
 ALTER TABLE usage_logs
-  DROP CONSTRAINT IF EXISTS usage_logs_provider_cost_resolution_valid;
+  ADD COLUMN IF NOT EXISTS provider_cost_basis TEXT;
 
 ALTER TABLE usage_logs
-  ADD CONSTRAINT usage_logs_provider_cost_resolution_valid
+  ADD CONSTRAINT usage_logs_provider_cost_basis_valid
     CHECK (
-      provider_cost_resolution IS NULL
-      OR provider_cost_resolution IN (
-        'exact',
-        'list_price_fallback',
-        'not_applicable',
-        'missing_provider',
-        'missing_version',
-        'missing_tier',
-        'ambiguous_tier',
-        'missing_cache_mode',
-        'missing_cache_rate',
-        'inconsistent_usage',
-        'lookup_error',
-        'unsupported_pricing'
-      )
+      provider_cost_basis IS NULL
+      OR provider_cost_basis IN ('price_book', 'official_list')
     ) NOT VALID;
+
+CREATE INDEX IF NOT EXISTS idx_usage_logs_provider_cost_basis
+  ON usage_logs (provider_cost_basis, created_at DESC);
