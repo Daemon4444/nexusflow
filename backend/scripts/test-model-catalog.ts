@@ -5,6 +5,7 @@ import { sanitizeModelDoc } from "../src/data/model-overrides";
 import { estimateStreamUsage } from "../src/utils/estimate-stream-usage";
 import { isExplicitCacheRequested } from "../src/utils/cache-billing";
 import { openAiUsageToAnthropic } from "../src/utils/anthropic-openai-bridge";
+import { hasThinkingOutput } from "../src/routes/messages";
 import {
   getAllowedChatParameters,
   getModelCapabilities,
@@ -252,5 +253,36 @@ const bridged = openAiUsageToAnthropic({
 });
 assert.equal(bridged.reasoning_tokens, 7, "桥丢了 reasoning_tokens，思考价判定会失效");
 assert.equal(openAiUsageToAnthropic({ prompt_tokens: 1, completion_tokens: 1 }).reasoning_tokens, 0);
+
+// ========== 思考判定不得被正文内容触发（多收） ==========
+// 曾用全文子串匹配 thinking_delta，助手正文含该字面量就会翻转计价。
+const textMentioningProtocol = [
+  'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Anthropic 用 thinking_delta 表示思维链"}}',
+  "data: [DONE]",
+].join("\n");
+assert.equal(
+  hasThinkingOutput(textMentioningProtocol),
+  false,
+  "正文提到 thinking_delta 不得被判成思考模式"
+);
+assert.equal(
+  hasThinkingOutput('data: {"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"推理"}}'),
+  true,
+  "真实 Anthropic thinking_delta 必须识别"
+);
+assert.equal(
+  hasThinkingOutput('data: {"choices":[{"delta":{"reasoning_content":"推理"}}]}'),
+  true,
+  "桥路径的 OpenAI reasoning_content 也必须识别"
+);
+assert.equal(hasThinkingOutput({ content: [{ type: "thinking" }] }), true, "非流式 thinking 块");
+assert.equal(hasThinkingOutput({ content: [{ type: "text", text: "thinking_delta" }] }), false, "非流式正文不得误判");
+
+// 断流估费必须把思维链长度带进计费用的 usage，否则桥路径思考请求少收
+const estThinking = estimateStreamUsage(
+  'data: {"choices":[{"delta":{"reasoning_content":"推理内容"}}]}\ndata: [DONE]',
+  [{ role: "user", content: "hi" }]
+);
+assert.ok(estThinking.completion_tokens_details.reasoning_tokens > 0, "估费需报告 reasoning_tokens");
 
 console.log("model catalog onboarding tests passed");

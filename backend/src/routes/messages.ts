@@ -108,11 +108,32 @@ function rejectBillingReservation(res: Response, reason: BillingReservationFailu
 
 /**
  * 本次响应是否产出了思维链。用于按官方口径选择思考/非思考输出价。
- * 直通路径的 Anthropic usage 不带思维链细分，只能看响应内容：
- * 流式看 thinking_delta，非流式看 content 里的 thinking 块。
+ *
+ * 必须**逐行解析 JSON 后判结构字段**，不能对全文做子串匹配：助手正文本身
+ * 可能包含 `thinking_delta` 字面量（例如用户在问 Anthropic SSE 协议、贴代码），
+ * 子串匹配会让非思考请求被判成思考并按思考价多收，是内容可触发的计价翻转。
+ *
+ * 两种流式格式都要认：直通路径是 Anthropic SSE（thinking_delta），
+ * 桥路径的上游原文是 OpenAI SSE（delta.reasoning_content）。
  */
-function hasThinkingOutput(payload: unknown): boolean {
-  if (typeof payload === "string") return payload.includes("thinking_delta");
+export function hasThinkingOutput(payload: unknown): boolean {
+  if (typeof payload === "string") {
+    for (const line of payload.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const body = trimmed.slice(5).trimStart();
+      if (body === "[DONE]") continue;
+      try {
+        const json = JSON.parse(body);
+        if (json?.type === "content_block_delta" && json?.delta?.type === "thinking_delta") return true;
+        const reasoning = json?.choices?.[0]?.delta?.reasoning_content;
+        if (typeof reasoning === "string" && reasoning.length > 0) return true;
+      } catch {
+        /* 残缺行忽略 */
+      }
+    }
+    return false;
+  }
   const blocks = (payload as { content?: unknown })?.content;
   return Array.isArray(blocks)
     && blocks.some((b) => (b as { type?: string })?.type === "thinking");
@@ -717,6 +738,9 @@ router.post("/", async (req: Request, res: Response) => {
           output_tokens: est.completion_tokens,
           cache_creation_input_tokens: 0,
           cache_read_input_tokens: 0,
+          // 估费已算出思维链长度，必须带上：丢了会让思考请求按非思考价少收，
+          // 与 /v1/chat 断流兜底同一个坑（见 MODEL_ONBOARDING §4 第 11 条）。
+          reasoning_tokens: est.completion_tokens_details.reasoning_tokens,
         };
         estimatedBilling = true;
       }
