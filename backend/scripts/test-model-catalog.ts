@@ -241,6 +241,19 @@ assert.equal(flagshipCacheResolved.implicitHit, 1.5);
 // ========== 思考价不得对非思考请求生效 ==========
 // 曾用 max(非思考,思考) 兜底，导致 /v1/messages 的非思考请求被按思考价多收（qwen-plus 档1 为 4 倍）。
 const tieredThinking = models.find((model) => model.id === "qwen-plus")!;
+const qwenPlusCapabilities = getModelCapabilities(tieredThinking);
+assert.equal(qwenPlusCapabilities.thinking_mode, "mixed", "qwen-plus 应支持显式开启思考模式");
+assert.equal(qwenPlusCapabilities.thinking_default, false, "qwen-plus 默认应保持非思考模式");
+assert.equal(qwenPlusCapabilities.supports_enable_thinking, true, "qwen-plus 不得静默丢弃 enable_thinking");
+assert.equal(
+  buildUpstreamChatRequest(tieredThinking, {
+    model: "qwen-plus",
+    messages: [{ role: "user", content: "think" }],
+    enable_thinking: true,
+  }).enable_thinking,
+  true,
+  "qwen-plus 的 enable_thinking=true 必须透传到上游",
+);
 const firstTier = tieredThinking.tokenPricingTiers![0];
 assert.equal(resolveCompletionPrice(tieredThinking, firstTier, false), 2, "非思考请求必须按 ¥2");
 assert.equal(resolveCompletionPrice(tieredThinking, firstTier, true), 8, "思考请求按 ¥8");

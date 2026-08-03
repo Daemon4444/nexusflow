@@ -56,6 +56,7 @@ const MIXED_THINKING_DEFAULT_ON = new Set([
 ]);
 
 const MIXED_THINKING_DEFAULT_OFF = new Set([
+  "qwen-plus",
   "qwen3-max",
   "qwen3-plus",
   "qwen3-flash",
