@@ -24,7 +24,7 @@
 
 NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
-- **69 个运行时模型（2026-08-03 校准）**：涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成
+- **71 个运行时模型（2026-08-03 校准）**：涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成
 - **OpenAI 协议兼容**: 支持 OpenAI Chat Completions、Embeddings、Image Generations 协议
 - **多协议支持**: 同时支持 Anthropic Messages 和 OpenAI Responses API 协议
 - **统一计费**: 按 Token 或按生成数量计费，价格透明
@@ -102,6 +102,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 |---------|------|------------|----------|----------|----------|------|
 | `qwen3.8-max` | Qwen3.8 Max | **1M** | 128K | ¥12/M | ¥36/M | 旗舰，2.4T MoE，视觉理解，思考模式，上下文缓存 |
 | `qwen3.7-max` | Qwen3.7 Max | **1M** | 64K | ¥12/M | ¥36/M | 旗舰，思考模式，智能体 |
+| `qwen3.7-flash` | Qwen3.7 Flash | **1M** | 128K | ¥0.2/M起(3档) | ¥0.8/M起(3档) | 极速多模态，视觉理解，思考模式，上下文缓存 |
 | `qwen3-max` | Qwen3 Max | 262K | 64K | ¥2.5/M | ¥10/M | 旗舰，思考模式 |
 | `qwen3.6-max-preview` | Qwen3.6 Max Preview | 262K | 65K | ¥9/M | ¥54/M | 预览版，强推理 |
 | `qwen3.6-plus` | Qwen3.6 Plus | 1M | 65K | ¥2/M | ¥12/M | 百万上下文 |
@@ -151,6 +152,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
+| `MiniMax/MiniMax-M3` | MiniMax M3 | **1M** | 512K | ¥4.2/M (隐式缓存命中 ¥0.84/M) | ¥16.8/M | 旗舰，Coding/Agentic，原生多模态，深度思考 |
 | `MiniMax-M2.1` | MiniMax M2.1 | 131K | 8K | ¥2.1/M | ¥8.4/M | 创意写作 |
 | `MiniMax-M2.5` | MiniMax M2.5 | 205K | 128K | ¥2.1/M | ¥8.4/M | 推理增强 |
 
@@ -428,14 +430,14 @@ Authorization: Bearer YOUR_API_KEY
 
 | 提供商 | 模型数量 | 主要模型 |
 |--------|----------|----------|
-| 通义千问 | 40 | Qwen系列、万相、QwQ、Math、MT、ASR、TTS、意图识别 |
+| 通义千问 | 41 | Qwen系列、万相、QwQ、Math、MT、ASR、TTS、意图识别 |
 | DeepSeek | 5 | V3、V3.2、V4 Pro、V4 Flash、R1 |
 | 拍我AI (PixVerse) | 1 | PixVerse V6 |
 | 火山方舟 (Volcengine) | 6 | Seedance 系列 |
 | 阿里巴巴 (Alibaba) | 4 | HappyHorse 系列 |
 | 智谱AI | 4 | GLM 4.7、GLM 5、GLM 5.1、GLM 5.2 |
 | 月之暗面 | 3 | Kimi K3、Kimi K2.6、Kimi K2.5 |
-| MiniMax | 2 | M2.1、M2.5 |
+| MiniMax | 3 | M3、M2.1、M2.5 |
 | Anthropic | 3 | Claude Opus 4.7、Sonnet 4.6、Haiku 4.5 |
 
 ---

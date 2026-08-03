@@ -44,6 +44,18 @@ const qwenModels = [
     isFeatured: true,
   },
   {
+    id: "qwen3.7-flash",
+    name: "Qwen3.7 Flash",
+    desc: "Qwen3.7 原生视觉语言系列 Flash 模型，多模态理解与 Agent 执行能力全面提升，万物识别更强，多模态 Coding 体验更流畅。速度快、成本低，支持上下文缓存。百万级上下文。",
+    ctx: "1,000,000",
+    maxOutput: "131,072",
+    inputPrice: "¥0.2",
+    outputPrice: "¥0.8",
+    tags: ["极速", "低成本", "最新", "多模态"],
+    features: ["图像理解", "函数调用", "思考模式", "联网搜索", "上下文缓存", "百万上下文"],
+    isNew: true,
+  },
+  {
     id: "qwen3.6-max-preview",
     name: "Qwen3.6 Max Preview",
     desc: "Qwen3.6 系列最强预览模型，适合复杂推理、多步骤代码生成和工具型任务。",

@@ -45,6 +45,8 @@ const notForwardedOpenAiParams = [
 const thinkingSupport = [
   ["qwen3.8-max", "混合思考", "支持 true / false", "默认开启思考；true 返回 reasoning_content，最大思维链 256K；false 不返回。支持 thinking_budget 和 preserve_thinking。"],
   ["qwen3.7-max", "混合思考", "支持 true / false", "默认开启思考；true 返回 reasoning_content；false 不返回。支持 thinking_budget 和 preserve_thinking。"],
+  ["qwen3.7-flash", "混合思考", "支持 true / false", "线上验证：默认开启思考；true 返回 reasoning_content；false 不返回。支持 thinking_budget。"],
+  ["MiniMax/MiniMax-M3", "仅思考", "false 不能关闭", "线上验证：true/false 都返回 reasoning_content。"],
   ["qwen3.5-flash", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
   ["qwen3-max", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
   ["qwq-plus", "仅思考", "false 不能关闭", "线上验证：true/false 都返回 reasoning_content。"],

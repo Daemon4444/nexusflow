@@ -7,6 +7,7 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
+  { id: "MiniMax/MiniMax-M3", context: "1M", input: 4.2, output: 16.8, desc: "M3 旗舰，Coding/Agent/多模态，1M 上下文" },
   { id: "MiniMax-M2.5", context: "192K", input: 2.1, output: 8.4, desc: "M2.5 增强版，推理编程" },
   { id: "MiniMax-M2.1", context: "200K", input: 2.1, output: 8.4, desc: "M2.1 创意写作对话" },
 ];

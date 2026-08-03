@@ -26,11 +26,11 @@ interface AIModel {
   pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   pricingTiers?: PricingTier[];
   tokenPricingTiers?: TokenPricingTier[];
-  /** 后端已解析的缓存价，与实扣路径同源。 */
+  /** 后端已解析的缓存价，与实扣路径同源。仅隐式缓存的模型无显式字段。 */
   cachePricing?: {
     implicitHit: number;
-    explicitHit: number;
-    explicitCreation: number;
+    explicitHit?: number;
+    explicitCreation?: number;
   } | null;
 }
 
@@ -308,7 +308,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                         fontVariantNumeric: "tabular-nums",
                         whiteSpace: "nowrap",
                       }}>
-                        缓存命中 隐式¥{model.cachePricing.implicitHit} / 显式¥{model.cachePricing.explicitHit}
+                        缓存命中 隐式¥{model.cachePricing.implicitHit}{model.cachePricing.explicitHit !== undefined ? ` / 显式¥${model.cachePricing.explicitHit}` : ""}
                       </span>
                     )}
                     </span>

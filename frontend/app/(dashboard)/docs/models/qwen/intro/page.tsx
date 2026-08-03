@@ -43,8 +43,8 @@ const modelFamilies = [
   {
     name: "Qwen3.7 系列",
     badge: "旗舰",
-    desc: "2026 年最新发布的顶级旗舰，面向智能体时代全面升级。编程、办公、长周期自主执行能力大幅提升，支持思考模式切换、函数调用和联网搜索，百万级上下文窗口。",
-    models: ["Qwen3.7 Max"],
+    desc: "2026 年最新发布的顶级旗舰，面向智能体时代全面升级。编程、办公、长周期自主执行能力大幅提升，支持思考模式切换、函数调用和联网搜索，百万级上下文窗口。Flash 版本为原生视觉语言模型，以极低成本提供多模态理解与 Agent 执行能力。",
+    models: ["Qwen3.7 Max", "Qwen3.7 Flash"],
   },
   {
     name: "Qwen3.6 系列",
@@ -68,7 +68,7 @@ const modelFamilies = [
     name: "多模态系列",
     badge: "视觉理解",
     desc: "同时理解文本和图像的多模态模型，支持图片分析、OCR、图表解读、视觉问答等场景。VL Plus 适合高精度任务，VL Flash 适合实时图像处理。",
-    models: ["Qwen3.7 Plus", "Qwen3 VL Plus", "Qwen3 VL Flash"],
+    models: ["Qwen3.7 Plus", "Qwen3.7 Flash", "Qwen3 VL Plus", "Qwen3 VL Flash"],
   },
   {
     name: "全模态系列",

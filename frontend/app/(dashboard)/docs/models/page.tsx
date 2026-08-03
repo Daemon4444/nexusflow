@@ -19,7 +19,7 @@ const modelCategories = [
     desc: "阿里云自研大模型，当前重点展示 Qwen3.6 与 Qwen3.5 系列，中文能力优秀，支持超长上下文",
     href: "/docs/models/qwen",
     introHref: "/docs/models/qwen/intro",
-    models: ["Qwen3.8 Max", "Qwen3.7 Max", "Qwen3.6 Max Preview", "Qwen3.6 Plus", "Qwen3.5 Omni Plus", "Qwen3.5 Omni Flash", "Qwen3.5 Plus", "Qwen3.5 Flash"],
+    models: ["Qwen3.8 Max", "Qwen3.7 Max", "Qwen3.7 Flash", "Qwen3.6 Max Preview", "Qwen3.6 Plus", "Qwen3.5 Omni Plus", "Qwen3.5 Omni Flash", "Qwen3.5 Plus", "Qwen3.5 Flash"],
     color: "#7c3aed",
     tag: null,
   },
@@ -66,10 +66,10 @@ const modelCategories = [
   {
     name: "MiniMax 系列",
     provider: "MiniMax",
-    desc: "MiniMax 大模型，适合通用对话和内容创作",
+    desc: "MiniMax 大模型，M3 具备业界领先的 Coding 与 Agentic 能力和原生多模态，适合通用对话和内容创作",
     href: "/docs/api/minimax",
     introHref: "/docs/api/minimax",
-    models: ["MiniMax M2.5", "MiniMax M2.1"],
+    models: ["MiniMax M3", "MiniMax M2.5", "MiniMax M2.1"],
     color: "#ec4899",
     tag: null,
   },
@@ -98,6 +98,7 @@ const modelCategories = [
 const pricingTable = [
   { model: "qwen3.8-max", ctx: "1M", input: "¥12", output: "¥36", category: "旗舰" },
   { model: "qwen3.7-max", ctx: "1M", input: "¥12", output: "¥36", category: "旗舰" },
+  { model: "qwen3.7-flash", ctx: "1M", input: "¥0.2", output: "¥0.8", category: "极速多模态" },
   { model: "qwen3.6-max-preview", ctx: "256K", input: "¥9", output: "¥54", category: "旗舰" },
   { model: "qwen3.6-plus", ctx: "1M", input: "¥2", output: "¥12", category: "均衡" },
   { model: "qwen3.5-plus", ctx: "1M", input: "¥0.8", output: "¥4.8", category: "均衡" },
@@ -116,6 +117,7 @@ const pricingTable = [
   { model: "kimi/kimi-k3", ctx: "1M", input: "¥20", output: "¥100", category: "旗舰" },
   { model: "kimi-k2.6", ctx: "256K", input: "¥6.5", output: "¥27", category: "推理" },
   { model: "kimi-k2.5", ctx: "256K", input: "¥4", output: "¥21", category: "均衡" },
+  { model: "MiniMax/MiniMax-M3", ctx: "1M", input: "¥4.2", output: "¥16.8", category: "旗舰多模态" },
   { model: "MiniMax-M2.5", ctx: "192K", input: "¥2.1", output: "¥8.4", category: "均衡" },
 ];
 

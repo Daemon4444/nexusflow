@@ -15,16 +15,16 @@ interface TokenPricingTier {
   cacheReadExplicitPrice?: number;
 }
 
-/** 后端已解析的缓存价，与实扣路径同源；前端只渲染，不重算倍率。 */
+/** 后端已解析的缓存价，与实扣路径同源；前端只渲染，不重算倍率。仅隐式缓存的模型（MiniMax/kimi）无显式字段。 */
 interface CachePricing {
   implicitHit: number;
-  explicitHit: number;
-  explicitCreation: number;
+  explicitHit?: number;
+  explicitCreation?: number;
   tiers?: {
     label: string;
     implicitHit: number;
-    explicitHit: number;
-    explicitCreation: number;
+    explicitHit?: number;
+    explicitCreation?: number;
   }[];
 }
 
@@ -470,22 +470,28 @@ export default function ModelDetailPage() {
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
               上下文缓存价
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: model.cachePricing.explicitHit !== undefined ? "repeat(3, 1fr)" : "repeat(1, 1fr)", gap: 16 }}>
               <div>
                 <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>隐式缓存命中</div>
                 <div style={{ fontSize: 18, fontWeight: 600, color: "var(--success)" }}>¥{model.cachePricing.implicitHit}/M</div>
               </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>显式缓存命中</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--success)" }}>¥{model.cachePricing.explicitHit}/M</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>显式缓存创建</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.cachePricing.explicitCreation}/M</div>
-              </div>
+              {model.cachePricing.explicitHit !== undefined && (
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>显式缓存命中</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: "var(--success)" }}>¥{model.cachePricing.explicitHit}/M</div>
+                </div>
+              )}
+              {model.cachePricing.explicitCreation !== undefined && (
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>显式缓存创建</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.cachePricing.explicitCreation}/M</div>
+                </div>
+              )}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
-              缓存命中的输入 token 按上述单价计费，未命中部分按输入价计费。
+              {model.cachePricing.explicitHit !== undefined
+                ? "缓存命中的输入 token 按上述单价计费，未命中部分按输入价计费。"
+                : "该模型自动应用隐式缓存，命中部分按上述单价计费，无需也不支持显式缓存开关。"}
             </div>
           </div>
         )}
@@ -500,7 +506,9 @@ export default function ModelDetailPage() {
                 return (
                   <div key={tier.label} style={{
                     display: "grid",
-                    gridTemplateColumns: tierCache ? "1.4fr 1fr 1fr 1fr 1fr" : "1.4fr 1fr 1fr",
+                    gridTemplateColumns: tierCache
+                      ? (tierCache.explicitHit !== undefined ? "1.4fr 1fr 1fr 1fr 1fr" : "1.4fr 1fr 1fr 1fr")
+                      : "1.4fr 1fr 1fr",
                     gap: 12,
                     padding: "10px 12px",
                     borderBottom: idx < model.tokenPricingTiers!.length - 1 ? "1px solid var(--border)" : "none",
@@ -512,7 +520,9 @@ export default function ModelDetailPage() {
                     {tierCache && (
                       <>
                         <span style={{ textAlign: "right", color: "var(--text-secondary)" }}>隐式缓存 ¥{tierCache.implicitHit}/M</span>
-                        <span style={{ textAlign: "right", color: "var(--text-secondary)" }}>显式缓存 ¥{tierCache.explicitHit}/M</span>
+                        {tierCache.explicitHit !== undefined && (
+                          <span style={{ textAlign: "right", color: "var(--text-secondary)" }}>显式缓存 ¥{tierCache.explicitHit}/M</span>
+                        )}
                       </>
                     )}
                   </div>

@@ -8,6 +8,7 @@ const explicitModels = [
   { model: "qwen3.8-max", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.7-max", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.7-plus", provider: "通义千问", minTokens: 1024 },
+  { model: "qwen3.7-flash", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.6-max-preview", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.6-plus", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.6-flash", provider: "通义千问", minTokens: 1024 },
@@ -33,6 +34,7 @@ const implicitModels = [
   { model: "qwen3.8-max", provider: "通义千问", minTokens: "~1000" },
   { model: "qwen3.7-max", provider: "通义千问", minTokens: "~1000" },
   { model: "qwen3.7-plus", provider: "通义千问", minTokens: "~256" },
+  { model: "qwen3.7-flash", provider: "通义千问", minTokens: "~256" },
   { model: "qwen3.6-max-preview", provider: "通义千问", minTokens: "~256" },
   { model: "qwen3.6-plus", provider: "通义千问", minTokens: "~256" },
   { model: "qwen3.6-flash", provider: "通义千问", minTokens: "~256" },
@@ -56,6 +58,7 @@ const implicitModels = [
   { model: "kimi/kimi-k3", provider: "月之暗面", minTokens: "~256" },
   { model: "kimi-k2.6", provider: "月之暗面", minTokens: "~256" },
   { model: "kimi-k2.5", provider: "月之暗面", minTokens: "~256" },
+  { model: "MiniMax/MiniMax-M3", provider: "MiniMax", minTokens: "~256" },
   { model: "MiniMax-M2.5", provider: "MiniMax", minTokens: "~256" },
   { model: "MiniMax-M2.1", provider: "MiniMax", minTokens: "~256" },
 ];
