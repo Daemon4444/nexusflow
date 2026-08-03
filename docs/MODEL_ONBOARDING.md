@@ -76,6 +76,8 @@
 15. **思考价不能用 max() 兜底（review 补充）**：曾在 `/v1/messages` 用 `max(非思考价, 思考价)` 结算，理由是"Anthropic usage 没有思维链细分"。这是**实扣**而非预占，会让非思考请求被多收（`qwen-plus` 档1 是 4 倍），且与"披露价=实收价"自相矛盾。解法：桥路径由 `openAiUsageToAnthropic` 透传 `reasoning_tokens`；直通路径看响应内容（流式 `thinking_delta`、非流式 content 里的 `thinking` 块）。`calculateTokenCost` 现有显式 `opts.isThinking`，省略才走 max()，**账单重算类场景必须显式传入**，否则 `list_amount_cny` 虚高、`discount_rate` 出现虚假折扣。
 16. **`resolveCachePricing.explicitCreation` 目前固定 `promptPrice × 1.25`**，无可配字段。当前 42 模型 0 偏差，若将来官方出现偏离该倍率的模型，schema 无法表达 —— `test:official-pricing` 会抓到，届时再加字段即可，不必提前造。
 17. **`npm audit` 要显式指定官方源**：本机默认源是 npmmirror，不实现 audit 端点，会报 `[NOT_IMPLEMENTED]` 被误判成门失败。用 `npm audit --registry=https://registry.npmjs.org --omit=dev --audit-level=high`。
+18. **「仅隐式缓存」的模型不能套显式披露模板（MiniMax-M3 / kimi-k3，2026-08-03）**：MiniMax 和 kimi 官方只有隐式缓存折扣，无显式开关。`resolveCachePricing` 的显式价会回落隐式价（计费正确），但披露层若照常输出 `explicitHit`/`explicitCreation`，等于**虚构官方未公示的价格**（创建价还会按 ×1.25 显示成一个不存在的收费项）。用 `supports_explicit_context_caching` 区分：仅隐式模型只披露 `implicitHit`、不宣告 `enable_context_caching` 参数，前端对无显式字段自适应。kimi/kimi-k3 的 ¥2/M 隐式价曾收费 3 周而从未披露（上次记录遗留 #2）。
+19. **思考开关和输出上限必须实测，官方页会缺（同上）**：官方示例传 `enable_thinking: True` 不代表默认关（qwen3.7-flash 实测默认就开）；传 `enable_thinking: false` 返回 200 也不代表关掉了（MiniMax-M3 实测仍返回 reasoning_content，必须归入 ALWAYS 集合，否则 capabilities 宣告"可关"误导用户）。官方价卡"最大输出"可能显示"-"：用超额 `max_tokens` 探针，上游报错会明示上限（M3 报 `does not support max tokens > 524288`）。
 
 ## 5. 验证清单（全过才算上线完成）
 
