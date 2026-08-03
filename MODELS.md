@@ -24,7 +24,7 @@
 
 NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
-- **67 个运行时模型（2026-07-21 校准）**：涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成
+- **69 个运行时模型（2026-08-03 校准）**：涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成
 - **OpenAI 协议兼容**: 支持 OpenAI Chat Completions、Embeddings、Image Generations 协议
 - **多协议支持**: 同时支持 Anthropic Messages 和 OpenAI Responses API 协议
 - **统一计费**: 按 Token 或按生成数量计费，价格透明
@@ -100,6 +100,8 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
+| `qwen3.8-max` | Qwen3.8 Max | **1M** | 128K | ¥12/M | ¥36/M | 旗舰，2.4T MoE，视觉理解，思考模式，上下文缓存 |
+| `qwen3.7-max` | Qwen3.7 Max | **1M** | 64K | ¥12/M | ¥36/M | 旗舰，思考模式，智能体 |
 | `qwen3-max` | Qwen3 Max | 262K | 64K | ¥2.5/M | ¥10/M | 旗舰，思考模式 |
 | `qwen3.6-max-preview` | Qwen3.6 Max Preview | 262K | 65K | ¥9/M | ¥54/M | 预览版，强推理 |
 | `qwen3.6-plus` | Qwen3.6 Plus | 1M | 65K | ¥2/M | ¥12/M | 百万上下文 |
@@ -115,7 +117,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
 | `qwen3.6-35b-a3b` | Qwen3.6 35B-A3B | 262K | 32K | ¥1.8/M | ¥10.8/M | MoE 35B/3B，思考模式 |
-| `qwen3-235b-a22b` | Qwen3 235B-A22B | 131K | 8K | ¥2/M | ¥8/M | MoE架构，思考模式 |
+| `qwen3-235b-a22b` | Qwen3 235B-A22B | 131K | 16K | ¥2/M | ¥8/M（思考 ¥20/M） | MoE架构，思考模式 |
 | `qwen3-32b` | Qwen3 32B | 131K | 8K | ¥2/M | ¥8/M | 开源密集模型 |
 | `qwen3-8b` | Qwen3 8B | 131K | 8K | ¥0.5/M | ¥2/M | 轻量边缘部署 |
 
@@ -131,7 +133,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
-| `glm-4.7` | GLM 4.7 | 131K | 8K | ¥3/M | ¥14/M | 中文优化 |
+| `glm-4.7` | GLM 4.7 | 203K | 16K | ¥3/M | ¥14/M | 中文优化 |
 | `glm-5` | GLM 5 | 131K | 16K | ¥4/M | ¥18/M | 旗舰 |
 | `glm-5.1` | GLM 5.1 | 131K | 16K | ¥6/M | ¥24/M | 增强旗舰 |
 | `glm-5.2` | GLM 5.2 | **1M** | 128K | ¥8/M (缓存命中 ¥2/M) | ¥28/M | 长程任务、1M上下文、思考模式 |
@@ -141,7 +143,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
-| `kimi-k2.5` | Kimi K2.5 | 131K | 8K | ¥4/M | ¥21/M | 长文本理解 |
+| `kimi-k2.5` | Kimi K2.5 | 262K | 16K | ¥4/M | ¥21/M | 长文本理解 |
 | `kimi-k2.6` | Kimi K2.6 | 262K | 16K | ¥6.5/M | ¥27/M | 旗舰长文本 |
 | `kimi/kimi-k3` | Kimi K3 | **1M** | **1M** | ¥20/M (缓存命中 ¥2/M) | ¥100/M | 最强旗舰、2.8万亿参数、原生视觉理解、深度思考、开源 |
 
@@ -150,7 +152,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
 | `MiniMax-M2.1` | MiniMax M2.1 | 131K | 8K | ¥2.1/M | ¥8.4/M | 创意写作 |
-| `MiniMax-M2.5` | MiniMax M2.5 | 131K | 16K | ¥2.1/M | ¥8.4/M | 推理增强 |
+| `MiniMax-M2.5` | MiniMax M2.5 | 205K | 128K | ¥2.1/M | ¥8.4/M | 推理增强 |
 
 ---
 
@@ -159,7 +161,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |
 |---------|------|------------|----------|----------|----------|------|
 | `qwq-plus` | QwQ Plus | 131K | 16K | ¥1.6/M | ¥4/M | 思考链，数学逻辑 |
-| `deepseek-v4-pro` | DeepSeek V4 Pro | 1M | 16K | ¥12/M | ¥24/M | V4旗舰推理 |
+| `deepseek-v4-pro` | DeepSeek V4 Pro | 1M | 384K | ¥12/M | ¥24/M | V4旗舰推理 |
 | `deepseek-r1` | DeepSeek R1 | 131K | 16K | ¥4/M | ¥16/M | 思考链，数学编程 |
 | `qwen-math-plus` | Qwen Math Plus | 4K | 4K | ¥4/M | ¥12/M | 数学专用，LaTeX |
 
@@ -174,7 +176,8 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 | `qwen3-vl-plus` | Qwen3 VL Plus | 262K | 8K | ¥1/M | ¥10/M | 文本、图像(高分辨率) |
 | `qwen3-vl-flash` | Qwen3 VL Flash | 262K | 8K | ¥0.15/M | ¥1.5/M | 文本、图像 |
 | `qwen3-omni-flash` | Qwen3 Omni Flash | 65K | 8K | ¥1.8/M | ¥6.9/M | 文本、图像、视频 |
-| `qwen3.7-plus` | Qwen3.7 Plus | **1M** | 64K | ¥4/M | ¥16/M | 文本、图像，智能体，思考模式 |
+| `qwen3.7-plus` | Qwen3.7 Plus | **1M** | 128K | ¥2/M | ¥8/M | 文本、图像，智能体，思考模式（阶梯价） |
+| `qwen3.8-max` | Qwen3.8 Max | **1M** | 128K | ¥12/M | ¥36/M | 文本、图像，原生视觉理解，长视频解析 |
 
 ---
 
@@ -425,7 +428,7 @@ Authorization: Bearer YOUR_API_KEY
 
 | 提供商 | 模型数量 | 主要模型 |
 |--------|----------|----------|
-| 通义千问 | 39 | Qwen系列、万相、QwQ、Math、MT、ASR、TTS、意图识别 |
+| 通义千问 | 40 | Qwen系列、万相、QwQ、Math、MT、ASR、TTS、意图识别 |
 | DeepSeek | 5 | V3、V3.2、V4 Pro、V4 Flash、R1 |
 | 拍我AI (PixVerse) | 1 | PixVerse V6 |
 | 火山方舟 (Volcengine) | 6 | Seedance 系列 |

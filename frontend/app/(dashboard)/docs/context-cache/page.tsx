@@ -75,7 +75,7 @@ print(f"缓存命中: {details.cached_tokens} tokens")
 print(f"缓存创建: {details.cache_creation_input_tokens} tokens")`;
 
 const supportedModels = [
-  { provider: "通义千问", models: "Qwen3.7 Max, Qwen3.6 Max Preview, Qwen3.6 Plus/Flash, Qwen3.5 Plus/Flash, Qwen3 Max, Qwen Plus/Turbo, Qwen VL 系列, Qwen3 Coder 系列", min: "1024 (显式) / 256 (隐式)" },
+  { provider: "通义千问", models: "Qwen3.8 Max, Qwen3.7 Max, Qwen3.6 Max Preview, Qwen3.6 Plus/Flash, Qwen3.5 Plus/Flash, Qwen3 Max, Qwen Plus/Turbo, Qwen VL 系列, Qwen3 Coder 系列", min: "1024 (显式) / 256 (隐式)" },
   { provider: "DeepSeek", models: "DeepSeek V3.2", min: "1024 (显式)" },
   { provider: "智谱 GLM", models: "GLM 5.2, GLM 5.1, GLM 5, GLM 4.7", min: "512" },
   { provider: "Kimi", models: "Kimi K3, K2.6, K2.5", min: "1024 (显式)" },

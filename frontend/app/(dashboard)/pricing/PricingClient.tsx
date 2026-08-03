@@ -26,6 +26,12 @@ interface AIModel {
   pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   pricingTiers?: PricingTier[];
   tokenPricingTiers?: TokenPricingTier[];
+  /** 后端已解析的缓存价，与实扣路径同源。 */
+  cachePricing?: {
+    implicitHit: number;
+    explicitHit: number;
+    explicitCreation: number;
+  } | null;
 }
 
 export interface PricingPageProps {
@@ -208,6 +214,12 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                     <span style={{ textAlign: "right", fontSize: 13, color: "var(--text-tertiary)" }}>
                       {model.category}
                     </span>
+                    <span style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      gap: 3,
+                    }}>
                     {isMedia && hasTiers ? (
                       <span style={{
                         textAlign: "right",
@@ -289,6 +301,17 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                         )}
                       </span>
                     )}
+                    {model.cachePricing && (
+                      <span style={{
+                        fontSize: 11.5,
+                        color: "var(--text-tertiary)",
+                        fontVariantNumeric: "tabular-nums",
+                        whiteSpace: "nowrap",
+                      }}>
+                        缓存命中 隐式¥{model.cachePricing.implicitHit} / 显式¥{model.cachePricing.explicitHit}
+                      </span>
+                    )}
+                    </span>
                   </Link>
                   );
                 })}

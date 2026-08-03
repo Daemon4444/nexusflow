@@ -19,7 +19,7 @@ const modelCategories = [
     desc: "阿里云自研大模型，当前重点展示 Qwen3.6 与 Qwen3.5 系列，中文能力优秀，支持超长上下文",
     href: "/docs/models/qwen",
     introHref: "/docs/models/qwen/intro",
-    models: ["Qwen3.7 Max", "Qwen3.6 Max Preview", "Qwen3.6 Plus", "Qwen3.5 Omni Plus", "Qwen3.5 Omni Flash", "Qwen3.5 Plus", "Qwen3.5 Flash"],
+    models: ["Qwen3.8 Max", "Qwen3.7 Max", "Qwen3.6 Max Preview", "Qwen3.6 Plus", "Qwen3.5 Omni Plus", "Qwen3.5 Omni Flash", "Qwen3.5 Plus", "Qwen3.5 Flash"],
     color: "#7c3aed",
     tag: null,
   },
@@ -96,6 +96,7 @@ const modelCategories = [
 ];
 
 const pricingTable = [
+  { model: "qwen3.8-max", ctx: "1M", input: "¥12", output: "¥36", category: "旗舰" },
   { model: "qwen3.7-max", ctx: "1M", input: "¥12", output: "¥36", category: "旗舰" },
   { model: "qwen3.6-max-preview", ctx: "256K", input: "¥9", output: "¥54", category: "旗舰" },
   { model: "qwen3.6-plus", ctx: "1M", input: "¥2", output: "¥12", category: "均衡" },

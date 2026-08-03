@@ -5,6 +5,7 @@ import DocsCodeBlock from "@/components/DocsCodeBlock";
 const API_BASE = "https://nexusflow.hk";
 
 const explicitModels = [
+  { model: "qwen3.8-max", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.7-max", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.7-plus", provider: "通义千问", minTokens: 1024 },
   { model: "qwen3.6-max-preview", provider: "通义千问", minTokens: 1024 },
@@ -29,6 +30,7 @@ const explicitModels = [
 ];
 
 const implicitModels = [
+  { model: "qwen3.8-max", provider: "通义千问", minTokens: "~1000" },
   { model: "qwen3.7-max", provider: "通义千问", minTokens: "~1000" },
   { model: "qwen3.7-plus", provider: "通义千问", minTokens: "~256" },
   { model: "qwen3.6-max-preview", provider: "通义千问", minTokens: "~256" },

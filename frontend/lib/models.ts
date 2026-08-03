@@ -50,7 +50,8 @@ export function formatModelPrice(model: ModelSummary) {
 export function getRecommendedModels(models: ModelSummary[], limit = 6) {
   const callableModels = models.filter((model) => !model.availability || model.availability === "available");
   const preferredIds = [
-    // Kimi K3 最新旗舰（首页主推）
+    // Qwen3.8 Max 最新旗舰（首页主推）
+    "qwen3.8-max",
     "kimi/kimi-k3",
     "claude-sonnet-4-6",
     "qwen3.7-max",
@@ -80,6 +81,7 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
 export function pickDefaultPlaygroundModel(models: ModelSummary[], requestedModel?: string) {
   const preferredIds = [
     requestedModel,
+    "qwen3.8-max",
     "qwen3.7-max",
     "deepseek-v4-pro",
     "deepseek-v4-flash",

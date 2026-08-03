@@ -11,6 +11,28 @@ interface TokenPricingTier {
   maxTokens: number;
   promptPrice: number;
   completionPrice: number;
+  cacheReadPrice?: number;
+  cacheReadExplicitPrice?: number;
+}
+
+/** 后端已解析的缓存价，与实扣路径同源；前端只渲染，不重算倍率。 */
+interface CachePricing {
+  implicitHit: number;
+  explicitHit: number;
+  explicitCreation: number;
+  tiers?: {
+    label: string;
+    implicitHit: number;
+    explicitHit: number;
+    explicitCreation: number;
+  }[];
+}
+
+/** 后端已解析的思考模式输出价，仅在官方单独定价时返回。 */
+interface ThinkingPricing {
+  completionPrice: number;
+  thinkingCompletionPrice: number;
+  tiers?: { label: string; completionPrice: number; thinkingCompletionPrice: number }[];
 }
 
 interface AIModel {
@@ -22,6 +44,8 @@ interface AIModel {
   promptPrice: number;
   completionPrice: number;
   tokenPricingTiers?: TokenPricingTier[];
+  cachePricing?: CachePricing | null;
+  thinkingPricing?: ThinkingPricing | null;
   category: string;
   tags: string[];
   isNew?: boolean;
@@ -44,6 +68,7 @@ interface AIModel {
     supports_preserve_thinking: boolean;
     supports_search: boolean;
     supports_parallel_tool_calls: boolean;
+    supports_context_caching?: boolean;
   };
   allowed_parameters?: string[];
 }
@@ -405,26 +430,94 @@ export default function ModelDetailPage() {
             </div>
           </div>
         </div>
+        {model.thinkingPricing && (
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
+              思考模式输出价
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶非思考输出</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.thinkingPricing.completionPrice}/M</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶思考输出</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--warning, #d97706)" }}>¥{model.thinkingPricing.thinkingCompletionPrice}/M</div>
+              </div>
+            </div>
+            {model.thinkingPricing.tiers && model.thinkingPricing.tiers.length > 0 && (
+              <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", marginTop: 10 }}>
+                {model.thinkingPricing.tiers.map((tier, idx) => (
+                  <div key={tier.label} style={{
+                    display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 12, padding: "10px 12px",
+                    borderBottom: idx < model.thinkingPricing!.tiers!.length - 1 ? "1px solid var(--border)" : "none",
+                    fontSize: 13,
+                  }}>
+                    <span style={{ fontWeight: 500 }}>{tier.label}</span>
+                    <span style={{ textAlign: "right" }}>非思考 ¥{tier.completionPrice}/M</span>
+                    <span style={{ textAlign: "right" }}>思考 ¥{tier.thinkingCompletionPrice}/M</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
+              开启思考模式时，思维链与回答的全部输出 token 按思考价计费。
+            </div>
+          </div>
+        )}
+        {model.cachePricing && (
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
+              上下文缓存价
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>隐式缓存命中</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--success)" }}>¥{model.cachePricing.implicitHit}/M</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>显式缓存命中</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--success)" }}>¥{model.cachePricing.explicitHit}/M</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>显式缓存创建</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.cachePricing.explicitCreation}/M</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
+              缓存命中的输入 token 按上述单价计费，未命中部分按输入价计费。
+            </div>
+          </div>
+        )}
         {model.tokenPricingTiers && model.tokenPricingTiers.length > 0 && (
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
               阶梯定价
             </div>
             <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-              {model.tokenPricingTiers.map((tier, idx) => (
-                <div key={tier.label} style={{
-                  display: "grid",
-                  gridTemplateColumns: "1.4fr 1fr 1fr",
-                  gap: 12,
-                  padding: "10px 12px",
-                  borderBottom: idx < model.tokenPricingTiers!.length - 1 ? "1px solid var(--border)" : "none",
-                  fontSize: 13,
-                }}>
-                  <span style={{ fontWeight: 500 }}>{tier.label}</span>
-                  <span style={{ textAlign: "right" }}>输入 ¥{tier.promptPrice}/M</span>
-                  <span style={{ textAlign: "right" }}>输出 ¥{tier.completionPrice}/M</span>
-                </div>
-              ))}
+              {model.tokenPricingTiers.map((tier, idx) => {
+                const tierCache = model.cachePricing?.tiers?.find((entry) => entry.label === tier.label);
+                return (
+                  <div key={tier.label} style={{
+                    display: "grid",
+                    gridTemplateColumns: tierCache ? "1.4fr 1fr 1fr 1fr 1fr" : "1.4fr 1fr 1fr",
+                    gap: 12,
+                    padding: "10px 12px",
+                    borderBottom: idx < model.tokenPricingTiers!.length - 1 ? "1px solid var(--border)" : "none",
+                    fontSize: 13,
+                  }}>
+                    <span style={{ fontWeight: 500 }}>{tier.label}</span>
+                    <span style={{ textAlign: "right" }}>输入 ¥{tier.promptPrice}/M</span>
+                    <span style={{ textAlign: "right" }}>输出 ¥{tier.completionPrice}/M</span>
+                    {tierCache && (
+                      <>
+                        <span style={{ textAlign: "right", color: "var(--text-secondary)" }}>隐式缓存 ¥{tierCache.implicitHit}/M</span>
+                        <span style={{ textAlign: "right", color: "var(--text-secondary)" }}>显式缓存 ¥{tierCache.explicitHit}/M</span>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

@@ -9,11 +9,11 @@ import { fetchAPI } from "@/lib/api";
 import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
 
 const fallbackModelRows = [
+  { model: "Qwen3.8 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
   { model: "Kimi K3", provider: "Moonshot AI", context: "1M", price: "input ¥20 / output ¥100 per 1M" },
   { model: "Qwen3.7 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
   { model: "GLM 5.2", provider: "Zhipu AI", context: "1M", price: "input ¥8 / output ¥28 per 1M" },
   { model: "DeepSeek V4 Flash", provider: "DeepSeek", context: "1M", price: "input ¥1 / output ¥2 per 1M" },
-  { model: "DeepSeek V4 Pro", provider: "DeepSeek", context: "1M", price: "input ¥12 / output ¥24 per 1M" },
   { model: "Seedance 2.0", provider: "Volcengine Ark", context: "Async video", price: "from ¥0.44 / second" },
 ];
 
@@ -44,6 +44,7 @@ const workflow = [
 ];
 
 const fallbackCarouselModels = [
+  { name: "Qwen3.8 Max", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥12 · Out ¥36", badge: "New", tone: "blue" },
   { name: "Kimi K3", provider: "Moonshot AI", ctx: "1M context", price: "In ¥20 · Out ¥100", badge: "New", tone: "teal" },
   { name: "Qwen3.7 Max", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥12 · Out ¥36", badge: "Flagship", tone: "blue" },
   { name: "Qwen3 Max", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥2.5 · Out ¥10", badge: "Stable", tone: "blue" },
@@ -184,6 +185,32 @@ interface FlagshipSlide {
 }
 
 const flagshipSlides: FlagshipSlide[] = [
+  {
+    key: "qwen3.8-max",
+    accent: "#a5b4fc",
+    border: "rgba(129,140,248,0.32)",
+    gradient: "linear-gradient(135deg, #05060f 0%, #131a3a 48%, #312e81 100%)",
+    glow: "rgba(129,140,248,0.26)",
+    btnGradient: "linear-gradient(135deg, #818cf8, #4338ca)",
+    btnShadow: "0 6px 20px rgba(67,56,202,0.42)",
+    primaryBadge: "Flagship LLM",
+    secondaryBadge: "最新上线",
+    byline: "by 通义千问 · 阿里云百炼",
+    title: "Qwen3.8 Max",
+    titleGradient: "linear-gradient(135deg, #f8fafc 0%, #c7d2fe 48%, #818cf8 100%)",
+    lead: "通义千问 3.8 代旗舰：2.4 万亿参数 MoE，编程与办公能力全面跃升，可自主编程十数天交付完整项目。胜任法律、金融、设计等数百种专业任务，一次对话端到端交付生产级成果——直接调用 ",
+    modelCode: "qwen3.8-max",
+    sub: "原生视觉理解贯穿规划、执行与验证全流程，支持超长文档与长视频深度解析。输入 ¥12/M、输出 ¥36/M、显式缓存命中低至 ¥1/M。",
+    primaryHref: "/models/qwen3.8-max",
+    primaryLabel: "了解 Qwen3.8 Max",
+    docsHref: "/docs/api/qwen",
+    stats: [
+      { v: "2.4T", l: "MoE 总参数" },
+      { v: "1M", l: "Token 上下文窗口" },
+      { v: "128K", l: "最大输出" },
+      { v: "¥1/M", l: "显式缓存命中价" },
+    ],
+  },
   {
     key: "deepseek-v4-flash",
     accent: "#7dd3fc",
@@ -499,18 +526,18 @@ export default function LandingPage() {
 
       <section className="nf-hero">
         <div className="nf-hero-copy">
-          <Link href="/models/kimi/kimi-k3" style={{
+          <Link href="/models/qwen3.8-max" style={{
             display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 14,
             padding: "6px 14px", borderRadius: 999, textDecoration: "none",
-            background: "linear-gradient(135deg, rgba(45,212,191,0.14), rgba(34,211,238,0.1))",
-            border: "1px solid rgba(45,212,191,0.35)", fontSize: 12.5, fontWeight: 600,
+            background: "linear-gradient(135deg, rgba(129,140,248,0.16), rgba(99,102,241,0.1))",
+            border: "1px solid rgba(129,140,248,0.38)", fontSize: 12.5, fontWeight: 600,
             color: "var(--text-primary)",
           }}>
             <span style={{
               padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 800,
-              letterSpacing: "0.08em", background: "#0d9488", color: "#fff",
+              letterSpacing: "0.08em", background: "#4338ca", color: "#fff",
             }}>NEW</span>
-            Kimi K3 is live — 2.8T params · native vision · 1M context
+            Qwen3.8 Max is live — 2.4T params · native vision · 1M context
             <span aria-hidden style={{ fontWeight: 700 }}>→</span>
           </Link>
           <div className="nf-eyebrow">One API, every leading AI model</div>
@@ -528,7 +555,7 @@ export default function LandingPage() {
           </div>
           <div className="nf-hero-metrics">
             <div><strong>{modelCount}+</strong><span>model options</span></div>
-            <div><strong>2.8T</strong><span>Kimi K3 flagship</span></div>
+            <div><strong>2.4T</strong><span>Qwen3.8 Max flagship</span></div>
             <div><strong>4K HDR</strong><span>Seedance 2.0 video</span></div>
           </div>
         </div>
