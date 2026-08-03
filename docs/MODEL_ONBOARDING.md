@@ -78,6 +78,7 @@
 17. **`npm audit` 要显式指定官方源**：本机默认源是 npmmirror，不实现 audit 端点，会报 `[NOT_IMPLEMENTED]` 被误判成门失败。用 `npm audit --registry=https://registry.npmjs.org --omit=dev --audit-level=high`。
 18. **「仅隐式缓存」的模型不能套显式披露模板（MiniMax-M3 / kimi-k3，2026-08-03）**：MiniMax 和 kimi 官方只有隐式缓存折扣，无显式开关。`resolveCachePricing` 的显式价会回落隐式价（计费正确），但披露层若照常输出 `explicitHit`/`explicitCreation`，等于**虚构官方未公示的价格**（创建价还会按 ×1.25 显示成一个不存在的收费项）。用 `supports_explicit_context_caching` 区分：仅隐式模型只披露 `implicitHit`、不宣告 `enable_context_caching` 参数，前端对无显式字段自适应。kimi/kimi-k3 的 ¥2/M 隐式价曾收费 3 周而从未披露（上次记录遗留 #2）。
 19. **思考开关和输出上限必须实测，官方页会缺（同上）**：官方示例传 `enable_thinking: True` 不代表默认关（qwen3.7-flash 实测默认就开）；传 `enable_thinking: false` 返回 200 也不代表关掉了（MiniMax-M3 实测仍返回 reasoning_content，必须归入 ALWAYS 集合，否则 capabilities 宣告"可关"误导用户）。官方价卡"最大输出"可能显示"-"：用超额 `max_tokens` 探针，上游报错会明示上限（M3 报 `does not support max tokens > 524288`）。
+20. **REF 和 models.ts 一起改是循环验证，抓不住抄错行（2026-08-03 勘误）**：`test:official-pricing` 的 0 偏差只证明 REF 与目录一致，不证明 REF 抄对了。qwen3.8-max 那轮"校准"把 5 处 limits 抄成了官方表**相邻行**的数字（kimi 抄了 k2-thinking、M2.5 抄了 M2.7、glm-4.7 抄了 glm-5），0 偏差照样全绿。防线：① 官方价本原文入库存档（`docs/pricing/`），改 REF 时 diff 的对象是存档而不是记忆；② 可疑 limits 用超额 `max_tokens` 探针实证（价格探不了，limits 能）；③ 官方表格里同名系列相邻行（快照版/thinking 版/上一代）是高危抄错源，逐行核对模型 ID。
 
 ## 5. 验证清单（全过才算上线完成）
 

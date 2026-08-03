@@ -1162,7 +1162,7 @@ const staticModels: AIModel[] = [
     name: "DeepSeek V3",
     provider: "DeepSeek",
     description: "深度求索V3通用大模型，671B参数MoE架构，中英双语能力优异。",
-    contextLength: 65536,
+    contextLength: 131072,
     promptPrice: 2,
     completionPrice: 8,
     cacheReadPrice: 0.4,
@@ -1222,12 +1222,12 @@ const staticModels: AIModel[] = [
     name: "GLM 4.7",
     provider: "智谱AI",
     description: "智谱最新大模型GLM-4.7，综合能力提升显著，中文理解力强。",
-    contextLength: 202752,
+    contextLength: 169984,
     promptPrice: 3,
     completionPrice: 14,
     tokenPricingTiers: [
       { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 3, completionPrice: 14, cacheReadPrice: 0.6 },
-      { label: "32K<Token≤200K", maxTokens: 202752, promptPrice: 4, completionPrice: 16, cacheReadPrice: 0.8 },
+      { label: "32K<Token≤166K", maxTokens: 169984, promptPrice: 4, completionPrice: 16, cacheReadPrice: 0.8 },
     ],
     category: "大语言模型",
     tags: ["中文优化", "推理", "通用"],
@@ -1322,7 +1322,7 @@ const staticModels: AIModel[] = [
     cacheReadExplicitPrice: 0.4,
     category: "大语言模型",
     tags: ["长文本", "多轮对话", "中文优化"],
-    maxOutput: 16384,
+    maxOutput: 98304,
     supported: ["文本"]
   },
   {
@@ -1339,7 +1339,7 @@ const staticModels: AIModel[] = [
     tags: ["旗舰", "长文本", "创意写作", "中文优化"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 98304,
     supported: ["文本", "函数调用"]
   },
   {
@@ -1396,14 +1396,14 @@ const staticModels: AIModel[] = [
     name: "MiniMax M2.5",
     provider: "MiniMax",
     description: "MiniMax M2.5 增强版，推理和编程能力提升，多轮对话更加稳定。",
-    contextLength: 204800,
+    contextLength: 196608,
     promptPrice: 2.1,
     completionPrice: 8.4,
     cacheReadPrice: 0.42,
     category: "大语言模型",
     tags: ["推理", "编程", "对话"],
     isNew: true,
-    maxOutput: 131072,
+    maxOutput: 32768,
     supported: ["文本", "函数调用"]
   },
   // ========== Qwen3 小模型 ==========

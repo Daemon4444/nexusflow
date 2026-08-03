@@ -20,7 +20,7 @@ const modelLimits = [
   { model: "deepseek-v4-pro", maxInput: "1M", maxOutput: "384K", contextWindow: "1M" },
   { model: "deepseek-v4-flash", maxInput: "1M", maxOutput: "384K", contextWindow: "1M" },
   { model: "deepseek-r1", maxInput: "64K", maxOutput: "8K", contextWindow: "64K" },
-  { model: "deepseek-v3", maxInput: "64K", maxOutput: "8K", contextWindow: "64K" },
+  { model: "deepseek-v3", maxInput: "128K", maxOutput: "8K", contextWindow: "128K" },
 ];
 
 export default function LimitsPage() {
