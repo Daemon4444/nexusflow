@@ -14,6 +14,7 @@ export type ProviderCacheMode = "implicit" | "explicit";
 
 export type ProviderCostResolution =
   | "exact"
+  | "list_price_fallback"
   | "not_applicable"
   | "missing_provider"
   | "missing_version"
@@ -59,6 +60,46 @@ export interface ProviderCostResult {
   costVersionId: string | null;
   priceBookId: string | null;
   resolution: ProviderCostResolution;
+}
+
+const LIST_PRICE_FALLBACK_RESOLUTIONS = new Set<ProviderCostResolution>([
+  "missing_version",
+  "missing_tier",
+  "ambiguous_tier",
+  "missing_cache_mode",
+  "missing_cache_rate",
+  "unsupported_pricing",
+]);
+
+export function applyRetailListPriceFallback(
+  result: ProviderCostResult,
+  params: {
+    providerId?: string | null;
+    retailListCost?: number | null;
+    status: string;
+    estimated?: boolean;
+  }
+): ProviderCostResult {
+  const listCost = Number(params.retailListCost);
+  if (
+    result.amount !== null
+    || !LIST_PRICE_FALLBACK_RESOLUTIONS.has(result.resolution)
+    || !params.providerId
+    || params.status !== "success"
+    || params.estimated === true
+    || params.retailListCost === null
+    || params.retailListCost === undefined
+    || !Number.isFinite(listCost)
+    || listCost < 0
+  ) {
+    return result;
+  }
+  return {
+    amount: Math.round((listCost + Number.EPSILON) * 1_000_000) / 1_000_000,
+    costVersionId: null,
+    priceBookId: null,
+    resolution: "list_price_fallback",
+  };
 }
 
 export interface ProviderCostUsage {

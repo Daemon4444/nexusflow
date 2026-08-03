@@ -115,11 +115,27 @@ async function main(): Promise<void> {
      VALUES (?, NULL, ?, ?, 10, NULL, ?, 'active', NOW(), NOW())`,
     ["billing-pricing-evidence-user", "billing-pricing-evidence@example.invalid", "计价证据测试", "billing_pricing_evidence"]
   );
+  await db.execute(
+    `INSERT INTO providers
+      (id, name, slug, api_base_url, api_key, contact_name, contact_email, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'enabled')
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      "dashscope",
+      "DashScope test provider",
+      "dashscope",
+      "https://example.invalid",
+      "test-only",
+      "Test",
+      "test@example.invalid",
+    ]
+  );
   const thinkingLogId = await logUsage({
     logId: "billing-pricing-thinking",
     apiKeyId: null,
     userId: "billing-pricing-evidence-user",
     model: "qwen-plus",
+    providerId: "dashscope",
     promptTokens: 1_000,
     completionTokens: 1_000,
     totalTokens: 2_000,
@@ -138,6 +154,7 @@ async function main(): Promise<void> {
     apiKeyId: null,
     userId: "billing-pricing-evidence-user",
     model: "qwen-plus",
+    providerId: "dashscope",
     promptTokens: 1_000,
     completionTokens: 1_000,
     totalTokens: 2_000,
@@ -171,13 +188,29 @@ async function main(): Promise<void> {
     retail_list_cost: number;
     thinking_output: boolean;
     provider_cache_mode: string;
+    provider_cost: number;
+    provider_cost_resolution: string;
   }>(
-    "SELECT retail_list_cost, thinking_output, provider_cache_mode FROM usage_logs WHERE log_id = ?",
+    `SELECT retail_list_cost, thinking_output, provider_cache_mode,
+            provider_cost, provider_cost_resolution
+       FROM usage_logs WHERE log_id = ?`,
     [thinkingLogId]
   );
   assert.equal(Number(storedEvidence?.retail_list_cost), 0.0088);
   assert.equal(Boolean(storedEvidence?.thinking_output), true);
   assert.equal(storedEvidence?.provider_cache_mode, "implicit");
+  assert.equal(Number(storedEvidence?.provider_cost), 0.0088);
+  assert.equal(storedEvidence?.provider_cost_resolution, "list_price_fallback");
+
+  const discountedProviderCost = await db.queryOne<{
+    provider_cost: number;
+    provider_cost_resolution: string;
+  }>(
+    "SELECT provider_cost, provider_cost_resolution FROM usage_logs WHERE log_id = ?",
+    ["billing-pricing-nonthinking-discounted"]
+  );
+  assert.equal(Number(discountedProviderCost?.provider_cost), 0.0028);
+  assert.equal(discountedProviderCost?.provider_cost_resolution, "list_price_fallback");
 
   console.log("billing reservations, failure codes, and video parameter contracts: ok");
 }

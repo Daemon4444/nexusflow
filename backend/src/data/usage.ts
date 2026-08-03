@@ -3,6 +3,7 @@ import { logToSLS } from "../services/sls";
 import { randomUUID } from "crypto";
 import { recordFailure, recordSuccess } from "../services/scheduler";
 import {
+  applyRetailListPriceFallback,
   resolveProviderCost,
   type ProviderCacheMode,
 } from "../services/provider-costs";
@@ -96,7 +97,7 @@ export async function logUsage(params: {
   const logId = params.logId || randomUUID();
   let realizedProviderCost: Awaited<ReturnType<typeof resolveProviderCost>>;
   try {
-    realizedProviderCost = await resolveProviderCost({
+    realizedProviderCost = applyRetailListPriceFallback(await resolveProviderCost({
       providerId: params.providerId,
       modelId: params.model,
       promptTokens: params.promptTokens,
@@ -108,7 +109,7 @@ export async function logUsage(params: {
       providerUnits: params.providerUnits,
       status: params.status,
       estimated: params.estimated === true,
-    });
+    }), params);
   } catch (error) {
     console.warn(
       "[usage] provider cost lookup failed:",

@@ -70,7 +70,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
 | 线上模型目录 | 71 个运行时模型；以 `GET /api/models` 实时结果为准 |
-| 数据库迁移 | 仓库已提交到 `022_usage_retail_pricing_evidence.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
+| 数据库迁移 | 仓库已提交到 `023_provider_list_price_fallback.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
 
@@ -208,6 +208,7 @@ Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720
 - Claude `claude-*` 通过 Anthropic Messages 路径；Kimi K3 的 Messages 支持曾因上游差异走自建桥，切换逻辑由模型字段控制。
 - 模型 ID 可能包含 `/`，例如 `kimi/kimi-k3`。前端、Next proxy 和 Express 路径必须保留编码，不能把 `%2F` 提前拆成路径段。
 - Responses 内置工具可能产生非 Token 上游费用。默认只允许本地 `function` 类型；其它类型必须通过 `RESPONSE_ALLOWED_TOOLS` 明确放行并先确认成本模型。
+- 上游成本先使用可追溯的合同、发票、人工核验或私有折扣表价本；没有可适用价本时，使用请求结算时固化的官方原价。客户折后实付不能代替官方原价，估算请求和 Provider 不明请求仍然失败关闭。
 - `messagesRouter` 必须在通用 `/v1` router 之前挂载，避免被通用路由截获。
 
 ## 8. 模型目录与 Provider 路由
@@ -317,11 +318,13 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 020_upload_object_lifecycle.sql
 021_control_plane_persistence_limits.sql
 022_usage_retail_pricing_evidence.sql
+023_provider_list_price_fallback.sql
 ```
 
 历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。
 `017` 是 session hash、`018` 是通用后台审计、`019` 是 Provider 成本分层、`020`
-是上传对象生命周期、`021` 是控制面持久化边界、`022` 保存结算时零售价/折扣/思考模式证据；新增 migration 前必须检查实际目录
+是上传对象生命周期、`021` 是控制面持久化边界、`022` 保存结算时零售价/折扣/思考模式证据，
+`023` 增加无适用私有价本时的官方原价兜底；新增 migration 前必须检查实际目录
 和团队分配，禁止复用编号。
 生产是否已应用以 `schema_migrations` 为准，不能从仓库文件列表推断。
 

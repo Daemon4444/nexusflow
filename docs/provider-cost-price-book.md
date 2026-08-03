@@ -1,7 +1,9 @@
 # Provider cost price books
 
-Provider costs are versioned, source-traceable facts. They are not inferred
-from retail prices and are never backfilled into historical usage.
+Provider costs are source-traceable facts. Verified private prices are
+versioned; official-list fallback uses the immutable list amount captured by
+the original settlement. Historical nulls may be backfilled only from those
+same settlement facts.
 
 ## Data model
 
@@ -11,9 +13,11 @@ from retail prices and are never backfilled into historical usage.
   cache creation rates are stored separately in CNY per million tokens.
 - `contract`, `invoice`, `manual`, and verified private `import` rows are
   recognized. Estimates never contribute to realized upstream cost.
-- If tiers overlap, the requested tier is absent, cache semantics are unknown,
-  or an observed cache mode has no corresponding rate, realized provider cost
-  remains `NULL`.
+- Negotiated/imported price books are evaluated first. If none can resolve the
+  request, the immutable official retail-list amount captured at settlement is
+  used as the provider list-price fallback. Missing provider identity,
+  estimated usage, lookup failures, and internally inconsistent usage still
+  fail closed.
 - Imported source references, SHA-256, source rows, and condition fingerprints
   are retained without putting the source workbook or commercial rates in Git.
 
@@ -63,3 +67,16 @@ same exact private manifest reactivates the fully matching book atomically.
 Mixed active/deactivated rows, altered contents, or a mismatched effective
 window fail closed. Import, deactivation, and reactivation each write route
 audit events.
+
+## Historical backfill
+
+The backfill always tries the verified provider price book first. It falls back
+to the immutable settlement list amount only when no applicable price-book row
+resolves. Dry-run is the default:
+
+```text
+npm run provider-cost:backfill -- --since-hours 24
+```
+
+Apply requires `--apply`; the command only updates successful, non-estimated
+usage whose provider cost is still null.

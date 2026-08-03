@@ -849,6 +849,7 @@ async function main() {
       status: "success",
       latencyMs: 100,
       estimated: true,
+      retailListCost: 0.099,
     });
     const estimatedProviderCost = await db.queryOne<any>(
       "SELECT provider_cost, cost_version_id FROM usage_logs WHERE log_id = ?",
@@ -869,6 +870,7 @@ async function main() {
       cost: 0.02,
       status: "success",
       latencyMs: 100,
+      retailListCost: 0.099,
     });
     const verifiedProviderCost = await db.queryOne<any>(
       "SELECT provider_cost, cost_version_id FROM usage_logs WHERE log_id = ?",
