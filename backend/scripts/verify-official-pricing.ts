@@ -59,6 +59,14 @@ const REF: Record<string, Ref> = {
       { max: 1000000, in: 4, out: 24, read: 0.4 },
     ],
   },
+  "qwen3.7-flash": {
+    ctx: 1000000, maxOut: 131072,
+    tiers: [
+      { max: 131072, in: 0.2, out: 0.8, cache: 0.04, read: 0.02 },
+      { max: 262144, in: 0.6, out: 2.4, cache: 0.12, read: 0.06 },
+      { max: 1000000, in: 1.2, out: 4.8, cache: 0.24, read: 0.12 },
+    ],
+  },
   "qwen3.6-flash": {
     ctx: 1000000, maxOut: 65536,
     tiers: [
@@ -158,6 +166,7 @@ const REF: Record<string, Ref> = {
   "kimi-k2.5": { ctx: 262144, maxOut: 16384, in: 4, out: 21, cache: 0.8, create: 5, read: 0.4 },
   "kimi-k2.6": { ctx: 262144, maxOut: 16384, in: 6.5, out: 27, cache: 1.3, create: 8.125, read: 0.65 },
   "kimi/kimi-k3": { ctx: 1048576, maxOut: 1048576, in: 20, out: 100, cache: 2 },
+  "MiniMax/MiniMax-M3": { ctx: 1000000, maxOut: 524288, in: 4.2, out: 16.8, cache: 0.84 },
   "MiniMax-M2.1": { ctx: 204800, maxOut: 32768, in: 2.1, out: 8.4, cache: 0.42 },
   "MiniMax-M2.5": { ctx: 204800, maxOut: 131072, in: 2.1, out: 8.4, cache: 0.42 },
   "text-embedding-v4": { in: 0.5 },

@@ -94,10 +94,21 @@ function buildThinkingPricing(model: AIModel) {
 /**
  * 对外披露的缓存价。取值来自 data/models 的 resolveCachePricing，
  * 与实扣路径同源，因此展示价不可能与实收价漂移。
+ * 仅隐式缓存的模型（如 MiniMax、kimi/kimi-k3）官方未公示显式命中/创建价，
+ * 只披露 implicitHit，不虚构解析器兜底的倍率价。
  */
-function buildCachePricing(model: AIModel, supportsCaching: boolean) {
+function buildCachePricing(model: AIModel, supportsCaching: boolean, supportsExplicit: boolean) {
   if (!supportsCaching) return null;
   const base = resolveCachePricing(model);
+  if (!supportsExplicit) {
+    return {
+      implicitHit: money6(base.implicitHit),
+      tiers: model.tokenPricingTiers?.map((tier) => ({
+        label: tier.label,
+        implicitHit: money6(resolveCachePricing(model, tier).implicitHit),
+      })),
+    };
+  }
   return {
     implicitHit: money6(base.implicitHit),
     explicitHit: money6(base.explicitHit),
@@ -159,7 +170,7 @@ router.get("/", async (req: Request, res: Response) => {
         pricingType: model.pricingType,
         pricingTiers: model.pricingTiers,
         tokenPricingTiers: model.tokenPricingTiers,
-        cachePricing: buildCachePricing(model, capabilities.supports_context_caching),
+        cachePricing: buildCachePricing(model, capabilities.supports_context_caching, capabilities.supports_explicit_context_caching),
         thinkingPricing: buildThinkingPricing(model),
         supportedProtocols: getSupportedProtocols(model),
         supported_protocols: getSupportedProtocols(model),
@@ -194,7 +205,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       pricingType: model.pricingType,
       pricingTiers: model.pricingTiers,
       tokenPricingTiers: model.tokenPricingTiers,
-      cachePricing: buildCachePricing(model, capabilities.supports_context_caching),
+      cachePricing: buildCachePricing(model, capabilities.supports_context_caching, capabilities.supports_explicit_context_caching),
       thinkingPricing: buildThinkingPricing(model),
       supportedProtocols: getSupportedProtocols(model),
       supported_protocols: getSupportedProtocols(model),

@@ -275,6 +275,25 @@ const staticModels: AIModel[] = [
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
+    id: "qwen3.7-flash",
+    name: "Qwen3.7 Flash",
+    provider: "通义千问",
+    description: "Qwen3.7原生视觉语言系列Flash模型，相较3.6-Flash全面提升多模态理解与Agent执行能力。万物识别能力更强，真实世界感知与空间智能进一步提升，Search Agent、CI Agent等多模态Agent场景能力显著升级，多模态Coding能力优化。百万级上下文，支持上下文缓存。",
+    contextLength: 1000000,
+    promptPrice: 0.2,
+    completionPrice: 0.8,
+    tokenPricingTiers: [
+      { label: "0<Token≤128K", maxTokens: 131072, promptPrice: 0.2, completionPrice: 0.8, cacheReadPrice: 0.04, cacheReadExplicitPrice: 0.02 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 0.6, completionPrice: 2.4, cacheReadPrice: 0.12, cacheReadExplicitPrice: 0.06 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 1.2, completionPrice: 4.8, cacheReadPrice: 0.24, cacheReadExplicitPrice: 0.12 },
+    ],
+    category: "多模态模型",
+    tags: ["极速", "低成本", "多模态", "视觉理解", "思考模式", "百万上下文"],
+    isNew: true,
+    maxOutput: 131072,
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
+  },
+  {
     id: "qwen3.6-flash",
     name: "Qwen3.6 Flash",
     provider: "通义千问",
@@ -1338,6 +1357,24 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 1048576,
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
+  },
+  {
+    id: "MiniMax/MiniMax-M3",
+    name: "MiniMax M3",
+    provider: "MiniMax",
+    description: "MiniMax M3 凭借业界领先的 Coding 与 Agentic 能力、100万超长上下文窗口以及原生多模态特性，可出色胜任企业级长文档理解、高质量内容生成、代码编写、Bug修复及原生应用构建等任务。强大的 Agentic 能力端到端贯通工作流，原生多模态带来流畅自然的图文混合交互体验。",
+    contextLength: 1000000,
+    promptPrice: 4.2,
+    completionPrice: 16.8,
+    cacheReadPrice: 0.84,
+    // 上游 apps/anthropic 实测不支持该模型（InvalidParameter），走平台内协议转换桥
+    anthropicPassThrough: false,
+    category: "多模态模型",
+    tags: ["旗舰", "编程", "智能体", "视觉理解", "思考模式", "百万上下文"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 524288,
     supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
   },
   {

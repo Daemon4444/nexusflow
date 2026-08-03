@@ -286,3 +286,57 @@ const estThinking = estimateStreamUsage(
 assert.ok(estThinking.completion_tokens_details.reasoning_tokens > 0, "估费需报告 reasoning_tokens");
 
 console.log("model catalog onboarding tests passed");
+
+// ========== qwen3.7-flash 与 MiniMax/MiniMax-M3 上架（2026-08-03） ==========
+const flash37 = models.find((model) => model.id === "qwen3.7-flash")!;
+assert.ok(flash37, "qwen3.7-flash 必须在目录中");
+assert.equal(findProvider(flash37.id)?.id, "dashscope");
+assert.equal(flash37.contextLength, 1_000_000);
+assert.equal(flash37.maxOutput, 131_072);
+assert.equal(flash37.tokenPricingTiers!.length, 3);
+// 三档价与缓存价（标准倍率：隐式 20% / 显式 10%）
+const flashTierExpect = [
+  { max: 131072, in: 0.2, out: 0.8, cache: 0.04, read: 0.02 },
+  { max: 262144, in: 0.6, out: 2.4, cache: 0.12, read: 0.06 },
+  { max: 1000000, in: 1.2, out: 4.8, cache: 0.24, read: 0.12 },
+];
+flashTierExpect.forEach((expect, idx) => {
+  const tier = flash37.tokenPricingTiers![idx];
+  assert.equal(tier.maxTokens, expect.max);
+  assert.equal(tier.promptPrice, expect.in);
+  assert.equal(tier.completionPrice, expect.out);
+  const resolved = resolveCachePricing(flash37, tier);
+  assert.equal(resolved.implicitHit, expect.cache);
+  assert.equal(resolved.explicitHit, expect.read);
+});
+const flash37Caps = getModelCapabilities(flash37);
+assert.equal(flash37Caps.thinking_mode, "mixed");
+assert.equal(flash37Caps.thinking_default, true, "实测默认返回 reasoning_content");
+assert.equal(flash37Caps.supports_vision, true);
+assert.equal(flash37Caps.supports_context_caching, true);
+assert.equal(flash37Caps.supports_explicit_context_caching, true);
+
+const m3 = models.find((model) => model.id === "MiniMax/MiniMax-M3")!;
+assert.ok(m3, "MiniMax/MiniMax-M3 必须在目录中");
+assert.equal(findProvider(m3.id)?.id, "dashscope", "带斜杠 ID 必须被 MiniMax 前缀路由覆盖");
+assert.equal(m3.contextLength, 1_000_000);
+assert.equal(m3.maxOutput, 524_288, "上游实测 max_tokens 上限 524288");
+assert.equal(m3.promptPrice, 4.2);
+assert.equal(m3.completionPrice, 16.8);
+assert.equal(m3.anthropicPassThrough, false, "上游 apps/anthropic 实测不支持，必须走桥");
+const m3Caps = getModelCapabilities(m3);
+assert.equal(m3Caps.thinking_mode, "always", "实测 enable_thinking:false 仍输出思维链");
+assert.equal(m3Caps.supports_vision, true);
+// 仅隐式缓存：计费按 0.84 收（显式解析回落隐式价，不多收），但不宣告显式开关
+assert.equal(m3Caps.supports_context_caching, true);
+assert.equal(m3Caps.supports_explicit_context_caching, false);
+const m3Cache = resolveCachePricing(m3);
+assert.equal(m3Cache.implicitHit, 0.84);
+assert.equal(m3Cache.explicitHit, 0.84, "未公示显式价必须回落隐式价，不得按 10% 倍率少收");
+assert.ok(!getAllowedChatParameters(m3).includes("enable_context_caching"), "仅隐式模型不得宣告显式缓存参数");
+
+// kimi/kimi-k3 官方有隐式缓存折扣（¥2/M），上次上线遗留：披露层此前不覆盖
+const k3 = models.find((model) => model.id === "kimi/kimi-k3")!;
+const k3Caps = getModelCapabilities(k3);
+assert.equal(k3Caps.supports_context_caching, true, "kimi-k3 缓存价必须披露");
+assert.equal(k3Caps.supports_explicit_context_caching, false);

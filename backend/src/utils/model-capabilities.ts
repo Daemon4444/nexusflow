@@ -17,6 +17,8 @@ export interface ModelCapabilities {
   supports_preserve_thinking: boolean;
   supports_search: boolean;
   supports_context_caching: boolean;
+  /** 是否支持显式缓存开关（cache_control / enable_context_caching）。false 且 supports_context_caching=true 表示仅有隐式缓存计价。 */
+  supports_explicit_context_caching: boolean;
   supports_parallel_tool_calls: boolean;
   supports_top_k: boolean;
   supports_seed: boolean;
@@ -27,12 +29,15 @@ export interface ModelCapabilities {
 const ALWAYS_THINKING_MODELS = new Set([
   "qwq-plus",
   "deepseek-r1",
+  // 实测 enable_thinking:false 仍返回 reasoning_content，思考不可关
+  "MiniMax/MiniMax-M3",
 ]);
 
 const MIXED_THINKING_DEFAULT_ON = new Set([
   "qwen3.8-max",
   "qwen3.7-max",
   "qwen3.7-plus",
+  "qwen3.7-flash",
   "qwen3.6-max-preview",
   "qwen3.6-plus",
   "qwen3.6-flash",
@@ -150,6 +155,14 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     isMiniMax ||
     SEARCH_ENABLED_MODELS.has(model.id);
 
+  // 显式缓存开关（cache_control / enable_context_caching）仅 DashScope 的 qwen/GLM/deepseek-v4 支持；
+  // MiniMax 与 kimi/kimi-k3 官方只有隐式缓存折扣，无显式开关，披露时只出隐式价。
+  const supportsExplicitCaching = isQwenChat || isGLM || (isDeepSeek && model.id.startsWith("deepseek-v4"));
+  const supportsContextCaching =
+    supportsExplicitCaching ||
+    (isMiniMax && modelType === "chat") ||
+    model.id === "kimi/kimi-k3";
+
   return {
     model_type: modelType || "unknown",
     supports_tools: supportsTools,
@@ -163,7 +176,8 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     supports_thinking_budget: supportsThinkingBudget,
     supports_preserve_thinking: PRESERVE_THINKING_MODELS.has(model.id),
     supports_search: supportsSearch,
-    supports_context_caching: isQwenChat || isGLM || (isDeepSeek && model.id.startsWith("deepseek-v4")),
+    supports_context_caching: supportsContextCaching,
+    supports_explicit_context_caching: supportsExplicitCaching,
     supports_parallel_tool_calls: supportsTools && (isQwenChat || isDeepSeek || isGLM || model.provider === "Anthropic"),
     supports_top_k: isQwenChat || isGLM,
     supports_seed: isQwenChat || isGLM,
@@ -217,7 +231,7 @@ export function getAllowedChatParameters(model: AIModel): string[] {
   if (capabilities.supports_search) {
     params.push("enable_search", "search_options");
   }
-  if (capabilities.supports_context_caching) {
+  if (capabilities.supports_explicit_context_caching) {
     params.push("enable_context_caching");
   }
   if (capabilities.supports_parallel_tool_calls) {
