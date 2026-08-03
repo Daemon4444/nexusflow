@@ -30,6 +30,7 @@ const ALWAYS_THINKING_MODELS = new Set([
 ]);
 
 const MIXED_THINKING_DEFAULT_ON = new Set([
+  "qwen3.8-max",
   "qwen3.7-max",
   "qwen3.7-plus",
   "qwen3.6-max-preview",
@@ -62,6 +63,7 @@ const MIXED_THINKING_DEFAULT_OFF = new Set([
 ]);
 
 const THINKING_BUDGET_PREFIXES = [
+  "qwen3.8-",
   "qwen3.7-",
   "qwen3.6-",
   "qwen3.5-",
@@ -75,6 +77,7 @@ const THINKING_BUDGET_PREFIXES = [
 ];
 
 const PRESERVE_THINKING_MODELS = new Set([
+  "qwen3.8-max",
   "qwen3.7-max",
   "qwen3.7-plus",
   "qwen3.6-max-preview",

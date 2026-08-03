@@ -14,15 +14,24 @@ interface EstimatedUsage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  /**
+   * 思维链 token。计费按 reasoning_tokens>0 判定是否走思考模式输出价，
+   * 估费兜底必须带上该字段，否则思考模式的断流请求会被按非思考价少收。
+   */
+  completion_tokens_details: { reasoning_tokens: number };
 }
 
 function charTokenCount(s: string): number {
   return Math.ceil(s.length / 2);
 }
 
-/** 从流式响应文本中提取已产出的 assistant 内容（覆盖 OpenAI 与 Anthropic delta） */
-export function extractStreamedContent(fullResponse: string): string {
+/**
+ * 从流式响应文本中提取已产出的 assistant 内容（覆盖 OpenAI 与 Anthropic delta）。
+ * 同时单独累计思维链文本，供估费判定思考模式。
+ */
+export function extractStreamedContent(fullResponse: string): { content: string; reasoning: string } {
   let content = "";
+  let reasoning = "";
   for (const line of fullResponse.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed.startsWith("data:")) continue;
@@ -34,20 +43,26 @@ export function extractStreamedContent(fullResponse: string): string {
       const delta = json?.choices?.[0]?.delta;
       if (delta && typeof delta === "object") {
         if (typeof delta.content === "string") content += delta.content;
-        if (typeof delta.reasoning_content === "string") content += delta.reasoning_content;
+        if (typeof delta.reasoning_content === "string") {
+          content += delta.reasoning_content;
+          reasoning += delta.reasoning_content;
+        }
       }
       // Anthropic Messages: content_block_delta.delta.{text_delta,thinking_delta}
       if (json?.type === "content_block_delta" && json?.delta) {
         const d = json.delta;
         if (d.type === "text_delta" && typeof d.text === "string") content += d.text;
-        if (d.type === "thinking_delta" && typeof d.thinking === "string") content += d.thinking;
+        if (d.type === "thinking_delta" && typeof d.thinking === "string") {
+          content += d.thinking;
+          reasoning += d.thinking;
+        }
         if (d.type === "input_json_delta" && typeof d.partial_json === "string") content += d.partial_json;
       }
     } catch {
       /* 忽略残缺行 */
     }
   }
-  return content;
+  return { content, reasoning };
 }
 
 /**
@@ -55,13 +70,14 @@ export function extractStreamedContent(fullResponse: string): string {
  * 仅在真实 usage 缺失（全 0）且确有产出内容时作为兜底调用。
  */
 export function estimateStreamUsage(fullResponse: string, messages: unknown): EstimatedUsage {
-  const contentText = extractStreamedContent(fullResponse);
-  const completionTokens = Math.max(1, charTokenCount(contentText));
+  const { content, reasoning } = extractStreamedContent(fullResponse);
+  const completionTokens = Math.max(1, charTokenCount(content));
   const promptTokens = Math.max(1, charTokenCount(typeof messages === "string" ? messages : JSON.stringify(messages ?? "")));
   return {
     prompt_tokens: promptTokens,
     completion_tokens: completionTokens,
     total_tokens: promptTokens + completionTokens,
+    completion_tokens_details: { reasoning_tokens: charTokenCount(reasoning) },
   };
 }
 

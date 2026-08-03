@@ -30,7 +30,7 @@ import {
   type ResolvedUpstream,
 } from "../services/upstream";
 import { detectModelType } from "../services/adapters";
-import { calculateOpenAiCacheAwareCost, buildApiDescription } from "../utils/cache-billing";
+import { calculateOpenAiCacheAwareCost, buildApiDescription, isExplicitCacheRequested } from "../utils/cache-billing";
 import {
   acquireProviderCapacity,
   releaseProviderCapacity,
@@ -510,6 +510,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
       actualProviderTokens = await billAndLog(billableUsage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated,
+        requestBody: req.body,
         onReconciled: () => { tokensReconciled = true; },
       });
     } else {
@@ -525,6 +526,7 @@ router.post("/", async (req: Request, res: Response) => {
       const usage = data?.usage || {};
       actualProviderTokens = await billAndLog(usage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated: false,
+        requestBody: req.body,
         onReconciled: () => { tokensReconciled = true; },
       });
     }
@@ -724,9 +726,11 @@ async function billAndLog(
     billingReservationId: string;
     estimated?: boolean;
     onReconciled?: () => void;
+    /** 原始请求体，用于判定是否开启了显式缓存（本路由整体透传上游）。 */
+    requestBody?: unknown;
   },
 ): Promise<number> {
-  const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId, estimated } = ctx;
+  const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId, estimated, requestBody } = ctx;
   const latencyMs = Date.now() - startTime;
   const inputTokens = usage.input_tokens || 0;
   const outputTokens = usage.output_tokens || 0;
@@ -745,7 +749,12 @@ async function billAndLog(
     userId: apiKeyRecord.user_id,
     model,
     usage: billingUsage,
-    explicitCache: false,
+    // 本路由把整个 req.body 原样透传上游，用户可经 input 里的 cache_control
+    // 或 enable_context_caching 开启显式缓存；硬编码 false 会按隐式价多收。
+    explicitCache: isExplicitCacheRequested(
+      (requestBody as Record<string, unknown> | undefined)?.input,
+      requestBody
+    ),
   });
 
   await logUsage({

@@ -13,7 +13,7 @@
  */
 
 import { db } from "../db/client";
-import { AIModel, models, getStaticModels } from "./models";
+import { AIModel, TokenPricingTier, models, getStaticModels } from "./models";
 
 export type OverrideAction = "upsert" | "disable";
 
@@ -106,6 +106,18 @@ export function sanitizeModelDoc(input: unknown): ValidationResult {
     model.cacheReadPrice = v;
   }
 
+  if (o.cacheReadExplicitPrice !== undefined && o.cacheReadExplicitPrice !== null) {
+    const v = Number(o.cacheReadExplicitPrice);
+    if (!isFiniteNonNegative(v)) return { ok: false, error: "cacheReadExplicitPrice 必须是 ≥0 的数字" };
+    model.cacheReadExplicitPrice = v;
+  }
+
+  if (o.thinkingCompletionPrice !== undefined && o.thinkingCompletionPrice !== null) {
+    const v = Number(o.thinkingCompletionPrice);
+    if (!isFiniteNonNegative(v)) return { ok: false, error: "thinkingCompletionPrice 必须是 ≥0 的数字" };
+    model.thinkingCompletionPrice = v;
+  }
+
   if (o.anthropicPassThrough !== undefined && o.anthropicPassThrough !== null) {
     model.anthropicPassThrough = !!o.anthropicPassThrough;
   }
@@ -146,12 +158,22 @@ export function sanitizeModelDoc(input: unknown): ValidationResult {
       if (!isFiniteNonNegative(maxTokens)) return { ok: false, error: "tokenPricingTiers[].maxTokens 必须是 ≥0 的数字" };
       if (!isFiniteNonNegative(pp)) return { ok: false, error: "tokenPricingTiers[].promptPrice 必须是 ≥0 的数字" };
       if (!isFiniteNonNegative(cp)) return { ok: false, error: "tokenPricingTiers[].completionPrice 必须是 ≥0 的数字" };
-      const tier: { label: string; maxTokens: number; promptPrice: number; completionPrice: number; cacheReadPrice?: number } =
+      const tier: TokenPricingTier =
         { label, maxTokens: Math.floor(maxTokens), promptPrice: pp, completionPrice: cp };
       if (t?.cacheReadPrice !== undefined && t?.cacheReadPrice !== null) {
         const crp = Number(t.cacheReadPrice);
         if (!isFiniteNonNegative(crp)) return { ok: false, error: "tokenPricingTiers[].cacheReadPrice 必须是 ≥0 的数字" };
         tier.cacheReadPrice = crp;
+      }
+      if (t?.cacheReadExplicitPrice !== undefined && t?.cacheReadExplicitPrice !== null) {
+        const crp = Number(t.cacheReadExplicitPrice);
+        if (!isFiniteNonNegative(crp)) return { ok: false, error: "tokenPricingTiers[].cacheReadExplicitPrice 必须是 ≥0 的数字" };
+        tier.cacheReadExplicitPrice = crp;
+      }
+      if (t?.thinkingCompletionPrice !== undefined && t?.thinkingCompletionPrice !== null) {
+        const tcp = Number(t.thinkingCompletionPrice);
+        if (!isFiniteNonNegative(tcp)) return { ok: false, error: "tokenPricingTiers[].thinkingCompletionPrice 必须是 ≥0 的数字" };
+        tier.thinkingCompletionPrice = tcp;
       }
       tiers.push(tier);
     }

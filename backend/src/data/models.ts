@@ -9,6 +9,9 @@ export interface TokenPricingTier {
   promptPrice: number;
   completionPrice: number;
   cacheReadPrice?: number; // per 1M tokens (CNY) for cache hit; overrides model-level cacheReadPrice
+  cacheReadExplicitPrice?: number; // per 1M tokens (CNY) for explicit cache hit only; overrides cacheReadPrice on the explicit path
+  /** 思考模式输出价（思维链+回答整体按此价）；缺省沿用 completionPrice。 */
+  thinkingCompletionPrice?: number;
 }
 
 export interface AIModel {
@@ -22,6 +25,10 @@ export interface AIModel {
   audioInputPrice?: number;  // per 1M tokens (CNY) for audio input (omni models); falls back to promptPrice if unset
   audioOutputPrice?: number; // per 1M tokens (CNY) for audio output (omni models); text output is free when audio is produced
   cacheReadPrice?: number;   // per 1M tokens (CNY) for cache hit; when set, used instead of the default DashScope multiplier (0.1/0.2)
+  /** 显式缓存命中价，仅当官方显式价与隐式价不同时配置；缺省沿用 cacheReadPrice。 */
+  cacheReadExplicitPrice?: number;
+  /** 思考模式输出价，仅当官方对思考模式单独定价时配置；缺省沿用 completionPrice。 */
+  thinkingCompletionPrice?: number;
   anthropicPassThrough?: boolean; // /v1/messages 路由方式：缺省/true=直通上游 anthropic 兼容端点；false=上游未接入该模型，走平台内 anthropic-openai-bridge 协议转换
   pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters"; // default: "token"
   pricingTiers?: PricingTier[];  // resolution-based pricing for video/image
@@ -54,24 +61,93 @@ export function getTokenPricingTier(model: AIModel, promptTokens: number): Token
     || model.tokenPricingTiers[model.tokenPricingTiers.length - 1];
 }
 
+// DashScope 官方标准缓存折扣：隐式命中按输入价 20%，显式命中按 10%，显式缓存创建按 125%。
+// 这三个倍率是官方规则而非估算值，仅当某模型官方价偏离该规则时才在条目里显式配价。
+const IMPLICIT_CACHE_MULTIPLIER = 0.2;
+const EXPLICIT_CACHE_MULTIPLIER = 0.1;
+const CACHE_CREATION_MULTIPLIER = 1.25;
+
+export interface ResolvedCachePricing {
+  implicitHit: number;
+  explicitHit: number;
+  explicitCreation: number;
+}
+
+/**
+ * 缓存价的唯一解析器，实扣计费与对外展示共用同一实现，二者不可能漂移。
+ *
+ * `cacheReadPrice` 是隐式/默认命中价；`cacheReadExplicitPrice` 只在显式命中时优先生效，
+ * 缺省回落到 `cacheReadPrice`，因此未配置新字段的模型行为完全不变。
+ */
+export function resolveCachePricing(model: AIModel, tier?: TokenPricingTier | null): ResolvedCachePricing {
+  const promptPrice = tier?.promptPrice ?? model.promptPrice;
+  const configuredImplicit = tier?.cacheReadPrice ?? model.cacheReadPrice;
+  const configuredExplicit = tier?.cacheReadExplicitPrice ?? model.cacheReadExplicitPrice ?? configuredImplicit;
+  return {
+    implicitHit: configuredImplicit ?? promptPrice * IMPLICIT_CACHE_MULTIPLIER,
+    explicitHit: configuredExplicit ?? promptPrice * EXPLICIT_CACHE_MULTIPLIER,
+    explicitCreation: promptPrice * CACHE_CREATION_MULTIPLIER,
+  };
+}
+
+/**
+ * 输出价的唯一解析器。官方对部分模型的思考模式单独定价，
+ * 且思考模式下「思维链+回答」整体按该价计费；未配置则沿用非思考价。
+ */
+export function resolveCompletionPrice(
+  model: AIModel,
+  tier: TokenPricingTier | null | undefined,
+  isThinking: boolean
+): number {
+  const normal = tier?.completionPrice ?? model.completionPrice;
+  if (!isThinking) return normal;
+  return tier?.thinkingCompletionPrice ?? model.thinkingCompletionPrice ?? normal;
+}
+
 export function calculateTokenCost(model: AIModel, promptTokens: number, completionTokens: number, cachedTokens: number = 0, cacheCreationTokens: number = 0): number {
   const tier = getTokenPricingTier(model, promptTokens);
   const promptPrice = tier?.promptPrice ?? model.promptPrice;
-  const completionPrice = tier?.completionPrice ?? model.completionPrice;
-  // 缓存命中价与实扣路径(cache-billing)对齐：优先档位/模型显式配置，缺省按输入价 10%
-  const cacheReadPrice = tier?.cacheReadPrice ?? model.cacheReadPrice ?? (promptPrice * 0.1);
+  // 预占估算无法预知本次是否走思考模式，取较大值以免预占不足；
+  // 未配置思考价的模型两者相同，金额不变。
+  const completionPrice = Math.max(
+    resolveCompletionPrice(model, tier, false),
+    resolveCompletionPrice(model, tier, true)
+  );
+  // 预占估算无法预知本次命中的是显式还是隐式缓存，取两者较大值以免预占不足。
+  // 未配置任何缓存价时保留历史的 10% 兜底，避免改变既有模型的预占金额。
+  const cacheReadPrice = Math.max(
+    tier?.cacheReadPrice ?? model.cacheReadPrice ?? (promptPrice * EXPLICIT_CACHE_MULTIPLIER),
+    tier?.cacheReadExplicitPrice ?? model.cacheReadExplicitPrice ?? 0
+  );
   const totalPrompt = Math.max(0, promptTokens || 0);
   const effectiveCached = Math.min(Math.max(0, cachedTokens || 0), totalPrompt);
   const effectiveCreation = Math.min(Math.max(0, cacheCreationTokens || 0), totalPrompt - effectiveCached);
   const nonCachedPrompt = Math.max(0, totalPrompt - effectiveCached - effectiveCreation);
   return (nonCachedPrompt / 1_000_000) * promptPrice
     + (effectiveCached / 1_000_000) * cacheReadPrice
-    + (effectiveCreation / 1_000_000) * promptPrice * 1.25
+    + (effectiveCreation / 1_000_000) * promptPrice * CACHE_CREATION_MULTIPLIER
     + (Math.max(0, completionTokens || 0) / 1_000_000) * completionPrice;
 }
 
 const staticModels: AIModel[] = [
   // ========== 通义千问 Qwen 旗舰系列 ==========
+  {
+    id: "qwen3.8-max",
+    name: "Qwen3.8 Max",
+    provider: "通义千问",
+    description: "通义千问3.8代旗舰模型，2.4万亿参数MoE，编程与办公能力全面跃升，可自主编程十数天交付完整项目。胜任法律、金融、设计等数百种专业任务，一次对话端到端交付生产级成果。原生视觉理解贯穿规划、执行与验证全流程，支持超长文档与长视频的深度语义解析。长程任务中自主规划与闭环迭代，持续进化。百万级上下文。",
+    contextLength: 1000000,
+    promptPrice: 12,
+    completionPrice: 36,
+    cacheReadPrice: 1.5,
+    cacheReadExplicitPrice: 1,
+    category: "大语言模型",
+    tags: ["旗舰", "推理", "编程", "视觉理解", "思考模式", "智能体", "百万上下文"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 131072,
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
+  },
   {
     id: "qwen3.7-plus",
     name: "Qwen3.7 Plus",
@@ -81,14 +157,14 @@ const staticModels: AIModel[] = [
     promptPrice: 2,
     completionPrice: 8,
     tokenPricingTiers: [
-      { label: "0<Token≤256K", maxTokens: 262144, promptPrice: 2, completionPrice: 8 },
-      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 8, completionPrice: 32 },
+      { label: "0<Token≤256K", maxTokens: 262144, promptPrice: 2, completionPrice: 8, cacheReadPrice: 0.4, cacheReadExplicitPrice: 0.2 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 6, completionPrice: 24, cacheReadPrice: 1.2, cacheReadExplicitPrice: 0.6 },
     ],
     category: "多模态模型",
     tags: ["高性价比", "多模态", "智能体", "视觉理解", "思考模式", "百万上下文"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 65536,
+    maxOutput: 131072,
     supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "结构化输出"]
   },
   {
@@ -100,11 +176,12 @@ const staticModels: AIModel[] = [
     promptPrice: 12,
     completionPrice: 36,
     cacheReadPrice: 2.4,
+    cacheReadExplicitPrice: 1.2,
     category: "大语言模型",
     tags: ["旗舰", "推理", "编程", "思考模式", "智能体"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 65536,
+    maxOutput: 131072,
     supported: ["文本", "函数调用", "思考模式", "联网搜索"]
   },
   {
@@ -231,9 +308,9 @@ const staticModels: AIModel[] = [
     promptPrice: 0.8,
     completionPrice: 2,
     tokenPricingTiers: [
-      { label: "0<Token≤128K（非思考）", maxTokens: 131072, promptPrice: 0.8, completionPrice: 2 },
-      { label: "128K<Token≤256K（非思考）", maxTokens: 262144, promptPrice: 2.4, completionPrice: 20 },
-      { label: "256K<Token≤1M（非思考）", maxTokens: 1000000, promptPrice: 4.8, completionPrice: 48 },
+      { label: "0<Token≤128K", maxTokens: 131072, promptPrice: 0.8, completionPrice: 2, thinkingCompletionPrice: 8, cacheReadPrice: 0.16, cacheReadExplicitPrice: 0.08 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 2.4, completionPrice: 20, thinkingCompletionPrice: 24, cacheReadPrice: 0.48, cacheReadExplicitPrice: 0.24 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 4.8, completionPrice: 48, thinkingCompletionPrice: 64, cacheReadPrice: 0.96, cacheReadExplicitPrice: 0.48 },
     ],
     category: "大语言模型",
     tags: ["高性价比", "均衡", "通用"],
@@ -293,10 +370,11 @@ const staticModels: AIModel[] = [
     contextLength: 131072,
     promptPrice: 2,
     completionPrice: 8,
+    thinkingCompletionPrice: 20,
     category: "大语言模型",
     tags: ["开源", "MoE", "推理", "思考模式"],
     isNew: true,
-    maxOutput: 8192,
+    maxOutput: 16384,
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
@@ -310,7 +388,7 @@ const staticModels: AIModel[] = [
     category: "大语言模型",
     tags: ["开源", "MoE", "轻量", "编程", "思考模式"],
     isNew: true,
-    maxOutput: 32768,
+    maxOutput: 65536,
     supported: ["文本", "函数调用", "思考模式"]
   },
   {
@@ -321,6 +399,7 @@ const staticModels: AIModel[] = [
     contextLength: 131072,
     promptPrice: 2,
     completionPrice: 8,
+    thinkingCompletionPrice: 20,
     category: "大语言模型",
     tags: ["开源", "推理", "编程"],
     maxOutput: 8192,
@@ -517,7 +596,7 @@ const staticModels: AIModel[] = [
     category: "推理模型",
     tags: ["数学", "推理", "求解", "LaTeX"],
     isNew: true,
-    maxOutput: 4096,
+    maxOutput: 3072,
     supported: ["文本", "数学求解"]
   },
 
@@ -1012,7 +1091,7 @@ const staticModels: AIModel[] = [
     tags: ["V4", "旗舰", "推理", "编程"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 393216,
     supported: ["文本", "函数调用", "思考链"]
   },
   {
@@ -1024,11 +1103,12 @@ const staticModels: AIModel[] = [
     promptPrice: 2,
     completionPrice: 3,
     cacheReadPrice: 0.4,
+    cacheReadExplicitPrice: 0.2,
     category: "大语言模型",
     tags: ["MoE", "编程", "中文优化"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 16384,
+    maxOutput: 65536,
     supported: ["文本", "函数调用"]
   },
   {
@@ -1051,7 +1131,7 @@ const staticModels: AIModel[] = [
     name: "DeepSeek V3",
     provider: "DeepSeek",
     description: "深度求索V3通用大模型，671B参数MoE架构，中英双语能力优异。",
-    contextLength: 131072,
+    contextLength: 65536,
     promptPrice: 2,
     completionPrice: 8,
     cacheReadPrice: 0.4,
@@ -1111,12 +1191,12 @@ const staticModels: AIModel[] = [
     name: "GLM 4.7",
     provider: "智谱AI",
     description: "智谱最新大模型GLM-4.7，综合能力提升显著，中文理解力强。",
-    contextLength: 169984,
+    contextLength: 202752,
     promptPrice: 3,
     completionPrice: 14,
     tokenPricingTiers: [
-      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 3, completionPrice: 14 },
-      { label: "32K<Token≤128K", maxTokens: 131072, promptPrice: 4, completionPrice: 16 },
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 3, completionPrice: 14, cacheReadPrice: 0.6 },
+      { label: "32K<Token≤200K", maxTokens: 202752, promptPrice: 4, completionPrice: 16, cacheReadPrice: 0.8 },
     ],
     category: "大语言模型",
     tags: ["中文优化", "推理", "通用"],
@@ -1152,8 +1232,8 @@ const staticModels: AIModel[] = [
     promptPrice: 6,
     completionPrice: 24,
     tokenPricingTiers: [
-      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 6, completionPrice: 24, cacheReadPrice: 1.3 },
-      { label: "32K<Token≤198K", maxTokens: 202752, promptPrice: 8, completionPrice: 28, cacheReadPrice: 2 },
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 6, completionPrice: 24, cacheReadPrice: 1.2, cacheReadExplicitPrice: 0.6 },
+      { label: "32K<Token≤198K", maxTokens: 202752, promptPrice: 8, completionPrice: 28, cacheReadPrice: 1.6, cacheReadExplicitPrice: 0.8 },
     ],
     category: "大语言模型",
     tags: ["旗舰", "推理", "编程", "增强"],
@@ -1208,9 +1288,10 @@ const staticModels: AIModel[] = [
     promptPrice: 4,
     completionPrice: 21,
     cacheReadPrice: 0.8,
+    cacheReadExplicitPrice: 0.4,
     category: "大语言模型",
     tags: ["长文本", "多轮对话", "中文优化"],
-    maxOutput: 98304,
+    maxOutput: 16384,
     supported: ["文本"]
   },
   {
@@ -1222,11 +1303,12 @@ const staticModels: AIModel[] = [
     promptPrice: 6.5,
     completionPrice: 27,
     cacheReadPrice: 1.3,
+    cacheReadExplicitPrice: 0.65,
     category: "大语言模型",
     tags: ["旗舰", "长文本", "创意写作", "中文优化"],
     isFeatured: true,
     isNew: true,
-    maxOutput: 98304,
+    maxOutput: 16384,
     supported: ["文本", "函数调用"]
   },
   {
@@ -1265,14 +1347,14 @@ const staticModels: AIModel[] = [
     name: "MiniMax M2.5",
     provider: "MiniMax",
     description: "MiniMax M2.5 增强版，推理和编程能力提升，多轮对话更加稳定。",
-    contextLength: 196608,
+    contextLength: 204800,
     promptPrice: 2.1,
     completionPrice: 8.4,
     cacheReadPrice: 0.42,
     category: "大语言模型",
     tags: ["推理", "编程", "对话"],
     isNew: true,
-    maxOutput: 32768,
+    maxOutput: 131072,
     supported: ["文本", "函数调用"]
   },
   // ========== Qwen3 小模型 ==========
@@ -1284,6 +1366,7 @@ const staticModels: AIModel[] = [
     contextLength: 131072,
     promptPrice: 0.5,
     completionPrice: 2,
+    thinkingCompletionPrice: 5,
     category: "大语言模型",
     tags: ["开源", "轻量", "高性价比"],
     isNew: true,

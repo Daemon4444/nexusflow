@@ -28,7 +28,7 @@ import { getSupportedProtocols } from "../utils/model-protocols";
 import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
-import { calculateOpenAiCacheAwareCost, buildApiDescription, getOpenAiPromptCacheUsage, hasCacheControl } from "../utils/cache-billing";
+import { calculateOpenAiCacheAwareCost, buildApiDescription, getOpenAiPromptCacheUsage, hasCacheControl, isExplicitCacheRequested } from "../utils/cache-billing";
 import {
   acquireProviderCapacity,
   getModelAvailabilityMap,
@@ -821,7 +821,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     },
     { forceStream: requiresUpstreamStream }
   );
-  const explicitCache = hasCacheControl(messages);
+  const explicitCache = isExplicitCacheRequested(messages, req.body);
 
   const startTime = Date.now();
   const logId = randomUUID();

@@ -9,7 +9,7 @@
 
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { getReservedOutputTokens, models, getTokenPricingTier } from "../data/models";
+import { getReservedOutputTokens, models, getTokenPricingTier, resolveCachePricing, resolveCompletionPrice } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUpstreamFailure, logUsage } from "../data/usage";
 import { BillingReservationFailureReason, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
@@ -24,7 +24,7 @@ import { isModelAllowed } from "../data/model-access";
 import { detectModelType } from "../services/adapters";
 import { getRequestedRegion, resolveUpstream } from "../services/upstream";
 import { safeProviderFetch } from "../services/outbound-url-policy";
-import { buildApiDescription, type AnthropicUsage } from "../utils/cache-billing";
+import { buildApiDescription, isExplicitCacheRequested, type AnthropicUsage } from "../utils/cache-billing";
 import {
   acquireProviderCapacity,
   releaseProviderCapacity,
@@ -112,7 +112,10 @@ async function calculateAnthropicUsageCost(
   usage: AnthropicUsage | null | undefined,
   // Anthropic 语义(直通上游，实测含 DashScope /apps/anthropic)：input_tokens 与缓存 token 互斥；
   // OpenAI 语义(转换桥，openAiUsageToAnthropic 产出)：input_tokens=prompt_tokens 已含缓存部分
-  opts: { inputIncludesCache: boolean }
+  // explicitCache：本次请求是否真的开启了显式缓存。协议桥会把 OpenAI 的
+  // prompt_tokens_details.cached_tokens（隐式命中）映射进 cache_read_input_tokens，
+  // 故不能仅凭该字段非零就按显式价计费，否则显式价低于隐式价的模型会少收。
+  opts: { inputIncludesCache: boolean; explicitCache: boolean }
 ) {
   const inputTokens = usage?.input_tokens || 0;
   const outputTokens = usage?.output_tokens || 0;
@@ -126,12 +129,18 @@ async function calculateAnthropicUsageCost(
   // 分层定价与 v1 chat 实扣口径对齐（qwen3.7-plus/glm-5.x 等按输入总量取档）
   const tier = getTokenPricingTier(model, totalInputTokens);
   const promptPrice = tier?.promptPrice ?? model.promptPrice;
-  const completionPrice = tier?.completionPrice ?? model.completionPrice;
-  // 缓存命中价优先用档位/模型显式配置（如 kimi/kimi-k3=¥2/M、glm-5.2=¥2/M），否则按输入价 10%
-  const cacheReadPrice = tier?.cacheReadPrice ?? model.cacheReadPrice ?? (promptPrice * 0.1);
+  // Anthropic usage 不返回思维链细分，无法判定本次是否走思考模式。
+  // 对官方思考模式单独定价的模型取较大值，宁可不少收，也不把未知当低价。
+  const completionPrice = Math.max(
+    resolveCompletionPrice(model, tier, false),
+    resolveCompletionPrice(model, tier, true)
+  );
+  // Anthropic 的 cache_control 即显式缓存，故取显式口径；解析器与展示层同源。
+  const cachePricing = resolveCachePricing(model, tier);
 
+  const cacheReadPrice = opts.explicitCache ? cachePricing.explicitHit : cachePricing.implicitHit;
   const listAmount = (baseInputTokens / 1_000_000) * promptPrice
-    + (cacheCreationTokens / 1_000_000) * promptPrice * 1.25
+    + (cacheCreationTokens / 1_000_000) * cachePricing.explicitCreation
     + (cacheReadTokens / 1_000_000) * cacheReadPrice
     + (outputTokens / 1_000_000) * completionPrice;
   const discounted = await applyUserModelDiscount(userId, model.id, listAmount);
@@ -164,6 +173,10 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   const { model: modelId, messages, stream, max_tokens, temperature, top_p, system, stop_sequences, tools } = req.body;
+  // Anthropic 的显式缓存靠 messages/system 里的 cache_control 开启。
+  // 不能只看 usage.cache_read_input_tokens：协议桥会把 OpenAI 的隐式 cached_tokens
+  // 映射进该字段，误按显式价计费会让显式价低于隐式价的模型少收。
+  const explicitCache = isExplicitCacheRequested([messages, system], req.body);
 
   if (!modelId || !messages || !Array.isArray(messages) || messages.length === 0) {
     res.status(400).json({
@@ -458,7 +471,7 @@ router.post("/", async (req: Request, res: Response) => {
           output_tokens: outputTokens,
           cache_creation_input_tokens: cacheCreationInputTokens,
           cache_read_input_tokens: cacheReadInputTokens,
-        }, { inputIncludesCache: false });
+        }, { inputIncludesCache: false, explicitCache });
         const totalTokens = inputTokens + outputTokens;
         const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
         const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
@@ -523,7 +536,7 @@ router.post("/", async (req: Request, res: Response) => {
       billableResponseReceived = true;
 
       const usage = data.usage || {};
-      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false });
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false, explicitCache });
       const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
       await logUsage({
         region: upstream.region,
@@ -696,7 +709,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       const latencyMs = Date.now() - startTime;
-      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, billingUsage, { inputIncludesCache: true });
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, billingUsage, { inputIncludesCache: true, explicitCache });
       const totalTokens = (billingUsage.input_tokens || 0) + (billingUsage.output_tokens || 0);
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = (billingUsage.output_tokens || 0) > 1 ? streamDuration / (billingUsage.output_tokens - 1) : 0;
@@ -767,7 +780,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     const anthropicResponse = openAiResponseToAnthropic(data, `msg_${logId}`, modelId);
     const usage = anthropicResponse.usage || openAiUsageToAnthropic(data?.usage);
-    const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: true });
+    const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: true, explicitCache });
     const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
     await logUsage({
       region: upstream.region,
