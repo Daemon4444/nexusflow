@@ -62,7 +62,7 @@ const REF: Record<string, Ref> = {
   "qwen3.7-flash": {
     ctx: 1000000, maxOut: 131072,
     tiers: [
-      { max: 131072, in: 0.2, out: 0.8, cache: 0.04, read: 0.02 },
+      { max: 32768, in: 0.2, out: 0.8, cache: 0.04, read: 0.02 },
       { max: 262144, in: 0.6, out: 2.4, cache: 0.12, read: 0.06 },
       { max: 1000000, in: 1.2, out: 4.8, cache: 0.24, read: 0.12 },
     ],

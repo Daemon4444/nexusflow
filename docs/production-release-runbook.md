@@ -537,8 +537,8 @@ The orchestrator performs:
     by a runtime-node upsert and `node_succeeded`.
 14. After both new nodes and migration `019` verify, run the immutable
     Provider cost CLI against the private manifest first without `--apply`,
-    then with explicit apply. Require the exact reviewed price-book ID, 12
-    tiers, 12 pending rows, 12 currently active rows, and zero future-effective
+    then with explicit apply. Require the exact reviewed price-book ID, 13
+    tiers, 13 pending rows, 13 currently active rows, and zero future-effective
     rows without printing the private summary.
 15. Revoke all sessions and
     atomically flip migration `017` to hash-only storage under database locks.

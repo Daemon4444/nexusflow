@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { calculateTokenCost, getReservedOutputTokens, getStaticModels, resolveCachePricing, resolveCompletionPrice } from "../src/data/models";
+import { calculateTokenCost, getReservedOutputTokens, getStaticModels, getTokenPricingTier, resolveCachePricing, resolveCompletionPrice } from "../src/data/models";
 import { findProvider } from "../src/services/providers";
 import { sanitizeModelDoc } from "../src/data/model-overrides";
 import { estimateStreamUsage } from "../src/utils/estimate-stream-usage";
@@ -296,7 +296,7 @@ assert.equal(flash37.maxOutput, 131_072);
 assert.equal(flash37.tokenPricingTiers!.length, 3);
 // 三档价与缓存价（标准倍率：隐式 20% / 显式 10%）
 const flashTierExpect = [
-  { max: 131072, in: 0.2, out: 0.8, cache: 0.04, read: 0.02 },
+  { max: 32768, in: 0.2, out: 0.8, cache: 0.04, read: 0.02 },
   { max: 262144, in: 0.6, out: 2.4, cache: 0.12, read: 0.06 },
   { max: 1000000, in: 1.2, out: 4.8, cache: 0.24, read: 0.12 },
 ];
@@ -309,6 +309,8 @@ flashTierExpect.forEach((expect, idx) => {
   assert.equal(resolved.implicitHit, expect.cache);
   assert.equal(resolved.explicitHit, expect.read);
 });
+assert.equal(getTokenPricingTier(flash37, 32_768)?.promptPrice, 0.2, "32K 边界仍属第一档");
+assert.equal(getTokenPricingTier(flash37, 32_769)?.promptPrice, 0.6, "超过 32K 必须进入第二档，避免少收");
 const flash37Caps = getModelCapabilities(flash37);
 assert.equal(flash37Caps.thinking_mode, "mixed");
 assert.equal(flash37Caps.thinking_default, true, "实测默认返回 reasoning_content");

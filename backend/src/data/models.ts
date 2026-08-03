@@ -283,8 +283,8 @@ const staticModels: AIModel[] = [
     promptPrice: 0.2,
     completionPrice: 0.8,
     tokenPricingTiers: [
-      { label: "0<Token≤128K", maxTokens: 131072, promptPrice: 0.2, completionPrice: 0.8, cacheReadPrice: 0.04, cacheReadExplicitPrice: 0.02 },
-      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 0.6, completionPrice: 2.4, cacheReadPrice: 0.12, cacheReadExplicitPrice: 0.06 },
+      { label: "0<Token≤32K", maxTokens: 32768, promptPrice: 0.2, completionPrice: 0.8, cacheReadPrice: 0.04, cacheReadExplicitPrice: 0.02 },
+      { label: "32K<Token≤256K", maxTokens: 262144, promptPrice: 0.6, completionPrice: 2.4, cacheReadPrice: 0.12, cacheReadExplicitPrice: 0.06 },
       { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 1.2, completionPrice: 4.8, cacheReadPrice: 0.24, cacheReadExplicitPrice: 0.12 },
     ],
     category: "多模态模型",
