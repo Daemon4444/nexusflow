@@ -21,6 +21,12 @@ export interface AnthropicUsage {
   output_tokens?: number;
   cache_creation_input_tokens?: number;
   cache_read_input_tokens?: number;
+  /**
+   * 思维链 token。Anthropic 原生 usage 没有该字段，由 openAiUsageToAnthropic
+   * 从 OpenAI 的 completion_tokens_details.reasoning_tokens 透传而来，
+   * 用于判定是否按思考模式输出价计费。
+   */
+  reasoning_tokens?: number;
 }
 
 function money(value: number): number {

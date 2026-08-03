@@ -4,6 +4,7 @@ import { findProvider } from "../src/services/providers";
 import { sanitizeModelDoc } from "../src/data/model-overrides";
 import { estimateStreamUsage } from "../src/utils/estimate-stream-usage";
 import { isExplicitCacheRequested } from "../src/utils/cache-billing";
+import { openAiUsageToAnthropic } from "../src/utils/anthropic-openai-bridge";
 import {
   getAllowedChatParameters,
   getModelCapabilities,
@@ -235,5 +236,21 @@ assert.equal(
 const flagshipCacheResolved = resolveCachePricing(flagship);
 assert.equal(flagshipCacheResolved.explicitHit, 1);
 assert.equal(flagshipCacheResolved.implicitHit, 1.5);
+
+// ========== 思考价不得对非思考请求生效 ==========
+// 曾用 max(非思考,思考) 兜底，导致 /v1/messages 的非思考请求被按思考价多收（qwen-plus 档1 为 4 倍）。
+const tieredThinking = models.find((model) => model.id === "qwen-plus")!;
+const firstTier = tieredThinking.tokenPricingTiers![0];
+assert.equal(resolveCompletionPrice(tieredThinking, firstTier, false), 2, "非思考请求必须按 ¥2");
+assert.equal(resolveCompletionPrice(tieredThinking, firstTier, true), 8, "思考请求按 ¥8");
+
+// 桥必须透传 reasoning_tokens，否则 Anthropic 路径拿不到判定信号
+const bridged = openAiUsageToAnthropic({
+  prompt_tokens: 10,
+  completion_tokens: 20,
+  completion_tokens_details: { reasoning_tokens: 7 },
+});
+assert.equal(bridged.reasoning_tokens, 7, "桥丢了 reasoning_tokens，思考价判定会失效");
+assert.equal(openAiUsageToAnthropic({ prompt_tokens: 1, completion_tokens: 1 }).reasoning_tokens, 0);
 
 console.log("model catalog onboarding tests passed");

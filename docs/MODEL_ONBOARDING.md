@@ -73,7 +73,9 @@
 12. **新价格字段必须同步登记 `model-overrides` 白名单（同上）**：`sanitizeModelDoc` 是白名单，未登记的字段被**静默丢弃**，后台改价即失效。这是 `74bc436d` 修过的同类漏损，`cacheReadExplicitPrice` / `thinkingCompletionPrice` 又踩了一次。已加断言把 5 个价格字段 + `anthropicPassThrough` 全部纳入回归门。
 13. **披露价必须与实扣价同源（同上）**：平台对 37 个模型收缓存费但从未公示过价格。现由 `resolveCachePricing` / `resolveCompletionPrice` 作为唯一入口，计费与 `/api/models` 的 `cachePricing`/`thinkingPricing` 共用，前端只渲染不重算倍率。披露边界记得按账本精度取整（曾输出 `0.16000000000000003`）。
 14. **`/api/models` 的动态合并会吞掉计费字段（同上）**：模型同时存在于静态目录与 `provider_models` 时，合并只回填了 `promptPrice`/`completionPrice`/三个 tier 字段，把 `cacheReadPrice`、音频价、`anthropicPassThrough`、`defaultOutputReservation` 全丢了。计费不受影响（直接 import `models`），但披露会错。
-15. **`npm audit` 要显式指定官方源**：本机默认源是 npmmirror，不实现 audit 端点，会报 `[NOT_IMPLEMENTED]` 被误判成门失败。用 `npm audit --registry=https://registry.npmjs.org --omit=dev --audit-level=high`。
+15. **思考价不能用 max() 兜底（review 补充）**：曾在 `/v1/messages` 用 `max(非思考价, 思考价)` 结算，理由是"Anthropic usage 没有思维链细分"。这是**实扣**而非预占，会让非思考请求被多收（`qwen-plus` 档1 是 4 倍），且与"披露价=实收价"自相矛盾。解法：桥路径由 `openAiUsageToAnthropic` 透传 `reasoning_tokens`；直通路径看响应内容（流式 `thinking_delta`、非流式 content 里的 `thinking` 块）。`calculateTokenCost` 现有显式 `opts.isThinking`，省略才走 max()，**账单重算类场景必须显式传入**，否则 `list_amount_cny` 虚高、`discount_rate` 出现虚假折扣。
+16. **`resolveCachePricing.explicitCreation` 目前固定 `promptPrice × 1.25`**，无可配字段。当前 42 模型 0 偏差，若将来官方出现偏离该倍率的模型，schema 无法表达 —— `test:official-pricing` 会抓到，届时再加字段即可，不必提前造。
+17. **`npm audit` 要显式指定官方源**：本机默认源是 npmmirror，不实现 audit 端点，会报 `[NOT_IMPLEMENTED]` 被误判成门失败。用 `npm audit --registry=https://registry.npmjs.org --omit=dev --audit-level=high`。
 
 ## 5. 验证清单（全过才算上线完成）
 

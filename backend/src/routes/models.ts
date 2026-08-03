@@ -46,6 +46,7 @@ async function getAllModels(): Promise<AIModel[]> {
         maxOutput: existing.maxOutput,
         cacheReadPrice: existing.cacheReadPrice,
         cacheReadExplicitPrice: existing.cacheReadExplicitPrice,
+        thinkingCompletionPrice: existing.thinkingCompletionPrice,
         audioInputPrice: existing.audioInputPrice,
         audioOutputPrice: existing.audioOutputPrice,
         anthropicPassThrough: existing.anthropicPassThrough,

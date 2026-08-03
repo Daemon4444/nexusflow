@@ -130,7 +130,13 @@ function mapStopReason(finishReason: string | null | undefined): string {
   return "end_turn";
 }
 
-/** OpenAI usage -> Anthropic usage（input_tokens 含缓存部分，计费函数会再拆） */
+/**
+ * OpenAI usage -> Anthropic usage（input_tokens 含缓存部分，计费函数会再拆）。
+ *
+ * 同时透传 reasoning_tokens：Anthropic 的 usage 没有这一项，但计费需要它来判定
+ * 本次是否走了思考模式（官方对部分模型的思考输出单独定价）。丢掉它会导致
+ * 非思考请求被按思考价多收。
+ */
 export function openAiUsageToAnthropic(usage: AnyRecord | null | undefined): AnyRecord {
   const cached = usage?.prompt_tokens_details?.cached_tokens || 0;
   return {
@@ -138,6 +144,7 @@ export function openAiUsageToAnthropic(usage: AnyRecord | null | undefined): Any
     output_tokens: usage?.completion_tokens || 0,
     cache_creation_input_tokens: usage?.prompt_tokens_details?.cache_creation_input_tokens || 0,
     cache_read_input_tokens: cached,
+    reasoning_tokens: usage?.completion_tokens_details?.reasoning_tokens || 0,
   };
 }
 

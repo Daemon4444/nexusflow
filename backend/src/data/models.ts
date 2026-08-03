@@ -104,15 +104,27 @@ export function resolveCompletionPrice(
   return tier?.thinkingCompletionPrice ?? model.thinkingCompletionPrice ?? normal;
 }
 
-export function calculateTokenCost(model: AIModel, promptTokens: number, completionTokens: number, cachedTokens: number = 0, cacheCreationTokens: number = 0): number {
+/**
+ * @param opts.isThinking 显式指定本次是否走思考模式。
+ *   省略时按预占语义取「非思考/思考」较大值，避免余额预占不足；
+ *   账单重算等需要还原真实金额的场景必须显式传入，否则会算高。
+ */
+export function calculateTokenCost(
+  model: AIModel,
+  promptTokens: number,
+  completionTokens: number,
+  cachedTokens: number = 0,
+  cacheCreationTokens: number = 0,
+  opts?: { isThinking?: boolean }
+): number {
   const tier = getTokenPricingTier(model, promptTokens);
   const promptPrice = tier?.promptPrice ?? model.promptPrice;
-  // 预占估算无法预知本次是否走思考模式，取较大值以免预占不足；
-  // 未配置思考价的模型两者相同，金额不变。
-  const completionPrice = Math.max(
-    resolveCompletionPrice(model, tier, false),
-    resolveCompletionPrice(model, tier, true)
-  );
+  const completionPrice = opts?.isThinking === undefined
+    ? Math.max(
+        resolveCompletionPrice(model, tier, false),
+        resolveCompletionPrice(model, tier, true)
+      )
+    : resolveCompletionPrice(model, tier, opts.isThinking);
   // 预占估算无法预知本次命中的是显式还是隐式缓存，取两者较大值以免预占不足。
   // 未配置任何缓存价时保留历史的 10% 兜底，避免改变既有模型的预占金额。
   const cacheReadPrice = Math.max(

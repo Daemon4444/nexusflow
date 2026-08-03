@@ -106,6 +106,18 @@ function rejectBillingReservation(res: Response, reason: BillingReservationFailu
   });
 }
 
+/**
+ * 本次响应是否产出了思维链。用于按官方口径选择思考/非思考输出价。
+ * 直通路径的 Anthropic usage 不带思维链细分，只能看响应内容：
+ * 流式看 thinking_delta，非流式看 content 里的 thinking 块。
+ */
+function hasThinkingOutput(payload: unknown): boolean {
+  if (typeof payload === "string") return payload.includes("thinking_delta");
+  const blocks = (payload as { content?: unknown })?.content;
+  return Array.isArray(blocks)
+    && blocks.some((b) => (b as { type?: string })?.type === "thinking");
+}
+
 async function calculateAnthropicUsageCost(
   userId: string | null | undefined,
   model: any,
@@ -115,7 +127,7 @@ async function calculateAnthropicUsageCost(
   // explicitCache：本次请求是否真的开启了显式缓存。协议桥会把 OpenAI 的
   // prompt_tokens_details.cached_tokens（隐式命中）映射进 cache_read_input_tokens，
   // 故不能仅凭该字段非零就按显式价计费，否则显式价低于隐式价的模型会少收。
-  opts: { inputIncludesCache: boolean; explicitCache: boolean }
+  opts: { inputIncludesCache: boolean; explicitCache: boolean; thinkingOutput?: boolean }
 ) {
   const inputTokens = usage?.input_tokens || 0;
   const outputTokens = usage?.output_tokens || 0;
@@ -129,12 +141,13 @@ async function calculateAnthropicUsageCost(
   // 分层定价与 v1 chat 实扣口径对齐（qwen3.7-plus/glm-5.x 等按输入总量取档）
   const tier = getTokenPricingTier(model, totalInputTokens);
   const promptPrice = tier?.promptPrice ?? model.promptPrice;
-  // Anthropic usage 不返回思维链细分，无法判定本次是否走思考模式。
-  // 对官方思考模式单独定价的模型取较大值，宁可不少收，也不把未知当低价。
-  const completionPrice = Math.max(
-    resolveCompletionPrice(model, tier, false),
-    resolveCompletionPrice(model, tier, true)
-  );
+  // 官方对部分模型的思考模式单独定价。判定优先用真实信号，不能一律取较大值——
+  // 那会让非思考请求被按思考价多收（qwen-plus 档1 是 4 倍）。
+  // 信号来源：桥路径由 openAiUsageToAnthropic 透传 reasoning_tokens；
+  // 直通路径由调用方根据响应里是否出现 thinking 块传入 thinkingOutput。
+  const reasoningTokens = usage?.reasoning_tokens || 0;
+  const isThinking = reasoningTokens > 0 || opts.thinkingOutput === true;
+  const completionPrice = resolveCompletionPrice(model, tier, isThinking);
   // Anthropic 的 cache_control 即显式缓存，故取显式口径；解析器与展示层同源。
   const cachePricing = resolveCachePricing(model, tier);
 
@@ -471,7 +484,7 @@ router.post("/", async (req: Request, res: Response) => {
           output_tokens: outputTokens,
           cache_creation_input_tokens: cacheCreationInputTokens,
           cache_read_input_tokens: cacheReadInputTokens,
-        }, { inputIncludesCache: false, explicitCache });
+        }, { inputIncludesCache: false, explicitCache, thinkingOutput: hasThinkingOutput(fullResponse) });
         const totalTokens = inputTokens + outputTokens;
         const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
         const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
@@ -536,7 +549,7 @@ router.post("/", async (req: Request, res: Response) => {
       billableResponseReceived = true;
 
       const usage = data.usage || {};
-      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false, explicitCache });
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false, explicitCache, thinkingOutput: hasThinkingOutput(data) });
       const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
       await logUsage({
         region: upstream.region,
@@ -709,7 +722,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       const latencyMs = Date.now() - startTime;
-      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, billingUsage, { inputIncludesCache: true, explicitCache });
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, billingUsage, { inputIncludesCache: true, explicitCache, thinkingOutput: hasThinkingOutput(rawUpstream) });
       const totalTokens = (billingUsage.input_tokens || 0) + (billingUsage.output_tokens || 0);
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = (billingUsage.output_tokens || 0) > 1 ? streamDuration / (billingUsage.output_tokens - 1) : 0;
@@ -780,7 +793,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     const anthropicResponse = openAiResponseToAnthropic(data, `msg_${logId}`, modelId);
     const usage = anthropicResponse.usage || openAiUsageToAnthropic(data?.usage);
-    const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: true, explicitCache });
+    const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: true, explicitCache, thinkingOutput: hasThinkingOutput(data) });
     const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
     await logUsage({
       region: upstream.region,

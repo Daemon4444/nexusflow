@@ -129,7 +129,12 @@ function getModelBillingBreakdown(
   const tier = model ? getTokenPricingTier(model, prompt) : null;
   const promptUnit = tier?.promptPrice ?? model?.promptPrice ?? 0;
   const completionUnit = tier?.completionPrice ?? model?.completionPrice ?? 0;
-  const recalculatedAmount = model ? calculateTokenCost(model, prompt, completion, cached, cacheCreation) : Number(billedAmount || 0);
+  // 与下方展示用的 completionUnit 保持同一口径（非思考价）。
+  // 不传 isThinking 会走预占语义取较大值，让思考定价模型的账单出现虚高的
+  // list_amount_cny 与虚假折扣率；usage_logs 未存思维链 token，无法还原真实模式。
+  const recalculatedAmount = model
+    ? calculateTokenCost(model, prompt, completion, cached, cacheCreation, { isThinking: false })
+    : Number(billedAmount || 0);
   const promptAmount = (prompt / 1_000_000) * promptUnit;
   const completionAmount = (completion / 1_000_000) * completionUnit;
   const hasCache = cached > 0 || cacheCreation > 0;
