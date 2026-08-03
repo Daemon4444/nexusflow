@@ -75,11 +75,11 @@ for (const parameter of [
   "enable_thinking",
   "thinking_budget",
   "enable_search",
-  "enable_context_caching",
   "parallel_tool_calls",
 ]) {
   assert.ok(parameters.includes(parameter), `${parameter} must be allowed`);
 }
+assert.ok(!parameters.includes("enable_context_caching"), "deepseek-v4-flash 官方仅支持隐式缓存");
 
 // ========== qwen3.8-max ==========
 // 账本精度为 6 位小数，金额断言按同一精度比较，避免浮点尾差
@@ -342,3 +342,19 @@ const k3 = models.find((model) => model.id === "kimi/kimi-k3")!;
 const k3Caps = getModelCapabilities(k3);
 assert.equal(k3Caps.supports_context_caching, true, "kimi-k3 缓存价必须披露");
 assert.equal(k3Caps.supports_explicit_context_caching, false);
+const kimi25 = models.find((model) => model.id === "kimi-k2.5")!;
+assert.equal(getModelCapabilities(kimi25).supports_explicit_context_caching, true, "百炼部署 kimi-k2.5 官方支持显式缓存");
+assert.ok(getAllowedChatParameters(kimi25).includes("enable_context_caching"));
+const glm47 = models.find((model) => model.id === "glm-4.7")!;
+assert.equal(getModelCapabilities(glm47).supports_context_caching, true);
+assert.equal(getModelCapabilities(glm47).supports_explicit_context_caching, false, "glm-4.7 仅隐式缓存，不得披露显式价");
+assert.ok(!getAllowedChatParameters(glm47).includes("enable_context_caching"));
+const glm51 = models.find((model) => model.id === "glm-5.1")!;
+assert.equal(getModelCapabilities(glm51).supports_explicit_context_caching, true);
+const deepseek32 = models.find((model) => model.id === "deepseek-v3.2")!;
+assert.equal(getModelCapabilities(deepseek32).supports_explicit_context_caching, true);
+assert.equal(getModelCapabilities(snapshot).supports_explicit_context_caching, false, "deepseek-v4-flash 官方仅列入隐式缓存");
+const qwenMath = models.find((model) => model.id === "qwen-math-plus")!;
+assert.equal(getModelCapabilities(qwenMath).supports_context_caching, false, "不能按 qwen 前缀虚构缓存能力");
+const qwenFlash = models.find((model) => model.id === "qwen-flash")!;
+assert.equal(resolveCachePricing(qwenFlash).explicitHit, 0.015, "qwen-flash 显式命中必须按输入价 10%");

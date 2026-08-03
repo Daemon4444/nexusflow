@@ -96,6 +96,64 @@ const SEARCH_ENABLED_MODELS = new Set([
   "kimi/kimi-k3",
 ]);
 
+// 阿里云百炼 Context Cache 官方页（华北 2）明确列出的显式缓存模型。
+// 不能按厂商前缀放大：同一厂商常同时存在显式+隐式和仅隐式模型。
+const EXPLICIT_CONTEXT_CACHE_MODELS = new Set([
+  "qwen3.8-max",
+  "qwen3.7-max",
+  "qwen3.7-plus",
+  "qwen3.7-flash",
+  "qwen3.6-max-preview",
+  "qwen3.6-plus",
+  "qwen3.6-flash",
+  "qwen3.5-plus",
+  "qwen3.5-flash",
+  "qwen3-max",
+  "qwen-plus",
+  "qwen-flash",
+  "qwen3-coder-plus",
+  "qwen3-coder-flash",
+  "qwen3-vl-plus",
+  "qwen3-vl-flash",
+  "deepseek-v3.2",
+  "kimi-k2.6",
+  "kimi-k2.5",
+  "glm-5.1",
+]);
+
+const IMPLICIT_CONTEXT_CACHE_MODELS = new Set([
+  "qwen3.8-max",
+  "qwen3.7-max",
+  "qwen3.7-plus",
+  "qwen3.7-flash",
+  "qwen3-max",
+  "qwen-plus",
+  "qwen-flash",
+  "qwen-turbo",
+  "qwen3-coder-plus",
+  "qwen3-coder-flash",
+  "qwen3-vl-plus",
+  "qwen3-vl-flash",
+  "qwen-vl-max",
+  "qwen-vl-plus",
+  "deepseek-v4-pro",
+  "deepseek-v4-flash",
+  "deepseek-v3.2",
+  "deepseek-r1",
+  "deepseek-v3",
+  "kimi-k2.6",
+  "kimi-k2.5",
+  "kimi/kimi-k3",
+  "glm-4.7",
+  "glm-5",
+  "glm-5.1",
+  "glm-5.2",
+  "glm-5.2-fast-preview",
+  "MiniMax/MiniMax-M3",
+  "MiniMax-M2.5",
+  "MiniMax-M2.1",
+]);
+
 function hasAny(value: string[], needles: string[]): boolean {
   return value.some((item) => needles.some((needle) => item.toLowerCase().includes(needle.toLowerCase())));
 }
@@ -155,13 +213,8 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     isMiniMax ||
     SEARCH_ENABLED_MODELS.has(model.id);
 
-  // 显式缓存开关（cache_control / enable_context_caching）仅 DashScope 的 qwen/GLM/deepseek-v4 支持；
-  // MiniMax 与 kimi/kimi-k3 官方只有隐式缓存折扣，无显式开关，披露时只出隐式价。
-  const supportsExplicitCaching = isQwenChat || isGLM || (isDeepSeek && model.id.startsWith("deepseek-v4"));
-  const supportsContextCaching =
-    supportsExplicitCaching ||
-    (isMiniMax && modelType === "chat") ||
-    model.id === "kimi/kimi-k3";
+  const supportsExplicitCaching = EXPLICIT_CONTEXT_CACHE_MODELS.has(model.id);
+  const supportsContextCaching = supportsExplicitCaching || IMPLICIT_CONTEXT_CACHE_MODELS.has(model.id);
 
   return {
     model_type: modelType || "unknown",

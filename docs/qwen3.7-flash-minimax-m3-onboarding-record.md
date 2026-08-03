@@ -44,7 +44,7 @@
 
 `ModelCapabilities` 新增 `supports_explicit_context_caching`：
 
-- 显式缓存开关（`cache_control` / `enable_context_caching`）仍限 qwen/GLM/deepseek-v4；
+- 显式缓存开关（`cache_control` / `enable_context_caching`）按官方模型白名单披露，不能按厂商前缀推断；
 - `supports_context_caching` 扩展覆盖 MiniMax chat 模型与 `kimi/kimi-k3`
   （后者为 qwen3.8-max 上线记录遗留 #2，本次一并修复：¥2/M 隐式价此前收费但从未披露）；
 - `buildCachePricing` 对仅隐式模型只披露 `implicitHit`，不虚构官方未公示的

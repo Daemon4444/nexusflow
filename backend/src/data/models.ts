@@ -385,6 +385,7 @@ const staticModels: AIModel[] = [
     promptPrice: 0.15,
     completionPrice: 1.5,
     cacheReadPrice: 0.03,
+    cacheReadExplicitPrice: 0.015,
     category: "大语言模型",
     tags: ["极速", "低成本", "百万上下文", "通用", "思考模式"],
     isNew: true,

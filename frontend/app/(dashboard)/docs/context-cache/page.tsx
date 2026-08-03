@@ -75,11 +75,11 @@ print(f"缓存命中: {details.cached_tokens} tokens")
 print(f"缓存创建: {details.cache_creation_input_tokens} tokens")`;
 
 const supportedModels = [
-  { provider: "通义千问", models: "Qwen3.8 Max, Qwen3.7 Max/Flash, Qwen3.6 Max Preview, Qwen3.6 Plus/Flash, Qwen3.5 Plus/Flash, Qwen3 Max, Qwen Plus/Turbo, Qwen VL 系列, Qwen3 Coder 系列", min: "1024 (显式) / 256 (隐式)" },
-  { provider: "DeepSeek", models: "DeepSeek V3.2", min: "1024 (显式)" },
-  { provider: "智谱 GLM", models: "GLM 5.2, GLM 5.1, GLM 5, GLM 4.7", min: "512" },
-  { provider: "Kimi", models: "Kimi K3, K2.6, K2.5", min: "1024 (显式)" },
-  { provider: "MiniMax", models: "MiniMax M3（仅隐式缓存，自动生效）", min: "256 (隐式)" },
+  { provider: "通义千问", models: "Qwen3.8/3.7、Qwen3.6/3.5（显式）；Qwen3 Max、Qwen Plus/Flash/Turbo、Qwen VL、Qwen3 Coder（按模型支持显式或隐式）", min: "1024 (显式)；约 256/2000 (隐式)" },
+  { provider: "DeepSeek", models: "V3.2（显式/隐式）；V4 Pro/Flash、R1、V3（仅隐式）", min: "1024 (显式) / 256 (隐式)" },
+  { provider: "智谱 GLM", models: "GLM 5.1（显式/隐式）；5.2、5、4.7（仅隐式）", min: "1024 (显式) / 256 (隐式)" },
+  { provider: "Kimi", models: "K2.6、K2.5（显式/隐式）；K3（仅隐式）", min: "1024 (显式) / 256 (隐式)" },
+  { provider: "MiniMax", models: "MiniMax M3、M2.5、M2.1（仅隐式缓存，自动生效）", min: "M3: 512；M2: 256 (隐式)" },
   { provider: "Anthropic", models: "Claude Opus 4.7, Sonnet 4.6, Haiku 4.5", min: "1024" },
 ];
 
@@ -91,13 +91,13 @@ export default function ContextCachePage() {
           上下文缓存（Context Cache）
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 760 }}>
-          对于重复的 system prompt、长文档上下文或多轮对话的固定前缀，启用上下文缓存可节省高达 90% 的输入费用。
+          对于重复的 system prompt、长文档上下文或多轮对话的固定前缀，上下文缓存可降低输入费用。显式缓存命中标准折扣为 90%；隐式缓存折扣因模型而异。
         </p>
       </div>
 
       {/* How it works */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>工作原理</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>工作原理（显式缓存）</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
           {[
             { step: "1", title: "标记缓存", desc: "在 content block 上添加 cache_control 注解" },
@@ -121,8 +121,8 @@ export default function ContextCachePage() {
             <span>Token 类型</span><span>计费倍率</span><span>响应字段</span><span>说明</span>
           </div>
           {[
-            ["缓存创建", "1.25x", "cache_creation_input_tokens", "首次请求写入缓存，略高于正常输入"],
-            ["缓存命中", "0.1x", "cached_tokens", "后续请求命中，节省 90%"],
+            ["显式缓存创建", "1.25x", "cache_creation_input_tokens", "首次请求写入缓存，略高于正常输入"],
+            ["显式缓存命中", "0.1x", "cached_tokens", "后续请求命中，节省 90%"],
             ["正常输入", "1x", "prompt_tokens - 缓存部分", "未被缓存标记的输入"],
             ["输出", "1x", "completion_tokens", "正常输出计费，不受缓存影响"],
           ].map(([type, rate, field, desc], i) => (
