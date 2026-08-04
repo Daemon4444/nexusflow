@@ -353,6 +353,8 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - 外部错误经 `sanitizeUpstreamError`；
 - `.env`、Provider Key、支付密钥不进 Git、不进日志；
 - SLS 默认只记结构化指标。只有显式设置 `SLS_LOG_FULL_CONTENT=true` 才记录脱敏和截断后的内容；
+  OpenAI Chat Completions 的成功、上游 HTTP 失败和本地异常路径都必须把请求与响应交给
+  同一个脱敏器，避免开关已启用但失败日志仍只有错误摘要；
 - `PROVIDER_SECRET_KEY` 是否配置必须在生产变更前检查；未配置时不能假设数据库中的 Provider Key 已加密；
 - PostgreSQL/Redis 只绑定本机，3001/19999 不允许公网直连；
 - 生产 Provider 出站必须配置

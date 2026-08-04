@@ -420,6 +420,8 @@ router.post("/", async (req: Request, res: Response) => {
             httpStatus: response.status,
             errorReason: errText || "Upstream API error",
             reservationId: billingReservation.id,
+            requestBody: req.body,
+            responseBody: errText || "Upstream API error",
           });
           res.status(response.status).json({
             type: "error",
@@ -537,6 +539,8 @@ router.post("/", async (req: Request, res: Response) => {
           route: "anthropic-passthrough",
           estimated: estimatedBilling,
           reservationId: billingReservation.id,
+          requestBody: req.body,
+          responseBody: fullResponse,
         });
         actualProviderTokens = totalTokens;
         await reconcileOnce(totalTokens);
@@ -567,6 +571,8 @@ router.post("/", async (req: Request, res: Response) => {
           httpStatus: response.status,
           errorReason: data?.error?.message || "Upstream API error",
           reservationId: billingReservation.id,
+          requestBody: req.body,
+          responseBody: data,
         });
         res.status(response.status).json(data);
         return;
@@ -600,6 +606,8 @@ router.post("/", async (req: Request, res: Response) => {
         providerInputIncludesCache: false,
         route: "anthropic-passthrough",
         reservationId: billingReservation.id,
+        requestBody: req.body,
+        responseBody: data,
       });
       actualProviderTokens = totalTokens;
       await reconcileOnce(totalTokens);
@@ -635,6 +643,8 @@ router.post("/", async (req: Request, res: Response) => {
         reservationId: billingReservation.id,
         errorCode: "upstream_error",
         errorReason: String(err?.message || err),
+        requestBody: req.body,
+        responseBody: { error: { message: String(err?.message || err) } },
       });
 
       // 流式中途出错时 SSE 头已发出，只能终止连接，不能再写状态码
@@ -686,6 +696,8 @@ router.post("/", async (req: Request, res: Response) => {
           httpStatus: response.status,
           errorReason: upstreamMsg,
           reservationId: billingReservation.id,
+          requestBody: req.body,
+          responseBody: (() => { try { return JSON.parse(errText); } catch { return errText; } })(),
         });
         res.status(response.status).json({
           type: "error",
@@ -786,6 +798,8 @@ router.post("/", async (req: Request, res: Response) => {
         route: "anthropic-bridge",
         estimated: estimatedBilling,
         reservationId: billingReservation.id,
+        requestBody: req.body,
+        responseBody: rawUpstream,
       });
       actualProviderTokens = totalTokens;
       await reconcileOnce(totalTokens);
@@ -815,6 +829,8 @@ router.post("/", async (req: Request, res: Response) => {
         httpStatus: response.status,
         errorReason: upstreamMsg,
         reservationId: billingReservation.id,
+        requestBody: req.body,
+        responseBody: data,
       });
       res.status(response.status).json({
         type: "error",
@@ -855,6 +871,8 @@ router.post("/", async (req: Request, res: Response) => {
       providerInputIncludesCache: true,
       route: "anthropic-bridge",
       reservationId: billingReservation.id,
+      requestBody: req.body,
+      responseBody: anthropicResponse,
     });
     actualProviderTokens = totalTokens;
     await reconcileOnce(totalTokens);
@@ -888,6 +906,8 @@ router.post("/", async (req: Request, res: Response) => {
       reservationId: billingReservation.id,
       errorCode: "upstream_error",
       errorReason: String(err?.message || err),
+      requestBody: req.body,
+      responseBody: { error: { message: String(err?.message || err) } },
     });
     // 流式中途出错时 SSE 头已发出，只能终止连接，不能再写状态码
     if (res.headersSent) {

@@ -255,6 +255,10 @@ export async function logUpstreamFailure(params: {
   errorCode?: string;
   errorReason: string;
   reservationId?: string | null;
+  /** Original customer request. Emitted only when SLS_LOG_FULL_CONTENT=true. */
+  requestBody?: any;
+  /** Parsed upstream error response. Emitted only when SLS_LOG_FULL_CONTENT=true. */
+  responseBody?: any;
 }): Promise<string> {
   return logUsage({
     logId: params.logId,
@@ -277,6 +281,8 @@ export async function logUpstreamFailure(params: {
     ),
     errorReason: params.errorReason,
     reservationId: params.reservationId,
+    requestBody: params.requestBody,
+    responseBody: params.responseBody,
   });
 }
 

@@ -177,6 +177,8 @@ async function proxyResponseControlRequest(params: {
         httpStatus: response.status,
         errorCode: data?.error?.code || "upstream_error",
         errorReason: data?.error?.message || "Upstream Responses control request failed.",
+        requestBody: { method: params.method },
+        responseBody: data,
       });
     }
     upstreamCompleted = true;
@@ -196,6 +198,8 @@ async function proxyResponseControlRequest(params: {
         latencyMs: Date.now() - startTime,
         errorCode: "upstream_exception",
         errorReason: String(error?.message || error),
+        requestBody: { method: params.method },
+        responseBody: { error: { message: String(error?.message || error) } },
       });
     }
     params.res.status(500).json({
@@ -436,9 +440,10 @@ router.post("/", async (req: Request, res: Response) => {
 
     if (!response.ok) {
       let errMsg = "Upstream API error";
+      let upstreamErrorBody: any = null;
       try {
-        const errJson = await response.json() as any;
-        errMsg = errJson?.error?.message || errMsg;
+        upstreamErrorBody = await response.json() as any;
+        errMsg = upstreamErrorBody?.error?.message || errMsg;
       } catch {}
       await logUpstreamFailure({
         logId,
@@ -453,6 +458,8 @@ router.post("/", async (req: Request, res: Response) => {
         httpStatus: response.status,
         errorReason: errMsg,
         reservationId: billingReservation.id,
+        requestBody: req.body,
+        responseBody: upstreamErrorBody || { error: { message: errMsg } },
       });
       res.status(response.status).json({
         error: { message: errMsg, type: "upstream_error", code: "upstream_error" },
@@ -511,6 +518,7 @@ router.post("/", async (req: Request, res: Response) => {
       actualProviderTokens = await billAndLog(billableUsage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated,
         requestBody: req.body,
+        responseBody: fullResponse,
         onReconciled: () => { tokensReconciled = true; },
       });
     } else {
@@ -527,6 +535,7 @@ router.post("/", async (req: Request, res: Response) => {
       actualProviderTokens = await billAndLog(usage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated: false,
         requestBody: req.body,
+        responseBody: data,
         onReconciled: () => { tokensReconciled = true; },
       });
     }
@@ -549,6 +558,8 @@ router.post("/", async (req: Request, res: Response) => {
       reservationId: billingReservation.id,
       errorCode: "upstream_error",
       errorReason: String(err?.message || err),
+      requestBody: req.body,
+      responseBody: { error: { message: String(err?.message || err) } },
     });
     // 流式响应已 end 后（如计费段 DB 异常）不能再写状态码
     if (res.headersSent) {
@@ -728,9 +739,11 @@ async function billAndLog(
     onReconciled?: () => void;
     /** 原始请求体，用于判定是否开启了显式缓存（本路由整体透传上游）。 */
     requestBody?: unknown;
+    /** 返回给客户的完整非流式对象或 SSE 文本。 */
+    responseBody?: unknown;
   },
 ): Promise<number> {
-  const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId, estimated, requestBody } = ctx;
+  const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId, estimated, requestBody, responseBody } = ctx;
   const latencyMs = Date.now() - startTime;
   const inputTokens = usage.input_tokens || 0;
   const outputTokens = usage.output_tokens || 0;
@@ -789,6 +802,8 @@ async function billAndLog(
     providerInputIncludesCache: true,
     estimated,
     reservationId: billingReservationId,
+    requestBody,
+    responseBody,
   });
   await reconcileAccountTpm({
     userId: apiKeyRecord.user_id,
