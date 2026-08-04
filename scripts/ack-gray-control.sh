@@ -10,6 +10,8 @@ ACK_ALB_HOST="${NEXUSFLOW_ACK_ALB_HOST:-alb-p4dpe83oyje5xdsum7.cn-beijing.alb.al
 ACK_NAMESPACE="${NEXUSFLOW_ACK_NAMESPACE:-nexusflow-staging}"
 PUBLIC_HEALTH_URL="${NEXUSFLOW_PUBLIC_HEALTH_URL:-https://nexusflow.hk/api/health}"
 PROBE_INTERVAL_SECONDS="${NEXUSFLOW_PROBE_INTERVAL_SECONDS:-10}"
+MAX_PUBLIC_INFLIGHT_PER_POD="${NEXUSFLOW_MAX_PUBLIC_INFLIGHT_PER_POD:-20}"
+MAX_PUBLIC_INFLIGHT_TOTAL="${NEXUSFLOW_MAX_PUBLIC_INFLIGHT_TOTAL:-60}"
 
 log() {
   printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -56,6 +58,35 @@ check_ack_capacity() {
   [[ "${api_ready:-0}" -ge 4 ]]
   [[ "${gateway_ready:-0}" -ge 2 ]]
   [[ "${web_ready:-0}" -ge 2 ]]
+}
+
+check_ack_inflight() {
+  local pod metric value total=0
+  local pods=()
+  mapfile -t pods < <(
+    kubectl -n "$ACK_NAMESPACE" get pods \
+      -l app.kubernetes.io/component=api \
+      --field-selector=status.phase=Running \
+      -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
+  )
+  [[ "${#pods[@]}" -ge 4 ]] || return 1
+
+  for pod in "${pods[@]}"; do
+    metric=$(kubectl get --raw \
+      "/api/v1/namespaces/${ACK_NAMESPACE}/pods/${pod}:3001/proxy/_internal/metrics") || return 1
+    value=$(awk '$1 == "nexusflow_public_api_inflight_requests" { print $2 }' <<<"$metric")
+    [[ "$value" =~ ^[0-9]+$ ]] || return 1
+    if (( value > MAX_PUBLIC_INFLIGHT_PER_POD )); then
+      log "ACK inflight threshold exceeded on ${pod}: ${value} > ${MAX_PUBLIC_INFLIGHT_PER_POD}"
+      return 1
+    fi
+    total=$((total + value))
+  done
+
+  if (( total > MAX_PUBLIC_INFLIGHT_TOTAL )); then
+    log "ACK total inflight threshold exceeded: ${total} > ${MAX_PUBLIC_INFLIGHT_TOTAL}"
+    return 1
+  fi
 }
 
 rule_actions() {
@@ -137,6 +168,7 @@ preflight() {
   probe_public || return 1
   probe_ack || return 1
   check_ack_capacity || return 1
+  check_ack_inflight || return 1
   verify_weight 0 || return 1
   log 'preflight passed: production ECS-only, ACK isolated health and capacity healthy'
 }
@@ -148,7 +180,7 @@ observe() {
   local consecutive_failures=0
 
   while (( SECONDS < deadline )); do
-    if probe_public && probe_ack && check_ack_capacity && verify_weight "$expected_weight"; then
+    if probe_public && probe_ack && check_ack_capacity && check_ack_inflight && verify_weight "$expected_weight"; then
       consecutive_failures=0
     else
       consecutive_failures=$((consecutive_failures + 1))
