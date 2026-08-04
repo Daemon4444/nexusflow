@@ -17,6 +17,8 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: "3"
     alb.ingress.kubernetes.io/healthy-threshold-count: "2"
     alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/connection-drain-enabled: "true"
+    alb.ingress.kubernetes.io/connection-drain-timeout: "300"
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
