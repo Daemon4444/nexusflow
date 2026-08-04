@@ -52,7 +52,8 @@
         "enabled": { "type": "boolean" },
         "className": { "type": "string", "minLength": 1 },
         "host": { "type": "string", "minLength": 1 },
-        "albConfigName": { "type": "string" }
+        "albConfigName": { "type": "string" },
+        "listenPorts": { "type": "string" }
       },
       "allOf": [
         {

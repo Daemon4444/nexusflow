@@ -7,6 +7,9 @@ metadata:
     {{- include "nexusflow.labels" . | nindent 4 }}
   annotations:
     alb.ingress.kubernetes.io/albconfig: {{ .Values.ingress.albConfigName | quote }}
+    {{- with .Values.ingress.listenPorts }}
+    alb.ingress.kubernetes.io/listen-ports: {{ . | quote }}
+    {{- end }}
     alb.ingress.kubernetes.io/healthcheck-enabled: "true"
     alb.ingress.kubernetes.io/healthcheck-path: /api/health/ready
     alb.ingress.kubernetes.io/healthcheck-method: GET
