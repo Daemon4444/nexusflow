@@ -9,9 +9,16 @@ ACK_SERVER_GROUP_ID="${NEXUSFLOW_ACK_SERVER_GROUP_ID:-sgp-3zgnpomvq7f52eo3m5}"
 ACK_ALB_HOST="${NEXUSFLOW_ACK_ALB_HOST:-alb-p4dpe83oyje5xdsum7.cn-beijing.alb.aliyuncsslb.com}"
 ACK_NAMESPACE="${NEXUSFLOW_ACK_NAMESPACE:-nexusflow-staging}"
 PUBLIC_HEALTH_URL="${NEXUSFLOW_PUBLIC_HEALTH_URL:-https://nexusflow.hk/api/health}"
+PUBLIC_VERSION_URL="${NEXUSFLOW_PUBLIC_VERSION_URL:-https://nexusflow.hk/api/version}"
 PROBE_INTERVAL_SECONDS="${NEXUSFLOW_PROBE_INTERVAL_SECONDS:-10}"
 MAX_PUBLIC_INFLIGHT_PER_POD="${NEXUSFLOW_MAX_PUBLIC_INFLIGHT_PER_POD:-20}"
 MAX_PUBLIC_INFLIGHT_TOTAL="${NEXUSFLOW_MAX_PUBLIC_INFLIGHT_TOTAL:-60}"
+ACK_BUILD_SHA="${NEXUSFLOW_ACK_BUILD_SHA:-09753c32b01c443a4d2272fad19ec5a5c272e234}"
+DB_ENV_FILE="${NEXUSFLOW_DB_ENV_FILE:-/root/distiny/nexusflow/backend/.env}"
+DB_MONITOR_SCRIPT="${NEXUSFLOW_DB_MONITOR_SCRIPT:-/usr/local/libexec/nexusflow-ack-gray-db-health.cjs}"
+GRAY_STATE_DIR="${NEXUSFLOW_GRAY_STATE_DIR:-/var/lib/nexusflow-ack-gray}"
+GRAY_STARTED_AT="${NEXUSFLOW_GRAY_STARTED_AT:-$(date --utc --iso-8601=seconds)}"
+GRAY_LOG_FILE="${NEXUSFLOW_GRAY_LOG_FILE:-/var/log/nexusflow-ack-gray.log}"
 
 log() {
   printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -60,6 +67,16 @@ check_ack_capacity() {
   [[ "${web_ready:-0}" -ge 2 ]]
 }
 
+check_pod_restarts() {
+  local restarts
+  restarts=$(kubectl -n "$ACK_NAMESPACE" get pods -o json \
+    | jq '[.items[].status.containerStatuses[]?.restartCount] | add // 0')
+  [[ "$restarts" -eq 0 ]] || {
+    log "ACK pod restart threshold exceeded: ${restarts}"
+    return 1
+  }
+}
+
 check_ack_inflight() {
   local pod metric value total=0
   local pods=()
@@ -87,6 +104,42 @@ check_ack_inflight() {
     log "ACK total inflight threshold exceeded: ${total} > ${MAX_PUBLIC_INFLIGHT_TOTAL}"
     return 1
   fi
+}
+
+check_gray_database() {
+  local result
+  result=$(node --env-file="$DB_ENV_FILE" "$DB_MONITOR_SCRIPT" "$GRAY_STARTED_AT") || {
+    log "database gray gate failed: ${result:-no summary}"
+    return 1
+  }
+}
+
+verify_distribution() {
+  local ack_weight="$1"
+  local samples min_ack max_ack
+  case "$ack_weight" in
+    1) samples=500; min_ack=1; max_ack=15 ;;
+    5) samples=200; min_ack=3; max_ack=20 ;;
+    10) samples=100; min_ack=3; max_ack=25 ;;
+    *) return 0 ;;
+  esac
+
+  local results_file ack_hits
+  results_file=$(mktemp)
+  if ! seq "$samples" | xargs -P 20 -I{} \
+    curl -fsS --connect-timeout 3 --max-time 12 "$PUBLIC_VERSION_URL" \
+    >>"$results_file"; then
+    rm -f "$results_file"
+    log "traffic distribution probe failed at ACK weight $ack_weight"
+    return 1
+  fi
+  ack_hits=$({ grep -o "$ACK_BUILD_SHA" "$results_file" || true; } | wc -l | tr -d ' ')
+  rm -f "$results_file"
+  if (( ack_hits < min_ack || ack_hits > max_ack )); then
+    log "traffic distribution outside guardrail: ACK ${ack_hits}/${samples} at weight ${ack_weight}"
+    return 1
+  fi
+  log "traffic distribution confirmed: ACK ${ack_hits}/${samples} at weight ${ack_weight}"
 }
 
 rule_actions() {
@@ -168,7 +221,9 @@ preflight() {
   probe_public || return 1
   probe_ack || return 1
   check_ack_capacity || return 1
+  check_pod_restarts || return 1
   check_ack_inflight || return 1
+  check_gray_database || return 1
   verify_weight 0 || return 1
   log 'preflight passed: production ECS-only, ACK isolated health and capacity healthy'
 }
@@ -180,7 +235,8 @@ observe() {
   local consecutive_failures=0
 
   while (( SECONDS < deadline )); do
-    if probe_public && probe_ack && check_ack_capacity && check_ack_inflight && verify_weight "$expected_weight"; then
+    if probe_public && probe_ack && check_ack_capacity && check_pod_restarts \
+      && check_ack_inflight && check_gray_database && verify_weight "$expected_weight"; then
       consecutive_failures=0
     else
       consecutive_failures=$((consecutive_failures + 1))
@@ -202,15 +258,35 @@ rollback() {
 }
 
 run_morning_gray() {
+  install -d -o root -g root -m 0750 "$GRAY_STATE_DIR"
+  printf '%s\n' "$GRAY_STARTED_AT" >"${GRAY_STATE_DIR}/started-at"
   preflight || return 1
   set_weight 1 || return 1
+  verify_distribution 1 || return 1
   observe 1 600 || return 1
   set_weight 5 || return 1
+  verify_distribution 5 || return 1
   observe 5 900 || return 1
   set_weight 10 || return 1
+  verify_distribution 10 || return 1
   observe 10 7200 || return 1
 
   log 'morning gray completed: holding ECS 90% / ACK 10%'
+}
+
+deadman() {
+  if [[ -r "${GRAY_STATE_DIR}/started-at" ]]; then
+    GRAY_STARTED_AT=$(<"${GRAY_STATE_DIR}/started-at")
+  fi
+  if grep -q "^$(date --iso-8601).*morning gray completed" "$GRAY_LOG_FILE" \
+    && probe_public && probe_ack && check_ack_capacity && check_pod_restarts \
+    && check_ack_inflight && check_gray_database && verify_weight 10; then
+    log 'deadman confirmed completed and healthy ACK 10% gray'
+    return 0
+  fi
+  log 'deadman did not find a healthy completed gray; forcing ECS 100%'
+  rollback
+  return 1
 }
 
 run_with_rollback() {
@@ -222,7 +298,7 @@ run_with_rollback() {
 }
 
 usage() {
-  echo "usage: $0 preflight | set-weight <0|1|5|10> | observe <weight> <seconds> | rollback | run-morning"
+  echo "usage: $0 preflight | set-weight <0|1|5|10> | observe <weight> <seconds> | rollback | run-morning | deadman"
 }
 
 case "${1:-}" in
@@ -231,5 +307,6 @@ case "${1:-}" in
   observe) [[ $# -eq 3 ]] || { usage; exit 2; }; observe "$2" "$3" ;;
   rollback) rollback ;;
   run-morning) run_with_rollback ;;
+  deadman) deadman ;;
   *) usage; exit 2 ;;
 esac
