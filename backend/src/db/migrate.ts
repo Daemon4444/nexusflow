@@ -58,7 +58,12 @@ async function main() {
     const appliedResult = await client.query("SELECT filename FROM schema_migrations");
     const applied = new Set(appliedResult.rows.map((row) => String(row.filename)));
     const pending = files.filter((file) => !applied.has(file));
-    assertExpandCompatible(migrationDir, pending);
+    // Fresh bootstrap (empty ledger) replays the full history, which contains
+    // legitimate early contract migrations (e.g. 002_money_numeric). The
+    // expand-only guard protects rolling upgrades of an existing database.
+    if (applied.size > 0) {
+      assertExpandCompatible(migrationDir, pending);
+    }
 
     console.log(`[PG] advisory lock acquired; pending=${pending.length}`);
     for (const file of files) {
