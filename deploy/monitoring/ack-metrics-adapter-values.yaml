@@ -1,0 +1,60 @@
+AlibabaCloudMetricsAdapter:
+  replicas: 2
+  serviceAccountName: nexusflow-metrics-adapter
+  image:
+    repository: registry-cn-beijing-vpc.ack.aliyuncs.com/acs/alibaba-cloud-metrics-adapter-amd64
+    tag: v0.2.5-513be5f-aliyun
+    pullPolicy: IfNotPresent
+  resources:
+    metricsAdapterDeployment:
+      resources:
+        limits:
+          cpu: 500m
+          memory: 1Gi
+        requests:
+          cpu: 100m
+          memory: 200Mi
+    configReloader:
+      resources:
+        limits:
+          cpu: 20m
+          memory: 30Mi
+        requests:
+          cpu: 20m
+          memory: 30Mi
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: topology.kubernetes.io/zone
+            labelSelector:
+              matchLabels:
+                app: ack-alibaba-cloud-metrics-adapter
+  prometheus:
+    enabled: true
+    # Inject the private Managed Prometheus read URL at deploy time. The URL is
+    # intentionally not committed because it contains account/instance IDs.
+    url: ""
+    metricsRelistInterval: 30s
+    logLevel: 2
+    adapter:
+      rules:
+        default: false
+        custom:
+          - seriesQuery: 'nexusflow_public_api_inflight_requests{namespace!="",pod!=""}'
+            resources:
+              overrides:
+                namespace:
+                  resource: namespace
+                pod:
+                  resource: pod
+            name:
+              matches: "^(.*)$"
+              as: "${1}"
+            metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)'
+
+ConfigReloader:
+  image:
+    repository: registry-cn-beijing-vpc.ack.aliyuncs.com/acs/configmap-reload
+    tag: v0.0.1

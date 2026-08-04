@@ -76,4 +76,10 @@ ingress:
 migrations:
   enabled: false
 
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 15s
+    scrapeTimeout: 5s
+
 podAnnotations: {}

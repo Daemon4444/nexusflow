@@ -106,6 +106,40 @@ check_ack_inflight() {
   fi
 }
 
+check_custom_metrics_hpa() {
+  local available metric_payload metric_count hpa_payload
+  available=$(kubectl get apiservice v1beta1.custom.metrics.k8s.io \
+    -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null) || return 1
+  if [[ "$available" != "True" ]]; then
+    log "custom metrics APIService is unavailable: ${available:-missing}"
+    return 1
+  fi
+
+  metric_payload=$(kubectl get --raw \
+    "/apis/custom.metrics.k8s.io/v1beta1/namespaces/${ACK_NAMESPACE}/pods/*/nexusflow_public_api_inflight_requests" \
+    2>/dev/null) || {
+      log 'custom inflight metric query failed'
+      return 1
+    }
+  metric_count=$(jq '[.items[] | select(.value | test("^[0-9]+(m)?$"))] | length' <<<"$metric_payload") || return 1
+  if (( metric_count < 4 )); then
+    log "custom inflight metric has too few pod series: ${metric_count} < 4"
+    return 1
+  fi
+
+  hpa_payload=$(kubectl -n "$ACK_NAMESPACE" get hpa nexusflow-api -o json 2>/dev/null) || return 1
+  if ! jq -e '
+    any(.status.conditions[]?;
+      .type == "ScalingActive" and .status == "True" and .reason == "ValidMetricFound") and
+    any(.spec.metrics[]?;
+      .type == "Pods" and
+      .pods.metric.name == "nexusflow_public_api_inflight_requests")
+  ' >/dev/null <<<"$hpa_payload"; then
+    log 'HPA custom inflight metric is not active'
+    return 1
+  fi
+}
+
 check_gray_database() {
   local result
   result=$(node --env-file="$DB_ENV_FILE" "$DB_MONITOR_SCRIPT" "$GRAY_STARTED_AT") || {
@@ -223,6 +257,7 @@ preflight() {
   check_ack_capacity || return 1
   check_pod_restarts || return 1
   check_ack_inflight || return 1
+  check_custom_metrics_hpa || return 1
   check_gray_database || return 1
   verify_weight 0 || return 1
   log 'preflight passed: production ECS-only, ACK isolated health and capacity healthy'
@@ -236,7 +271,8 @@ observe() {
 
   while (( SECONDS < deadline )); do
     if probe_public && probe_ack && check_ack_capacity && check_pod_restarts \
-      && check_ack_inflight && check_gray_database && verify_weight "$expected_weight"; then
+      && check_ack_inflight && check_custom_metrics_hpa \
+      && check_gray_database && verify_weight "$expected_weight"; then
       consecutive_failures=0
     else
       consecutive_failures=$((consecutive_failures + 1))
@@ -280,7 +316,8 @@ deadman() {
   fi
   if grep -q "^$(date --iso-8601).*morning gray completed" "$GRAY_LOG_FILE" 2>/dev/null \
     && probe_public && probe_ack && check_ack_capacity && check_pod_restarts \
-    && check_ack_inflight && check_gray_database && verify_weight 10; then
+    && check_ack_inflight && check_custom_metrics_hpa \
+    && check_gray_database && verify_weight 10; then
     log 'deadman confirmed completed and healthy ACK 10% gray'
     return 0
   fi

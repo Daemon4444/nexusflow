@@ -1,0 +1,29 @@
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nexusflow-api
+  labels:
+    {{- include "nexusflow.labels" . | nindent 4 }}
+  annotations:
+    arms.prometheus.io/discovery: "true"
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nexusflow
+      app.kubernetes.io/component: api
+  endpoints:
+    - port: http
+      path: /_internal/metrics
+      scheme: http
+      interval: {{ .Values.monitoring.serviceMonitor.interval | quote }}
+      scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | quote }}
+      metricRelabelings:
+        - sourceLabels:
+            - __name__
+          regex: "nexusflow_(http_inflight_requests|public_api_inflight_requests|runtime_phase)"
+          action: keep
+{{- end }}
