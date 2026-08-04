@@ -293,6 +293,14 @@ rollback() {
   set_weight 0
 }
 
+gray_abort() {
+  local reason="$1"
+  trap - EXIT HUP INT TERM
+  log "gray controller aborted (${reason}); forcing ECS 100% / ACK 0%"
+  rollback || log 'emergency rollback command failed; operator intervention required'
+  exit 1
+}
+
 run_morning_gray() {
   install -d -o root -g root -m 0750 "$GRAY_STATE_DIR"
   printf '%s\n' "$GRAY_STARTED_AT" >"${GRAY_STATE_DIR}/started-at"
@@ -327,11 +335,15 @@ deadman() {
 }
 
 run_with_rollback() {
+  trap 'gray_abort EXIT' EXIT
+  trap 'gray_abort SIGHUP' HUP
+  trap 'gray_abort SIGINT' INT
+  trap 'gray_abort SIGTERM' TERM
   if run_morning_gray; then
+    trap - EXIT HUP INT TERM
     return 0
   fi
-  rollback
-  return 1
+  gray_abort FAILURE
 }
 
 usage() {
