@@ -278,7 +278,7 @@ deadman() {
   if [[ -r "${GRAY_STATE_DIR}/started-at" ]]; then
     GRAY_STARTED_AT=$(<"${GRAY_STATE_DIR}/started-at")
   fi
-  if grep -q "^$(date --iso-8601).*morning gray completed" "$GRAY_LOG_FILE" \
+  if grep -q "^$(date --iso-8601).*morning gray completed" "$GRAY_LOG_FILE" 2>/dev/null \
     && probe_public && probe_ack && check_ack_capacity && check_pod_restarts \
     && check_ack_inflight && check_gray_database && verify_weight 10; then
     log 'deadman confirmed completed and healthy ACK 10% gray'
