@@ -5,6 +5,14 @@ metadata:
   name: nexusflow-migrate-{{ .Release.Revision }}
   labels:
     {{- include "nexusflow.labels" . | nindent 4 }}
+  annotations:
+    # Run as a pre-upgrade hook so migrations complete before any Deployment
+    # rollout starts; with --atomic a failed migration aborts the release
+    # before new Pods can serve traffic. Migrations stay expand-only and
+    # migrate.js holds a PG advisory lock, so a concurrent old Pod is safe.
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation
 spec:
   backoffLimit: 0
   ttlSecondsAfterFinished: 86400

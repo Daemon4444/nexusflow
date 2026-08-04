@@ -109,9 +109,10 @@ helm lint deploy/helm/nexusflow \
 3. 从集群内经 Gateway 验证 `/api/health/live`、`/api/health/ready` 和 `/api/version`；ALB 只允许指向 `nexusflow-gateway`，不得直接暴露 API/Web Service。
    同时由集群内 Prometheus 抓取 `/_internal/metrics`，确认
    `nexusflow_public_api_inflight_requests` 随长请求开始/结束准确增减。该路径不允许加入公网 Ingress。
-4. 若有迁移，先做加密备份和 PG16 异地恢复；迁移使用独立 Job，并遵循 expand/contract。应用 rollout 与 migration 不同时启动。
-5. 使用独立预发 host 打开 Ingress，不修改生产 DNS/ALB 权重。
-6. 连续通过下面的验收矩阵后，才进入生产影子/小权重阶段。
+4. 若有迁移，先做加密备份和 PG16 异地恢复。迁移由 chart 内 pre-upgrade Hook Job 执行（`migrations.enabled=true` 时），Helm 会先等 Job 成功再开始 rollout；Job 与 ECS 发布共用同一 PG advisory lock 和 expand-only 守卫，`--atomic` 下迁移失败即中止发布。
+5. 价本（Provider 成本价本）门禁不因 K8s 化而移除：价本激活仍由受控 ops 主机使用 `scripts/provider-cost-release.mjs` 对同一 RDS 执行，manifest 继续遵守随机 0700 目录 + 0600 文件纪律，价本内容不进 Git、镜像或日志。打开任何 Ingress 或增加生产权重前，必须先 `provider-cost-release.mjs verify-active --expected-tiers 13 --expected-models 10` 通过（期望值随 `deploy-all-production.sh` 顶部常量同步更新）；verify 失败时禁止切流。
+6. 使用独立预发 host 打开 Ingress，不修改生产 DNS/ALB 权重。
+7. 连续通过下面的验收矩阵后，才进入生产影子/小权重阶段。
 
 Helm upgrade 必须使用原子等待，并保存前一 revision：
 
@@ -134,6 +135,8 @@ helm upgrade --install nexusflow deploy/helm/nexusflow \
 | 容量 | Redis 故障、Provider 429/5xx、多 Pod 并发 | 不误判容量耗尽；全局配额一致；故障分类正确 |
 | 版本 | Web/API `/api/version` 与镜像 digest | 同一发布无静态资源混发 |
 | 扩缩 | 2→N→2，有活跃流时缩容 | 不丢流；不打爆 RDS；缩容稳定窗生效 |
+| 限流 | 经 ALB 从至少两个公网源 IP 并发压 `/v1` | 429 按真实客户端 IP 独立计数，不坍缩到 ALB 地址；`trustedProxyCidrs` 覆盖全部 ALB/工作负载 vSwitch CIDR（preflight `ACK_GATEWAY_TRUSTED_PROXY_CIDRS` 检查通过） |
+| 价本 | `provider-cost-release.mjs verify-active` | 期望 tier/model 数与 ECS 发布门禁一致；失败禁止切流 |
 
 生产前必须把 HPA 从“仅 CPU”升级为至少包含活跃流或 inflight 指标，并用 ARMS/Prometheus Adapter 验证。chart 已提供默认关闭的
 `backend.autoscaling.inflight` Pods 指标；只有在 Adapter 的 Custom Metrics API 能稳定返回每 Pod 的
@@ -156,6 +159,7 @@ helm upgrade --install nexusflow deploy/helm/nexusflow \
 ## 9. 当前实现说明
 
 - Backend 有独立 `/api/health/live` 和 `/api/health/ready`；ready 在 drain 后返回 503。
+- Gateway 的 liveness/readiness 只探测本地 `/_gateway/health`，不探测后端依赖健康；RDS/Redis 短暂异常只会让 API 请求失败，不会把 Gateway 整体摘流导致全站不可达。摘除故障后端由 ALB 对 API 路径的健康检查完成。
 - 所有 SSE 入口统一发送默认 15 秒注释心跳，配置被限制在 5–45 秒，确保低于 ALB 60 秒 idle 上限。
 - Pod `preStop` 先发送 `SIGUSR2` 摘流，再由 `SIGTERM` 启动连接排空；默认排空 540 秒，Pod grace period 600 秒。
 - liveness 不依赖 RDS/Redis，避免短暂依赖故障触发重启风暴。
