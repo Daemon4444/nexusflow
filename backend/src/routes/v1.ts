@@ -858,9 +858,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       if (!response.ok) {
         let upstreamMsg = "Upstream API error";
+        let upstreamErrorBody: any = null;
         try {
-          const errJson = await response.json() as any;
-          upstreamMsg = errJson?.error?.message || upstreamMsg;
+          upstreamErrorBody = await response.json() as any;
+          upstreamMsg = upstreamErrorBody?.error?.message || upstreamMsg;
         } catch { /* non-JSON response, use default */ }
         await logUpstreamFailure({
           logId,
@@ -875,6 +876,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           httpStatus: response.status,
           errorReason: upstreamMsg,
           reservationId: chatReservation.id,
+          requestBody: req.body,
+          responseBody: upstreamErrorBody || { error: { message: upstreamMsg } },
         });
         logToSLS({ logId, apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "error", errorReason: `upstream_${response.status}: ${upstreamMsg}`, clientIp, latencyMs: Date.now() - startTime });
         res.status(response.status).json({
@@ -1111,9 +1114,10 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
       if (!response.ok) {
         let upstreamMsg = "Upstream API error";
+        let upstreamErrorBody: any = null;
         try {
-          const errJson = await response.json() as any;
-          upstreamMsg = errJson?.error?.message || upstreamMsg;
+          upstreamErrorBody = await response.json() as any;
+          upstreamMsg = upstreamErrorBody?.error?.message || upstreamMsg;
         } catch { /* non-JSON response, use default */ }
         await logUpstreamFailure({
           logId,
@@ -1128,6 +1132,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
           httpStatus: response.status,
           errorReason: upstreamMsg,
           reservationId: chatReservation.id,
+          requestBody: req.body,
+          responseBody: upstreamErrorBody || { error: { message: upstreamMsg } },
         });
         logToSLS({ logId, apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "error", errorReason: `upstream_${response.status}: ${upstreamMsg}`, clientIp, latencyMs: Date.now() - startTime });
         res.status(response.status).json({
@@ -1260,6 +1266,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         errorCode: data.error?.code || "upstream_error",
         errorReason: data.error?.message || "Upstream API error",
         reservationId: chatReservation.id,
+        requestBody: req.body,
+        responseBody: data,
       });
       logToSLS({ logId, apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "error", errorReason: `upstream_${response.status}: ${data.error?.message || "Upstream API error"}`, clientIp, latencyMs: Date.now() - startTime });
       res.status(response.status).json({
@@ -1366,6 +1374,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       errorReason: String(err?.message || err),
       errorCode: "upstream_error",
       reservationId: chatReservation.id,
+      requestBody: req.body,
+      responseBody: { error: { message: String(err?.message || err) } },
     });
 
     // 流式响应已 end 后（如计费段 DB 异常）不能再写状态码
