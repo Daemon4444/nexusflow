@@ -3,7 +3,7 @@ set -euo pipefail
 
 REGION_ID="${NEXUSFLOW_ALB_REGION_ID:-cn-beijing}"
 RAM_ROLE_NAME="${NEXUSFLOW_ALB_RAM_ROLE_NAME:-NexusFlowCertSyncRole}"
-LISTENER_ID="${NEXUSFLOW_ALB_LISTENER_ID:-lsn-qpwivu9x83z7jolskz}"
+RULE_ID="${NEXUSFLOW_ALB_RULE_ID:-rule-i4mtbc9w83vq2avual}"
 ECS_SERVER_GROUP_ID="${NEXUSFLOW_ECS_SERVER_GROUP_ID:-sgp-lvirvljge3xp1xjbvy}"
 ACK_SERVER_GROUP_ID="${NEXUSFLOW_ACK_SERVER_GROUP_ID:-sgp-3zgnpomvq7f52eo3m5}"
 ACK_ALB_HOST="${NEXUSFLOW_ACK_ALB_HOST:-alb-p4dpe83oyje5xdsum7.cn-beijing.alb.aliyuncsslb.com}"
@@ -58,15 +58,16 @@ check_ack_capacity() {
   [[ "${web_ready:-0}" -ge 2 ]]
 }
 
-listener_actions() {
-  aliyun_alb GetListenerAttribute --ListenerId "$LISTENER_ID" \
-    | jq -c '.DefaultActions'
+rule_actions() {
+  aliyun_alb ListRules --MaxResults 100 \
+    | jq -ce --arg rule_id "$RULE_ID" \
+      '.Rules[] | select(.RuleId == $rule_id) | .RuleActions'
 }
 
 verify_weight() {
   local ack_weight="$1"
   local actions
-  actions=$(listener_actions)
+  actions=$(rule_actions)
   if [[ "$ack_weight" -eq 0 ]]; then
     jq -e --arg ecs "$ECS_SERVER_GROUP_ID" '
       length == 1 and
@@ -101,21 +102,23 @@ set_weight() {
   esac
 
   if [[ "$ack_weight" -eq 0 ]]; then
-    aliyun_alb UpdateListenerAttribute --force \
-      --ListenerId "$LISTENER_ID" \
-      --DefaultActions.1.Type ForwardGroup \
-      --DefaultActions.1.ForwardGroupConfig.ServerGroupTuples.1.ServerGroupId "$ECS_SERVER_GROUP_ID" \
-      --DefaultActions.1.ForwardGroupConfig.ServerGroupTuples.1.Weight 100 \
+    aliyun_alb UpdateRulesAttribute --force \
+      --Rules.1.RuleId "$RULE_ID" \
+      --Rules.1.RuleActions.1.Type ForwardGroup \
+      --Rules.1.RuleActions.1.Order 1 \
+      --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.1.ServerGroupId "$ECS_SERVER_GROUP_ID" \
+      --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.1.Weight 100 \
       >/dev/null
   else
     local ecs_weight=$((100 - ack_weight))
-    aliyun_alb UpdateListenerAttribute --force \
-      --ListenerId "$LISTENER_ID" \
-      --DefaultActions.1.Type ForwardGroup \
-      --DefaultActions.1.ForwardGroupConfig.ServerGroupTuples.1.ServerGroupId "$ECS_SERVER_GROUP_ID" \
-      --DefaultActions.1.ForwardGroupConfig.ServerGroupTuples.1.Weight "$ecs_weight" \
-      --DefaultActions.1.ForwardGroupConfig.ServerGroupTuples.2.ServerGroupId "$ACK_SERVER_GROUP_ID" \
-      --DefaultActions.1.ForwardGroupConfig.ServerGroupTuples.2.Weight "$ack_weight" \
+    aliyun_alb UpdateRulesAttribute --force \
+      --Rules.1.RuleId "$RULE_ID" \
+      --Rules.1.RuleActions.1.Type ForwardGroup \
+      --Rules.1.RuleActions.1.Order 1 \
+      --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.1.ServerGroupId "$ECS_SERVER_GROUP_ID" \
+      --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.1.Weight "$ecs_weight" \
+      --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.2.ServerGroupId "$ACK_SERVER_GROUP_ID" \
+      --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.2.Weight "$ack_weight" \
       >/dev/null
   fi
 
@@ -131,10 +134,10 @@ set_weight() {
 }
 
 preflight() {
-  probe_public
-  probe_ack
-  check_ack_capacity
-  verify_weight 0
+  probe_public || return 1
+  probe_ack || return 1
+  check_ack_capacity || return 1
+  verify_weight 0 || return 1
   log 'preflight passed: production ECS-only, ACK isolated health and capacity healthy'
 }
 
