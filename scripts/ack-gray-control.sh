@@ -19,6 +19,8 @@ DB_MONITOR_SCRIPT="${NEXUSFLOW_DB_MONITOR_SCRIPT:-/usr/local/libexec/nexusflow-a
 GRAY_STATE_DIR="${NEXUSFLOW_GRAY_STATE_DIR:-/var/lib/nexusflow-ack-gray}"
 GRAY_STARTED_AT="${NEXUSFLOW_GRAY_STARTED_AT:-$(date --utc --iso-8601=seconds)}"
 GRAY_LOG_FILE="${NEXUSFLOW_GRAY_LOG_FILE:-/var/log/nexusflow-ack-gray.log}"
+LAST_ACK_INFLIGHT_TOTAL="unknown"
+LAST_GRAY_DATABASE_SUMMARY='{}'
 
 log() {
   printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -104,6 +106,7 @@ check_ack_inflight() {
     log "ACK total inflight threshold exceeded: ${total} > ${MAX_PUBLIC_INFLIGHT_TOTAL}"
     return 1
   fi
+  LAST_ACK_INFLIGHT_TOTAL="$total"
 }
 
 check_custom_metrics_hpa() {
@@ -143,9 +146,11 @@ check_custom_metrics_hpa() {
 check_gray_database() {
   local result
   result=$(node --env-file="$DB_ENV_FILE" "$DB_MONITOR_SCRIPT" "$GRAY_STARTED_AT") || {
+    LAST_GRAY_DATABASE_SUMMARY="${result:-{}}"
     log "database gray gate failed: ${result:-no summary}"
     return 1
   }
+  LAST_GRAY_DATABASE_SUMMARY="$result"
 }
 
 verify_distribution() {
@@ -268,12 +273,17 @@ observe() {
   local duration_seconds="$2"
   local deadline=$((SECONDS + duration_seconds))
   local consecutive_failures=0
+  local check_count=0
 
   while (( SECONDS < deadline )); do
+    check_count=$((check_count + 1))
     if probe_public && probe_ack && check_ack_capacity && check_pod_restarts \
       && check_ack_inflight && check_custom_metrics_hpa \
       && check_gray_database && verify_weight "$expected_weight"; then
       consecutive_failures=0
+      if (( check_count % 30 == 0 )); then
+        log "gray observation healthy: ACK weight=${expected_weight}, remaining=$((deadline - SECONDS))s, inflight_total=${LAST_ACK_INFLIGHT_TOTAL}, database=${LAST_GRAY_DATABASE_SUMMARY}"
+      fi
     else
       consecutive_failures=$((consecutive_failures + 1))
       log "gray probe failure ${consecutive_failures}/2 at ACK weight $expected_weight"
