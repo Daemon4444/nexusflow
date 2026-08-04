@@ -16,6 +16,7 @@ required_variables=(
   ACK_REGION ACK_VPC_ID ACK_VSWITCH_IDS ACK_SECURITY_GROUP_ID
   ACK_ALB_ID ACK_HTTPS_LISTENER_ID ACK_SERVER_GROUP_ID
   ACK_RDS_INSTANCE_ID ACK_REDIS_INSTANCE_ID ACK_DNS_DOMAIN
+  ACK_GATEWAY_TRUSTED_PROXY_CIDRS
 )
 for variable_name in "${required_variables[@]}"; do
   if [[ -z "${!variable_name:-}" ]]; then
@@ -102,6 +103,21 @@ for index in "${!vswitch_ids[@]}"; do
   fi
   vswitch_cidrs+=("$(jq -r '.CidrBlock // ""' "$output")")
 done
+
+# The gateway rate limits key on the client address recovered via
+# set_real_ip_from. If the ALB hop CIDRs are not fully trusted, every request
+# collapses onto the ALB address and rate limiting 429s all customers at once.
+proxy_cidrs_ready=true
+for cidr in "${vswitch_cidrs[@]}"; do
+  if [[ -n "$cidr" && ",$ACK_GATEWAY_TRUSTED_PROXY_CIDRS," != *",$cidr,"* ]]; then
+    proxy_cidrs_ready=false
+  fi
+done
+if [[ "$proxy_cidrs_ready" == true ]]; then
+  pass "gateway trustedProxyCidrs covers every ACK workload vSwitch CIDR"
+else
+  fail "gateway trustedProxyCidrs must include every ACK workload vSwitch CIDR, or rate limits collapse onto the ALB address"
+fi
 
 if capture "$tmp_dir/security-group.json" aliyun ecs DescribeSecurityGroupAttribute \
   --RegionId "$ACK_REGION" --SecurityGroupId "$ACK_SECURITY_GROUP_ID"; then
