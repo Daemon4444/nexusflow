@@ -163,10 +163,13 @@ verify_distribution() {
     *) return 0 ;;
   esac
 
-  local results_file ack_hits
+  local results_file ack_hits probe_nonce
   results_file=$(mktemp)
+  probe_nonce=$(date +%s%N)
   if ! seq "$samples" | xargs -P 20 -I{} \
-    curl -fsS --connect-timeout 3 --max-time 12 "$PUBLIC_VERSION_URL" \
+    curl -fsS --connect-timeout 3 --max-time 12 \
+    -H 'Cache-Control: no-cache' \
+    "${PUBLIC_VERSION_URL}?gray_probe=${probe_nonce}-{}" \
     >>"$results_file"; then
     rm -f "$results_file"
     log "traffic distribution probe failed at ACK weight $ack_weight"
