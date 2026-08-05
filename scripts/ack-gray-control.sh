@@ -160,6 +160,7 @@ verify_distribution() {
     1) samples=1000; min_ack=2; max_ack=30 ;;
     5) samples=200; min_ack=3; max_ack=20 ;;
     10) samples=400; min_ack=5; max_ack=80 ;;
+    20) samples=400; min_ack=15; max_ack=140 ;;
     *) return 0 ;;
   esac
 
@@ -250,7 +251,7 @@ verify_weight() {
 set_weight() {
   local ack_weight="$1"
   case "$ack_weight" in
-    0|1|5|10) ;;
+    0|1|5|10|20) ;;
     *) log "refusing unsupported ACK weight: $ack_weight"; return 2 ;;
   esac
 
@@ -369,6 +370,42 @@ deadman() {
   return 1
 }
 
+promote_to_20() {
+  if [[ -r "${GRAY_STATE_DIR}/started-at" ]]; then
+    GRAY_STARTED_AT=$(<"${GRAY_STATE_DIR}/started-at")
+  fi
+  if ! grep -q "^$(date --iso-8601).*morning gray completed" "$GRAY_LOG_FILE" 2>/dev/null \
+    || ! probe_public || ! probe_ack || ! check_ack_capacity || ! check_pod_restarts \
+    || ! check_ack_inflight || ! check_custom_metrics_hpa \
+    || ! check_gray_database || ! verify_weight 10; then
+    log '20% promotion gate did not find a healthy completed ACK 10% gray'
+    return 1
+  fi
+
+  GRAY_STARTED_AT=$(date --utc --iso-8601=seconds)
+  printf '%s\n' "$GRAY_STARTED_AT" >"${GRAY_STATE_DIR}/started-at"
+  set_weight 20 || return 1
+  verify_distribution 20 || return 1
+  observe 20 7200 || return 1
+  log '20% gray completed: holding ECS 80% / ACK 20%'
+}
+
+deadman_20() {
+  if [[ -r "${GRAY_STATE_DIR}/started-at" ]]; then
+    GRAY_STARTED_AT=$(<"${GRAY_STATE_DIR}/started-at")
+  fi
+  if grep -q "^$(date --iso-8601).*20% gray completed" "$GRAY_LOG_FILE" 2>/dev/null \
+    && probe_public && probe_ack && check_ack_capacity && check_pod_restarts \
+    && check_ack_inflight && check_custom_metrics_hpa \
+    && check_gray_database && verify_weight 20; then
+    log 'deadman confirmed completed and healthy ACK 20% gray'
+    return 0
+  fi
+  log '20% deadman did not find a healthy completed gray; forcing ECS 100%'
+  rollback
+  return 1
+}
+
 run_with_rollback() {
   trap 'gray_abort EXIT' EXIT
   trap 'gray_abort SIGHUP' HUP
@@ -381,8 +418,20 @@ run_with_rollback() {
   gray_abort FAILURE
 }
 
+promote_with_rollback() {
+  trap 'gray_abort EXIT' EXIT
+  trap 'gray_abort SIGHUP' HUP
+  trap 'gray_abort SIGINT' INT
+  trap 'gray_abort SIGTERM' TERM
+  if promote_to_20; then
+    trap - EXIT HUP INT TERM
+    return 0
+  fi
+  gray_abort FAILURE
+}
+
 usage() {
-  echo "usage: $0 preflight | set-weight <0|1|5|10> | observe <weight> <seconds> | rollback | run-morning | deadman"
+  echo "usage: $0 preflight | set-weight <0|1|5|10|20> | observe <weight> <seconds> | rollback | run-morning | deadman | promote-20 | deadman-20"
 }
 
 case "${1:-}" in
@@ -392,5 +441,7 @@ case "${1:-}" in
   rollback) rollback ;;
   run-morning) run_with_rollback ;;
   deadman) deadman ;;
+  promote-20) promote_with_rollback ;;
+  deadman-20) deadman_20 ;;
   *) usage; exit 2 ;;
 esac
