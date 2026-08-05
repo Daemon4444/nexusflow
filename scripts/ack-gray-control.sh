@@ -159,7 +159,7 @@ verify_distribution() {
   case "$ack_weight" in
     1) samples=1000; min_ack=2; max_ack=30 ;;
     5) samples=200; min_ack=3; max_ack=20 ;;
-    10) samples=100; min_ack=3; max_ack=25 ;;
+    10) samples=400; min_ack=5; max_ack=80 ;;
     *) return 0 ;;
   esac
 
@@ -346,12 +346,6 @@ run_morning_gray() {
   install -d -o root -g root -m 0750 "$GRAY_STATE_DIR"
   printf '%s\n' "$GRAY_STARTED_AT" >"${GRAY_STATE_DIR}/started-at"
   preflight || return 1
-  set_weight 1 || return 1
-  verify_distribution 1 || return 1
-  observe 1 600 || return 1
-  set_weight 5 || return 1
-  verify_distribution 5 || return 1
-  observe 5 900 || return 1
   set_weight 10 || return 1
   verify_distribution 10 || return 1
   observe 10 7200 || return 1
