@@ -161,6 +161,7 @@ verify_distribution() {
     5) samples=200; min_ack=3; max_ack=20 ;;
     10) samples=400; min_ack=5; max_ack=80 ;;
     20) samples=400; min_ack=15; max_ack=140 ;;
+    100) samples=100; min_ack=100; max_ack=100 ;;
     *) return 0 ;;
   esac
 
@@ -232,6 +233,17 @@ verify_weight() {
     return
   fi
 
+  if [[ "$ack_weight" -eq 100 ]]; then
+    jq -e --arg ack "$ACK_SERVER_GROUP_ID" '
+      length == 1 and
+      .[0].Type == "ForwardGroup" and
+      (.[0].ForwardGroupConfig.ServerGroupTuples | length) == 1 and
+      .[0].ForwardGroupConfig.ServerGroupTuples[0].ServerGroupId == $ack and
+      .[0].ForwardGroupConfig.ServerGroupTuples[0].Weight == 100
+    ' >/dev/null <<<"$actions"
+    return
+  fi
+
   local ecs_weight=$((100 - ack_weight))
   jq -e \
     --arg ecs "$ECS_SERVER_GROUP_ID" \
@@ -251,7 +263,7 @@ verify_weight() {
 set_weight() {
   local ack_weight="$1"
   case "$ack_weight" in
-    0|1|5|10|20) ;;
+    0|1|5|10|20|100) ;;
     *) log "refusing unsupported ACK weight: $ack_weight"; return 2 ;;
   esac
 
@@ -261,6 +273,14 @@ set_weight() {
       --Rules.1.RuleActions.1.Type ForwardGroup \
       --Rules.1.RuleActions.1.Order 1 \
       --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.1.ServerGroupId "$ECS_SERVER_GROUP_ID" \
+      --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.1.Weight 100 \
+      >/dev/null
+  elif [[ "$ack_weight" -eq 100 ]]; then
+    update_rule_with_retry \
+      --Rules.1.RuleId "$RULE_ID" \
+      --Rules.1.RuleActions.1.Type ForwardGroup \
+      --Rules.1.RuleActions.1.Order 1 \
+      --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.1.ServerGroupId "$ACK_SERVER_GROUP_ID" \
       --Rules.1.RuleActions.1.ForwardGroupConfig.ServerGroupTuples.1.Weight 100 \
       >/dev/null
   else
@@ -406,6 +426,41 @@ deadman_20() {
   return 1
 }
 
+cutover_to_100() {
+  if [[ -r "${GRAY_STATE_DIR}/started-at" ]]; then
+    GRAY_STARTED_AT=$(<"${GRAY_STATE_DIR}/started-at")
+  fi
+  if ! probe_public || ! probe_ack || ! check_ack_capacity || ! check_pod_restarts \
+    || ! check_ack_inflight || ! check_custom_metrics_hpa \
+    || ! check_gray_database || ! { verify_weight 20 || verify_weight 0; }; then
+    log '100% cutover gate did not find a healthy ACK environment at the expected transition weight'
+    return 1
+  fi
+
+  GRAY_STARTED_AT=$(date --utc --iso-8601=seconds)
+  printf '%s\n' "$GRAY_STARTED_AT" >"${GRAY_STATE_DIR}/started-at"
+  set_weight 100 || return 1
+  verify_distribution 100 || return 1
+  observe 100 7200 || return 1
+  log 'ACK cutover completed: holding ECS 0% / ACK 100%'
+}
+
+deadman_100() {
+  if [[ -r "${GRAY_STATE_DIR}/started-at" ]]; then
+    GRAY_STARTED_AT=$(<"${GRAY_STATE_DIR}/started-at")
+  fi
+  if grep -q "^$(date --iso-8601).*ACK cutover completed" "$GRAY_LOG_FILE" 2>/dev/null \
+    && probe_public && probe_ack && check_ack_capacity && check_pod_restarts \
+    && check_ack_inflight && check_custom_metrics_hpa \
+    && check_gray_database && verify_weight 100; then
+    log 'deadman confirmed completed and healthy ACK 100% cutover'
+    return 0
+  fi
+  log 'ACK 100% deadman did not find a healthy completed cutover; forcing ECS 100%'
+  rollback
+  return 1
+}
+
 run_with_rollback() {
   trap 'gray_abort EXIT' EXIT
   trap 'gray_abort SIGHUP' HUP
@@ -430,8 +485,20 @@ promote_with_rollback() {
   gray_abort FAILURE
 }
 
+cutover_with_rollback() {
+  trap 'gray_abort EXIT' EXIT
+  trap 'gray_abort SIGHUP' HUP
+  trap 'gray_abort SIGINT' INT
+  trap 'gray_abort SIGTERM' TERM
+  if cutover_to_100; then
+    trap - EXIT HUP INT TERM
+    return 0
+  fi
+  gray_abort FAILURE
+}
+
 usage() {
-  echo "usage: $0 preflight | set-weight <0|1|5|10|20> | observe <weight> <seconds> | rollback | run-morning | deadman | promote-20 | deadman-20"
+  echo "usage: $0 preflight | set-weight <0|1|5|10|20|100> | observe <weight> <seconds> | rollback | run-morning | deadman | promote-20 | deadman-20 | cutover-100 | deadman-100"
 }
 
 case "${1:-}" in
@@ -443,5 +510,7 @@ case "${1:-}" in
   deadman) deadman ;;
   promote-20) promote_with_rollback ;;
   deadman-20) deadman_20 ;;
+  cutover-100) cutover_with_rollback ;;
+  deadman-100) deadman_100 ;;
   *) usage; exit 2 ;;
 esac
