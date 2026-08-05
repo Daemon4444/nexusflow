@@ -157,7 +157,7 @@ verify_distribution() {
   local ack_weight="$1"
   local samples min_ack max_ack
   case "$ack_weight" in
-    1) samples=500; min_ack=1; max_ack=15 ;;
+    1) samples=1000; min_ack=2; max_ack=30 ;;
     5) samples=200; min_ack=3; max_ack=20 ;;
     10) samples=100; min_ack=3; max_ack=25 ;;
     *) return 0 ;;
@@ -182,6 +182,24 @@ verify_distribution() {
     return 1
   fi
   log "traffic distribution confirmed: ACK ${ack_hits}/${samples} at weight ${ack_weight}"
+}
+
+update_rule_with_retry() {
+  local attempt output
+  for attempt in $(seq 1 30); do
+    if output=$(aliyun_alb UpdateRulesAttribute --force "$@" 2>&1); then
+      return 0
+    fi
+    if grep -q 'IncorrectStatus.Rule' <<<"$output"; then
+      log "ALB rule is still configuring; retrying update (${attempt}/30)"
+      sleep 2
+      continue
+    fi
+    printf '%s\n' "$output" >&2
+    return 1
+  done
+  log 'ALB rule did not become writable within 60s'
+  return 1
 }
 
 rule_actions() {
@@ -228,7 +246,7 @@ set_weight() {
   esac
 
   if [[ "$ack_weight" -eq 0 ]]; then
-    aliyun_alb UpdateRulesAttribute --force \
+    update_rule_with_retry \
       --Rules.1.RuleId "$RULE_ID" \
       --Rules.1.RuleActions.1.Type ForwardGroup \
       --Rules.1.RuleActions.1.Order 1 \
@@ -237,7 +255,7 @@ set_weight() {
       >/dev/null
   else
     local ecs_weight=$((100 - ack_weight))
-    aliyun_alb UpdateRulesAttribute --force \
+    update_rule_with_retry \
       --Rules.1.RuleId "$RULE_ID" \
       --Rules.1.RuleActions.1.Type ForwardGroup \
       --Rules.1.RuleActions.1.Order 1 \
