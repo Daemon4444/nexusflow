@@ -16,6 +16,7 @@ import {
   LogoutOutlined,
   MenuOutlined,
   SafetyCertificateOutlined,
+  ShopOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
 import { Button, Drawer, Grid, Layout, Menu, Space, Tag, Tooltip } from "antd";
@@ -41,6 +42,7 @@ const NAV: NavEntry[] = [
   { key: "providers", label: "Provider", href: "/admin/providers", permission: "providers.read", icon: <CloudServerOutlined />, group: "control" },
   { key: "models", label: "模型与定价", href: "/admin/models", permission: "catalog.read", icon: <DeploymentUnitOutlined />, group: "control" },
   { key: "customers", label: "客户中心", href: "/admin/customers", permission: "customers.read", icon: <TeamOutlined />, group: "business" },
+  { key: "organizations", label: "企业租户", href: "/admin/organizations", permission: "customers.read", icon: <ShopOutlined />, group: "business" },
   { key: "finance", label: "财务账本", href: "/admin/finance", permission: "billing.read", icon: <BankOutlined />, group: "business" },
   { key: "approvals", label: "限额审批", href: "/admin/approvals", permission: "support.read", icon: <SafetyCertificateOutlined />, group: "business" },
   { key: "support", label: "支持工单", href: "/admin/support", permission: "support.read", icon: <CustomerServiceOutlined />, group: "business" },

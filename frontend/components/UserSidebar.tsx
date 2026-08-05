@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { formatCny } from "@/lib/money";
-import { NexusflowLogo } from "./QuadrantLogo";
 import ThemeToggle from "./ThemeToggle";
 
 const icons: Record<string, React.ReactNode> = {
@@ -19,21 +19,41 @@ const icons: Record<string, React.ReactNode> = {
   user:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   play:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>,
   team:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  enterprise:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V5l7-3v19"/><path d="M12 8h7v13"/><path d="M8 8v1m0 3v1m0 3v1m7-5v1m0 3v1"/></svg>,
   demo:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M22 19V3"/><path d="M2 19h22"/></svg>,
 };
 
 export default function UserSidebar() {
   const pathname = usePathname();
+  const [workspaceSection, setWorkspaceSection] = useState("projects");
   const { user } = useAuth();
   const { t } = useI18n();
-  const isActive = (href: string) => href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+  useEffect(() => {
+    const sync = () => setWorkspaceSection(new URLSearchParams(window.location.search).get("section") || "projects");
+    sync(); window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, [pathname]);
+  const isActive = (href: string) => {
+    if (href.startsWith("/enterprise?")) return pathname.startsWith("/enterprise") && href.includes(`section=${workspaceSection}`);
+    return href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+  };
   const quietDashboard = true;
 
   if (!user) return null;
 
   const isSub = user.accountType === "sub";
 
-  const nav = [
+  const workspaceMode = pathname.startsWith("/enterprise");
+  const workspaceNav = [
+    { href: "/enterprise?section=overview", label: "概览", icon: "dashboard" },
+    { href: "/enterprise?section=projects", label: "项目与成本中心", icon: "enterprise" },
+    { href: "/enterprise?section=access", label: "成员与身份", icon: "team" },
+    { href: "/enterprise?section=usage", label: "用量", icon: "activity" },
+    { href: "/enterprise?section=models", label: "模型策略", icon: "gauge" },
+    { href: "/enterprise?section=billing", label: "账单", icon: "credit" },
+    { href: "/enterprise?section=commerce", label: "商业化", icon: "ticket" },
+  ];
+  const nav = workspaceMode ? [{ group: "企业工作区", items: workspaceNav }] : [
     {
       group: t("sidebarAccount"),
       items: [
@@ -44,8 +64,7 @@ export default function UserSidebar() {
         { href: "/settings",    label: t("sidebarProfile"), icon: "user"      },
         { href: "/rate-limits", label: t("sidebarRateLimits"), icon: "gauge"  },
         { href: "/tickets",     label: t("sidebarTickets"), icon: "ticket"    },
-        // 子账号管理：仅主账号可见（docs/sub-accounts-spec.md §5）
-        ...(!isSub ? [{ href: "/sub-accounts", label: "子账号", icon: "team" }] : []),
+        ...(!isSub ? [{ href: "/enterprise?section=projects", label: "企业工作区", icon: "enterprise" }] : []),
       ],
     },
     {
@@ -86,14 +105,22 @@ export default function UserSidebar() {
 
       {/* Nav */}
       <nav className="usr-sidebar-nav" style={{ flex: 1, overflowY: "auto" }}>
+        {workspaceMode ? <Link href="/dashboard" className="workspace-back-link">← 返回个人控制台</Link> : null}
         {nav.map((group) => (
           <div key={group.group} className="usr-sidebar-group">
             <div className="usr-sidebar-group-label">{group.group}</div>
             {group.items.map((item) => (
-              <Link key={item.href} href={item.href} className={`usr-sidebar-link ${isActive(item.href) ? "active" : ""}`}>
-                <span className="usr-sidebar-icon">{icons[item.icon]}</span>
-                {item.label}
-              </Link>
+              workspaceMode ? (
+                <a key={item.href} href={item.href} className={`usr-sidebar-link ${isActive(item.href) ? "active" : ""}`}>
+                  <span className="usr-sidebar-icon">{icons[item.icon]}</span>
+                  {item.label}
+                </a>
+              ) : (
+                <Link key={item.href} href={item.href} className={`usr-sidebar-link ${isActive(item.href) ? "active" : ""}`}>
+                  <span className="usr-sidebar-icon">{icons[item.icon]}</span>
+                  {item.label}
+                </Link>
+              )
             ))}
           </div>
         ))}

@@ -116,6 +116,16 @@ export const LoginSchema = z.object({
   challengeToken: z.string().max(64).optional(),
 });
 
+export const SendSmsCodeSchema = z.object({
+  phone: z.string().regex(/^1\d{10}$/, "Invalid phone format"),
+});
+
+export const PhoneLoginSchema = z.object({
+  phone: z.string().regex(/^1\d{10}$/, "Invalid phone format"),
+  code: z.string().regex(/^\d{6}$/, "Code must be 6 digits"),
+  challengeToken: z.string().max(64).optional(),
+});
+
 /** API Key 创建请求验证 */
 export const CreateKeySchema = z.object({
   name: z.string().min(1).max(50, "Name must be 1-50 characters"),

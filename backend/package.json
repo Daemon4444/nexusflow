@@ -42,6 +42,7 @@
     "test:control-plane-persistence": "ts-node scripts/test-control-plane-persistence-isolated.ts",
     "test:provider-secrets": "NODE_ENV=production USE_PG_MEM=true PROVIDER_OUTBOUND_TEST_SKIP_DNS=true PROVIDER_SECRET_KEY=test-only-provider-secret-key-000000000000000000000000 ts-node scripts/test-provider-secrets.ts",
     "test:demo-admin": "ts-node scripts/test-demo-admin.ts",
+    "test:enterprise-phone-auth": "USE_PG_MEM=true ts-node scripts/test-enterprise-phone-auth.ts",
     "db:migrate": "ts-node src/db/migrate.ts",
     "db:pg:migrate": "ts-node src/db/migrate.ts",
     "db:pg:copy": "ts-node src/db/copy-sqlite-to-pg.ts",

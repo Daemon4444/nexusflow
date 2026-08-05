@@ -33,6 +33,7 @@ import {
   reserveVerificationCode,
   type ReserveVerificationCodeResult,
   VerificationStoreUnavailableError,
+  type VerificationCodeResult,
   verifyVerificationCode,
 } from "./verification-code-store";
 
@@ -111,7 +112,7 @@ async function sendAliyunSms(phone: string, code: string): Promise<boolean> {
 /**
  * 发送验证码
  */
-export async function sendVerificationCode(phone: string): Promise<{
+export async function sendVerificationCode(phone: string, options?: { sourceIp?: string }): Promise<{
   success: boolean;
   message: string;
   challengeToken?: string;
@@ -131,7 +132,7 @@ export async function sendVerificationCode(phone: string): Promise<{
   let reserved: ReserveVerificationCodeResult;
 
   try {
-    reserved = await reserveVerificationCode("sms", phone, code);
+    reserved = await reserveVerificationCode("sms", phone, code, options);
   } catch (error) {
     if (error instanceof VerificationStoreUnavailableError) {
       console.error("[SMS] 验证码存储不可用，拒绝发送");
@@ -177,16 +178,14 @@ export async function verifyCode(
   code: string,
   challengeToken: string,
   sourceIp?: string
-): Promise<boolean> {
+): Promise<VerificationCodeResult | "unavailable"> {
   try {
-    return (
-      await verifyVerificationCode("sms", phone, code, {
-        challengeToken,
-        sourceIp,
-      })
-    ) === "valid";
+    return await verifyVerificationCode("sms", phone, code, {
+      challengeToken,
+      sourceIp,
+    });
   } catch {
     console.error("[SMS] 验证码存储不可用，拒绝验证");
-    return false;
+    return "unavailable";
   }
 }

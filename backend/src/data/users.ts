@@ -188,7 +188,10 @@ export async function createUser(phone: string): Promise<User> {
   const now = new Date().toISOString();
   const nickname = `用户${phone.slice(-4)}`;
   const user = await db.queryOne<User>(
-    "INSERT INTO users (id, phone, email, nickname, balance, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
+    `INSERT INTO users (id, phone, email, nickname, balance, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (phone) DO UPDATE SET phone = EXCLUDED.phone
+     RETURNING *`,
     [id, phone, null, nickname, 0, now, now]
   );
   return normalizeUser(user)!;
@@ -232,9 +235,16 @@ async function createSession(user: User): Promise<{ user: User; token: string }>
   return db.transaction((tx) => createSessionWithClient(user, tx));
 }
 
-export async function loginByPhone(phone: string, _code: string): Promise<{ user: User; token: string } | null> {
-  // TODO: 短信验证码校验未实现，禁止调用此函数
-  throw new Error("loginByPhone is not implemented — SMS code verification required");
+/**
+ * Creates a session after the route has atomically consumed an SMS challenge.
+ * This function deliberately does not accept a code so callers cannot mistake
+ * data access for verification; only /api/auth/login-phone may invoke it after
+ * verifyCode returned `valid`.
+ */
+export async function loginByPhone(phone: string): Promise<{ user: User; token: string } | null> {
+  const user = (await getUserByPhone(phone)) || (await createUser(phone));
+  if (user.status !== "active") return null;
+  return createSession(user);
 }
 
 export async function loginByEmail(email: string): Promise<{ user: User; token: string } | null> {

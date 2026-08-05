@@ -34,27 +34,30 @@ NexusFlow 是 AI 模型聚合、多协议兼容、Provider 路由和统一计费
 
 当前代码整体是“模块化单体”，不要把尚未拆分的模块误说成已独立微服务：
 
-- **Customer Experience**：登录、控制台、模型目录、API Key、用量、账单、折扣、主/子账号、工单。
+- **Customer Experience**：邮箱/手机号登录、控制台、模型目录、API Key、用量、账单、折扣、企业工作区（项目、成员、服务账号）和工单。历史子账号是服务账号兼容实现，不再作为平级产品概念。
 - **Synchronous Runtime**：`/v1/chat/completions`、`/v1/messages`、`/v1/responses`、embeddings 和 audio 等同步协议。这些属于同一实时请求域，不应机械拆成多个微服务。
 - **Provider Router**：目前是 Backend 内部核心模块；未来规模增大后才独立。
 - **Billing Ledger**：目前是 Backend 内部模块，PostgreSQL 是资金权威；它对一致性最敏感，最后考虑拆分。
 - **Async Media**：图片、视频、语音和任务轮询。这是最适合第一个拆成 Worker 的业务域。
 - **Admin Control Plane**：客户、模型、Provider、价本、路由政策、折扣、限流、告警和审计；初期仍与 Backend 同部署。
+- **Workspace Control Plane**：企业是租户边界，项目是成本/策略边界，成员是自然人身份，服务账号是机器身份；项目身份关联不得绕过企业成员或主账号父子关系校验。
 - **Demo Admin**：只读演示后台，必须只返回合成数据，不是真实管理员权限的子集。
 
 ACK 第一阶段的 Gateway、Web、API 是部署单元，不等于业务微服务已拆分。
 
-## 4. 真实生产拓扑：双节点是硬约束
+## 4. 真实生产拓扑：ACK 灰度与 ECS 回退池并存
 
 ```text
 Internet
   → 阿里云 ALB
-      → 应用节点 A：nginx → Next.js + Express/PM2 cluster
-      → 应用节点 B：nginx → Next.js + Express/PM2 cluster
-  两节点共享托管 PostgreSQL 16 和 Redis 5.0 双副本
+      → ACK Gateway ×2 → Web ×2 + API ×4（当前生产灰度）
+      → ECS 回退池
+          → 应用节点 A：nginx → Next.js + Express/PM2 cluster
+          → 应用节点 B：nginx → Next.js + Express/PM2 cluster
+  两个运行面共享托管 PostgreSQL 16 和 Redis 5.0 双副本
 ```
 
-编排主机使用 SSH 别名 `nexus`，生产仓库为 `/root/distiny/nexusflow`。登录这台机器只代表获得发布编排入口，不代表生产只有一台。副节点的实时地址和根目录以 `scripts/deploy-all-production.sh` 的已验证配置为准，不在新脚本中再写一份。
+编排主机使用 SSH 别名 `nexus`，生产仓库为 `/root/distiny/nexusflow`。登录这台机器只代表获得发布编排入口，不代表生产只有一台。2026-08-05 ACK 已接入生产，12:30 时处于 ACK 20% / ECS 80% 观察；比例会变化，必须以 ALB 权重、`/var/log/nexusflow-ack-gray.log`、Pod Ready 和公网版本分布实时复核。ECS 双节点仍是回退池，副节点地址和根目录以统一发布脚本的已验证配置为准。
 
 ### 生产变更的完成定义
 
@@ -157,11 +160,9 @@ API Key / 身份验证
 
 上游控制台没有错误不能证明 NexusFlow 无故障；问题可能发生在边缘、协议转换、流式代理、路由、计费或客户网络。反之，平台出现 500 也不能未查证就归因上游。
 
-## 10. 云原生演进，不与当前现网混淆
+## 10. 云原生演进，不把灰度误写成全量
 
-已完成的开发基线包括 ACK Serverless/ECI 用的 Backend、Frontend、Gateway 三镜像，Helm chart，非 root/只读容器，live/ready，SSE 排空和心跳，PDB/HPA/拓扑分散与 migration Job。
-
-但这不代表 ACK 已承载生产。在集群、ACR、网络、RDS/Redis 白名单、ALB/Gateway、长连接、计费对账和回滚门禁通过之前，生产事实仍是双 ECS + nginx + PM2。
+ACK Serverless/ECI 的 Backend、Frontend、Gateway 三镜像、Helm chart、非 root/只读容器、live/ready、SSE 排空和心跳、PDB/HPA/拓扑分散与 migration Job 已落地，ACK 也已开始承载真实生产灰度。当前仍保留 ECS 回退池，不能将其描述成纯 ECS，也不能在全量门禁通过前描述成纯 K8s。
 
 演进顺序：
 

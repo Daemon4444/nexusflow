@@ -38,6 +38,7 @@ import {
 import { sanitizeError } from "../utils/sanitize-error";
 import { getStaticModels, models } from "../data/models";
 import { listOverrides, refreshModels } from "../data/model-overrides";
+import { listAdminOrganizations } from "../data/enterprise";
 
 const router = Router();
 
@@ -218,6 +219,14 @@ router.get(
       success: true,
       data: projectCustomerList(req, data),
     });
+  })
+);
+
+router.get(
+  "/organizations",
+  requirePermission("customers.read"),
+  route(async (_req, res) => {
+    res.json({ success: true, data: await listAdminOrganizations() });
   })
 );
 

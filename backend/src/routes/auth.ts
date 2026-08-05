@@ -3,6 +3,7 @@ import {
   changePasswordAndRevokeSessions,
   getUserById,
   loginByEmail,
+  loginByPhone,
   loginByPassword,
   loginByUsername,
   logout,
@@ -11,7 +12,14 @@ import {
   validateSession,
 } from "../data/users";
 import { sendEmailCode, verifyEmailCode } from "../services/email";
-import { validateBody, SendCodeSchema, LoginSchema } from "../middleware/validation";
+import { sendVerificationCode, verifyCode } from "../services/sms";
+import {
+  validateBody,
+  SendCodeSchema,
+  LoginSchema,
+  SendSmsCodeSchema,
+  PhoneLoginSchema,
+} from "../middleware/validation";
 import { getRedis } from "../services/redis";
 import { z } from "zod";
 import { parseAllowedModels } from "../data/model-access";
@@ -317,6 +325,88 @@ router.post("/login", validateBody(LoginSchema), async (req: Request, res: Respo
         nickname: result.user.nickname,
         balance: result.user.balance,
         creditBalance: result.user.credit_balance,
+        demoAdminAccess: isDemoAdminSession(result.user),
+        hasPassword: !!result.user.password_hash,
+        createdAt: result.user.created_at,
+      },
+      token: result.token,
+    },
+    message: "登录成功",
+  });
+});
+
+// POST /api/auth/send-sms-code — 手机验证码发送
+router.post("/send-sms-code", async (req: Request, res: Response) => {
+  const parsed = SendSmsCodeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, message: "手机号格式不正确" });
+    return;
+  }
+  const result = await sendVerificationCode(parsed.data.phone, {
+    sourceIp: getAuthClientIp(req),
+  });
+  if (!result.success) {
+    res.status(result.message.includes("秒后") ? 429 : 503).json({
+      success: false,
+      message: result.message,
+    });
+    return;
+  }
+  res.json({
+    success: true,
+    message: result.message,
+    data: { challengeToken: result.challengeToken },
+  });
+});
+
+// POST /api/auth/login-phone — 手机号 + 短信验证码登录/注册
+router.post("/login-phone", validateBody(PhoneLoginSchema), async (req: Request, res: Response) => {
+  const { phone, code, challengeToken } = req.body;
+  if (typeof challengeToken !== "string" || !/^[a-f0-9]{48}$/i.test(challengeToken)) {
+    res.status(400).json({
+      success: false,
+      message: "验证码会话已失效，请重新获取验证码",
+      code: "challenge_token_required",
+    });
+    return;
+  }
+  const verification = await verifyCode(phone, code, challengeToken, getAuthClientIp(req));
+  if (verification === "unavailable") {
+    res.status(503).json({
+      success: false,
+      message: "验证码服务暂不可用，请稍后重试",
+      code: "verification_store_unavailable",
+    });
+    return;
+  }
+  if (verification === "rate_limited") {
+    res.status(429).json({
+      success: false,
+      message: "验证码尝试过于频繁，请重新获取验证码",
+      code: "verification_rate_limited",
+    });
+    return;
+  }
+  if (verification !== "valid") {
+    res.status(401).json({ success: false, message: "验证码错误或已过期" });
+    return;
+  }
+  const result = await loginByPhone(phone);
+  if (!result) {
+    res.status(403).json({ success: false, message: "账号当前不可登录" });
+    return;
+  }
+  res.json({
+    success: true,
+    data: {
+      user: {
+        id: result.user.id,
+        phone: result.user.phone,
+        email: result.user.email,
+        nickname: result.user.nickname,
+        balance: result.user.balance,
+        creditBalance: result.user.credit_balance,
+        accountType: result.user.parent_user_id ? "sub" : "main",
         demoAdminAccess: isDemoAdminSession(result.user),
         hasPassword: !!result.user.password_hash,
         createdAt: result.user.created_at,

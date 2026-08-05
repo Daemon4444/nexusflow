@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { NexusflowLogo } from "@/components/QuadrantLogo";
 
-type LoginMode = "code" | "password" | "username";
+type LoginMode = "phone" | "code" | "password" | "username";
 
 function safeReturnTo(value: string | null): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return "/dashboard";
@@ -25,6 +25,7 @@ function LoginPageInner() {
   const returnTo = safeReturnTo(searchParams.get("returnTo") || searchParams.get("callbackUrl"));
   const [mode, setMode] = useState<LoginMode>("code");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [challengeToken, setChallengeToken] = useState("");
   const [password, setPassword] = useState("");
@@ -34,7 +35,7 @@ function LoginPageInner() {
   const [submitting, setSubmitting] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const { login, loginWithPassword, loginWithUsername, user } = useAuth();
+  const { login, loginWithPhone, loginWithPassword, loginWithUsername, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -48,20 +49,22 @@ function LoginPageInner() {
   }, [countdown]);
 
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidPhone = /^1\d{10}$/.test(phone);
 
   const handleSendCode = useCallback(async () => {
     setError("");
     setInfo("");
-    if (!isValidEmail) {
-      setError("请输入正确的邮箱地址");
+    const usingPhone = mode === "phone";
+    if (usingPhone ? !isValidPhone : !isValidEmail) {
+      setError(usingPhone ? "请输入正确的手机号码" : "请输入正确的邮箱地址");
       return;
     }
 
     setSendingCode(true);
     try {
-      const res = await fetchAPI("/api/auth/send-code", {
+      const res = await fetchAPI(usingPhone ? "/api/auth/send-sms-code" : "/api/auth/send-code", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(usingPhone ? { phone } : { email }),
       });
       if (res.success) {
         const nextChallengeToken = typeof res.data?.challengeToken === "string"
@@ -86,25 +89,28 @@ function LoginPageInner() {
     } finally {
       setSendingCode(false);
     }
-  }, [email, isValidEmail]);
+  }, [email, phone, isValidEmail, isValidPhone, mode]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setInfo("");
-    if (mode !== "username" && !isValidEmail) { setError("请输入正确的邮箱地址"); return; }
+    if (mode === "phone" && !isValidPhone) { setError("请输入正确的手机号码"); return; }
+    if (mode !== "phone" && mode !== "username" && !isValidEmail) { setError("请输入正确的邮箱地址"); return; }
 
     setSubmitting(true);
     let result;
 
-    if (mode === "code") {
+    if (mode === "code" || mode === "phone") {
       if (!code || code.length < 4) { setError("请输入验证码"); setSubmitting(false); return; }
       if (!challengeToken) {
         setError("验证码会话已失效，请重新获取验证码");
         setSubmitting(false);
         return;
       }
-      result = await login(email, code, challengeToken);
+      result = mode === "phone"
+        ? await loginWithPhone(phone, code, challengeToken)
+        : await login(email, code, challengeToken);
     } else if (mode === "username") {
       if (!username || username.length < 3) { setError("请输入用户名"); setSubmitting(false); return; }
       if (!password || password.length < 6) { setError("密码至少 6 位"); setSubmitting(false); return; }
@@ -123,7 +129,7 @@ function LoginPageInner() {
     setMode(newMode);
     setError("");
     setInfo("");
-    if (newMode !== "code") {
+    if (newMode !== "code" && newMode !== "phone") {
       setCode("");
       setChallengeToken("");
     }
@@ -164,17 +170,21 @@ function LoginPageInner() {
             {isRegister ? "注册 nexusflow" : "登录 nexusflow"}
           </h1>
           <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            {isRegister ? "输入邮箱，验证后即刻创建账户" : mode === "code" ? "使用邮箱验证码登录" : mode === "username" ? "使用子账号用户名和密码登录" : "使用邮箱和密码登录"}
+            {isRegister
+              ? (mode === "phone" ? "验证手机号后即刻创建账户" : "验证邮箱后即刻创建账户")
+              : mode === "phone" ? "使用手机验证码登录" : mode === "code" ? "使用邮箱验证码登录" : mode === "username" ? "使用服务账号用户名和密码登录" : "使用主账号邮箱和密码登录"}
           </p>
         </div>
 
         <form onSubmit={handleLogin}>
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
 
-            {/* Mode Tabs — 注册语境只有验证码一种方式，隐藏切换 */}
-            {!isRegister && (
+            {/* Login identity modes */}
             <div style={{ display: "flex", gap: 0, marginBottom: 20, background: "var(--bg-elevated)", borderRadius: 8, padding: 3, border: "1px solid var(--border)" }}>
-              {([["code", "验证码"], ["password", "密码"], ["username", "子账号"]] as const).map(([m, label]) => (
+              {(isRegister
+                ? ([ ["phone", "手机"], ["code", "邮箱"] ] as const)
+                : ([ ["phone", "手机"], ["code", "邮箱"], ["password", "邮箱密码"], ["username", "服务账号"] ] as const)
+              ).map(([m, label]) => (
                 <button
                   key={m}
                   type="button"
@@ -192,22 +202,41 @@ function LoginPageInner() {
                 </button>
               ))}
             </div>
-            )}
 
-            {/* Email or Username */}
+            {/* Phone, email or username */}
             {mode === "username" ? (
               <div style={{ marginBottom: 18 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>用户名</label>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>服务账号用户名</label>
                 <input
                   className="input"
                   type="text"
-                  placeholder="子账号用户名"
+                  placeholder="例如 prod-api-bot"
                   value={username}
                   onChange={(e) => setUsername(e.target.value.trim())}
                   autoComplete="username"
                   style={{ fontSize: 16 }}
                 />
               </div>
+            ) : mode === "phone" ? (
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>手机号</label>
+              <input
+                className="input"
+                type="tel"
+                inputMode="numeric"
+                placeholder="请输入 11 位手机号"
+                value={phone}
+                maxLength={11}
+                onChange={(e) => {
+                  setPhone(e.target.value.replace(/\D/g, ""));
+                  setCode("");
+                  setChallengeToken("");
+                  setCountdown(0);
+                }}
+                autoComplete="tel"
+                style={{ fontSize: 16 }}
+              />
+            </div>
             ) : (
             <div style={{ marginBottom: 18 }}>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>邮箱</label>
@@ -229,7 +258,7 @@ function LoginPageInner() {
             )}
 
             {/* Code or Password */}
-            {mode === "code" ? (
+            {mode === "code" || mode === "phone" ? (
               <div style={{ marginBottom: 20 }}>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 7, letterSpacing: "0.02em" }}>验证码</label>
                 <div className="login-code-row" style={{ display: "flex", gap: 8 }}>
@@ -246,19 +275,19 @@ function LoginPageInner() {
                   <button
                     type="button"
                     onClick={handleSendCode}
-                    disabled={sendingCode || countdown > 0 || !isValidEmail}
+                    disabled={sendingCode || countdown > 0 || (mode === "phone" ? !isValidPhone : !isValidEmail)}
                     style={{
                       flexShrink: 0,
                       padding: "9px 14px",
-                      background: (sendingCode || countdown > 0 || !isValidEmail)
+                      background: (sendingCode || countdown > 0 || (mode === "phone" ? !isValidPhone : !isValidEmail))
                         ? "var(--bg-elevated)" : "#111",
                       border: "1px solid var(--border)",
                       borderRadius: 8,
-                      color: (sendingCode || countdown > 0 || !isValidEmail)
+                      color: (sendingCode || countdown > 0 || (mode === "phone" ? !isValidPhone : !isValidEmail))
                         ? "var(--text-tertiary)" : "#fff",
                       fontSize: 13,
                       fontWeight: 500,
-                      cursor: (sendingCode || countdown > 0 || !isValidEmail)
+                      cursor: (sendingCode || countdown > 0 || (mode === "phone" ? !isValidPhone : !isValidEmail))
                         ? "default" : "pointer",
                       fontFamily: "inherit",
                       whiteSpace: "nowrap",
@@ -323,7 +352,7 @@ function LoginPageInner() {
         </form>
 
         <p style={{ textAlign: "center", marginTop: 16, fontSize: 11.5, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
-          {isRegister ? "已有账户？输入邮箱验证码即可直接登录" : mode === "code" ? "首次登录将自动创建账户" : mode === "username" ? "子账号由主账号创建并分发，忘记密码请联系主账号重置" : "请先通过验证码登录并设置密码"}
+          {isRegister ? "已有账户？使用手机或邮箱验证码即可直接登录" : mode === "phone" || mode === "code" ? "首次验证将自动创建账户" : mode === "username" ? "子账号由主账号创建并分发，忘记密码请联系主账号重置" : "请先通过验证码登录并设置密码"}
         </p>
       </div>
     </div>

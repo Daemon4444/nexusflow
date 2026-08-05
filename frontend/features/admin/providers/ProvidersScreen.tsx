@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Alert, Card, Input, Progress, Select, Table, Tabs } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import { SearchOutlined } from "@ant-design/icons";
+import Link from "next/link";
 import { adminGet } from "../client";
 import type {
   ProviderCostTier,
@@ -96,7 +97,7 @@ export default function ProvidersScreen() {
       width: 240,
       render: (_, row) => (
         <div>
-          <div className="nf-admin-table-primary">{row.name}</div>
+          <div className="nf-admin-table-primary"><Link href={`/admin/providers/${encodeURIComponent(row.id)}`}>{row.name}</Link></div>
           <div className="nf-admin-table-secondary">{row.slug} · {row.apiKeyMasked || "密钥状态 unknown"}</div>
         </div>
       ),

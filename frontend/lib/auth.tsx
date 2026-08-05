@@ -11,6 +11,7 @@ interface UserQuota {
 
 interface User {
   id: string;
+  phone?: string | null;
   email: string | null;
   username?: string | null;
   nickname: string;
@@ -28,6 +29,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, code: string, challengeToken: string) => Promise<{ success: boolean; message: string }>;
+  loginWithPhone: (phone: string, code: string, challengeToken: string) => Promise<{ success: boolean; message: string }>;
   loginWithPassword: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   loginWithUsername: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
@@ -38,6 +40,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   login: async () => ({ success: false, message: "" }),
+  loginWithPhone: async () => ({ success: false, message: "" }),
   loginWithPassword: async () => ({ success: false, message: "" }),
   loginWithUsername: async () => ({ success: false, message: "" }),
   logout: async () => {},
@@ -134,6 +137,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithPhone = async (phone: string, code: string, challengeToken: string) => {
+    try {
+      const res = await fetchAPI("/api/auth/login-phone", {
+        method: "POST",
+        body: JSON.stringify({ phone, code, challengeToken }),
+      });
+      if (res.success) {
+        setToken(res.data.token);
+        setUser(res.data.user);
+        return { success: true, message: res.message };
+      }
+      return { success: false, message: res.message || "登录失败" };
+    } catch {
+      return { success: false, message: "网络错误，请重试" };
+    }
+  };
+
   const loginWithUsername = async (username: string, password: string) => {
     try {
       const res = await fetchAPI("/api/auth/login-username", {
@@ -166,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithPassword, loginWithUsername, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithPhone, loginWithPassword, loginWithUsername, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,7 +2,7 @@
 
 > 本文是 NexusFlow 的**唯一项目事实入口**，供开发者、Codex、Claude、Qoder、Gemini、Copilot 等协作者使用。
 >
-> 最近校准：2026-08-02
+> 最近校准：2026-08-05
 >
 > 校准基线：本地分支、GitHub `origin/main` 与生产环境代码；2026-07-29 低峰不可变
 > v3 发布基线为 `1a6ecbc`，后续版本仍以 `/api/version` 为准。
@@ -19,7 +19,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 - 本机主工作区：`~/nexusflow`
 - 生产 SSH 别名：`nexus`
 - 生产目录：`/root/distiny/nexusflow`
-- 生产进程：`quadrant-backend` × 2、`quadrant-frontend` × 1
+- 生产运行面：ACK Serverless/ECI（灰度承载）+ 双 ECS 回退池；实时比例以 ALB 权重和灰度控制器日志为准
 
 这不是一个简单反向代理。核心资产是：协议转换、模型能力目录、Provider 路由、缓存感知计费、并发与限流、主/子账号账本、后台运营和可观测性。
 
@@ -60,7 +60,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 
 ## 3. 当前生产基线
 
-截至 2026-07-28 校准：
+截至 2026-08-05 12:49（Asia/Shanghai）校准：
 
 | 项目 | 当前状态 |
 | --- | --- |
@@ -69,15 +69,17 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | Runtime | 生产 Node.js 22.22.1；CI 使用 Node.js 24 |
 | 数据库 | 阿里云托管 PostgreSQL 16，两应用节点共享 |
 | 缓存/共享状态 | 阿里云托管 Redis 5.0 双副本，两应用节点共享；升级 Redis 7 必须独立演练，不与 ACK 迁移混做 |
-| 应用节点 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
-| 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
-| 反向代理 | 阿里云 ALB + 每节点 nginx |
+| ACK 运行面 | ACK Serverless/ECI，namespace 当前为 `nexusflow-staging`；API 4、副本 Gateway 2、Web 2，均 Ready |
+| ECS 回退池 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
+| 流量状态 | ACK 已承载真实生产灰度；12:30 提升为 ACK 20% / ECS 80%，观察健康，未全量切换 |
+| ECS 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
+| 反向代理 | 阿里云 ALB 按权重分到 ACK Gateway 或 ECS nginx |
 | 线上模型目录 | 71 个运行时模型；以 `GET /api/models` 实时结果为准 |
-| 数据库迁移 | 仓库已提交到 `023_provider_list_price_fallback.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
+| 数据库迁移 | 当前功能分支已提交到 `025_workspace_projects.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
 
-2026-08-02 已在开发分支加入 ACK Serverless Pro/ECI 容器化基线：前后端生产镜像、双副本入口 Gateway、Helm chart、独立 live/ready 探针、SSE 排空与 15 秒心跳、私网 Prometheus inflight 指标和 CI 校验。Gateway 固化现网 body、限速、Basic Auth 与禁止代理绕行规则，ALB 不直接暴露 API/Web。该基线尚未创建集群、尚未接入生产流量；当前生产仍是上表所述的双 ECS + PM2 + nginx。Serverless Ingress、migration 和 inflight HPA 在 chart 中默认关闭，后者必须等 Custom Metrics API 验证后才允许开启。
+2026-08-05 ACK Serverless/ECI 已创建并接入真实生产灰度。当前部署构建为 `09753c3`，ACK 运行面为 API 4、Gateway 2、Web 2，跨两个虚拟节点可用区分布；ECS 仍作为可即时回退的生产池。08:55 至 10:55 的 ACK 10% 观察通过，12:30 已进入 ACK 20% / ECS 80% 的两小时观察，12:46 最近心跳健康。不得把这一状态描述成“仍未接流量”，也不得描述成“已全量 K8s”；实时事实以 `/var/log/nexusflow-ack-gray.log`、ALB 权重、Pod Ready 和公网版本分布为准。inflight HPA 仍须以 Custom Metrics API 实际验证结果为准。
 
 常用只读检查：
 
@@ -85,6 +87,8 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 curl -fsS https://nexusflow.hk/api/health
 curl -fsS https://nexusflow.hk/api/version
 ssh nexus 'cd /root/distiny/nexusflow && git status --short --branch'
+ssh nexus 'kubectl -n nexusflow-staging get deploy,pod -o wide'
+ssh nexus 'tail -80 /var/log/nexusflow-ack-gray.log'
 ssh nexus 'pm2 status'
 ssh nexus 'ssh root@172.27.219.55 "pm2 status"'
 ```
@@ -97,13 +101,14 @@ ssh nexus 'ssh root@172.27.219.55 "pm2 status"'
 Internet
   │
   ▼
-阿里云 ALB
-  ├─► 主节点 nginx ─┬─ /, /admin ─► Next.js :19999
-  │                 └─ /api/*, /v1/* ─► Express :3001
-  └─► 节点 j nginx ─┬─ /, /admin ─► Next.js :19999
-                    └─ /api/*, /v1/* ─► Express :3001
+阿里云 ALB（权重灰度）
+  ├─► ACK Gateway ×2 ─┬─ /, /admin ─► Web ×2
+  │                   └─ /api/*, /v1/* ─► API ×4
+  └─► ECS 回退池
+        ├─► 主节点 nginx ─► Next.js + Express/PM2
+        └─► 节点 j nginx ─► Next.js + Express/PM2
 
-每个应用节点的 PM2
+每个 ECS 回退节点的 PM2
   ├─ quadrant-backend ×2       backend/dist/index.js
   └─ quadrant-frontend ×1      frontend/node_modules/next（fork）
 
@@ -251,7 +256,8 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
 
 ### 9.1 身份
 
-- 用户登录使用 session；
+- 用户登录使用 session；支持邮箱验证码、手机号短信验证码、邮箱密码和子账号用户名密码；
+- 短信验证码沿用一次性 challenge、频率限制和消费后失效语义，登录成功后仍签发同一类 session；
 - Public API 使用 `sk-air-*` API Key；
 - 管理 API 必须使用 admin session；
 - `/admin` 还有 nginx Basic Auth，形成双层保护。
@@ -270,7 +276,18 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - 子账号不可自行充值；
 - 删除采用软删除语义，账单和审计链不能被抹掉。
 
-### 9.3 金额与计费
+### 9.3 企业租户
+
+- 企业身份与个人账号分离，使用 `organizations` 与 `organization_members` 建立租户边界；
+- 产品概念统一为“企业工作区”：成员是可登录的自然人，历史“子账号”作为服务账号兼容保留，不再与企业中心平级展示；
+- `organization_projects` 是预算、环境、模型范围、SLA 和限流的成本中心；`organization_project_principals` 把成员或服务账号绑定到项目，项目创建者自动成为所有者；
+- 角色当前为所有者、管理员、财务、开发者和只读，所有企业接口必须同时验证 session、成员状态和企业内角色；
+- 工作区管理支持成员角色/状态/移除、项目身份角色/移除和服务账号配置/停用/删除；所有者不可降级或移除，停用或移除成员会同步撤销其项目身份；
+- 企业计划、结算方式、品牌与转售开关属于控制面配置，不得改变现有个人账户账本语义；
+- 转售方案保存在 `organization_offers`，当前只允许创建草稿报价和加价策略；客户合同、独立客户账户、独立账本和正式发布仍是后续能力，不能把草稿误当成已经可收款销售；
+- 企业新增表只通过 expand-only migration 引入，旧应用在回滚窗口内不依赖这些表。
+
+### 9.4 金额与计费
 
 - PostgreSQL 金额字段使用 NUMERIC；
 - 主账号可用资金 = 余额 + 信控；信控只能由管理员调整，消费优先扣余额再扣信控；
@@ -297,6 +314,7 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - 产品：`tickets`、`webhooks`、`webhook_deliveries`
 - 模型覆盖：`model_overrides`
 - 子账号：用户父子关系、配额与 `sub_account_model_permissions`
+- 企业租户：`organizations`、`organization_members`、`organization_offers`、`organization_projects`、`organization_project_principals`
 - Responses 资源隔离：`response_ownership`
 
 迁移顺序：
@@ -326,12 +344,14 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 021_control_plane_persistence_limits.sql
 022_usage_retail_pricing_evidence.sql
 023_provider_list_price_fallback.sql
+024_enterprise_workspaces.sql
+025_workspace_projects.sql
 ```
 
 历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。
 `017` 是 session hash、`018` 是通用后台审计、`019` 是 Provider 成本分层、`020`
 是上传对象生命周期、`021` 是控制面持久化边界、`022` 保存结算时零售价/折扣/思考模式证据，
-`023` 增加无适用私有价本时的官方原价兜底；新增 migration 前必须检查实际目录
+`023` 增加无适用私有价本时的官方原价兜底，`024` 增加企业租户、成员和转售方案骨架，`025` 增加工作区项目与项目身份关联；新增 migration 前必须检查实际目录
 和团队分配，禁止复用编号。
 生产是否已应用以 `schema_migrations` 为准，不能从仓库文件列表推断。
 
@@ -430,8 +450,9 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 - Docs；
 - Playground；
 - Dashboard、Activity、Keys、Billing、Settings；
-- Rate Limits、Tickets、Monitor、Sub Accounts；
-- Admin：用户、余额、Provider、容量、路由、模型目录、折扣、工单等。
+- Rate Limits、Tickets、Monitor；
+- Enterprise Workspace：项目与成本中心、成员、服务账号、项目策略、结算配置、转售能力和售卖方案草稿；旧 Sub Accounts 页面只作服务账号兼容跳转；
+- Admin：用户、企业租户、余额、Provider、容量、路由、模型目录、折扣、工单等；Provider 列表可进入详情页执行启停和容量/路由评分调整，所有写操作必须审计。
 
 前端已有浅/深主题、中文优先的控制台文案和部分 i18n。不要在没有产品决策时把公开营销页整页改成单一语言。模型详情使用 catch-all 路由承接含斜杠的模型 ID。
 
@@ -577,6 +598,7 @@ bash scripts/deploy-all-production.sh --verify-only
 - 2026-05，项目从早期聚合器扩展为 PostgreSQL 驱动的多协议平台，逐步形成 Provider 运营、限流、折扣、缓存计费、SLS 和管理后台；
 - 2026-06，加入区域路由预埋、PM2 双实例、数据库本地/异地备份、模型目录 DB 覆盖层、更多模型与控制台改版；
 - 2026-07，上线主/子账号账本、Kimi K3 与协议桥，完成 API Key/IDOR/计费/流式等全面安全审计，并补上余额原子预占、上传加固、CI、部署脚本和版本探针。
+- 2026-08，ACK Serverless/ECI 开始承载生产灰度；企业租户、短信登录与 SaaS 管理控制面的统一框架进入开发分支。
 
 历史对话中已过时的内容已经剔除，例如：生产使用 ts-node、迁移只到 004、固定模型数量、旧服务器地址、旧模型可用性和“只重启即可生效”等。
 
