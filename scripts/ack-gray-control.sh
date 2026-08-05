@@ -208,6 +208,15 @@ rule_actions() {
       '.Rules[] | select(.RuleId == $rule_id) | .RuleActions'
 }
 
+rule_available() {
+  aliyun_alb ListRules --MaxResults 100 \
+    | jq -e --arg rule_id "$RULE_ID" '
+      .Rules[] |
+      select(.RuleId == $rule_id) |
+      .RuleStatus == "Available"
+    ' >/dev/null
+}
+
 verify_weight() {
   local ack_weight="$1"
   local actions
@@ -266,8 +275,9 @@ set_weight() {
       >/dev/null
   fi
 
-  for _ in $(seq 1 20); do
-    if verify_weight "$ack_weight"; then
+  for _ in $(seq 1 60); do
+    if rule_available && verify_weight "$ack_weight"; then
+      sleep 2
       log "traffic weight confirmed: ECS=$((100 - ack_weight)) ACK=$ack_weight"
       return 0
     fi
