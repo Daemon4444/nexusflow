@@ -73,7 +73,7 @@ export function getProviderApiKey(provider: ProviderConfig): string {
 }
 
 export async function ensureRoutingDefaults(): Promise<void> {
-  const { ensureProvider, getCapacity, upsertCapacity } = require("../data/providers") as typeof import("../data/providers");
+  const { ensureProvider, getCapacity, getProviderById, upsertCapacity } = require("../data/providers") as typeof import("../data/providers");
   const { models } = require("../data/models") as typeof import("../data/models");
   const dashscopeConfig = providers.find((provider) => provider.id === "dashscope")!;
   const dashscope = await ensureProvider({
@@ -112,9 +112,15 @@ export async function ensureRoutingDefaults(): Promise<void> {
     contact_email: "ops@nexusflow.hk",
     status: "enabled",
   });
+  // K3 使用独立受管 Provider。密钥只存在数据库密文中；若生产尚未预置该
+  // Provider，则保持无路由并失败关闭，绝不能重新种回 DashScope。
+  const jawayK3 = await getProviderById("jawayid-k3");
   for (const model of models) {
     let routedProvider: any;
-    if (model.id.startsWith("claude-")) {
+    if (model.id === "kimi-k3") {
+      if (!jawayK3) continue;
+      routedProvider = jawayK3;
+    } else if (model.id.startsWith("claude-")) {
       routedProvider = anthropic;
     } else if (model.id.startsWith("seedance-")) {
       routedProvider = volcengineArk;

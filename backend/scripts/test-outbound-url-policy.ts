@@ -88,7 +88,28 @@ async function main(): Promise<void> {
   );
   assertBlocked(
     () => parseAndValidateOutboundUrl("https://allowed.example:8443/v1", { allowlist: allowed }),
-    /standard HTTPS port/
+    /non-standard HTTPS port is not allowlisted/
+  );
+  assert.equal(
+    parseAndValidateOutboundUrl("https://allowed.example:8443/v1", {
+      allowlist: allowed,
+      env: { PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST: "allowed.example:8443" },
+    }).port,
+    "8443"
+  );
+  assertBlocked(
+    () => parseAndValidateOutboundUrl("https://other.example:8443/v1", {
+      allowlist: new Set(["other.example"]),
+      env: { PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST: "allowed.example:8443" },
+    }),
+    /non-standard HTTPS port is not allowlisted/
+  );
+  assertBlocked(
+    () => parseAndValidateOutboundUrl("https://allowed.example:8444/v1", {
+      allowlist: allowed,
+      env: { PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST: "allowed.example:8443" },
+    }),
+    /non-standard HTTPS port is not allowlisted/
   );
   assertBlocked(
     () => parseAndValidateOutboundUrl("https://allowed.example/v1?next=http://127.0.0.1", { allowlist: allowed }),

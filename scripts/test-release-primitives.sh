@@ -38,7 +38,8 @@ mkdir -p \
 ln -s "$REPOSITORY_ROOT/node_modules" "$FIXTURE_ROOT/node_modules"
 printf '%s\n' \
   'PG_HOST=database.invalid' \
-  'PROVIDER_OUTBOUND_HOST_ALLOWLIST=api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai' \
+  'PROVIDER_OUTBOUND_HOST_ALLOWLIST=api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com' \
+  'PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST=jawayid.com:3000' \
   > "$BACKEND_ENV"
 
 printf '{"sha":"%s","builtAt":"2026-01-01T00:00:00.000Z"}\n' "$OLD_SHA" \
@@ -239,7 +240,7 @@ case "$command" in
     fi
     entries=()
     if test -f "$NEXUSFLOW_TEST_STATE/app-quadrant-backend"; then
-      backend='{"name":"quadrant-backend","pm2_env":{"status":"online","pm_cwd":"%s/backend","pm_exec_path":"%s/backend/dist/index.js","NODE_ENV":"%s","NEXUSFLOW_RELEASE_RUNTIME":"%s","ENABLE_MOCK_PAYMENT":"%s","ENABLE_SEED_API_KEYS":"%s","USE_PG_MEM":"%s","PROVIDER_OUTBOUND_HOST_ALLOWLIST":"api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai","PORT":3001,"BUILD_SHA":"%s"}}'
+      backend='{"name":"quadrant-backend","pm2_env":{"status":"online","pm_cwd":"%s/backend","pm_exec_path":"%s/backend/dist/index.js","NODE_ENV":"%s","NEXUSFLOW_RELEASE_RUNTIME":"%s","ENABLE_MOCK_PAYMENT":"%s","ENABLE_SEED_API_KEYS":"%s","USE_PG_MEM":"%s","PROVIDER_OUTBOUND_HOST_ALLOWLIST":"api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com","PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST":"jawayid.com:3000","PORT":3001,"BUILD_SHA":"%s"}}'
       printf -v backend_one "$backend" \
         "$root" "$root" "$node_env" "$release_runtime" "$mock" "$seed" "$pg_mem" "$sha"
       printf -v backend_two "$backend" \

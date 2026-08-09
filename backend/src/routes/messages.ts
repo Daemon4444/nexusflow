@@ -384,6 +384,7 @@ router.post("/", async (req: Request, res: Response) => {
   // anthropicPassThrough 可由后台「模型目录」按模型覆盖：false = 上游 anthropic
   // 兼容端点未接入该模型，走平台内协议转换（anthropic-openai-bridge）
   const usePassThrough = upstream.providerId === "anthropic"
+    || model.anthropicPassThrough === true
     || (upstream.anthropicCompatBaseUrl && model.anthropicPassThrough !== false);
 
   if (usePassThrough) {

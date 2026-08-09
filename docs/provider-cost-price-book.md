@@ -23,6 +23,10 @@ same settlement facts.
   cost-version ID.
 - Imported source references, SHA-256, source rows, and condition fingerprints
   are retained without putting the source workbook or commercial rates in Git.
+- A retired public model ID may remain in an immutable historical price book
+  even after its Provider route is removed. The importer permits only an
+  explicit code-reviewed legacy ID list for idempotent replay; this never
+  republishes the model or recreates its route.
 
 ## Private import
 

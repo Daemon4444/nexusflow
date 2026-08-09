@@ -7,7 +7,7 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
-  { id: "kimi/kimi-k3", context: "1M", input: 20, output: 100, desc: "K3 最强旗舰，2.8万亿参数，原生视觉理解+深度思考，缓存命中 ¥2/M" },
+  { id: "kimi-k3", context: "1M", input: 20, output: 100, desc: "K3 最强旗舰，2.8万亿参数，原生视觉理解+深度思考，缓存命中 ¥2/M" },
   { id: "kimi-k2.6", context: "256K", input: 6.5, output: 27, desc: "K2.6 旗舰，长文本创意写作" },
   { id: "kimi-k2.5", context: "256K", input: 4, output: 21, desc: "K2.5 均衡模型" },
 ];
@@ -16,7 +16,7 @@ const curlExample = `curl ${API_BASE}/v1/chat/completions \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "kimi/kimi-k3",
+    "model": "kimi-k3",
     "messages": [
       {"role": "user", "content": "帮我把这篇3000字的文章概括成300字的摘要"}
     ],
@@ -31,7 +31,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="kimi/kimi-k3",
+    model="kimi-k3",
     messages=[
         {"role": "user", "content": "帮我把这篇3000字的文章概括成300字的摘要"}
     ],
@@ -50,7 +50,7 @@ client = OpenAI(
 )
 
 completion = client.chat.completions.create(
-    model="kimi/kimi-k3",
+    model="kimi-k3",
     messages=[
         {
             "role": "user",

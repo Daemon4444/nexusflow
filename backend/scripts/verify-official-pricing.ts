@@ -165,7 +165,7 @@ const REF: Record<string, Ref> = {
   "glm-5.2-fast-preview": { ctx: 1048576, maxOut: 131072, in: 16, out: 56, cache: 4 },
   "kimi-k2.5": { ctx: 262144, maxOut: 98304, in: 4, out: 21, cache: 0.8, create: 5, read: 0.4 },
   "kimi-k2.6": { ctx: 262144, maxOut: 98304, in: 6.5, out: 27, cache: 1.3, create: 8.125, read: 0.65 },
-  "kimi/kimi-k3": { ctx: 1048576, maxOut: 1048576, in: 20, out: 100, cache: 2 },
+  "kimi-k3": { ctx: 1048576, maxOut: 1048576, in: 20, out: 100, cache: 2 },
   "MiniMax/MiniMax-M3": { ctx: 1000000, maxOut: 524288, in: 4.2, out: 16.8, cache: 0.84 },
   "MiniMax-M2.1": { ctx: 204800, maxOut: 32768, in: 2.1, out: 8.4, cache: 0.42 },
   "MiniMax-M2.5": { ctx: 196608, maxOut: 32768, in: 2.1, out: 8.4, cache: 0.42 },

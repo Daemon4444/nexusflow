@@ -1,7 +1,7 @@
 # 新模型上线 Playbook
 
 > 目的：任何人（或 AI 助手）接到「上线一个新模型」的需求时，照本清单执行即可全面、无遗漏地完成，不踩历史上踩过的坑。
-> 最近一次全流程实操参考：Kimi K3（`kimi/kimi-k3`，2026-07-17~18，commits 45a9ace→f5497e3）。
+> 最近一次全流程实操参考：Kimi K3（`kimi-k3`，2026-07-17~18，commits 45a9ace→f5497e3）。
 
 ---
 
@@ -17,7 +17,7 @@
 
 数据源：阿里云百炼控制台模型详情页（JS 渲染，WebFetch 抓不到，用 `agent-browser`）。必须拿到：
 
-- [ ] 模型 ID（**注意新模型多为 `厂商/模型名` 带斜杠格式**，如 `kimi/kimi-k3`）
+- [ ] 模型 ID（**注意部分模型为 `厂商/模型名` 带斜杠格式**，如 `MiniMax/MiniMax-M3`）
 - [ ] 输入价 / 输出价 / **缓存命中价**（元/百万 token）；分层定价则记每层
 - [ ] 上下文长度 / 最大输入 / 最大输出（思考模式下可能不同）
 - [ ] 能力清单：视觉/音频输入、思考模式（always/mixed/默认开关）、函数调用、结构化输出、联网搜索、前缀续写、批量、缓存
@@ -76,7 +76,7 @@
 15. **思考价不能用 max() 兜底（review 补充）**：曾在 `/v1/messages` 用 `max(非思考价, 思考价)` 结算，理由是"Anthropic usage 没有思维链细分"。这是**实扣**而非预占，会让非思考请求被多收（`qwen-plus` 档1 是 4 倍），且与"披露价=实收价"自相矛盾。解法：桥路径由 `openAiUsageToAnthropic` 透传 `reasoning_tokens`；直通路径看响应内容（流式 `thinking_delta`、非流式 content 里的 `thinking` 块）。`calculateTokenCost` 现有显式 `opts.isThinking`，省略才走 max()，**账单重算类场景必须显式传入**，否则 `list_amount_cny` 虚高、`discount_rate` 出现虚假折扣。
 16. **`resolveCachePricing.explicitCreation` 目前固定 `promptPrice × 1.25`**，无可配字段。当前 42 模型 0 偏差，若将来官方出现偏离该倍率的模型，schema 无法表达 —— `test:official-pricing` 会抓到，届时再加字段即可，不必提前造。
 17. **`npm audit` 要显式指定官方源**：本机默认源是 npmmirror，不实现 audit 端点，会报 `[NOT_IMPLEMENTED]` 被误判成门失败。用 `npm audit --registry=https://registry.npmjs.org --omit=dev --audit-level=high`。
-18. **「仅隐式缓存」的模型不能套显式披露模板（MiniMax / kimi-k3，2026-08-03）**：MiniMax 与 `kimi/kimi-k3` 官方只有隐式缓存折扣，无显式开关。`resolveCachePricing` 的显式价会回落隐式价（计费正确），但披露层若照常输出 `explicitHit`/`explicitCreation`，等于**虚构官方未公示的价格**（创建价还会按 ×1.25 显示成一个不存在的收费项）。用 `supports_explicit_context_caching` 区分：仅隐式模型只披露 `implicitHit`、不宣告 `enable_context_caching` 参数，前端对无显式字段自适应。注意百炼部署的 `kimi-k2.5` / `kimi-k2.6` 官方支持显式缓存，不能按 Kimi 厂商前缀一刀切。`kimi/kimi-k3` 的 ¥2/M 隐式价曾收费 3 周而从未披露（上次记录遗留 #2）。
+18. **「仅隐式缓存」的模型不能套显式披露模板（MiniMax / kimi-k3，2026-08-03）**：MiniMax 与 `kimi-k3` 官方只有隐式缓存折扣，无显式开关。`resolveCachePricing` 的显式价会回落隐式价（计费正确），但披露层若照常输出 `explicitHit`/`explicitCreation`，等于**虚构官方未公示的价格**（创建价还会按 ×1.25 显示成一个不存在的收费项）。用 `supports_explicit_context_caching` 区分：仅隐式模型只披露 `implicitHit`、不宣告 `enable_context_caching` 参数，前端对无显式字段自适应。注意百炼部署的 `kimi-k2.5` / `kimi-k2.6` 官方支持显式缓存，不能按 Kimi 厂商前缀一刀切。`kimi-k3` 的 ¥2/M 隐式价曾收费 3 周而从未披露（上次记录遗留 #2）。
 19. **思考开关和输出上限必须实测，官方页会缺（同上）**：官方示例传 `enable_thinking: True` 不代表默认关（qwen3.7-flash 实测默认就开）；传 `enable_thinking: false` 返回 200 也不代表关掉了（MiniMax-M3 实测仍返回 reasoning_content，必须归入 ALWAYS 集合，否则 capabilities 宣告"可关"误导用户）。官方价卡"最大输出"可能显示"-"：用超额 `max_tokens` 探针，上游报错会明示上限（M3 报 `does not support max tokens > 524288`）。
 20. **REF 和 models.ts 一起改是循环验证，抓不住抄错行（2026-08-03 勘误）**：`test:official-pricing` 的 0 偏差只证明 REF 与目录一致，不证明 REF 抄对了。qwen3.8-max 那轮"校准"把 5 处 limits 抄成了官方表**相邻行**的数字（kimi 抄了 k2-thinking、M2.5 抄了 M2.7、glm-4.7 抄了 glm-5），0 偏差照样全绿。防线：① 官方价本原文入库存档（`docs/pricing/`），改 REF 时 diff 的对象是存档而不是记忆；② 可疑 limits 用超额 `max_tokens` 探针实证（价格探不了，limits 能）；③ 官方表格里同名系列相邻行（快照版/thinking 版/上一代）是高危抄错源，逐行核对模型 ID。
 21. **缓存能力必须用官方逐模型白名单，不能按厂商前缀推断（2026-08-03 review）**：同一厂商会同时存在“显式+隐式”“仅隐式”和“不支持”三类模型。曾因按 `qwen` / GLM / DeepSeek 前缀判断，向 `qwen-math-plus`、`glm-4.7`、`deepseek-v4-*` 虚构显式缓存开关与价格，同时漏掉百炼 `kimi-k2.5` / `kimi-k2.6` 的显式缓存。能力层以官方 Context Cache 页的模型 ID 集合为准，并用目录测试覆盖正例、反例和显式命中价。

@@ -52,7 +52,7 @@ const implicitModels = [
   { model: "glm-5.1", provider: "智谱AI", minTokens: "~256" },
   { model: "glm-5", provider: "智谱AI", minTokens: "~256" },
   { model: "glm-4.7", provider: "智谱AI", minTokens: "~256" },
-  { model: "kimi/kimi-k3", provider: "月之暗面", minTokens: "~256" },
+  { model: "kimi-k3", provider: "月之暗面", minTokens: "~256" },
   { model: "kimi-k2.6", provider: "月之暗面", minTokens: "~256" },
   { model: "kimi-k2.5", provider: "月之暗面", minTokens: "~256" },
   { model: "MiniMax/MiniMax-M3", provider: "MiniMax", minTokens: "~512" },

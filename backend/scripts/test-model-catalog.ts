@@ -19,6 +19,7 @@ import {
 
 const models = getStaticModels();
 assert.equal(new Set(models.map((model) => model.id)).size, models.length);
+assert.equal(models.some((model) => model.id === "kimi/kimi-k3"), false, "旧 K3 ID 不得继续公开");
 
 const snapshot = models.find((model) => model.id === "deepseek-v4-flash");
 assert.ok(snapshot);
@@ -350,8 +351,9 @@ assert.equal(m3Cache.implicitHit, 0.84);
 assert.equal(m3Cache.explicitHit, 0.84, "未公示显式价必须回落隐式价，不得按 10% 倍率少收");
 assert.ok(!getAllowedChatParameters(m3).includes("enable_context_caching"), "仅隐式模型不得宣告显式缓存参数");
 
-// kimi/kimi-k3 官方有隐式缓存折扣（¥2/M），上次上线遗留：披露层此前不覆盖
-const k3 = models.find((model) => model.id === "kimi/kimi-k3")!;
+// kimi-k3 官方有隐式缓存折扣（¥2/M），上次上线遗留：披露层此前不覆盖
+const k3 = models.find((model) => model.id === "kimi-k3")!;
+assert.equal(k3.anthropicPassThrough, true, "jawayid 原生 /v1/messages 必须直通");
 const k3Caps = getModelCapabilities(k3);
 assert.equal(k3Caps.supports_context_caching, true, "kimi-k3 缓存价必须披露");
 assert.equal(k3Caps.supports_explicit_context_caching, false);

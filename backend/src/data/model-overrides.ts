@@ -29,7 +29,7 @@ export interface ModelOverrideRow {
 
 // ============ Validation ============
 
-// 允许斜杠：DashScope 第三方模型 ID 带厂商前缀（如 kimi/kimi-k3）
+// 允许斜杠：部分第三方模型 ID 带厂商前缀（如 MiniMax/MiniMax-M3）
 const ID_RE = /^[A-Za-z0-9._:\-\/]+$/;
 const PRICING_TYPES = new Set(["token", "per-image", "per-second", "per-10k-characters"]);
 

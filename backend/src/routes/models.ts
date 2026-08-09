@@ -94,7 +94,7 @@ function buildThinkingPricing(model: AIModel) {
 /**
  * 对外披露的缓存价。取值来自 data/models 的 resolveCachePricing，
  * 与实扣路径同源，因此展示价不可能与实收价漂移。
- * 仅隐式缓存的模型（如 MiniMax、kimi/kimi-k3）官方未公示显式命中/创建价，
+ * 仅隐式缓存的模型（如 MiniMax、kimi-k3）官方未公示显式命中/创建价，
  * 只披露 implicitHit，不虚构解析器兜底的倍率价。
  */
 function buildCachePricing(model: AIModel, supportsCaching: boolean, supportsExplicit: boolean) {

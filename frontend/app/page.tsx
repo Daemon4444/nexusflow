@@ -251,9 +251,9 @@ const flagshipSlides: FlagshipSlide[] = [
     title: "Kimi K3",
     titleGradient: "linear-gradient(135deg, #f8fafc 0%, #99f6e4 48%, #2dd4bf 100%)",
     lead: "Kimi 迄今能力最强的旗舰模型：2.8 万亿参数，基于 KDA 混合线性注意力与注意力残差架构，原生视觉理解 + 深度思考，100 万 token 上下文。面向长程编程、知识工作与推理场景——OpenAI 与 Anthropic 协议均可直接调用 ",
-    modelCode: "kimi/kimi-k3",
+    modelCode: "kimi-k3",
     sub: "全球首个开源的 3 万亿级别模型。输入 ¥20/M、输出 ¥100/M、缓存命中低至 ¥2/M，与 Qwen、GLM、DeepSeek 共用同一个 API Key 与计费体系。",
-    primaryHref: "/models/kimi/kimi-k3",
+    primaryHref: "/models/kimi-k3",
     primaryLabel: "了解 Kimi K3",
     docsHref: "/docs/api/kimi",
     stats: [

@@ -56,6 +56,34 @@ export function getProviderOutboundHostAllowlist(
   return new Set(source.map(canonicalHostname));
 }
 
+export function getProviderOutboundEndpointAllowlist(
+  env: NodeJS.ProcessEnv = process.env
+): Set<string> {
+  return new Set(parseEnvList(env.PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST).map((value) => {
+    let endpoint: URL;
+    try {
+      endpoint = new URL(`https://${value}`);
+    } catch {
+      throw new OutboundUrlPolicyError("provider endpoint allowlist entry is invalid");
+    }
+    if (
+      endpoint.username || endpoint.password || endpoint.pathname !== "/"
+      || endpoint.search || endpoint.hash || !endpoint.port
+    ) {
+      throw new OutboundUrlPolicyError(
+        "provider endpoint allowlist entries must use hostname:port"
+      );
+    }
+    const hostname = canonicalHostname(endpoint.hostname);
+    if (isIP(hostname)) {
+      throw new OutboundUrlPolicyError(
+        "provider endpoint allowlist entries must use hostnames"
+      );
+    }
+    return `${hostname}:${endpoint.port}`;
+  }));
+}
+
 export function assertProviderOutboundPolicyConfigured(
   env: NodeJS.ProcessEnv = process.env
 ): void {
@@ -173,10 +201,6 @@ export function parseAndValidateOutboundUrl(
   if (usage === "storage-base" && url.search) {
     throw new OutboundUrlPolicyError("endpoint base URL must not contain a query");
   }
-  if (url.port && url.port !== "443") {
-    throw new OutboundUrlPolicyError("endpoint URL must use the standard HTTPS port");
-  }
-
   const hostname = canonicalHostname(url.hostname);
   if (hostname.includes("%")) {
     throw new OutboundUrlPolicyError("endpoint hostname contains an invalid zone identifier");
@@ -194,6 +218,16 @@ export function parseAndValidateOutboundUrl(
     if (!allowlist.has(hostname)) {
       throw new OutboundUrlPolicyError("provider endpoint hostname is not allowlisted");
     }
+    if (
+      url.port && url.port !== "443"
+      && !getProviderOutboundEndpointAllowlist(options.env).has(`${hostname}:${url.port}`)
+    ) {
+      throw new OutboundUrlPolicyError(
+        "provider endpoint non-standard HTTPS port is not allowlisted"
+      );
+    }
+  } else if (url.port && url.port !== "443") {
+    throw new OutboundUrlPolicyError("endpoint URL must use the standard HTTPS port");
   }
   url.hostname = hostname;
   return url;

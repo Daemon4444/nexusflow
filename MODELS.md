@@ -56,6 +56,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 | 渠道名称 | API 基础地址 | 主要服务 | 状态 |
 |----------|--------------|----------|------|
 | DashScope (阿里云百炼) | `https://dashscope.aliyuncs.com/api/v1` | Qwen系列、DeepSeek、GLM、Kimi、MiniMax、万相视频、HappyHorse | **活跃** |
+| Jaway K3 专线 | `https://jawayid.com:3000/v1` | `kimi-k3`（OpenAI Chat + Anthropic Messages） | **活跃** |
 | PixVerse 官方 | `https://app-api.pixverse.ai/openapi/v2` | PixVerse V6 视频生成 | **活跃** |
 
 ### PixVerse 双渠道架构
@@ -146,7 +147,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 |---------|------|------------|----------|----------|----------|------|
 | `kimi-k2.5` | Kimi K2.5 | 262K | 96K | ¥4/M | ¥21/M | 长文本理解 |
 | `kimi-k2.6` | Kimi K2.6 | 262K | 96K | ¥6.5/M | ¥27/M | 旗舰长文本 |
-| `kimi/kimi-k3` | Kimi K3 | **1M** | **1M** | ¥20/M (缓存命中 ¥2/M) | ¥100/M | 最强旗舰、2.8万亿参数、原生视觉理解、深度思考、开源 |
+| `kimi-k3` | Kimi K3 | **1M** | **1M** | ¥20/M (缓存命中 ¥2/M) | ¥100/M | 最强旗舰、2.8万亿参数、原生视觉理解、深度思考、开源 |
 
 ### MiniMax 系列
 
@@ -329,13 +330,13 @@ NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Mess
 | 通义千问 Qwen 系列 | ✅ | ✅ | ✅ |
 | DeepSeek 系列 | ✅ | ✅ | ❌ |
 | 智谱 GLM 系列 (含 GLM 5.2) | ✅ | ✅ | ❌ |
-| Kimi 系列 | ✅ | ✅（`kimi/kimi-k3` 经平台协议转换支持） | ❌ |
+| Kimi 系列 | ✅ | ✅（`kimi-k3` 由上游原生 Messages 端点支持） | ❌ |
 | MiniMax 系列 | ✅ | ✅ | ❌ |
 | Anthropic Claude 系列 | ✅ | ✅ | ✅ |
 
 对 GLM / DeepSeek / Kimi / MiniMax 调用 `/v1/responses` 时，会返回 `Unsupported model` 错误。请改用 `/v1/chat/completions` 或 `/v1/messages`。
 
-> 运维：`/v1/messages` 按模型字段 `anthropicPassThrough` 决定路由——缺省/`true` 直通上游 Anthropic 兼容端点；`false` 走平台内 Anthropic↔OpenAI 协议转换桥（用于上游 `/apps/anthropic` 未接入的模型，如 `kimi/kimi-k3`）。该字段可在 admin「模型目录」按模型覆盖，10 秒内全节点生效，无需发版；上游接入后把该模型的字段改回 `true`（或删除覆盖行恢复静态默认）即恢复直通。
+> 运维：`/v1/messages` 按模型字段 `anthropicPassThrough` 决定路由——显式 `true` 可让自定义 Provider 直通其原生 Anthropic Messages 端点；`false` 走平台内 Anthropic↔OpenAI 协议转换桥。该字段可在 admin「模型目录」按模型覆盖，10 秒内全节点生效。
 
 ---
 

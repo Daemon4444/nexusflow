@@ -579,7 +579,8 @@ setting to each node's existing root-only backend environment during a
 low-traffic window; do not print or rewrite unrelated values:
 
 ```dotenv
-PROVIDER_OUTBOUND_HOST_ALLOWLIST=api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai
+PROVIDER_OUTBOUND_HOST_ALLOWLIST=api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com
+PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST=jawayid.com:3000
 ```
 
 The production environments currently have no HTTP(S) proxy. Do not introduce

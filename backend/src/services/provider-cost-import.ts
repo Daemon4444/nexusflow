@@ -5,6 +5,9 @@ import { models as catalogModels } from "../data/models";
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const SAFE_REFERENCE = /^[^/\\\0]{1,240}$/;
+// 已从公开目录移除、但仍存在于不可变历史价本中的旧模型 ID。
+// 这里只允许价本重放；它不会把模型重新加入目录或恢复 Provider 路由。
+const LEGACY_PROVIDER_COST_MODEL_IDS = new Set(["kimi/kimi-k3"]);
 
 const optionalRate = z.number().finite().nonnegative().nullable();
 const manifestRowSchema = z.object({
@@ -168,7 +171,7 @@ function normalizeManifest(input: unknown): ProviderCostManifest {
 
   const knownModels = new Set(catalogModels.map((model) => model.id));
   for (const row of manifest.rows) {
-    if (!knownModels.has(row.modelId)) {
+    if (!knownModels.has(row.modelId) && !LEGACY_PROVIDER_COST_MODEL_IDS.has(row.modelId)) {
       throw new Error(`${row.modelId}: model does not exist in the application catalog`);
     }
   }
@@ -278,6 +281,10 @@ async function validateDatabaseTargets(manifest: ProviderCostManifest): Promise<
         WHERE provider_id = ? AND model_id = ?`,
       [manifest.providerId, modelId]
     );
+    if (!route && LEGACY_PROVIDER_COST_MODEL_IDS.has(modelId)) {
+      inactiveRoutes += 1;
+      continue;
+    }
     if (!route) throw new Error(`${modelId}: provider route does not exist`);
     if (!route.is_enabled) inactiveRoutes += 1;
   }

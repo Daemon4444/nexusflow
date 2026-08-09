@@ -52,7 +52,7 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
   const preferredIds = [
     // Qwen3.8 Max 最新旗舰（首页主推）
     "qwen3.8-max",
-    "kimi/kimi-k3",
+    "kimi-k3",
     "claude-sonnet-4-6",
     "qwen3.7-max",
     "qwen3.7-plus",

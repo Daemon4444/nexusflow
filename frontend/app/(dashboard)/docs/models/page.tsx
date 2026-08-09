@@ -114,7 +114,7 @@ const pricingTable = [
   { model: "glm-5.2-fast-preview", ctx: "1M", input: "¥16", output: "¥56", category: "高速" },
   { model: "glm-5.1", ctx: "198K", input: "¥6", output: "¥24", category: "旗舰" },
   { model: "glm-5", ctx: "198K", input: "¥4", output: "¥18", category: "均衡" },
-  { model: "kimi/kimi-k3", ctx: "1M", input: "¥20", output: "¥100", category: "旗舰" },
+  { model: "kimi-k3", ctx: "1M", input: "¥20", output: "¥100", category: "旗舰" },
   { model: "kimi-k2.6", ctx: "256K", input: "¥6.5", output: "¥27", category: "推理" },
   { model: "kimi-k2.5", ctx: "256K", input: "¥4", output: "¥21", category: "均衡" },
   { model: "MiniMax/MiniMax-M3", ctx: "1M", input: "¥4.2", output: "¥16.8", category: "旗舰多模态" },

@@ -45,7 +45,7 @@
 `ModelCapabilities` 新增 `supports_explicit_context_caching`：
 
 - 显式缓存开关（`cache_control` / `enable_context_caching`）按官方模型白名单披露，不能按厂商前缀推断；
-- `supports_context_caching` 扩展覆盖 MiniMax chat 模型与 `kimi/kimi-k3`
+- `supports_context_caching` 扩展覆盖 MiniMax chat 模型与 `kimi-k3`
   （后者为 qwen3.8-max 上线记录遗留 #2，本次一并修复：¥2/M 隐式价此前收费但从未披露）；
 - `buildCachePricing` 对仅隐式模型只披露 `implicitHit`，不虚构官方未公示的
   显式命中/创建价；前端详情页、pricing 页对无显式字段自适应渲染；
@@ -71,7 +71,7 @@ npm run build:backend && npm run build:frontend
   三协议宣告齐全，`enable_context_caching` 在 allowed_parameters；
 - `MiniMax/MiniMax-M3`：cachePricing 仅 `implicitHit: 0.84`，thinking always，
   仅 chat+messages 两协议，`enable_context_caching` 不在 allowed_parameters；
-- `kimi/kimi-k3`：cachePricing `implicitHit: 2` 首次披露；
+- `kimi-k3`：cachePricing `implicitHit: 2` 首次披露；
 - `GET /api/models/MiniMax%2FMiniMax-M3` 编码路径详情正常。
 
 ## 5. 未做的事（有意）

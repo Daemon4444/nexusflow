@@ -27,7 +27,7 @@ const openAiParams = [
   ["response_format", "object", "可选", "输出格式控制。常见值为 {\"type\":\"text\"} 或 {\"type\":\"json_object\"}。"],
   ["enable_thinking", "boolean", "可选", "思考模式开关。仅对已验证支持的混合思考模型可关闭；仅思考模型会忽略 false 并继续返回 reasoning_content。"],
   ["thinking_budget", "integer", "可选", "限制思考 Token 上限，按模型 ID 前缀透传（qwen3.7- / qwen3.6- / qwen3.5- / qwen3-）。"],
-  ["preserve_thinking", "boolean", "可选", "将历史消息中的 reasoning_content 透传回模型，支持 qwen3.8-max、qwen3.7-max、qwen3.6-max-preview、qwen3.6-plus、kimi-k2.6、kimi/kimi-k3。"],
+  ["preserve_thinking", "boolean", "可选", "将历史消息中的 reasoning_content 透传回模型，支持 qwen3.8-max、qwen3.7-max、qwen3.6-max-preview、qwen3.6-plus、kimi-k2.6、kimi-k3。"],
   ["enable_search", "boolean", "可选", "联网搜索，支持通义千问文本类模型（非 VL / math 系列）。"],
   ["search_options", "object", "可选", "联网搜索配置，与 enable_search 配套使用。"],
   ["enable_context_caching", "boolean", "可选", "启用上下文缓存。重复的 prompt 前缀自动缓存，命中部分按 0.1x 输入价计费。支持通义千问、GLM 系列。"],

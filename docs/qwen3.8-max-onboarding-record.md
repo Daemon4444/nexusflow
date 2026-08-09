@@ -118,7 +118,7 @@ npm audit --registry=https://registry.npmjs.org --omit=dev --audit-level=high  #
 
 1. `scripts/smoke.ts:50` 用 `getAllKeys()` 的 `key` 列做 Bearer token，但该列自 hash-only 改造后只存掩码，
    导致冒烟测试 71 项全部失败（`Authorization` 头含 `•` U+2022）。既存缺陷。
-2. `kimi/kimi-k3` 官方有缓存折扣，但 `supports_context_caching` 判定只覆盖 qwen/GLM/deepseek-v4，
+2. `kimi-k3` 官方有缓存折扣，但 `supports_context_caching` 判定只覆盖 qwen/GLM/deepseek-v4，
    其缓存价**不会被披露**（计费仍按配置的 ¥2 走）。
 3. 官方「思考模式最大输入」（如 qwen3.8-max 983K）全站无字段可存，`docs/api/limits` 只有三列。
 4. `glm-5.1` 本次是**涨价**（原售价低于官方，毛利被压得很薄），是唯一对客户涨价且幅度可观的项，建议单独评估。

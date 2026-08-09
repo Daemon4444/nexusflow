@@ -242,9 +242,16 @@ verify_pm2_runtime_environment() {
             "app-api.pixverse.ai",
             "ark.cn-beijing.volces.com",
             "token.genvia.ai",
+            "jawayid.com",
           ];
           const configuredProviderHosts = new Set(
             String(env.PROVIDER_OUTBOUND_HOST_ALLOWLIST || "")
+              .split(/[\s,]+/)
+              .map((value) => value.trim().toLowerCase())
+              .filter(Boolean)
+          );
+          const configuredProviderEndpoints = new Set(
+            String(env.PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST || "")
               .split(/[\s,]+/)
               .map((value) => value.trim().toLowerCase())
               .filter(Boolean)
@@ -271,6 +278,7 @@ verify_pm2_runtime_environment() {
             requiredProviderHosts.every((host) =>
               configuredProviderHosts.has(host)
             ) &&
+            configuredProviderEndpoints.has("jawayid.com:3000") &&
             proxyKeys.every((key) => !String(env[key] || "").trim())
           );
         });
@@ -453,6 +461,7 @@ validate_backend_env_source() {
         "app-api.pixverse.ai",
         "ark.cn-beijing.volces.com",
         "token.genvia.ai",
+        "jawayid.com",
       ];
       const configuredProviderHosts = new Set(
         String(values.PROVIDER_OUTBOUND_HOST_ALLOWLIST || "")
@@ -466,6 +475,18 @@ validate_backend_env_source() {
       if (missingProviderHosts.length > 0) {
         console.error(
           `backend environment is missing required provider outbound host(s): ${missingProviderHosts.join(", ")}`
+        );
+        process.exit(1);
+      }
+      const configuredProviderEndpoints = new Set(
+        String(values.PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST || "")
+          .split(/[\s,]+/)
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean)
+      );
+      if (!configuredProviderEndpoints.has("jawayid.com:3000")) {
+        console.error(
+          "backend environment is missing required provider endpoint: jawayid.com:3000"
         );
         process.exit(1);
       }
