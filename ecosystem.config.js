@@ -33,8 +33,13 @@ const backendRuntimeEnv = dotenv.parse(
 );
 const providerOutboundHostAllowlist =
   backendRuntimeEnv.PROVIDER_OUTBOUND_HOST_ALLOWLIST;
+const providerOutboundEndpointAllowlist =
+  backendRuntimeEnv.PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST;
 if (!providerOutboundHostAllowlist) {
   throw new Error("NexusFlow production provider outbound allowlist is missing");
+}
+if (!providerOutboundEndpointAllowlist) {
+  throw new Error("NexusFlow production provider outbound endpoint allowlist is missing");
 }
 
 module.exports = {
@@ -55,6 +60,7 @@ module.exports = {
         ENABLE_SEED_API_KEYS: "false",
         USE_PG_MEM: "false",
         PROVIDER_OUTBOUND_HOST_ALLOWLIST: providerOutboundHostAllowlist,
+        PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST: providerOutboundEndpointAllowlist,
         PORT: process.env.BACKEND_PORT || 3001,
         BUILD_SHA: process.env.BUILD_SHA || "unknown",
         BUILD_TIME: process.env.BUILD_TIME || "unknown",
