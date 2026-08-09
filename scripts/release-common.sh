@@ -184,6 +184,7 @@ release_manifest_verify() {
     find . -type f \
       ! -path './.release-manifest.sha256' \
       ! -path './frontend/.next/cache/*' \
+      ! -path './backend/uploads/*' \
       -print |
       LC_ALL=C sort
   ) > "$actual_files"

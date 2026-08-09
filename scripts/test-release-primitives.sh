@@ -11,6 +11,7 @@ RELEASES_ROOT="$FIXTURE/releases"
 CURRENT_LINK="$FIXTURE/current"
 PREVIOUS_LINK="$FIXTURE/previous"
 BACKEND_ENV="$FIXTURE/backend.env"
+UPLOADS_ROOT="$FIXTURE/uploads"
 SHIMS="$FIXTURE/shims"
 STATE="$FIXTURE/state"
 OLD_SHA="1111111111111111111111111111111111111111"
@@ -34,7 +35,8 @@ mkdir -p \
   "$RELEASES_ROOT/$NEW_SHA/frontend/.next/server/app/models.segments" \
   "$RELEASES_ROOT/$NEW_SHA/frontend/.next/static/chunks" \
   "$SHIMS" \
-  "$STATE"
+  "$STATE" \
+  "$UPLOADS_ROOT"
 ln -s "$REPOSITORY_ROOT/node_modules" "$FIXTURE_ROOT/node_modules"
 printf '%s\n' \
   'PG_HOST=database.invalid' \
@@ -58,6 +60,8 @@ printf 'v3 rendered segment\n' \
 printf 'console.log("fixture");\n' \
   > "$RELEASES_ROOT/$NEW_SHA/frontend/.next/static/chunks/fixture.js"
 ln -s "$BACKEND_ENV" "$RELEASES_ROOT/$NEW_SHA/backend/.env"
+ln -s "$UPLOADS_ROOT" "$RELEASES_ROOT/$NEW_SHA/backend/uploads"
+ln -s "$UPLOADS_ROOT" "$RELEASES_ROOT/$OLD_SHA/backend/uploads"
 (
   cd "$RELEASES_ROOT/$NEW_SHA"
   find . -type f ! -path './.release-manifest.sha256' -print0 |
@@ -408,6 +412,7 @@ run_primitive() {
     NEXUSFLOW_CURRENT_LINK="$CURRENT_LINK" \
     NEXUSFLOW_PREVIOUS_LINK="$PREVIOUS_LINK" \
     NEXUSFLOW_BACKEND_ENV="$BACKEND_ENV" \
+    NEXUSFLOW_UPLOADS_ROOT="$UPLOADS_ROOT" \
     NEXUSFLOW_VERIFY_FRONTEND_ROUTES="/" \
     NEXUSFLOW_VERIFY_ASSET_ROUNDS=1 \
     NEXUSFLOW_VERIFY_READY_ATTEMPTS=3 \

@@ -11,6 +11,7 @@ RELEASES_ROOT="${NEXUSFLOW_RELEASES_ROOT:-/root/distiny/nexusflow-releases}"
 CURRENT_LINK="${NEXUSFLOW_CURRENT_LINK:-/root/distiny/nexusflow-current}"
 PREVIOUS_LINK="${NEXUSFLOW_PREVIOUS_LINK:-/root/distiny/nexusflow-previous}"
 BACKEND_ENV="${NEXUSFLOW_BACKEND_ENV:-$ROOT/backend/.env}"
+UPLOADS_ROOT="${NEXUSFLOW_UPLOADS_ROOT:-/var/lib/nexusflow/uploads}"
 COMMAND="${1:-}"
 ARTIFACT=""
 BUILD_SHA=""
@@ -360,6 +361,7 @@ verify_runtime() {
     "$SCRIPT_DIR/verify-release.sh" --release-dir "$directory" --sha "$sha" ||
       return 1
     verify_backend_env_link "$directory" || return 1
+    verify_uploads_path "$directory" || return 1
   else
     verify_legacy_runtime "$directory" "$sha" || return 1
   fi
@@ -389,6 +391,35 @@ verify_backend_env_link() {
     release_die "release backend environment symlink is broken: $directory/backend/.env"
   test "$linked" = "$configured" ||
     release_die "release backend environment points outside the configured source"
+}
+
+validate_uploads_root() {
+  local owner mode permissions
+  test -d "$UPLOADS_ROOT" ||
+    release_die "persistent uploads root is unavailable: $UPLOADS_ROOT"
+  owner="$(stat -c '%u' "$UPLOADS_ROOT")"
+  mode="$(stat -c '%a' "$UPLOADS_ROOT")"
+  permissions=$((8#$mode))
+  test "$owner" = "0" || release_die "persistent uploads root must be owned by root"
+  test $((permissions & 0022)) -eq 0 ||
+    release_die "persistent uploads root must not be group/world writable (mode $mode)"
+}
+
+verify_uploads_path() {
+  local directory="$1"
+  local linked
+  validate_uploads_root
+  if test -L "$directory/backend/uploads"; then
+    linked="$(release_resolve_path "$directory/backend/uploads")" ||
+      release_die "release uploads symlink is broken: $directory/backend/uploads"
+    test "$linked" = "$(release_resolve_path "$UPLOADS_ROOT")" ||
+      release_die "release uploads path points outside the persistent root"
+    return
+  fi
+  # Compatibility for the currently active baseline, which wrote uploads into
+  # its immutable directory before persistent runtime storage was introduced.
+  test -d "$directory/backend/uploads" ||
+    release_die "release uploads path is unavailable: $directory/backend/uploads"
 }
 
 validate_backend_env_source() {
@@ -585,6 +616,7 @@ install_release() {
     require_managed_release_capabilities "$final"
     assert_manifest_excludes_backend_env "$final"
     verify_backend_env_link "$final"
+    verify_uploads_path "$final"
     release_log "release is already installed and verified: $final"
     return
   fi
@@ -611,8 +643,14 @@ install_release() {
     release_die "artifact unexpectedly contains backend/.env"
   fi
   ln -s "$BACKEND_ENV" "$staging/backend/.env"
+  if test -e "$staging/backend/uploads" || test -L "$staging/backend/uploads"; then
+    release_die "artifact unexpectedly contains backend/uploads"
+  fi
+  validate_uploads_root
+  ln -s "$UPLOADS_ROOT" "$staging/backend/uploads"
   "$SCRIPT_DIR/verify-release.sh" --release-dir "$staging" --sha "$BUILD_SHA" --files-only
   verify_backend_env_link "$staging"
+  verify_uploads_path "$staging"
   mv -T "$staging" "$final"
   trap - EXIT
   release_log "installed immutable release: $final"
@@ -637,6 +675,7 @@ activate_release() {
   require_managed_release_capabilities "$target"
   assert_manifest_excludes_backend_env "$target"
   verify_backend_env_link "$target"
+  verify_uploads_path "$target"
   old="$(current_release)"
 
   if test "$old" = "$target"; then
