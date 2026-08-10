@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import http from "node:http";
+import express from "express";
 import { closeDb, db } from "../src/db/client";
 import { inspectApiKey, validateApiKey } from "../src/data/apikeys";
 import {
   BODY_ADMISSION_RELEASE,
+  parsePublicApiJson,
   requireApiKeyBeforeLargeJson,
 } from "../src/middleware/large-json-auth";
+import { errorHandler } from "../src/middleware/error";
 
 if (process.env.USE_PG_MEM !== "true") {
   throw new Error("test requires USE_PG_MEM=true");
@@ -52,6 +56,103 @@ async function runMiddleware(req: any, res: any): Promise<{ nextCalled: boolean;
       if (!settled) resolve({ nextCalled: false });
     });
   });
+}
+
+async function postChunkedJson(
+  port: number,
+  path: string,
+  chunks: Buffer[]
+): Promise<{ status: number; body: any }> {
+  return new Promise((resolve, reject) => {
+    const request = http.request({
+      hostname: "127.0.0.1",
+      port,
+      path,
+      method: "POST",
+      headers: {
+        "x-api-key": testKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "transfer-encoding": "chunked",
+      },
+    }, (response) => {
+      const responseChunks: Buffer[] = [];
+      response.on("data", (chunk) => responseChunks.push(Buffer.from(chunk)));
+      response.on("end", () => {
+        const raw = Buffer.concat(responseChunks).toString("utf8");
+        resolve({ status: response.statusCode || 0, body: raw ? JSON.parse(raw) : null });
+      });
+    });
+    request.once("error", reject);
+    for (const chunk of chunks) request.write(chunk);
+    request.end();
+  });
+}
+
+async function testChunkedHttpParsing(): Promise<void> {
+  const app = express();
+  app.use("/v1", requireApiKeyBeforeLargeJson, parsePublicApiJson);
+  app.post("/v1/messages", (req, res) => {
+    res.json({ body: req.body, transferEncoding: req.headers["transfer-encoding"] });
+  });
+  app.post("/v1/embeddings", (req, res) => res.json({ body: req.body }));
+  app.use(errorHandler);
+  const server = app.listen(0, "127.0.0.1");
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once("listening", resolve);
+      server.once("error", reject);
+    });
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("test server has no TCP port");
+
+    const payload = Buffer.from(JSON.stringify({
+      model: "kimi-k3",
+      max_tokens: 16,
+      messages: [{ role: "user", content: "chunked request" }],
+    }));
+    const accepted = await postChunkedJson(address.port, "/v1/messages", [
+      payload.subarray(0, 17),
+      payload.subarray(17),
+    ]);
+    assert.equal(accepted.status, 200);
+    assert.equal(accepted.body.body.model, "kimi-k3");
+    assert.equal(accepted.body.transferEncoding, "chunked");
+
+    const previousApiKeyBytes = process.env.PUBLIC_BODY_API_KEY_BYTES;
+    process.env.PUBLIC_BODY_API_KEY_BYTES = "300000";
+    try {
+      const byteLimited = Buffer.alloc(300_001, 0x20);
+      byteLimited[0] = 0x7b;
+      byteLimited[byteLimited.length - 1] = 0x7d;
+      const admissionRejected = await postChunkedJson(
+        address.port,
+        "/v1/messages",
+        [byteLimited]
+      );
+      assert.equal(admissionRejected.status, 429);
+      assert.equal(admissionRejected.body.error.code, "body_admission_exceeded");
+      assert.match(admissionRejected.body.error.message, /api_key_bytes/);
+    } finally {
+      if (previousApiKeyBytes === undefined) delete process.env.PUBLIC_BODY_API_KEY_BYTES;
+      else process.env.PUBLIC_BODY_API_KEY_BYTES = previousApiKeyBytes;
+    }
+
+    const oversized = Buffer.alloc(1024 * 1024 + 1, 0x20);
+    oversized[0] = 0x7b;
+    oversized[oversized.length - 1] = 0x7d;
+    const rejected = await postChunkedJson(
+      address.port,
+      "/v1/embeddings",
+      [oversized.subarray(0, 700_000), oversized.subarray(700_000)]
+    );
+    assert.equal(rejected.status, 413);
+    assert.equal(rejected.body.error.code, "payload_too_large");
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    });
+  }
 }
 
 async function main(): Promise<void> {
@@ -158,6 +259,8 @@ async function main(): Promise<void> {
     heldReq[BODY_ADMISSION_RELEASE]();
   }
   await settleRelease();
+
+  await testChunkedHttpParsing();
 
   assert.ok(await validateApiKey(testKey));
   const afterValidation = await db.queryOne<{ usage_count: number }>(

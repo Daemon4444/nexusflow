@@ -73,6 +73,7 @@ export default function ClaudeDocsPage() {
           </div>
           <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.7 }}>
             <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/messages</code> 支持 NexusFlow 接入的全部模型 — 包含 Claude 官方系列，以及通义千问、GLM、DeepSeek、Kimi、MiniMax 等。
+            JSON 请求体兼容固定 <code>Content-Length</code>、HTTP/1.1 chunked，以及不携带 <code>Content-Length</code> 的 HTTP/2 客户端。
           </div>
         </div>
       </section>

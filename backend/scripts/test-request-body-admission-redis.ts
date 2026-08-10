@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import {
+  increaseRequestBodyAdmission,
   releaseRequestBodyAdmission,
   reserveRequestBodyAdmission,
 } from "../src/services/request-body-admission";
@@ -44,14 +45,18 @@ function request(headers: Record<string, string>, path = "/chat/completions"): a
   };
 }
 
-async function runMiddleware(req: any): Promise<{ response: MockResponse; next: boolean }> {
+async function runMiddleware(req: any): Promise<{
+  request: any;
+  response: MockResponse;
+  next: boolean;
+}> {
   const response = new MockResponse();
   let next = false;
   await requireApiKeyBeforeLargeJson(req, response as any, (error?: unknown) => {
     if (error) throw error;
     next = true;
   });
-  return { response, next };
+  return { request: req, response, next };
 }
 
 async function main(): Promise<void> {
@@ -133,19 +138,77 @@ async function main(): Promise<void> {
     leaseId: afterExpiry.leaseId,
   });
 
+  const dynamicLease = await reserveRequestBodyAdmission({
+    apiKeyId: "body-key-dynamic",
+    clientIp: "203.0.113.12",
+    declaredBytes: 0,
+  });
+  assert(dynamicLease.allowed);
+  if (!dynamicLease.allowed) throw new Error("dynamic lease was not admitted");
+  assert.deepEqual(
+    await increaseRequestBodyAdmission({
+      apiKeyId: "body-key-dynamic",
+      clientIp: "203.0.113.12",
+      leaseId: dynamicLease.leaseId,
+      deltaBytes: 100,
+    }),
+    { allowed: true, leaseId: dynamicLease.leaseId }
+  );
+  assert.deepEqual(
+    await increaseRequestBodyAdmission({
+      apiKeyId: "body-key-dynamic",
+      clientIp: "203.0.113.12",
+      leaseId: dynamicLease.leaseId,
+      deltaBytes: 51,
+    }),
+    { allowed: false, reason: "api_key_bytes" }
+  );
+  await releaseRequestBodyAdmission({
+    apiKeyId: "body-key-dynamic",
+    clientIp: "203.0.113.12",
+    leaseId: dynamicLease.leaseId,
+  });
+  assert.deepEqual(
+    await increaseRequestBodyAdmission({
+      apiKeyId: "body-key-dynamic",
+      clientIp: "203.0.113.12",
+      leaseId: dynamicLease.leaseId,
+      deltaBytes: 1,
+    }),
+    { allowed: false, reason: "lease_expired" }
+  );
+
   process.env.NODE_ENV = "production";
   const authHeaders = {
     authorization: `Bearer ${testKey}`,
     "content-type": "application/json",
   };
   const missingLength = await runMiddleware(request(authHeaders));
-  assert.equal(missingLength.next, false);
-  assert.equal(missingLength.response.statusCode, 411);
+  assert.equal(missingLength.next, true);
+  assert.equal(typeof missingLength.request[BODY_ADMISSION_RELEASE], "function");
+  missingLength.request[BODY_ADMISSION_RELEASE]();
   const chunked = await runMiddleware(request({
     ...authHeaders,
     "transfer-encoding": "chunked",
   }));
-  assert.equal(chunked.response.statusCode, 411);
+  assert.equal(chunked.next, true);
+  assert.equal(typeof chunked.request[BODY_ADMISSION_RELEASE], "function");
+  chunked.request[BODY_ADMISSION_RELEASE]();
+  const ambiguous = await runMiddleware(request({
+    ...authHeaders,
+    "transfer-encoding": "chunked",
+    "content-length": "100",
+  }));
+  assert.equal(ambiguous.next, false);
+  assert.equal(ambiguous.response.statusCode, 400);
+  assert.equal(ambiguous.response.payload.error.code, "ambiguous_request_framing");
+  const unsupportedTransfer = await runMiddleware(request({
+    ...authHeaders,
+    "transfer-encoding": "gzip",
+  }));
+  assert.equal(unsupportedTransfer.next, false);
+  assert.equal(unsupportedTransfer.response.statusCode, 400);
+  assert.equal(unsupportedTransfer.response.payload.error.code, "unsupported_transfer_encoding");
   const compressed = await runMiddleware(request({
     ...authHeaders,
     "content-encoding": "gzip",

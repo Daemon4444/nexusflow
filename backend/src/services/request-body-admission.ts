@@ -9,6 +9,7 @@ export type RequestBodyAdmissionReason =
   | "ip_bytes"
   | "global_concurrency"
   | "global_bytes"
+  | "lease_expired"
   | "redis_unavailable";
 
 export type RequestBodyAdmission =
@@ -127,6 +128,54 @@ const RELEASE_SCRIPT = `
   return 1
 `;
 
+const INCREASE_SCRIPT = `
+  local leaseId = ARGV[1]
+  local now = tonumber(ARGV[2])
+  local expiresAt = tonumber(ARGV[3])
+  local deltaBytes = tonumber(ARGV[4])
+  local ttl = tonumber(ARGV[5])
+
+  local function cleanup(zkey, hkey, totalKey)
+    local expired = redis.call("ZRANGEBYSCORE", zkey, 0, now)
+    local removedBytes = 0
+    for _, id in ipairs(expired) do
+      removedBytes = removedBytes + tonumber(redis.call("HGET", hkey, id) or "0")
+      redis.call("HDEL", hkey, id)
+    end
+    if #expired > 0 then
+      redis.call("ZREMRANGEBYSCORE", zkey, 0, now)
+      local current = tonumber(redis.call("GET", totalKey) or "0")
+      local nextValue = math.max(0, current - removedBytes)
+      if nextValue == 0 then redis.call("DEL", totalKey)
+      else redis.call("SET", totalKey, nextValue, "EX", ttl) end
+    end
+  end
+
+  for i = 0, 2 do
+    local offset = i * 3
+    cleanup(KEYS[offset + 1], KEYS[offset + 2], KEYS[offset + 3])
+    if not redis.call("ZSCORE", KEYS[offset + 1], leaseId) then
+      return {0, 7}
+    end
+    local byteLimit = tonumber(ARGV[6 + i])
+    local currentBytes = tonumber(redis.call("GET", KEYS[offset + 3]) or "0")
+    if currentBytes + deltaBytes > byteLimit then
+      return {0, i * 2 + 2}
+    end
+  end
+
+  for i = 0, 2 do
+    local offset = i * 3
+    redis.call("ZADD", KEYS[offset + 1], expiresAt, leaseId)
+    redis.call("HINCRBY", KEYS[offset + 2], leaseId, deltaBytes)
+    redis.call("INCRBY", KEYS[offset + 3], deltaBytes)
+    redis.call("EXPIRE", KEYS[offset + 1], ttl)
+    redis.call("EXPIRE", KEYS[offset + 2], ttl)
+    redis.call("EXPIRE", KEYS[offset + 3], ttl)
+  end
+  return {1, 0}
+`;
+
 const REASON_BY_CODE: Record<number, RequestBodyAdmissionReason> = {
   1: "api_key_concurrency",
   2: "api_key_bytes",
@@ -134,6 +183,7 @@ const REASON_BY_CODE: Record<number, RequestBodyAdmissionReason> = {
   4: "ip_bytes",
   5: "global_concurrency",
   6: "global_bytes",
+  7: "lease_expired",
 };
 
 function reserveInMemory(
@@ -238,3 +288,70 @@ export async function releaseRequestBodyAdmission(params: {
   );
 }
 
+export async function increaseRequestBodyAdmission(params: {
+  apiKeyId: string;
+  clientIp: string;
+  leaseId: string;
+  deltaBytes: number;
+}): Promise<RequestBodyAdmission> {
+  if (!Number.isSafeInteger(params.deltaBytes) || params.deltaBytes <= 0) {
+    throw new Error("request-body admission increment must be a positive integer");
+  }
+
+  const buckets = bucketNames(params.apiKeyId, params.clientIp);
+  const limits = getRequestBodyAdmissionLimits();
+  const hasRedis = !!process.env.REDIS_HOST?.trim();
+  const now = Date.now();
+
+  if (!hasRedis) {
+    if (isProductionRuntime()) return { allowed: false, reason: "redis_unavailable" };
+    const dimensions = [limits.apiKeyBytes, limits.ipBytes, limits.globalBytes];
+    for (let index = 0; index < buckets.length; index += 1) {
+      const bucket = memoryBuckets.get(buckets[index]);
+      if (bucket) {
+        for (const [id, currentLease] of bucket) {
+          if (currentLease.expiresAt <= now) bucket.delete(id);
+        }
+      }
+      const lease = bucket?.get(params.leaseId);
+      if (!bucket || !lease) {
+        return { allowed: false, reason: "lease_expired" };
+      }
+      const currentBytes = [...bucket.values()].reduce(
+        (sum, currentLease) => sum + currentLease.bytes,
+        0
+      );
+      if (currentBytes + params.deltaBytes > dimensions[index]) {
+        return { allowed: false, reason: REASON_BY_CODE[index * 2 + 2] };
+      }
+    }
+    for (const bucketName of buckets) {
+      const lease = memoryBuckets.get(bucketName)!.get(params.leaseId)!;
+      lease.bytes += params.deltaBytes;
+      lease.expiresAt = now + limits.leaseTtlSeconds * 1000;
+    }
+    return { allowed: true, leaseId: params.leaseId };
+  }
+
+  const keys = buckets.flatMap(redisBucketKeys);
+  try {
+    const result = await getRedis().eval(
+      INCREASE_SCRIPT,
+      keys.length,
+      ...keys,
+      params.leaseId,
+      now,
+      now + limits.leaseTtlSeconds * 1000,
+      params.deltaBytes,
+      limits.leaseTtlSeconds + 5,
+      limits.apiKeyBytes,
+      limits.ipBytes,
+      limits.globalBytes
+    ) as [number, number];
+    return result[0] === 1
+      ? { allowed: true, leaseId: params.leaseId }
+      : { allowed: false, reason: REASON_BY_CODE[Number(result[1])] };
+  } catch {
+    return { allowed: false, reason: "redis_unavailable" };
+  }
+}

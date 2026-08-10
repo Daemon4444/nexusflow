@@ -27,7 +27,7 @@ const langTabs: { key: LangKey; label: string }[] = [
 /* ── Request headers ── */
 const requestHeaders = [
   { name: "Authorization", value: "Bearer <API_KEY>", required: true, desc: "API 密钥。在控制台创建后以 sk-air- 开头。" },
-  { name: "Content-Type", value: "application/json", required: true, desc: "请求体格式，固定为 JSON。" },
+  { name: "Content-Type", value: "application/json", required: true, desc: "请求体格式，固定为 JSON。Content-Length 可选，支持 HTTP/1.1 chunked 请求体。" },
 ];
 
 /* ── Request parameters ── */

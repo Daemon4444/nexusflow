@@ -109,7 +109,7 @@ Internet
 
 后端虽然监听 `0.0.0.0:3001` 以兼容 PM2 cluster，但主机防火墙阻止公网直连；外部流量应只经 ALB 和 nginx。不要未经验证就把 cluster 模式改为 `app.listen(..., "127.0.0.1")`，历史上这会导致 PM2 cluster 不监听并产生 502。
 
-`/v1` 的大 JSON 请求在 `express.json()` 前先做只读 API Key 校验，避免匿名请求触发最高 50MB 的 JSON 解析。校验通过后还有一层请求体准入控制（`backend/src/services/request-body-admission.ts`，Key/IP/全局 × 并发/字节六维，`PUBLIC_BODY_*` 环境变量可调）：租约只保护 body 在内存中的缓冲，body 解析完成即释放，不覆盖上游调用和流式响应阶段；拒绝会返回 429/503 并在 message 中透出具体维度（如 `api_key_concurrency`），同时写入 SLS（status=rejected，errorReason=`body_admission_*`）。nginx 另加载仓库中的 `ops/nginx/nexusflow-v1-*.conf`，为普通 `/v1/` 请求提供 1 MiB、10 秒慢请求、每 IP 600 RPM、100 burst 和 50 并发连接的粗粒度防洪；大上下文、embedding 和音频路由使用更精确的独立边缘策略，API Key QPM/TPM 仍由应用层执行。
+`/v1` 的大 JSON 请求在解析前先做只读 API Key 校验，避免匿名请求触发最高 50MB 的 JSON 缓冲。校验通过后还有一层请求体准入控制（`backend/src/services/request-body-admission.ts`，Key/IP/全局 × 并发/字节六维，`PUBLIC_BODY_*` 环境变量可调）：有 `Content-Length` 时按声明值精确预占；HTTP/2 无长度或 HTTP/1.1 chunked JSON 则在读取过程中按真实在途字节动态增加 Redis 租约，并以 256 KiB 前瞻窗口减少 Redis 往返，不再把每个小请求视作 50 MiB。单请求实际读取仍受 1/50 MiB 硬上限约束。租约只保护 body 在内存中的缓冲，body 解析完成即释放，不覆盖上游调用和流式响应阶段；拒绝会返回 429/503 并在 message 中透出具体维度（如 `api_key_concurrency`），同时写入 SLS（status=rejected，errorReason=`body_admission_*`）。nginx 另加载仓库中的 `ops/nginx/nexusflow-v1-*.conf`，为普通 `/v1/` 请求提供 1 MiB、10 秒慢请求、每 IP 600 RPM、100 burst 和 50 并发连接的粗粒度防洪；大上下文、embedding 和音频路由使用更精确的独立边缘策略，API Key QPM/TPM 仍由应用层执行。
 
 ## 5. 仓库结构
 
