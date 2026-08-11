@@ -25,6 +25,7 @@ import { useAuth } from "@/lib/auth";
 import { useAdminSession } from "../gate/AdminGate";
 
 const { Header, Sider, Content } = Layout;
+const environmentLabel = process.env.NODE_ENV === "production" ? "PRODUCTION" : "DEVELOPMENT";
 
 interface NavEntry {
   key: string;
@@ -99,7 +100,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       />
       <div className="nf-admin-sider-footer">
         <Link href="/">← 返回产品站</Link>
-        <span>Production control plane</span>
+        <span>{environmentLabel === "PRODUCTION" ? "Production" : "Development"} control plane</span>
       </div>
     </div>
   );
@@ -131,7 +132,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             ) : null}
             <div className="nf-admin-header-title">
               Operations Control Plane
-              <Tag color="green">PRODUCTION</Tag>
+              <Tag color={environmentLabel === "PRODUCTION" ? "green" : "gold"}>{environmentLabel}</Tag>
             </div>
           </Space>
           <Space size={8}>

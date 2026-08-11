@@ -34,6 +34,7 @@ export interface ModelsPageProps {
   initialModels: AIModel[];
   initialProviders: string[];
   initialCategories: string[];
+  initialError?: string;
 }
 
 const categoryColors: Record<string, string> = {
@@ -57,7 +58,7 @@ function getProtocolBadges(model: AIModel) {
   return model.supportedProtocols || model.supported_protocols || [];
 }
 
-export default function ModelsPage({ initialModels, initialProviders, initialCategories }: ModelsPageProps) {
+export default function ModelsPage({ initialModels, initialProviders, initialCategories, initialError = "" }: ModelsPageProps) {
   const [models, setModels] = useState<AIModel[]>(initialModels);
   const [providers, setProviders] = useState<string[]>(initialProviders);
   const [selectedCategory, setSelectedCategory] = useState("全部");
@@ -65,7 +66,7 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
 
   const [allCategories, setAllCategories] = useState<string[]>(initialCategories);
   const isInitialMount = useRef(true);

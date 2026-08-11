@@ -38,7 +38,7 @@ const qwenProtocols = [
     protocol: "Responses API",
     endpoint: "/v1/responses",
     status: "已开放",
-    usage: "内置联网搜索、代码解释器等工具，支持 previous_response_id 多轮上下文。",
+    usage: "默认支持函数工具与 previous_response_id 多轮上下文；其他受管工具需单独开通。",
   },
 ];
 

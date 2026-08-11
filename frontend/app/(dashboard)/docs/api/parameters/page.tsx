@@ -84,7 +84,7 @@ const responsesParams = [
   ["previous_response_id", "—", "上一轮响应 ID，用于多轮对话（有效期 7 天）。"],
   ["stream", "stream", "是否开启流式输出。"],
   ["store", "—", "是否存储响应（默认 true），false 则不能用 previous_response_id 引用。"],
-  ["tools", "tools", "工具列表：web_search、web_extractor、code_interpreter、function 等。"],
+  ["tools", "tools", "工具列表：默认开放 function；其他受管工具需账户白名单与成本确认。"],
   ["tool_choice", "tool_choice", "工具选择策略：auto / none / required。"],
   ["temperature", "temperature", "采样温度。"],
   ["top_p", "top_p", "核采样。"],

@@ -1,11 +1,9 @@
 "use client";
 
 const rateLimits = [
-  { tier: "免费版", rpm: 20, tpm: "40K", concurrent: 2, desc: "适合个人学习和测试" },
-  { tier: "开发者", rpm: 60, tpm: "150K", concurrent: 5, desc: "适合个人开发者和小型项目" },
-  { tier: "团队版", rpm: 200, tpm: "500K", concurrent: 20, desc: "适合团队协作和中型应用" },
-  { tier: "企业版", rpm: 1000, tpm: "2M", concurrent: 100, desc: "适合大规模生产环境" },
-  { tier: "定制版", rpm: "定制", tpm: "定制", concurrent: "定制", desc: "根据需求定制限额" },
+  { tier: "系统默认", rpm: "30,000", tpm: "5M", concurrent: "动态", desc: "未设置账户覆盖时使用；实际可用量仍受模型与供应商容量约束" },
+  { tier: "账户自定义", rpm: "按审批", tpm: "按审批", concurrent: "动态", desc: "控制台提交容量申请，审核后按账户或指定模型覆盖" },
+  { tier: "供应商容量", rpm: "动态", tpm: "动态", concurrent: "动态", desc: "上游容量、健康与区域策略可能形成更低的实时有效上限" },
 ];
 
 const modelLimits = [
@@ -50,12 +48,13 @@ export default function LimitsPage() {
       </section>
 
       <section style={{ marginBottom: 48 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 20 }}>套餐速率限制</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>账户速率限制</h2>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 16 }}>NexusFlow 当前不按“免费版/团队版”等固定套餐硬编码额度。控制台显示的账户有效额度和模型覆盖规则是当前事实来源。</p>
         <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>套餐</th>
+                <th style={{ padding: "12px 16px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>额度来源</th>
                 <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>RPM</th>
                 <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>TPM</th>
                 <th style={{ padding: "12px 16px", textAlign: "center", borderBottom: "1px solid var(--border)" }}>并发数</th>

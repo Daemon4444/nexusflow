@@ -452,7 +452,7 @@ export default function ChatCompletionsApiPage() {
           Chat Completions API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          创建对话补全响应。接口完全兼容 OpenAI Chat Completions 格式，可直接使用 OpenAI 官方 SDK（Python / Node.js）接入，只需修改 <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>base_url</code> 和 <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>api_key</code>。支持流式输出、多轮对话、Function Calling、视觉理解等能力。
+          创建对话补全响应。接口兼容 OpenAI Chat Completions 的核心请求与响应格式，可直接使用 OpenAI 官方 SDK（Python / Node.js）接入，只需修改 <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>base_url</code> 和 <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>api_key</code>。流式输出、Function Calling、视觉理解等能力以模型详情页的参数与协议声明为准。
         </p>
       </div>
 

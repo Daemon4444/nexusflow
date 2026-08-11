@@ -49,7 +49,7 @@ const popularModels = [
 const apiEndpoints = [
   { method: "POST", path: "/v1/chat/completions", desc: "对话补全" },
   { method: "POST", path: "/v1/messages", desc: "Anthropic Messages 兼容" },
-  { method: "POST", path: "/v1/responses", desc: "Responses API（内置工具、多轮上下文）" },
+  { method: "POST", path: "/v1/responses", desc: "Responses API（函数工具、多轮上下文）" },
   { method: "POST", path: "/v1/embeddings", desc: "文本向量" },
   { method: "POST", path: "/v1/tasks", desc: "图像 / 视频异步任务提交" },
   { method: "GET", path: "/v1/tasks/:id", desc: "异步任务轮询" },
@@ -58,7 +58,7 @@ const apiEndpoints = [
 const protocols = [
   { name: "OpenAI-compatible", endpoint: "/v1/chat/completions", href: "/docs/api/chat", desc: "推荐默认接入方式，覆盖对话、推理、工具调用和多数语言 SDK。" },
   { name: "Anthropic Messages", endpoint: "/v1/messages", href: "/docs/api/anthropic", desc: "适合复用 Anthropic SDK、Claude Code 风格客户端和 Messages 请求格式。" },
-  { name: "Responses API", endpoint: "/v1/responses", href: "/docs/api/responses", desc: "内置联网搜索、代码解释器等工具，简化上下文管理，支持多轮 previous_response_id。" },
+  { name: "Responses API", endpoint: "/v1/responses", href: "/docs/api/responses", desc: "默认支持函数工具与 previous_response_id；其他受管工具需单独开通。" },
 ];
 
 export default function DocsPage() {
@@ -322,7 +322,7 @@ export default function DocsPage() {
                 </div>
               </div>
               <Link
-                href={`/docs/models/${model.name === "HappyHorse 1.0" ? "happyhorse" : model.name.startsWith("Seedance") ? "seedance" : model.provider === "阿里云" ? "qwen" : model.provider === "DeepSeek" ? "deepseek" : "other"}`}
+                href={`/docs/models/${model.name === "HappyHorse 1.0" ? "happyhorse" : model.name.startsWith("Seedance") ? "seedance" : model.provider === "阿里云" ? "qwen" : model.provider === "DeepSeek" ? "deepseek" : model.provider === "Anthropic" ? "claude" : ""}`}
                 style={{
                   fontSize: 13,
                   color: "var(--accent)",

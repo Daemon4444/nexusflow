@@ -8,7 +8,7 @@ export default function DashboardLayout({
   return (
     <>
       <Header />
-      <main id="main-content" style={{ height: "calc(100vh - 56px)", overflow: "auto", background: "var(--bg)" }}>
+      <main id="main-content" className="nf-app-main">
         {children}
       </main>
     </>

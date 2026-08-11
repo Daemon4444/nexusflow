@@ -36,9 +36,10 @@ interface AIModel {
 
 export interface PricingPageProps {
   initialModels: AIModel[];
+  initialError?: string;
 }
 
-export default function PricingPage({ initialModels }: PricingPageProps) {
+export default function PricingPage({ initialModels, initialError = "" }: PricingPageProps) {
   const { t } = useI18n();
   const [models] = useState<AIModel[]>(initialModels);
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -125,8 +126,8 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
               fontWeight: selectedCategory === cat ? 600 : 450,
               cursor: "pointer",
               border: "1px solid",
-              borderColor: selectedCategory === cat ? "var(--text-primary)" : "var(--border)",
-              background: selectedCategory === cat ? "var(--text-primary)" : "transparent",
+              borderColor: selectedCategory === cat ? "var(--accent)" : "var(--border)",
+              background: selectedCategory === cat ? "var(--accent)" : "transparent",
               color: selectedCategory === cat ? "#fff" : "var(--text-secondary)",
               transition: "all 0.15s",
               fontFamily: "inherit",
@@ -138,6 +139,12 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
       </div>
 
       {/* Pricing tables by provider */}
+      {initialError ? (
+        <div className="nf-inline-warning" role="alert">
+          <strong>价格目录加载失败</strong>
+          <span>{initialError}</span>
+        </div>
+      ) : null}
       <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
           {Object.entries(groupedByProvider).map(([provider, providerModels]) => (
             <div key={provider}>
@@ -274,7 +281,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                       }}>
                         {model.tokenPricingTiers!.map((tier) => (
                           <span key={tier.label} style={{ whiteSpace: "nowrap" }}>
-                            {tier.label}：入¥{tier.promptPrice}/出¥{tier.completionPrice}
+                            {tier.label}：入¥{tier.promptPrice}/出¥{tier.completionPrice} / 百万 Token
                           </span>
                         ))}
                       </span>
@@ -297,6 +304,7 @@ export default function PricingPage({ initialModels }: PricingPageProps) {
                             <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450, margin: "0 2px" }}>/</span>
                             <span style={{ fontSize: 12, color: "var(--text-tertiary)", fontWeight: 450 }}>{t("outputShort")}</span>
                             <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>¥{model.completionPrice}</span>
+                            <span style={{ fontSize: 11, color: "var(--text-tertiary)", fontWeight: 450 }}> / 百万 Token</span>
                           </>
                         )}
                       </span>

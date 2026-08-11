@@ -71,7 +71,7 @@ const qwenModels = [
   {
     id: "qwen3.6-plus",
     name: "Qwen3.6 Plus",
-    desc: "均衡旗舰模型，支持百万级上下文窗口、函数调用与内置工具，适合大多数生产场景。",
+    desc: "均衡旗舰模型，支持百万级上下文窗口与函数调用，适合大多数生产场景。",
     ctx: "1,000,000",
     maxOutput: "65,536",
     inputPrice: "¥2",

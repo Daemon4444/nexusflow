@@ -119,17 +119,22 @@ const response = await client.responses.create({
 });
 console.log(response.output_text);`;
 
-const responsesTools = `# 使用内置工具
+const responsesTools = `# 使用默认开放的函数工具
 response = client.responses.create(
     model="qwen3.7-plus",
-    input="帮我搜索今天的新闻",
-    tools=[
-        {"type": "web_search"},
-        {"type": "code_interpreter"},
-        {"type": "web_extractor"},
-    ],
+    input="北京天气怎么样",
+    tools=[{
+        "type": "function",
+        "name": "get_weather",
+        "description": "查询指定城市的天气",
+        "parameters": {
+            "type": "object",
+            "properties": {"city": {"type": "string"}},
+            "required": ["city"],
+        },
+    }],
 )
-print(response.output_text)`;
+print(response.output)`;
 
 const responsesMultiTurn = `# 多轮对话 — 通过 previous_response_id 关联上下文
 response1 = client.responses.create(
@@ -147,7 +152,7 @@ print(response2.output_text)`;
 const protocolBoundaryRows = [
   { name: "OpenAI Chat Completions", endpoint: "/v1/chat/completions", status: "已开放", note: "文本、推理、多模态、编程模型的默认推荐入口。" },
   { name: "Anthropic Messages", endpoint: "/v1/messages", status: "已开放", note: "兼容 Anthropic SDK 和 Messages 请求/流式事件格式。" },
-  { name: "Responses API", endpoint: "/v1/responses", status: "已开放", note: "内置联网搜索、代码解释器等工具，简化多轮对话上下文管理。" },
+  { name: "Responses API", endpoint: "/v1/responses", status: "已开放", note: "支持函数工具与多轮上下文管理；受管工具需单独开通。" },
   { name: "OpenAI Image Generations", endpoint: "/v1/images/generations", status: "已开放", note: "图像生成的同步兼容入口；复杂图像/视频任务也可用 /v1/tasks。" },
   { name: "OpenAI Embeddings", endpoint: "/v1/embeddings", status: "已开放", note: "文本向量模型入口。" },
   { name: "NexusFlow Tasks", endpoint: "/v1/tasks", status: "已开放", note: "图像和视频异步任务统一入口。" },
@@ -174,7 +179,7 @@ export default function MultiProtocolPage() {
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>
           nexusflow 当前对外统一提供三类 public protocol：OpenAI Chat Completions、Anthropic Messages 和 Responses API。
           这些协议在平台内通过兼容层接到同一套模型路由、计费和监控链路上，目标是让你可以继续使用熟悉的 SDK，同时不把供应商差异泄漏到业务侧。
-          Responses API 提供内置工具（联网搜索、代码解释器等）和 previous_response_id 多轮上下文管理，适合复杂任务场景。
+          Responses API 默认提供函数工具和 previous_response_id 多轮上下文管理；联网搜索、网页提取等受管工具需账户白名单与单独成本确认。
         </p>
         <div style={{
           marginTop: 18, padding: "14px 18px", borderRadius: 10,
@@ -222,7 +227,7 @@ export default function MultiProtocolPage() {
                 { proto: "OpenAI Image Generations", endpoint: "/v1/images/generations", sdk: "OpenAI SDK", usage: "图像生成" },
                 { proto: "OpenAI Embeddings", endpoint: "/v1/embeddings", sdk: "OpenAI SDK", usage: "文本向量化" },
                 { proto: "Anthropic Messages", endpoint: "/v1/messages", sdk: "Anthropic SDK", usage: "文本对话、工具调用" },
-                { proto: "Responses API", endpoint: "/v1/responses", sdk: "OpenAI SDK", usage: "内置工具、多轮上下文" },
+                { proto: "Responses API", endpoint: "/v1/responses", sdk: "OpenAI SDK", usage: "函数工具、多轮上下文" },
               ].map((row, idx) => (
                 <tr key={row.proto} style={{ background: idx % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{row.proto}</td>
@@ -365,7 +370,7 @@ export default function MultiProtocolPage() {
           Responses API
         </h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8, marginBottom: 16 }}>
-          Responses API 相较于 Chat Completions 提供了更强大的能力：内置联网搜索、网页抓取、代码解释器等工具；
+          Responses API 相较于 Chat Completions 提供函数工具与统一的响应对象；
           通过 <code style={{ fontFamily: "var(--font-mono)" }}>previous_response_id</code> 简化多轮对话上下文管理，无需手动构建完整消息历史。
           使用 OpenAI SDK 的 <code style={{ fontFamily: "var(--font-mono)" }}>client.responses.create()</code> 即可调用。
         </p>
@@ -386,7 +391,7 @@ export default function MultiProtocolPage() {
           <DocsCodeBlock code={responsesLang === "python" ? responsesPython : responsesNode} />
         </div>
 
-        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>内置工具</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 12 }}>函数工具</h3>
         <div style={{ background: "#1a1a1a", borderRadius: 10, padding: 20, overflow: "auto", marginBottom: 24 }}>
           <DocsCodeBlock code={responsesTools} />
         </div>
@@ -403,7 +408,7 @@ export default function MultiProtocolPage() {
           {[
             "如果你使用的是 DeepSeek、Qwen、GLM 等国产模型，推荐使用 OpenAI Chat 协议，兼容性最好。",
             "如果你已经在用 Anthropic SDK，可以优先使用 /v1/messages，减少 SDK 迁移成本。",
-            "如果你需要内置工具（联网搜索、代码解释器）或 previous_response_id 多轮上下文，使用 /v1/responses。",
+            "如果你需要函数工具或 previous_response_id 多轮上下文，使用 /v1/responses；其他受管工具需先开通。",
             "在模型详情页查看 supported_protocols，确认该模型当前开放了哪些协议。",
           ].map((text, i) => (
             <div key={i} style={{ display: "flex", gap: 10, padding: "10px 14px", borderRadius: 8, background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>

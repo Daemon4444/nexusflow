@@ -21,6 +21,7 @@ export default function Footer() {
             <Link href="/docs/quickstart">Quickstart</Link>
             <Link href="/docs/api/parameters">API Reference</Link>
             <Link href="/docs/faq">FAQ</Link>
+            <Link href="/status">Service Status</Link>
           </div>
           <div className="nf-footer-col">
             <h4>Legal</h4>
@@ -31,6 +32,7 @@ export default function Footer() {
       </div>
       <div className="nf-footer-bottom">
         <span>&copy; {new Date().getFullYear()} NexusFlow. All rights reserved.</span>
+        <span>Usage-based AI gateway · Status verified in real time</span>
       </div>
     </footer>
   );

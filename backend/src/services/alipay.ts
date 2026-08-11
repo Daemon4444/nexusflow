@@ -65,11 +65,6 @@ export function getAlipayConfigStatus() {
   const missing = required.filter((k) => !process.env[k] || !String(process.env[k]).trim());
   return {
     configured: missing.length === 0,
-    missing,
-    gateway: process.env.ALIPAY_GATEWAY || "https://openapi.alipay.com/gateway.do",
-    appId: process.env.ALIPAY_APP_ID || "",
-    notifyUrl: process.env.ALIPAY_NOTIFY_URL || "",
-    returnUrl: process.env.ALIPAY_RETURN_URL || "",
     mockEnabled: isMockPaymentAllowed(),
   };
 }

@@ -59,13 +59,13 @@ const endpoints: ApiEndpoint[] = [
   {
     method: "POST",
     path: "/v1/responses",
-    desc: "Responses API，支持内置工具（联网搜索、代码解释器等）和多轮上下文管理",
+    desc: "Responses API，默认支持函数工具和多轮上下文管理；受管工具需单独开通",
     href: "/docs/api/responses",
     params: [
       { name: "model", type: "string", required: true, desc: "模型 ID，如 qwen3.7-plus" },
       { name: "input", type: "string/array", required: true, desc: "纯文本或消息数组" },
       { name: "stream", type: "boolean", required: false, desc: "是否开启流式输出" },
-      { name: "tools", type: "array", required: false, desc: "工具列表（web_search、code_interpreter 等）" },
+      { name: "tools", type: "array", required: false, desc: "工具列表（默认开放 function；其他工具需白名单）" },
       { name: "previous_response_id", type: "string", required: false, desc: "上一轮响应 ID，用于多轮对话" },
     ],
     example: `curl https://nexusflow.hk/v1/responses \\
@@ -145,7 +145,7 @@ const features = [
 const protocolCards = [
   { title: "OpenAI Chat", href: "/docs/api/chat", endpoint: "/v1/chat/completions", desc: "默认推荐，兼容 OpenAI SDK。" },
   { title: "Anthropic Messages", href: "/docs/api/anthropic", endpoint: "/v1/messages", desc: "复用 Anthropic SDK 和 Messages 格式。" },
-  { title: "Responses API", href: "/docs/api/responses", endpoint: "/v1/responses", desc: "内置联网搜索、代码解释器，简化多轮上下文管理。" },
+  { title: "Responses API", href: "/docs/api/responses", endpoint: "/v1/responses", desc: "函数工具与多轮上下文；受管工具按账户开通。" },
 ];
 
 const protocolBoundary = [

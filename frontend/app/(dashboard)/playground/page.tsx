@@ -384,8 +384,9 @@ function PlaygroundInner() {
     async function loadModels() {
       const res = await fetchAPI("/api/models");
       if (res.success) {
-        setModels(res.data);
-        setSelectedModel(pickDefaultPlaygroundModel(res.data, requestedModel));
+        const supportedModels = res.data.filter((model: AIModel) => model.category !== "语音模型");
+        setModels(supportedModels);
+        setSelectedModel(pickDefaultPlaygroundModel(supportedModels, requestedModel));
       }
     }
     loadModels();
@@ -407,7 +408,6 @@ function PlaygroundInner() {
     if (m) {
       if (m.category === "图像生成") setMode("image");
       else if (m.category === "视频生成") setMode("video");
-      else if (m.category === "语音模型") setMode("audio");
       else setMode("chat");
       if (m.capabilities?.supports_enable_thinking) {
         setEnableThinking(Boolean(m.capabilities.thinking_default));
@@ -1210,7 +1210,7 @@ function PlaygroundInner() {
   };
 
   return (
-    <div className="playground-root" style={{ display: "flex", height: "calc(100vh - 56px)", fontFamily: "var(--font-sans)" }}>
+    <div className="playground-root" style={{ display: "flex", height: "calc(100vh - 64px)", fontFamily: "var(--font-sans)" }}>
       <aside className="playground-sidebar" style={{ width: 340, borderRight: "1px solid var(--border)", background: "var(--bg)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
         <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4 }}>模型</div>

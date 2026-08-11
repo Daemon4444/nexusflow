@@ -8,10 +8,10 @@ async function getModels() {
     const res = await fetch(`${backend}/api/models`, {
       cache: "no-store",
     });
-    if (!res.ok) return { data: [], providers: [], categories: [] };
-    return await res.json();
+    if (!res.ok) return { data: [], providers: [], categories: [], loadError: "模型服务暂时不可用，请稍后重试" };
+    return { ...(await res.json()), loadError: "" };
   } catch {
-    return { data: [], providers: [], categories: [] };
+    return { data: [], providers: [], categories: [], loadError: "无法连接模型服务，请稍后重试" };
   }
 }
 
@@ -22,6 +22,7 @@ export default async function ModelsPage() {
       initialModels={result.data || []}
       initialProviders={result.providers || []}
       initialCategories={result.categories || []}
+      initialError={result.loadError || ""}
     />
   );
 }

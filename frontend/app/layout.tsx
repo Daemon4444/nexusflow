@@ -1,4 +1,8 @@
 import type { Metadata } from "next";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-500.css";
+import "@fontsource/inter/latin-600.css";
+import "@fontsource/inter/latin-700.css";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
@@ -55,13 +59,7 @@ export default function RootLayout({
             "url": "https://nexusflow.hk",
             "description": "Unified AI model aggregation platform providing OpenAI-compatible API access to leading text, vision, image and video models.",
             "applicationCategory": "DeveloperApplication",
-            "operatingSystem": "Any",
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "CNY",
-              "description": "Pay-as-you-go pricing with no minimum spend"
-            }
+            "operatingSystem": "Any"
           }) }}
         />
         <ThemeProvider>

@@ -90,7 +90,7 @@ const protocols = [
     title: "Responses API",
     endpoint: `${API_BASE}/v1/responses`,
     href: "/docs/api/responses",
-    desc: "简洁的 Responses API 格式，支持内置工具和多轮对话管理。",
+    desc: "简洁的 Responses API 格式，默认支持函数工具和多轮对话管理。",
   },
 ];
 

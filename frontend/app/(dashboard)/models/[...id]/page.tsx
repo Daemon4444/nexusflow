@@ -35,6 +35,11 @@ interface ThinkingPricing {
   tiers?: { label: string; completionPrice: number; thinkingCompletionPrice: number }[];
 }
 
+interface UnitPricingTier {
+  label: string;
+  price: number;
+}
+
 interface AIModel {
   id: string;
   name: string;
@@ -43,6 +48,8 @@ interface AIModel {
   contextLength: number;
   promptPrice: number;
   completionPrice: number;
+  pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
+  pricingTiers?: UnitPricingTier[];
   tokenPricingTiers?: TokenPricingTier[];
   cachePricing?: CachePricing | null;
   thinkingPricing?: ThinkingPricing | null;
@@ -71,6 +78,8 @@ interface AIModel {
     supports_context_caching?: boolean;
   };
   allowed_parameters?: string[];
+  availability?: "available" | "temporarily_unavailable" | "disabled";
+  availabilityReason?: string | null;
 }
 
 interface ProtocolExample {
@@ -306,19 +315,23 @@ export default function ModelDetailPage() {
   const params = useParams();
   const [model, setModel] = useState<AIModel | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     async function loadModel() {
       setLoading(true);
+      setLoadError("");
       try {
         // catch-all：params.id 为 string[]（多段，如 ["kimi","kimi-k3"]）或 string（单段）
         const rawId = Array.isArray(params.id) ? params.id.join("/") : (params.id as string);
         const res = await fetchAPI(`/api/models/${encodeURIComponent(decodeURIComponent(rawId || ""))}`);
         if (res.success) {
           setModel(res.data);
+        } else {
+          setLoadError(res.message || "模型信息加载失败，请稍后重试");
         }
       } catch {
-        // 网络错误/超时/非法 % 序列：落到「模型未找到」兜底，不永久卡在加载中
+        setLoadError("模型服务暂时不可用，请稍后重试");
       } finally {
         setLoading(false);
       }
@@ -343,13 +356,39 @@ export default function ModelDetailPage() {
   if (!model) {
     return (
       <div className="empty-state" style={{ padding: 60 }}>
-        <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>模型未找到</div>
+        <div style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>{loadError || "模型未找到"}</div>
         <Link href="/models" className="btn-secondary">返回模型列表</Link>
       </div>
     );
   }
 
   const accent = categoryColors[model.category] || "#111";
+  const pricingType = model.pricingType || "token";
+  const isUnitPriced = pricingType !== "token";
+  const isAvailable = !model.availability || model.availability === "available";
+  const supportsPlayground = model.category !== "语音模型";
+  const availabilityLabel = isAvailable ? "可用" : model.availability === "disabled" ? "已下架" : "暂不可用";
+  const pricingUnit = pricingType === "per-second"
+    ? "秒"
+    : pricingType === "per-image"
+      ? "张"
+      : pricingType === "per-10k-characters"
+        ? "万字符"
+        : "百万 Token";
+  const unitPrice = model.pricingTiers?.[0]?.price ?? model.promptPrice;
+  const summaryItems = isUnitPriced
+    ? [
+        ["计费方式", `按${pricingUnit}`],
+        ["可用状态", availabilityLabel],
+        ["起步价格", `¥${unitPrice}/${pricingUnit}`],
+        ["价格规格", model.pricingTiers?.length ? `${model.pricingTiers.length} 档` : "统一单价"],
+      ]
+    : [
+        ["上下文", formatTokens(model.contextLength)],
+        ["最大输出", formatTokens(model.maxOutput)],
+        ["首阶输入", `¥${model.promptPrice}/M`],
+        ["首阶输出", `¥${model.completionPrice}/M`],
+      ];
   const protocols = model.supportedProtocols || model.supported_protocols || [];
   const protocolExamples = getProtocolExamples(model);
   const capabilityRows = model.capabilities ? [
@@ -387,6 +426,7 @@ export default function ModelDetailPage() {
               <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>{model.provider}</span>
               <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--text-tertiary)" }} />
               <span style={{ fontSize: 13, fontWeight: 600, color: accent, background: `${accent}15`, padding: "3px 10px", borderRadius: 6 }}>{model.category}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: isAvailable ? "var(--success)" : "var(--warning)", background: isAvailable ? "var(--success-bg)" : "var(--warning-bg)", border: `1px solid ${isAvailable ? "var(--success-border)" : "var(--warning-border)"}`, padding: "3px 9px", borderRadius: 999 }}>{availabilityLabel}</span>
             </div>
           </div>
           <code style={{ fontSize: 13, color: "var(--text-tertiary)", background: "var(--bg-elevated)", padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>
@@ -408,28 +448,27 @@ export default function ModelDetailPage() {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, padding: "16px 0", borderTop: "1px solid var(--border)" }}>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>上下文</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{formatTokens(model.contextLength)}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>最大输出</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{formatTokens(model.maxOutput)}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶输入</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: model.promptPrice === 0 ? "var(--success)" : "var(--text-primary)" }}>
-              {model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}/M`}
+        <div className="model-detail-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, padding: "16px 0", borderTop: "1px solid var(--border)" }}>
+          {summaryItems.map(([label, value]) => (
+            <div key={label}>
+              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>{label}</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{value}</div>
             </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶输出</div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: model.completionPrice === 0 ? "var(--success)" : "var(--text-primary)" }}>
-              {model.completionPrice === 0 ? "免费" : `¥${model.completionPrice}/M`}
-            </div>
-          </div>
+          ))}
         </div>
+        {isUnitPriced && model.pricingTiers && model.pricingTiers.length > 0 && (
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>规格定价</div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+              {model.pricingTiers.map((tier, index) => (
+                <div key={tier.label} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "10px 12px", borderBottom: index < model.pricingTiers!.length - 1 ? "1px solid var(--border)" : "none", fontSize: 13 }}>
+                  <span style={{ fontWeight: 500 }}>{tier.label}</span>
+                  <strong>¥{tier.price}/{pricingUnit}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {model.thinkingPricing && (
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
@@ -670,17 +709,17 @@ export default function ModelDetailPage() {
       <div className="card-static">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>立即体验</div>
-            <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>在 Playground 中测试此模型</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{isAvailable && supportsPlayground ? "立即体验" : isAvailable ? "通过 API 调用" : availabilityLabel}</div>
+            <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>{isAvailable && supportsPlayground ? "在 Playground 中测试此模型" : isAvailable ? "该模型暂未接入网页 Playground，请参考上方 API 示例。" : model.availabilityReason || "当前没有已配置的可用渠道，请稍后再试。"}</div>
           </div>
-          <Link
-            href={`/playground?model=${encodeURIComponent(model.id)}`}
-            className="btn-primary"
-            style={{ padding: "10px 20px" }}
-          >
-            打开 Playground
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-          </Link>
+          {isAvailable && supportsPlayground ? (
+            <Link href={`/playground?model=${encodeURIComponent(model.id)}`} className="btn-primary" style={{ padding: "10px 20px" }}>
+              打开 Playground
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+            </Link>
+          ) : !isAvailable ? (
+            <span className="btn-secondary" aria-disabled="true" style={{ padding: "10px 20px", cursor: "not-allowed", opacity: 0.7 }}>暂不可用</span>
+          ) : null}
         </div>
       </div>
     </div>

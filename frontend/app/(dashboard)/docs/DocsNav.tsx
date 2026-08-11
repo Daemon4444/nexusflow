@@ -110,7 +110,6 @@ const apiOtherLinks = [
 const platformLinks = [
   { href: "/docs/multi-protocol", label: "多协议支持" },
   { href: "/docs/provider-routing", label: "智能路由" },
-  { href: "/docs/model-fallback", label: "模型降级", tag: "Coming Soon" },
   { href: "/docs/api-keys", label: "API 密钥管理" },
   { href: "/docs/principles", label: "平台优势" },
 ];
@@ -408,11 +407,6 @@ function DocsNav() {
                 }}
               >
                 {item.label}
-                {"tag" in item && item.tag && (
-                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>
-                    {item.tag}
-                  </span>
-                )}
               </Link>
             );
           })}

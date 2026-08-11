@@ -41,22 +41,22 @@ export default function PrinciplesPage() {
             {
               title: "统一计费",
               code: "billing.unified()",
-              desc: "跨供应商统一 Token 消耗统计与账单。无论使用多少模型，所有费用统一从 nexusflow 余额扣除，告别多平台分别充值的混乱。",
+              desc: "跨供应商统一记录 Token、图片、视频、语音等实际用量与账单。所有费用从同一工作区余额结算。",
             },
             {
-              title: "容错降级",
-              code: "fallback: model[] → provider[]",
-              desc: "同一模型支持多供应商端点自动切换；单次请求可指定多个候选模型，逐级降级，保障服务持续可用。",
+              title: "供应商容错",
+              code: "route(model) → provider[]",
+              desc: "同一模型配置多个兼容渠道时，可在请求尚未开始输出前切换健康渠道。跨模型 request-level fallback 仍在规划中。",
             },
             {
               title: "模型丰富",
-              code: "models.list() → 45+",
+              code: "models.list() → 71",
               desc: "接入通义千问、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse 等国内头部模型。涵盖文本、推理、视觉、编程、图像、视频、向量等类别。",
             },
             {
               title: "开箱即用",
               code: "baseURL: \"nexusflow.hk/v1\"",
-              desc: "注册即用，分钟级接入。兼容现有 OpenAI / Anthropic / Google GenAI SDK，迁移成本低。",
+              desc: "注册即用，分钟级接入。兼容 OpenAI、Anthropic 与 Responses 协议的常用 SDK 调用方式。",
             },
           ].map((item) => (
             <div key={item.title} style={{ padding: 20, borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg)" }}>
@@ -84,7 +84,7 @@ export default function PrinciplesPage() {
             <tbody>
               {[
                 { cap: "切换模型/供应商", direct: "需要修改代码和 API Key", nf: "只需修改 model 参数" },
-                { cap: "供应商故障", direct: "服务中断", nf: "自动降级到备用供应商" },
+                { cap: "供应商故障", direct: "服务中断", nf: "在已配置的同模型健康渠道间切换" },
                 { cap: "计费管理", direct: "每个供应商单独管理", nf: "统一余额，一处管理" },
                 { cap: "用量追踪", direct: "各平台分散查看", nf: "集中式日志和报表" },
                 { cap: "多协议支持", direct: "每个协议独立配置", nf: "一个 Key 调用所有协议" },
@@ -106,7 +106,7 @@ export default function PrinciplesPage() {
           {[
             { title: "个人开发者", desc: "一个 API Key 即可调用市面上所有主流模型，无需逐一注册各家平台。" },
             { title: "创业团队", desc: "统一管理 API 用量和成本，快速测试不同模型找到最佳方案。" },
-            { title: "企业用户", desc: "高可用保障、自动降级、集中式审计日志，满足生产级需求。" },
+            { title: "企业用户", desc: "集中式权限、用量、账单和审计能力，支持生产流量治理。" },
           ].map((s) => (
             <div key={s.title} style={{ padding: 20, borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>{s.title}</div>
@@ -122,8 +122,7 @@ export default function PrinciplesPage() {
           {[
             { href: "/docs/quickstart", label: "快速开始", desc: "三步上手调用大模型" },
             { href: "/docs/multi-protocol", label: "多协议支持", desc: "使用 OpenAI、Anthropic、Responses 协议" },
-            { href: "/docs/provider-routing", label: "供应商路由", desc: "智能路由与自动降级" },
-            { href: "/docs/model-fallback", label: "模型降级", desc: "配置备选模型提高可用性" },
+            { href: "/docs/provider-routing", label: "供应商路由", desc: "同模型多渠道路由与容错边界" },
           ].map((link) => (
             <Link key={link.href} href={link.href} style={{ padding: "14px 18px", border: "1px solid var(--border)", borderRadius: 8, textDecoration: "none", background: "var(--bg)" }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{link.label}</div>

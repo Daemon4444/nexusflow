@@ -17,7 +17,7 @@ const faqs = [
       },
       {
         q: "支持哪些编程语言？",
-        a: "nexusflow 提供与 OpenAI 完全兼容的 API，因此支持所有 OpenAI SDK 支持的语言，包括：Python、Node.js/TypeScript、Go、Java、C#、Ruby、PHP 等。推荐使用官方 OpenAI SDK。",
+        a: "nexusflow 提供 OpenAI Chat、Anthropic Messages 与 Responses 等兼容接口。Python、Node.js/TypeScript 等常用官方 SDK 可通过修改 Base URL 接入；具体模型与协议支持请以模型详情页的 supported_protocols 为准。",
       },
     ],
   },
@@ -30,7 +30,7 @@ const faqs = [
       },
       {
         q: "计费方式是怎样的？",
-        a: "按实际使用量计费，以 Token 为单位。不同模型价格不同，输入和输出分别计价。价格单位为人民币/百万 Token。无最低消费，用多少付多少。",
+        a: "按实际使用量计费。文本与向量模型通常按 Token 计费，图片按张、视频和部分语音模型按秒，语音合成也可能按万字符计费。具体单位、阶梯与价格以模型详情和定价页为准。",
       },
       {
         q: "余额会过期吗？",
@@ -38,7 +38,7 @@ const faqs = [
       },
       {
         q: "如何获取发票？",
-        a: "在「账单管理」页面可以申请发票，支持增值税普通发票和专用发票。发票按月度消费金额开具。",
+        a: "如需企业采购或发票，请在控制台提交工单，客服会根据主体资质、消费记录和可开票范围协助处理。账单页目前支持下载用量 CSV 作为对账材料。",
       },
     ],
   },
@@ -59,7 +59,7 @@ const faqs = [
       },
       {
         q: "有速率限制吗？",
-        a: "有。根据不同套餐有不同的 RPM（每分钟请求数）和 TPM（每分钟 Token 数）限制。详见「限流说明」文档。企业用户可申请更高配额。",
+        a: "有。账户会应用 QPM（每分钟请求数）和 TPM（每分钟 Token 数）限制，供应商通道也可能有独立动态容量。默认账户上限与申请方式请以「限流说明」页面为准。",
       },
     ],
   },
@@ -164,6 +164,8 @@ export default function FAQPage() {
                 >
                   <button
                     onClick={() => toggleItem(id)}
+                    aria-expanded={isOpen}
+                    aria-controls={`${id}-answer`}
                     style={{
                       width: "100%",
                       padding: "16px 20px",
@@ -201,7 +203,7 @@ export default function FAQPage() {
                     </svg>
                   </button>
                   {isOpen && (
-                    <div style={{
+                    <div id={`${id}-answer`} style={{
                       padding: "0 20px 16px",
                       fontSize: 14,
                       color: "var(--text-secondary)",

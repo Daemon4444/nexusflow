@@ -194,7 +194,7 @@ export async function sendEmailCode(
 
   return {
     success: true,
-    message: isReal ? "验证码已发送到您的邮箱" : "验证码已发送（测试模式，请查看服务器日志）",
+    message: "验证码已发送到您的邮箱",
     challengeToken: reserved.reservation.token,
   };
 }

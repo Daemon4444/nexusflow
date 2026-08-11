@@ -8,14 +8,14 @@ async function getModels() {
     const res = await fetch(`${backend}/api/models`, {
       cache: "no-store",
     });
-    if (!res.ok) return { data: [] };
-    return await res.json();
+    if (!res.ok) return { data: [], loadError: "价格服务暂时不可用，请稍后重试" };
+    return { ...(await res.json()), loadError: "" };
   } catch {
-    return { data: [] };
+    return { data: [], loadError: "无法连接价格服务，请稍后重试" };
   }
 }
 
 export default async function PricingPage() {
   const result = await getModels();
-  return <PricingClient initialModels={result.data || []} />;
+  return <PricingClient initialModels={result.data || []} initialError={result.loadError || ""} />;
 }

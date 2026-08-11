@@ -417,7 +417,20 @@ function LogAnalysis() {
             </div>
             {results.map((r) => (
               <div key={r.log_id}>
-                <div className="table-row" style={{ gridTemplateColumns: "1.5fr 1fr 0.6fr 0.6fr 0.6fr 1fr", cursor: "pointer" }} onClick={() => r.log_id && loadDetail(r.log_id)}>
+                <div
+                  className="table-row"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expandedId === r.log_id}
+                  style={{ gridTemplateColumns: "1.5fr 1fr 0.6fr 0.6fr 0.6fr 1fr", cursor: "pointer" }}
+                  onClick={() => r.log_id && loadDetail(r.log_id)}
+                  onKeyDown={(event) => {
+                    if ((event.key === "Enter" || event.key === " ") && r.log_id) {
+                      event.preventDefault();
+                      loadDetail(r.log_id);
+                    }
+                  }}
+                >
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#1d4ed8", overflow: "hidden", textOverflow: "ellipsis" }}>{r.log_id?.slice(0, 12)}...</span>
                   <span style={{ fontSize: 12, color: "var(--text-primary)", fontWeight: 500 }}>{r.model}</span>
                   <span style={{ fontSize: 12, color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>{r.total_tokens?.toLocaleString()}</span>

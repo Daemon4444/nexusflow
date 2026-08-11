@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { useI18n } from "@/lib/i18n";
 import { NexusflowLogo } from "@/components/QuadrantLogo";
 import { useEffect, useRef, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
+import Footer from "@/components/Footer";
 
 const fallbackModelRows = [
   { model: "Qwen3.8 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
@@ -469,17 +469,17 @@ function FlagshipCarousel() {
 
 export default function LandingPage() {
   const { user } = useAuth();
-  const { t } = useI18n();
   const [models, setModels] = useState<ModelSummary[]>([]);
+  const [catalogLive, setCatalogLive] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     async function loadModels() {
       try {
         const res = await fetchAPI("/api/models");
-        if (!cancelled && res.success) setModels(res.data || []);
+        if (!cancelled && res.success) { setModels(res.data || []); setCatalogLive(true); }
       } catch {
-        if (!cancelled) setModels([]);
+        if (!cancelled) { setModels([]); setCatalogLive(false); }
       }
     }
     loadModels();
@@ -498,19 +498,20 @@ export default function LandingPage() {
   const carouselModels = recommended.length > 0
     ? recommended.concat(models.filter((model) => !recommended.some((item) => item.id === model.id)).slice(0, 12)).map(modelToCarousel)
     : fallbackCarouselModels;
-  const modelCount = models.length || 45;
+  const modelCount = models.length || fallbackCarouselModels.length;
 
   return (
+    <>
     <main id="main-content" className="nf-site">
       <nav className="nf-nav">
         <Link href="/" className="nf-brand" aria-label="NexusFlow home">
           <NexusflowLogo size={15} color="var(--text-primary)" />
         </Link>
         <div className="nf-nav-links">
-          <Link href="/models">{t("navModels")}</Link>
-          <Link href="/playground">{t("navPlayground")}</Link>
-          <Link href="/docs">{t("navDocs")}</Link>
-          <Link href="/pricing">{t("navPricing")}</Link>
+          <Link href="/models">Models</Link>
+          <Link href="/playground">Playground</Link>
+          <Link href="/docs">Docs</Link>
+          <Link href="/pricing">Pricing</Link>
         </div>
         <div className="nf-nav-actions">
           {user ? (
@@ -547,7 +548,7 @@ export default function LandingPage() {
           </p>
           <div className="nf-hero-actions">
             <Link href={user ? "/dashboard" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">
-              {user ? "Open Console" : "免费开始"}
+              {user ? "Open Console" : "Start building"}
             </Link>
             <Link href="/docs/quickstart" className="nf-btn nf-btn-secondary nf-btn-lg">
               Read quickstart
@@ -572,7 +573,7 @@ export default function LandingPage() {
         <div className="nf-section-head">
           <span>Model access</span>
           <h2>Every request begins as a choice</h2>
-          <p>Route requests across chat, reasoning, long-context, image and video models without multiplying accounts, keys and invoices. The catalog below is loaded from the live model API.</p>
+          <p>Route requests across chat, reasoning, long-context, image and video models without multiplying accounts, keys and invoices. {catalogLive ? "The catalog below is loaded from the live model API." : "Live catalog data is temporarily unavailable; the preview below is clearly marked fallback content."}</p>
         </div>
         <div className="nf-model-table">
           {modelRows.map((row) => (
@@ -620,9 +621,11 @@ export default function LandingPage() {
           <p>Validate in Playground, then ship through the same model names, keys and billing path in production.</p>
         </div>
         <Link href={user ? "/keys" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">
-          {user ? "Create API key" : "免费开始"}
+          {user ? "Create API key" : "Start building"}
         </Link>
       </section>
     </main>
+    <Footer />
+    </>
   );
 }

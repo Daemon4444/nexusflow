@@ -86,7 +86,7 @@ const translations = {
   pwChanged: { zh: "密码已修改", en: "Password changed" },
   pwSet: { zh: "密码已设置", en: "Password set" },
   enterCurrentPw: { zh: "请输入当前密码", en: "Please enter current password" },
-  pwPlaceholder: { zh: "至少6个字符", en: "At least 6 characters" },
+  pwPlaceholder: { zh: "至少12个字符，或使用16位以上长密码", en: "12+ characters, or a 16+ character passphrase" },
   pwConfirmPlaceholder: { zh: "再次输入新密码", en: "Re-enter new password" },
   sessions: { zh: "会话", en: "Sessions" },
   sessionDesc: { zh: "会话令牌有效期为7天。", en: "Session tokens expire after 7 days." },

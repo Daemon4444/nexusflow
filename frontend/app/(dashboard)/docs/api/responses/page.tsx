@@ -29,12 +29,17 @@ const curlTools = `curl ${API_BASE}/v1/responses \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "qwen3.7-plus",
-    "input": "帮我找一下阿里云官网，并提取首页的关键信息",
-    "tools": [
-      {"type": "web_search"},
-      {"type": "code_interpreter"},
-      {"type": "web_extractor"}
-    ]
+    "input": "北京天气怎么样",
+    "tools": [{
+      "type": "function",
+      "name": "get_weather",
+      "description": "查询指定城市的天气",
+      "parameters": {
+        "type": "object",
+        "properties": {"city": {"type": "string"}},
+        "required": ["city"]
+      }
+    }]
   }'`;
 
 const curlMultiTurn = `# 第一轮
@@ -99,12 +104,17 @@ for event in stream:
 
 const pythonTools = `response = client.responses.create(
     model="qwen3.7-plus",
-    input="帮我找一下阿里云官网，并提取首页的关键信息",
-    tools=[
-        {"type": "web_search"},
-        {"type": "code_interpreter"},
-        {"type": "web_extractor"},
-    ],
+    input="北京天气怎么样",
+    tools=[{
+        "type": "function",
+        "name": "get_weather",
+        "description": "查询指定城市的天气",
+        "parameters": {
+            "type": "object",
+            "properties": {"city": {"type": "string"}},
+            "required": ["city"],
+        },
+    }],
 )
 print(response.output_text)`;
 
@@ -180,7 +190,7 @@ const params = [
   { name: "previous_response_id", type: "string", required: false, desc: "上一轮响应 ID（有效期 7 天），用于多轮对话" },
   { name: "stream", type: "boolean", required: false, desc: "是否开启流式输出，默认 false" },
   { name: "store", type: "boolean", required: false, desc: "是否存储响应（默认 true），false 则不能用 previous_response_id 引用" },
-  { name: "tools", type: "array", required: false, desc: "工具列表：web_search、web_extractor、code_interpreter、function 等" },
+  { name: "tools", type: "array", required: false, desc: "工具列表。默认开放自定义 function；其他工具需账户白名单和单独成本确认" },
   { name: "tool_choice", type: "string | object", required: false, desc: "工具选择策略：auto / none / required" },
   { name: "temperature", type: "float", required: false, desc: "采样温度，取值 [0, 2)" },
   { name: "top_p", type: "float", required: false, desc: "核采样概率阈值，取值 (0, 1]" },
@@ -193,18 +203,13 @@ const responseFields = [
   { name: "object", type: "string", desc: "固定为 \"response\"" },
   { name: "status", type: "string", desc: "completed / failed / in_progress / cancelled" },
   { name: "model", type: "string", desc: "实际使用的模型 ID" },
-  { name: "output", type: "array", desc: "输出项数组：message / reasoning / function_call / web_search_call 等" },
+  { name: "output", type: "array", desc: "输出项数组：message / reasoning / function_call 等" },
   { name: "usage", type: "object", desc: "Token 消耗：input_tokens、output_tokens、total_tokens、input_tokens_details、output_tokens_details" },
 ];
 
 const builtinTools = [
-  { name: "web_search", desc: "联网搜索，获取最新互联网信息" },
-  { name: "web_extractor", desc: "网页抓取，提取网页内容（需配合 web_search）" },
-  { name: "code_interpreter", desc: "代码解释器，执行代码并返回结果" },
-  { name: "web_search_image", desc: "文搜图，根据文本描述搜索图片" },
-  { name: "image_search", desc: "图搜图，根据图片搜索相似图片" },
-  { name: "file_search", desc: "知识库搜索，检索已上传的知识库" },
-  { name: "function", desc: "自定义函数工具，模型决定调用时返回 function_call" },
+  { name: "function", desc: "默认开放。由你定义函数名称和参数，模型需要调用时返回 function_call。" },
+  { name: "受管内置工具", desc: "联网搜索、网页提取、代码解释器等仅对已开通账户开放，并可能产生额外的非 Token 费用。" },
 ];
 
 type Scenario = "basic" | "stream" | "tools" | "multiTurn" | "functionCall";
@@ -213,7 +218,7 @@ type Lang = "curl" | "python" | "nodejs";
 const scenarios: { key: Scenario; label: string }[] = [
   { key: "basic", label: "基本调用" },
   { key: "stream", label: "流式输出" },
-  { key: "tools", label: "内置工具" },
+  { key: "tools", label: "函数工具" },
   { key: "multiTurn", label: "多轮对话" },
   { key: "functionCall", label: "Function Call" },
 ];
@@ -267,7 +272,7 @@ export default function ResponsesApiPage() {
           Responses API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          兼容 OpenAI Responses API 格式。相较于 Chat Completions，提供内置工具（联网搜索、代码解释器等）、更灵活的输入格式和简化的多轮上下文管理。使用 OpenAI SDK 的 <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>client.responses.create()</code> 即可调用。
+          兼容 OpenAI Responses API 的核心请求、流式输出、函数工具与多轮上下文管理。使用 OpenAI SDK 的 <code style={{ fontSize: 13, background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>client.responses.create()</code> 即可调用。
         </p>
       </div>
 
@@ -389,11 +394,11 @@ export default function ResponsesApiPage() {
         </div>
       </section>
 
-      {/* ───────── Built-in Tools ───────── */}
+      {/* ───────── Tools ───────── */}
       <section style={{ marginBottom: 36 }}>
-        <h2 style={sectionHeading}>内置工具</h2>
+        <h2 style={sectionHeading}>工具调用</h2>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 14 }}>
-          建议同时开启 web_search、web_extractor 和 code_interpreter 以获得最佳效果。
+          所有账户默认可使用自定义 <code>function</code>。联网搜索、网页提取和代码解释器属于受管能力，需要账户白名单与额外成本确认；未开通时请求会被明确拒绝。
         </p>
         <div style={tableWrapper}>
           <table style={table}>
@@ -494,7 +499,7 @@ export default function ResponsesApiPage() {
         <div style={{ fontSize: 14, fontWeight: 600, color: "#92400e", marginBottom: 8 }}>注意事项</div>
         <ul style={{ fontSize: 13, color: "#92400e", lineHeight: 1.8, margin: 0, paddingLeft: 18 }}>
           <li><code style={{ fontSize: 12 }}>previous_response_id</code> 关联的响应有效期为 7 天。</li>
-          <li>建议同时开启内置工具（web_search + web_extractor + code_interpreter）以获得最佳效果。</li>
+          <li>默认工具白名单只包含 <code style={{ fontSize: 12 }}>function</code>；其他工具开通前请联系支持确认权限和计费。</li>
           <li>设置 <code style={{ fontSize: 12 }}>store: false</code> 时响应不会被存储，无法被后续引用。</li>
           <li>流式输出的最终 <code style={{ fontSize: 12 }}>response.completed</code> 事件包含完整的 usage 信息。</li>
         </ul>

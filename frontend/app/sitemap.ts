@@ -16,7 +16,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/docs/principles", priority: 0.5, changeFrequency: "monthly" as const },
     { path: "/docs/multi-protocol", priority: 0.5, changeFrequency: "monthly" as const },
     { path: "/docs/provider-routing", priority: 0.5, changeFrequency: "monthly" as const },
-    { path: "/docs/model-fallback", priority: 0.5, changeFrequency: "monthly" as const },
     { path: "/docs/api-keys", priority: 0.5, changeFrequency: "monthly" as const },
     { path: "/docs/faq", priority: 0.5, changeFrequency: "monthly" as const },
     { path: "/docs/api/parameters", priority: 0.6, changeFrequency: "monthly" as const },

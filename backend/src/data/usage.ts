@@ -313,7 +313,7 @@ export async function getOverview(userId?: string) {
     totalCost: Number(Number(row?.totalCost || 0).toFixed(6)),
     activeModels: Number(row?.activeModels || 0),
     avgLatency: Math.round(Number(row?.avgLatencyMs || 0) / 100) / 10,
-    successRate: Number(row?.successRate || 100),
+    successRate: Number(row?.successRate ?? 0),
     totalCachedTokens: Number(row?.totalCachedTokens || 0),
   };
 }
@@ -425,7 +425,7 @@ export async function getPerformanceOverview(userId?: string) {
     totalRequests: Number(row?.totalRequests || 0),
     successCount: Number(row?.successCount || 0),
     errorCount: Number(row?.errorCount || 0),
-    successRate: Number(row?.successRate || 100),
+    successRate: Number(row?.successRate ?? 0),
   };
 }
 
@@ -465,7 +465,7 @@ export async function getUsageSummary(userId: string) {
     totalTokens: Number(row?.totalTokens || 0),
     totalCost: Number(Number(row?.totalCost || 0).toFixed(6)),
     avgLatency: Math.round(Number(row?.avgLatencyMs || 0) / 100) / 10,
-    successRate: Number(row?.successRate || 100),
+    successRate: Number(row?.successRate ?? 0),
   };
 }
 

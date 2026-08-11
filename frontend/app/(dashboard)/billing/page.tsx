@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -17,11 +18,6 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
 
 interface PaymentConfigStatus {
   configured: boolean;
-  missing?: string[];
-  gateway: string;
-  appId: string;
-  notifyUrl: string;
-  returnUrl: string;
   mockEnabled?: boolean;
 }
 
@@ -49,7 +45,6 @@ export default function BillingPage() {
   const [exportEndDate, setExportEndDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportError, setExportError] = useState("");
-  const missingConfigKeys = Array.isArray(paymentConfig?.missing) ? paymentConfig!.missing : [];
   // 子账号视角：无充值入口，余额卡替换为限额视图（docs/sub-accounts-spec.md §4.3）
   const isSub = user?.accountType === "sub";
   const quota = user?.quota || null;
@@ -63,7 +58,14 @@ export default function BillingPage() {
 
   useEffect(() => {
     if (!pollOrderId) return;
+    const startedAt = Date.now();
     const timer = setInterval(async () => {
+      if (Date.now() - startedAt > 15 * 60 * 1000) {
+        clearInterval(timer);
+        setPollOrderId(null);
+        setRechargeMsg({ type: "error", text: "支付状态确认超时。若已付款，请提交工单并附上订单号。" });
+        return;
+      }
       try {
         const res = await fetchAPI(`/api/billing/order/status?orderNo=${pollOrderId}`, { headers: authHeaders() });
         if (res.success && res.data.status === "paid") {
@@ -76,6 +78,18 @@ export default function BillingPage() {
     }, 3000);
     return () => clearInterval(timer);
   }, [pollOrderId]);
+
+  useEffect(() => {
+    if (!showRecharge) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !pollOrderId) {
+        setShowRecharge(false);
+        setRechargeMsg(null);
+      }
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showRecharge, pollOrderId]);
 
   async function loadData(signal?: AbortSignal) {
     setDataLoading(true);
@@ -109,6 +123,10 @@ export default function BillingPage() {
     const amount = parseFloat(rechargeAmount);
     if (!amount || amount <= 0) { setRechargeMsg({ type: "error", text: t("invalidAmount") }); return; }
     if (amount > 200000) { setRechargeMsg({ type: "error", text: t("maxAmount") }); return; }
+    if (payMethod === "alipay" && paymentConfig && !paymentConfig.configured) {
+      setRechargeMsg({ type: "error", text: "在线充值通道维护中，请稍后重试或提交工单联系支持。" });
+      return;
+    }
     setRecharging(true); setRechargeMsg(null); setPaymentFormHtml(null);
     try {
       const body: Record<string, unknown> = { amount };
@@ -296,19 +314,33 @@ export default function BillingPage() {
         </div>
       </div>
 
+      <div className="usr-section" style={{ marginBottom: 20 }}>
+        <div className="usr-section-header">
+          <h3>企业采购与发票</h3>
+          <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>人工核验主体与消费记录</span>
+        </div>
+        <div className="usr-section-body" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <p style={{ margin: 0, maxWidth: 680, fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>
+            如需合同、对公采购或发票，请提交工单并注明公司抬头、税号、消费月份与联系人。客服确认可开票范围后会在工单中回复。
+          </p>
+          <Link className="btn-secondary" href="/tickets" style={{ padding: "9px 18px", fontSize: 13 }}>提交采购工单</Link>
+        </div>
+      </div>
+
       {showRecharge && !isSub && (
         <div
           style={modalOverlay}
+          role="presentation"
           onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }}
         >
-          <div style={modalBox} onClick={(e) => e.stopPropagation()} className="animate-fadeIn">
+          <div style={modalBox} onClick={(e) => e.stopPropagation()} className="animate-fadeIn" role="dialog" aria-modal="true" aria-labelledby="recharge-dialog-title">
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, background: "var(--bg-card)", borderTopLeftRadius: 14, borderTopRightRadius: 14, zIndex: 1 }}>
               <div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{t("topUp")}</h3>
+                <h3 id="recharge-dialog-title" style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{t("topUp")}</h3>
                 <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>当前可用 {formatCny(summary?.availableBalance ?? ((user?.balance || 0) + (user?.creditBalance || 0)))}</div>
               </div>
-              <button onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 22, lineHeight: 1 }}>×</button>
+              <button aria-label="关闭充值窗口" onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 22, lineHeight: 1 }}>×</button>
             </div>
 
             {/* Body */}
@@ -346,11 +378,10 @@ export default function BillingPage() {
                 <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>{t("paymentMethod")}</label>
                 <div style={{ display: "flex", gap: 10 }}>
                   {([
-                    ...(paymentConfig?.mockEnabled ? [{ key: "mock" as PayMethod, label: t("testMode"), desc: t("testModeDesc"), icon: "⚡" }] : []),
-                    { key: "alipay" as PayMethod, label: "Alipay", desc: t("alipayDesc"), icon: "💳" },
+                    ...(process.env.NODE_ENV !== "production" && paymentConfig?.mockEnabled ? [{ key: "mock" as PayMethod, label: "开发测试", desc: "仅本地开发环境可用" }] : []),
+                    { key: "alipay" as PayMethod, label: "支付宝", desc: t("alipayDesc") },
                   ]).map((pm) => (
-                    <button key={pm.key} onClick={() => setPayMethod(pm.key)} style={{ flex: 1, padding: "12px 14px", borderRadius: 10, cursor: "pointer", border: payMethod === pm.key ? "2px solid var(--accent, #111)" : "1px solid var(--border)", background: payMethod === pm.key ? "rgba(37,99,235,0.04)" : "var(--bg-card)", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s" }}>
-                      <div style={{ fontSize: 16, marginBottom: 4 }}>{pm.icon}</div>
+                    <button key={pm.key} aria-pressed={payMethod === pm.key} onClick={() => setPayMethod(pm.key)} style={{ flex: 1, padding: "12px 14px", borderRadius: 10, cursor: "pointer", border: payMethod === pm.key ? "2px solid var(--accent, #111)" : "1px solid var(--border)", background: payMethod === pm.key ? "rgba(37,99,235,0.04)" : "var(--bg-card)", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s" }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{pm.label}</div>
                       <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 1 }}>{pm.desc}</div>
                     </button>
@@ -359,12 +390,12 @@ export default function BillingPage() {
               </div>
               {payMethod === "alipay" && paymentConfig && !paymentConfig.configured && (
                 <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--warning-bg)", border: "1px solid var(--warning-border)", color: "var(--warning)" }}>
-                  支付宝尚未完成配置，当前会进入模拟支付。请在后端 `.env` 填写：{missingConfigKeys.length > 0 ? missingConfigKeys.join(", ") : "ALIPAY_APP_ID, ALIPAY_PRIVATE_KEY, ALIPAY_PUBLIC_KEY"}
+                  在线充值通道维护中，暂时无法创建支付订单。请稍后重试，或通过工单联系支持。
                 </div>
               )}
-              {payMethod === "alipay" && (
+              {payMethod === "alipay" && paymentConfig?.configured && (
                 <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                  💳 点击充值后将跳转到支付宝页面完成支付
+                  点击充值后将跳转到支付宝安全页面完成支付。
                 </div>
               )}
               {rechargeMsg && (
@@ -379,8 +410,8 @@ export default function BillingPage() {
 
             {/* Footer */}
             <div style={{ padding: "16px 22px", borderTop: "1px solid var(--border)", position: "sticky", bottom: 0, background: "var(--bg-card)", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
-              <button className="btn-primary" onClick={handleRecharge} disabled={recharging || !rechargeAmount || pollOrderId !== null} style={{ width: "100%", padding: "12px 24px", fontSize: 14, fontWeight: 600 }}>
-                {recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} ¥${rechargeAmount || "0"}`}
+              <button className="btn-primary" onClick={handleRecharge} disabled={recharging || !rechargeAmount || pollOrderId !== null || (payMethod === "alipay" && paymentConfig?.configured === false)} style={{ width: "100%", padding: "12px 24px", fontSize: 14, fontWeight: 600 }}>
+                {paymentConfig?.configured === false && payMethod === "alipay" ? "充值通道维护中" : recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} ¥${rechargeAmount || "0"}`}
               </button>
             </div>
           </div>

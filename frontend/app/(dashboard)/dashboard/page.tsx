@@ -39,7 +39,7 @@ interface UsageOverview {
   totalCost: number;
   activeModels: number;
   avgLatency: number;
-  successRate: number;
+  successRate: number | null;
 }
 
 interface DailyUsage {
@@ -64,7 +64,7 @@ const emptyOverview: UsageOverview = {
   totalCost: 0,
   activeModels: 0,
   avgLatency: 0,
-  successRate: 100,
+  successRate: null,
 };
 
 function formatTokens(value: number) {
@@ -80,7 +80,7 @@ function ChartTooltip({ active, payload, label }: any) {
   return (
     <div className="quiet-chart-tooltip">
       <strong>{label}</strong>
-      <span>{Number(requests).toLocaleString()} requests</span>
+      <span>{Number(requests).toLocaleString()} 次请求</span>
       <span>{formatCnyPrecise(Number(cost))}</span>
     </div>
   );
@@ -96,6 +96,7 @@ export default function DashboardPage() {
   const [models, setModels] = useState<ModelSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -108,6 +109,7 @@ export default function DashboardPage() {
   async function loadDashboard(signal?: AbortSignal) {
     setLoading(true);
     setError("");
+    setWarning("");
     try {
       const headers = authHeaders();
       const [keyRes, billingRes, overviewRes, dailyRes, recentRes, modelsRes] = await Promise.all([
@@ -119,9 +121,12 @@ export default function DashboardPage() {
         fetchAPI("/api/models", { signal }),
       ]);
 
-      if (![keyRes, billingRes, overviewRes, dailyRes, recentRes, modelsRes].some((result) => result.success)) {
+      const results = [keyRes, billingRes, overviewRes, dailyRes, recentRes, modelsRes];
+      if (!results.some((result) => result.success)) {
         throw new Error("控制台数据加载失败");
       }
+      const failedCount = results.filter((result) => !result.success).length;
+      if (failedCount > 0) setWarning(`${failedCount} 项数据暂未加载，页面已保留可用信息。`);
 
       setKeys(keyRes.success ? keyRes.data || [] : []);
       setSummary(billingRes.success ? billingRes.data : null);
@@ -141,7 +146,7 @@ export default function DashboardPage() {
   const balance = summary?.availableBalance ?? ((user?.balance ?? 0) + (user?.creditBalance ?? 0));
   const today = daily[daily.length - 1] || { requests: 0, cost: 0, tokens: 0, date: "" };
   const code = `curl -X POST https://nexusflow.hk/v1/chat/completions \\
-  -H "Authorization: Bearer ${keys[0]?.key || "YOUR_API_KEY"}" \\
+  -H "Authorization: Bearer $NEXUSFLOW_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"model":"${defaultModel}","messages":[{"role":"user","content":"Say hello"}]}'`;
 
@@ -153,30 +158,30 @@ export default function DashboardPage() {
 
   const steps = [
     {
-      label: "Create API key",
-      help: keys.length > 0 ? "Your key is ready to use" : "Create a key for your first request",
+      label: "创建 API Key",
+      help: keys.length > 0 ? "API Key 已创建；完整密钥只在创建时显示" : "为第一次请求创建安全凭据",
       done: keys.length > 0,
       href: "/keys",
-      action: keys.length > 0 ? "View keys" : "Create key",
+      action: keys.length > 0 ? "查看密钥" : "创建密钥",
     },
     {
-      label: "Add credit",
-      help: balance > 0 ? "Your workspace has available credit" : "Top up before making paid requests",
+      label: "充值余额",
+      help: balance > 0 ? "工作区已有可用额度" : "调用付费模型前请先充值",
       done: balance > 0,
       href: "/billing",
-      action: "Add credit",
+      action: "前往充值",
     },
     {
-      label: "Make your first request",
-      help: recent.length > 0 ? "Your API connection is working" : "Send a request to NexusFlow API",
+      label: "发起首次请求",
+      help: recent.length > 0 ? "API 连接已验证" : "设置 NEXUSFLOW_API_KEY 后运行下方命令",
       done: recent.length > 0,
     },
     {
-      label: "Inspect usage",
-      help: "Monitor tokens, latency, cost, and errors",
+      label: "查看用量",
+      help: "追踪 Token、延迟、费用和错误",
       done: recent.length > 0,
       href: "/activity",
-      action: "View activity",
+      action: "查看活动",
     },
   ];
 
@@ -185,12 +190,12 @@ export default function DashboardPage() {
       <div className="quiet-console-page">
         <section className="quiet-page-heading">
           <div>
-            <h1>Console</h1>
-            <p>Monitor model traffic, cost, and reliability across your workspace.</p>
+            <h1>控制台</h1>
+            <p>统一查看工作区的模型流量、费用与服务质量。</p>
           </div>
           <div className="quiet-heading-actions">
-            <Link className="quiet-button quiet-button-primary" href="/keys">＋ Create API key</Link>
-            <Link className="quiet-button" href={`/playground?model=${encodeURIComponent(defaultModel)}`}>Open Playground ↗</Link>
+            <Link className="quiet-button quiet-button-primary" href="/keys">＋ 创建 API Key</Link>
+            <Link className="quiet-button" href={`/playground?model=${encodeURIComponent(defaultModel)}`}>打开 Playground ↗</Link>
           </div>
         </section>
 
@@ -200,26 +205,27 @@ export default function DashboardPage() {
           <ErrorState title="控制台加载失败" message={error} onAction={loadDashboard} />
         ) : (
           <>
+            {warning && <div className="nf-inline-warning" role="status">{warning}</div>}
             <section className="quiet-kpi-band" aria-label="Workspace metrics">
               <div className="quiet-kpi">
-                <span>Balance</span>
+                <span>可用余额</span>
                 <strong>{formatCny(balance)}</strong>
-                <small>Available workspace credit</small>
+                <small>工作区可用额度</small>
               </div>
               <div className="quiet-kpi">
-                <span>Requests today</span>
+                <span>今日请求</span>
                 <strong>{today.requests.toLocaleString()}</strong>
-                <small>{overview.totalRequests.toLocaleString()} all time</small>
+                <small>累计 {overview.totalRequests.toLocaleString()} 次</small>
               </div>
               <div className="quiet-kpi">
-                <span>Spend today</span>
+                <span>今日费用</span>
                 <strong>{formatCny(today.cost)}</strong>
-                <small>{formatCnyPrecise(overview.totalCost)} all time</small>
+                <small>累计 {formatCnyPrecise(overview.totalCost)}</small>
               </div>
               <div className="quiet-kpi">
-                <span>Success</span>
-                <strong>{overview.successRate.toFixed(1)}%</strong>
-                <small>{overview.avgLatency.toLocaleString()}s average latency</small>
+                <span>成功率</span>
+                <strong>{overview.totalRequests > 0 && overview.successRate !== null ? `${overview.successRate.toFixed(1)}%` : "—"}</strong>
+                <small>{overview.totalRequests > 0 ? `平均延迟 ${overview.avgLatency.toLocaleString()}s` : "产生请求后开始统计"}</small>
               </div>
             </section>
 
@@ -227,13 +233,13 @@ export default function DashboardPage() {
               <div className="quiet-chart-panel">
                 <div className="quiet-panel-title">
                   <div>
-                    <h2>Requests & cost</h2>
+                    <h2>请求与费用</h2>
                     <div className="quiet-legend">
-                      <span><i className="quiet-line-key" /> Requests</span>
-                      <span><i className="quiet-bar-key" /> Cost (¥)</span>
+                      <span><i className="quiet-line-key" /> 请求</span>
+                      <span><i className="quiet-bar-key" /> 费用（¥）</span>
                     </div>
                   </div>
-                  <span className="quiet-range-label">Last 7 days</span>
+                  <span className="quiet-range-label">最近 7 天</span>
                 </div>
 
                 {daily.length === 0 ? (
@@ -261,15 +267,15 @@ export default function DashboardPage() {
                 )}
 
                 <div className="quiet-chart-summary">
-                  <div><span>Total requests</span><strong>{overview.totalRequests.toLocaleString()}</strong></div>
-                  <div><span>Total spend</span><strong>{formatCnyPrecise(overview.totalCost)}</strong></div>
-                  <div><span>Avg latency</span><strong>{overview.avgLatency.toLocaleString()}s</strong></div>
-                  <div><span>Tokens used</span><strong>{formatTokens(overview.totalTokens)}</strong></div>
+                  <div><span>累计请求</span><strong>{overview.totalRequests.toLocaleString()}</strong></div>
+                  <div><span>累计费用</span><strong>{formatCnyPrecise(overview.totalCost)}</strong></div>
+                  <div><span>平均延迟</span><strong>{overview.totalRequests > 0 ? `${overview.avgLatency.toLocaleString()}s` : "—"}</strong></div>
+                  <div><span>Token 用量</span><strong>{formatTokens(overview.totalTokens)}</strong></div>
                 </div>
               </div>
 
               <div className="quiet-start-panel">
-                <h2>Start here</h2>
+                <h2>快速开始</h2>
                 {steps.map((step, index) => (
                   <div className={`quiet-step ${step.done ? "done" : ""}`} key={step.label}>
                     <span>{step.done ? "✓" : index + 1}</span>
@@ -282,7 +288,7 @@ export default function DashboardPage() {
                 ))}
                 <div className="quiet-code-sample">
                   <code>{code}</code>
-                  <button onClick={copyCode} aria-label="Copy cURL">{copied ? "✓" : "Copy"}</button>
+                  <button onClick={copyCode} aria-label="复制 cURL">{copied ? "已复制" : "复制"}</button>
                 </div>
               </div>
             </section>
@@ -290,8 +296,8 @@ export default function DashboardPage() {
             <section className="quiet-data-panel">
               <div className="quiet-data-half">
                 <div className="quiet-table-title">
-                  <h2>Recent requests</h2>
-                  <Link href="/activity">View all activity</Link>
+                  <h2>最近请求</h2>
+                  <Link href="/activity">查看全部</Link>
                 </div>
                 {recent.length === 0 ? (
                   <EmptyState compact title="还没有调用记录" message="完成一次请求后，这里会显示最新状态。" />
@@ -299,7 +305,7 @@ export default function DashboardPage() {
                   <div className="quiet-table-scroll">
                     <table>
                       <thead>
-                        <tr><th>Time</th><th>Model</th><th>Tokens</th><th>Latency</th><th>Cost</th><th>Status</th></tr>
+                        <tr><th>时间</th><th>模型</th><th>Token</th><th>延迟</th><th>费用</th><th>状态</th></tr>
                       </thead>
                       <tbody>
                         {recent.slice(0, 6).map((item, index) => (
@@ -320,8 +326,8 @@ export default function DashboardPage() {
 
               <div className="quiet-data-half">
                 <div className="quiet-table-title">
-                  <h2>Recommended models</h2>
-                  <Link href="/models">View all models</Link>
+                  <h2>推荐模型</h2>
+                  <Link href="/models">查看全部</Link>
                 </div>
                 {recommendedModels.length === 0 ? (
                   <EmptyState compact title="模型目录暂不可用" />
@@ -329,7 +335,7 @@ export default function DashboardPage() {
                   <div className="quiet-table-scroll">
                     <table>
                       <thead>
-                        <tr><th>Model</th><th>Provider</th><th>Context</th><th>Price</th></tr>
+                        <tr><th>模型</th><th>服务商</th><th>上下文</th><th>价格</th></tr>
                       </thead>
                       <tbody>
                         {recommendedModels.map((model) => (

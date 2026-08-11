@@ -103,7 +103,7 @@ export default function ProviderRoutingPage() {
             <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>
               容错能力取决于该模型在当前请求协议下有多少个可用端点，而非供应商总数。例如一个模型有两个供应商，但只有一个支持 Anthropic 协议，那么通过 Anthropic 协议请求时将无法容错。
               <br /><br />
-              如果需要容错保障，建议使用模型支持最广泛的协议（通常是 OpenAI 协议），或结合<Link href="/docs/model-fallback" style={{ color: "var(--accent)" }}>模型降级</Link>配置备选模型。
+              如果需要容错保障，建议使用该模型支持渠道最多的协议，并在客户端实现有界重试。跨模型自动回退仍在规划中，当前请求不能提交候选模型数组。
             </div>
           </div>
         </div>
@@ -113,7 +113,6 @@ export default function ProviderRoutingPage() {
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>相关文档</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
-            { href: "/docs/model-fallback", label: "模型降级", desc: "当所有供应商都失败时，自动切换到备选模型" },
             { href: "/docs/multi-protocol", label: "多协议支持", desc: "了解各协议的适用场景" },
           ].map((link) => (
             <Link key={link.href} href={link.href} style={{ padding: "14px 18px", border: "1px solid var(--border)", borderRadius: 8, textDecoration: "none", background: "var(--bg)" }}>

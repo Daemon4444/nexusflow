@@ -164,7 +164,7 @@ export async function sendVerificationCode(phone: string): Promise<{
 
   return {
     success: true,
-    message: isReal ? "验证码已发送" : "验证码已发送（测试模式，请查看服务器日志）",
+    message: "验证码已发送",
     challengeToken: reserved.reservation.token,
   };
 }

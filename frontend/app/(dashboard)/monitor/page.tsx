@@ -92,7 +92,7 @@ export default function MonitorPage() {
               { label: t("avgTpot"), value: `${overview?.avgTpot || 0}ms`, sub: `${overview?.minTpot || 0} – ${overview?.maxTpot || 0}ms` },
               { label: t("avgLatency"), value: `${overview?.avgLatency || 0}ms`, sub: t("endToEnd") },
               { label: t("requests24h"), value: String(overview?.totalRequests || 0), sub: `${overview?.errorCount || 0} ${t("errors").toLowerCase()}` },
-              { label: t("successRate"), value: `${overview?.successRate || 100}%`, sub: `${overview?.successCount || 0} / ${overview?.totalRequests || 0}` },
+              { label: t("successRate"), value: overview?.totalRequests ? `${overview.successRate ?? 0}%` : "—", sub: `${overview?.successCount || 0} / ${overview?.totalRequests || 0}` },
               { label: t("errors"), value: String(overview?.errorCount || 0), sub: t("last24h") },
             ].map((m) => (
               <div key={m.label} className="usr-metric"><div className="usr-metric-label">{m.label}</div><div className="usr-metric-value">{m.value}</div><div className="usr-metric-sub">{m.sub}</div></div>

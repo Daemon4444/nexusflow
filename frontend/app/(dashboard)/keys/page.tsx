@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { ErrorState, LoadingState } from "@/components/AppState";
 import { getFirstRunState } from "@/lib/firstRun";
 import { getCurlExample, getJavascriptExample } from "@/components/FirstRunPanel";
+import { KeyOutlined, PlusOutlined } from "@ant-design/icons";
 
 interface ApiKey {
   id: string;
@@ -140,10 +141,7 @@ export default function KeysPage() {
           <p>{t("keysDesc")}</p>
         </div>
         <button className="btn-primary" onClick={() => setShowCreate(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <PlusOutlined />
           {t("createKey")}
         </button>
       </div>
@@ -232,14 +230,14 @@ export default function KeysPage() {
       ) : error ? (
         <ErrorState title="API Key 加载失败" message={error} onAction={loadKeys} compact />
       ) : keys.length === 0 ? (
-        <div className="usr-section" style={{ textAlign: "center", padding: 60 }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="1.5" style={{ marginBottom: 12 }}>
-            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-          </svg>
-          <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 16 }}>
-            {t("noKeys")}
+        <div className="usr-section nf-empty-state">
+          <span className="nf-empty-state-icon"><KeyOutlined /></span>
+          <h2>{t("noKeys")}</h2>
+          <p>
+            {locale === "zh" ? "创建独立密钥，在不暴露主账户凭据的情况下调用模型。" : "Create a dedicated key to call models without exposing your account credentials."}
           </p>
           <button className="btn-primary" onClick={() => setShowCreate(true)} style={{ fontSize: 13 }}>
+            <PlusOutlined />
             {t("createFirstKey")}
           </button>
         </div>
