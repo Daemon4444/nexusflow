@@ -4480,9 +4480,11 @@ body {
   font-family: var(--font-sans);
   cursor: pointer;
   appearance: none;
+  text-align: left;
 }
 .nf-header-search:hover { border-color: #cbc7cf; color: var(--nf-muted); }
-.nf-header-search > span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.nf-header-search > .anticon { flex: 0 0 auto; line-height: 1; }
+.nf-header-search-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 1.25; text-align: left; }
 .nf-header-search kbd { padding: 2px 6px; border: 1px solid var(--nf-line); border-radius: 5px; background: #f8f7f9; color: #77727d; font: 10px var(--font-sans); }
 .nf-header-nav { display: flex; justify-content: flex-end; align-items: center; gap: 3px; }
 .nf-header-nav a { padding: 7px 11px; border-radius: 7px; color: #55515a; font-size: 13px; font-weight: 500; text-decoration: none; white-space: nowrap; }

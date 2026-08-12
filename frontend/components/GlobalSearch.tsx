@@ -70,7 +70,7 @@ export default function GlobalSearch({ authenticated }: { authenticated: boolean
     <>
       <button type="button" className="nf-header-search" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-keyshortcuts="Meta+K Control+K">
         <SearchOutlined />
-        <span>搜索模型、文档和设置</span>
+        <span className="nf-header-search-label">搜索模型、文档和设置</span>
         <kbd>⌘ K</kbd>
       </button>
       {open && (
