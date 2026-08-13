@@ -33,6 +33,7 @@ import {
   pollVolcEngineTask,
 } from "../services/adapters";
 import { checkConsumerLimitsAsync } from "../services/rate-limiter";
+import { setRateLimitHeaders } from "../utils/rate-limit-headers";
 import { reserveAccountQpm } from "../services/account-rate-limiter";
 import { isModelAllowed } from "../data/model-access";
 import {
@@ -98,8 +99,9 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // Rate limit check
-  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit_override);
   if (!rateCheck.allowed) {
+    setRateLimitHeaders(res, { ...rateCheck, rejected: true });
     res.status(429).json({
       error: { message: rateCheck.reason, type: "rate_limit_error", code: "rate_limit_exceeded" },
     });

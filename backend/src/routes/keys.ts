@@ -41,8 +41,9 @@ router.get("/", async (req: Request, res: Response) => {
     lastUsed: k.last_used,
     usage_count: k.usage_count,
     usageCount: k.usage_count,
-    rate_limit: k.rate_limit,
-    rateLimit: k.rate_limit,
+    rate_limit: k.rate_limit_override ?? null,
+    rateLimit: k.rate_limit_override ?? null,
+    rateLimitSource: k.rate_limit_override == null ? "account_plan" : "api_key_override",
   }));
   res.json({ success: true, data });
 });
@@ -122,7 +123,8 @@ router.post("/", async (req: Request, res: Response) => {
       key: newKey.key,
       keyPreview: maskApiKey(newKey.key),
       createdAt: newKey.created_at,
-      rateLimit: newKey.rate_limit,
+      rateLimit: newKey.rate_limit_override ?? null,
+      rateLimitSource: "account_plan",
     },
     message: "密钥创建成功",
   });

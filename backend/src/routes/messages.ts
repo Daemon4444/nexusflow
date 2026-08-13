@@ -15,6 +15,7 @@ import { logUpstreamFailure, logUsage } from "../data/usage";
 import { BillingReservationFailureReason, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimitsAsync } from "../services/rate-limiter";
+import { setRateLimitHeaders } from "../utils/rate-limit-headers";
 import {
   reconcileAccountTpm,
   reserveAccountQpm,
@@ -296,6 +297,7 @@ router.post("/", async (req: Request, res: Response) => {
       modelId,
     });
     if (!rpmCheck.allowed) {
+      setRateLimitHeaders(res, { scope: "account_model_qpm", limit: rpmCheck.limit, remaining: 0, resetMs: rpmCheck.resetMs, rejected: true });
       res.status(429).json({
         type: "error",
         error: {
@@ -312,6 +314,7 @@ router.post("/", async (req: Request, res: Response) => {
       estimatedTokens: reservedMessageTokens,
     });
     if (!tpmCheck.allowed) {
+      setRateLimitHeaders(res, { scope: "account_model_tpm", limit: tpmCheck.limit, remaining: tpmCheck.remaining ?? 0, rejected: true });
       res.status(429).json({
         type: "error",
         error: {
@@ -323,8 +326,9 @@ router.post("/", async (req: Request, res: Response) => {
     }
   }
 
-  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit_override);
   if (!rateCheck.allowed) {
+    setRateLimitHeaders(res, { ...rateCheck, rejected: true });
     res.status(429).json({
       type: "error",
       error: {
@@ -621,7 +625,7 @@ router.post("/", async (req: Request, res: Response) => {
         billing.discountAmount,
       );
 
-      res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
       if (data && typeof data === "object") data.id = `msg_${logId}`;
       res.json(data);
       return;
@@ -885,7 +889,7 @@ router.post("/", async (req: Request, res: Response) => {
       billing.discountAmount,
     );
 
-    res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+    if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
     res.json(anthropicResponse);
     return;
   } catch (err: any) {

@@ -17,6 +17,7 @@ import { releaseReservation, reserveBalanceWithReason, settleReservation } from 
 import { sendBillingReservationFailure } from "../utils/billing-response";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimitsAsync } from "../services/rate-limiter";
+import { setRateLimitHeaders } from "../utils/rate-limit-headers";
 import {
   reconcileAccountTpm,
   reserveAccountQpm,
@@ -339,6 +340,7 @@ router.post("/", async (req: Request, res: Response) => {
     modelId,
   });
   if (!rpmCheck.allowed) {
+    setRateLimitHeaders(res, { scope: "account_model_qpm", limit: rpmCheck.limit, remaining: 0, resetMs: rpmCheck.resetMs, rejected: true });
     res.status(429).json({
       error: {
         message: `Model-level QPM limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`,
@@ -355,6 +357,7 @@ router.post("/", async (req: Request, res: Response) => {
     estimatedTokens,
   });
   if (!tpmCheck.allowed) {
+    setRateLimitHeaders(res, { scope: "account_model_tpm", limit: tpmCheck.limit, remaining: tpmCheck.remaining ?? 0, rejected: true });
     res.status(429).json({
       error: {
         message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`,
@@ -364,8 +367,9 @@ router.post("/", async (req: Request, res: Response) => {
     });
     return;
   }
-  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit_override);
   if (!rateCheck.allowed) {
+    setRateLimitHeaders(res, { ...rateCheck, rejected: true });
     res.status(429).json({
       error: {
         message: rateCheck.reason,
@@ -473,7 +477,7 @@ router.post("/", async (req: Request, res: Response) => {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
 
       let fullResponse = "";
       const reader = response.body as any;
@@ -526,7 +530,7 @@ router.post("/", async (req: Request, res: Response) => {
       const data: any = await response.json();
       restorePublicModelAlias(data, modelId);
 
-      res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
       res.json(data);
 
       await recordResponseOwnership(data?.id, apiKeyRecord.user_id);

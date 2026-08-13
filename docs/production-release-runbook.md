@@ -144,14 +144,17 @@ The managed server include and the existing `/v1/` location's managed snippet
 split `/v1` ingress by exact contract:
 
 - `/v1/chat/completions`, `/v1/responses`, and `/v1/messages`: 50 MiB,
-  30-second inter-read timeout, 10 concurrent requests and 120 requests/minute
-  per real client IP;
+  30-second inter-read timeout and a deliberately high per-IP edge fuse;
 - `/v1/embeddings`: 8 MiB and a 15-second inter-read timeout;
 - `/v1/audio/transcriptions`: 1 MiB, 10-second inter-read timeout, two
   concurrent requests and 6 requests/minute with a burst of two;
 - every other `/v1/` route: the existing prefix location keeps its proxy
   behavior while the managed snippet enforces 1 MiB and a 10-second inter-read
   timeout.
+
+Per-IP policies are not customer quotas. Authenticated keys inherit
+account/model QPM/TPM, and only explicit key overrides add a narrower limit;
+IP thresholds exist solely to bound gross NAT/DDoS failure modes.
 
 The five exact policies disable request buffering so the backend's API-key,
 per-key/IP/global admission runs before the large body is streamed; the

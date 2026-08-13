@@ -38,12 +38,14 @@ export function getRequestBodyAdmissionLimits(
   env: NodeJS.ProcessEnv = process.env
 ): AdmissionLimits {
   return {
-    apiKeyConcurrency: positiveInteger(env.PUBLIC_BODY_API_KEY_CONCURRENCY, 3),
-    apiKeyBytes: positiveInteger(env.PUBLIC_BODY_API_KEY_BYTES, 100 * 1024 * 1024),
-    ipConcurrency: positiveInteger(env.PUBLIC_BODY_IP_CONCURRENCY, 8),
-    ipBytes: positiveInteger(env.PUBLIC_BODY_IP_BYTES, 256 * 1024 * 1024),
-    globalConcurrency: positiveInteger(env.PUBLIC_BODY_GLOBAL_CONCURRENCY, 64),
-    globalBytes: positiveInteger(env.PUBLIC_BODY_GLOBAL_BYTES, 1024 * 1024 * 1024),
+    apiKeyConcurrency: positiveInteger(env.PUBLIC_BODY_API_KEY_CONCURRENCY, 32),
+    apiKeyBytes: positiveInteger(env.PUBLIC_BODY_API_KEY_BYTES, 512 * 1024 * 1024),
+    // IP is only a coarse NAT/DDoS fuse. It must not be tighter than an
+    // authenticated key's normal operating envelope.
+    ipConcurrency: positiveInteger(env.PUBLIC_BODY_IP_CONCURRENCY, 128),
+    ipBytes: positiveInteger(env.PUBLIC_BODY_IP_BYTES, 1024 * 1024 * 1024),
+    globalConcurrency: positiveInteger(env.PUBLIC_BODY_GLOBAL_CONCURRENCY, 256),
+    globalBytes: positiveInteger(env.PUBLIC_BODY_GLOBAL_BYTES, 2 * 1024 * 1024 * 1024),
     leaseTtlSeconds: positiveInteger(env.PUBLIC_BODY_LEASE_TTL_SECONDS, 90),
   };
 }

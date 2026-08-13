@@ -13,6 +13,7 @@ export interface ApiKey {
   last_used: string | null;
   usage_count: number;
   rate_limit: number;
+  rate_limit_override?: number | null;
 }
 
 export type ValidApiKey = ApiKey & {
@@ -44,7 +45,7 @@ export function maskApiKey(token: string): string {
 
 export async function getAllKeys(): Promise<ApiKey[]> {
   return db.queryMany<ApiKey>(
-    `SELECT id, user_id, name, key, created_at, last_used, usage_count, rate_limit
+    `SELECT id, user_id, name, key, created_at, last_used, usage_count, rate_limit, rate_limit_override
        FROM api_keys
       ORDER BY created_at DESC`
   );
@@ -52,7 +53,7 @@ export async function getAllKeys(): Promise<ApiKey[]> {
 
 export async function getKeysByUser(userId: string): Promise<ApiKey[]> {
   return db.queryMany<ApiKey>(
-    `SELECT id, user_id, name, key, created_at, last_used, usage_count, rate_limit
+    `SELECT id, user_id, name, key, created_at, last_used, usage_count, rate_limit, rate_limit_override
        FROM api_keys
       WHERE user_id = ?
       ORDER BY created_at DESC

@@ -109,7 +109,7 @@ Internet
 
 后端虽然监听 `0.0.0.0:3001` 以兼容 PM2 cluster，但主机防火墙阻止公网直连；外部流量应只经 ALB 和 nginx。不要未经验证就把 cluster 模式改为 `app.listen(..., "127.0.0.1")`，历史上这会导致 PM2 cluster 不监听并产生 502。
 
-`/v1` 的大 JSON 请求在解析前先做只读 API Key 校验，避免匿名请求触发最高 50MB 的 JSON 缓冲。校验通过后还有一层请求体准入控制（`backend/src/services/request-body-admission.ts`，Key/IP/全局 × 并发/字节六维，`PUBLIC_BODY_*` 环境变量可调）：有 `Content-Length` 时按声明值精确预占；HTTP/2 无长度或 HTTP/1.1 chunked JSON 则在读取过程中按真实在途字节动态增加 Redis 租约，并以 256 KiB 前瞻窗口减少 Redis 往返，不再把每个小请求视作 50 MiB。单请求实际读取仍受 1/50 MiB 硬上限约束。租约只保护 body 在内存中的缓冲，body 解析完成即释放，不覆盖上游调用和流式响应阶段；拒绝会返回 429/503 并在 message 中透出具体维度（如 `api_key_concurrency`），同时写入 SLS（status=rejected，errorReason=`body_admission_*`）。nginx 另加载仓库中的 `ops/nginx/nexusflow-v1-*.conf`，为普通 `/v1/` 请求提供 1 MiB、10 秒慢请求、每 IP 600 RPM、100 burst 和 50 并发连接的粗粒度防洪；大上下文、embedding 和音频路由使用更精确的独立边缘策略，API Key QPM/TPM 仍由应用层执行。
+`/v1` 的大 JSON 请求在解析前先做只读 API Key 校验，避免匿名请求触发最高 50MB 的 JSON 缓冲。校验通过后还有一层请求体准入控制（`backend/src/services/request-body-admission.ts`，Key/IP/全局 × 并发/字节六维，`PUBLIC_BODY_*` 环境变量可调）：有 `Content-Length` 时按声明值精确预占；HTTP/2 无长度或 HTTP/1.1 chunked JSON 则在读取过程中按真实在途字节动态增加 Redis 租约，并以 256 KiB 前瞻窗口减少 Redis 往返，不再把每个小请求视作 50 MiB。单请求实际读取仍受 1/50 MiB 硬上限约束。租约只保护 body 在内存中的缓冲，body 解析完成即释放，不覆盖上游调用和流式响应阶段；拒绝会返回 429/503 并在 message 中透出具体维度（如 `api_key_concurrency`），同时写入 SLS（status=rejected，errorReason=`body_admission_*`）。Key 是主要身份边界，IP 只作为高阈值 NAT/DDoS 保险丝，不能比正常付费 Key 更早拒绝。nginx 仍保留 body 大小、慢请求和每 IP 高阈值边缘熔断，但不承担客户套餐配额；客户吞吐由应用层账户/主账号聚合、模型 QPM/TPM、可选 API Key override 和 Provider 容量共同决定。
 
 ## 5. 仓库结构
 
@@ -257,6 +257,12 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
 
 API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展示字段只保存掩码。不得恢复“掩码字符串也可通过认证”的兼容逻辑。
 
+API Key 默认继承账户/模型套餐，不再隐含套用历史 60 RPM。`api_keys.rate_limit_override`
+只有运营明确配置时才作为更窄的 Key 级保险丝；`NULL` 表示继承，而不是绕过账户
+QPM/TPM。旧 `rate_limit` 字段在 expand/rollback 窗口内仅保留旧版本兼容，控制台不得把
+它显示成实际套餐。公开 429 应通过 `X-RateLimit-Scope` 标明触发层级，并提供
+`Retry-After` 及 limit/remaining/reset 信息。
+
 ### 9.2 主账号/子账号
 
 - 钱只存在主账号；
@@ -322,12 +328,15 @@ API Key 创建时只返回一次明文。数据库用 SHA-256 hash 验证，展�
 021_control_plane_persistence_limits.sql
 022_usage_retail_pricing_evidence.sql
 023_provider_list_price_fallback.sql
+026_api_key_rate_limit_overrides.sql
 ```
 
 历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。
 `017` 是 session hash、`018` 是通用后台审计、`019` 是 Provider 成本分层、`020`
 是上传对象生命周期、`021` 是控制面持久化边界、`022` 保存结算时零售价/折扣/思考模式证据，
-`023` 增加无适用私有价本时的官方原价兜底；新增 migration 前必须检查实际目录
+`023` 增加无适用私有价本时的官方原价兜底，`026` 将 API Key 固定 RPM 改为可空
+override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留，合并时仍按完整文件名
+登记。新增 migration 前必须检查实际目录
 和团队分配，禁止复用编号。
 生产是否已应用以 `schema_migrations` 为准，不能从仓库文件列表推断。
 

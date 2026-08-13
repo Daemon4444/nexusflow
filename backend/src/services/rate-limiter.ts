@@ -350,17 +350,38 @@ export async function checkProviderLimitsAsync(
  */
 export async function checkConsumerLimitsAsync(
   apiKeyId: string,
-  rpmLimit: number
-): Promise<{ allowed: boolean; remaining: number; reason?: string }> {
+  rpmLimit: number | null | undefined
+): Promise<{
+  allowed: boolean;
+  remaining: number | null;
+  resetMs?: number;
+  limit?: number;
+  scope: "api_key";
+  reason?: string;
+}> {
+  // Account/model limits are the product quota. API keys inherit those limits
+  // unless an operator explicitly configures a narrower per-key override.
+  if (rpmLimit == null) {
+    return { allowed: true, remaining: null, scope: "api_key" };
+  }
   const check = await checkRPM(`consumer:${apiKeyId}`, rpmLimit);
   if (!check.allowed) {
     return {
       allowed: false,
       remaining: 0,
+      resetMs: check.resetMs,
+      limit: rpmLimit,
+      scope: "api_key",
       reason: `API key RPM limit exceeded (${rpmLimit}/min). Retry after ${Math.ceil(check.resetMs / 1000)}s.`,
     };
   }
-  return { allowed: true, remaining: check.remaining };
+  return {
+    allowed: true,
+    remaining: check.remaining,
+    resetMs: check.resetMs,
+    limit: rpmLimit,
+    scope: "api_key",
+  };
 }
 
 /**

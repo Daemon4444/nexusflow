@@ -467,6 +467,14 @@ CSV correctness checks:
 
 ## 8. Rate Limit Management
 
+Create a normal self-service API key and verify its returned `rateLimit` is
+`null` with source `account_plan`. It must reach the configured account/model
+QPM rather than stopping at the historical 60 RPM. If an operator sets an
+explicit Key override, only that Key must receive 429 and the response must
+include `X-RateLimit-Scope: api_key`, `Retry-After`, limit, remaining and reset
+headers. A high-throughput test from one NAT IP must be governed by
+Key/account/Provider policy rather than the nginx IP fuse.
+
 ### 8.1 Admin Set, Edit, Delete
 
 Steps:

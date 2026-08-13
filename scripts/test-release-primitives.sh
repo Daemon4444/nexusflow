@@ -328,9 +328,9 @@ test "$(grep -Fxc '    proxy_buffering off;' "$audio_server_policy")" -eq 7
 test "$(grep -Fxc '    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;' "$audio_server_policy")" -eq 7
 test "$(grep -Fxc 'client_max_body_size 1m;' "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf")" -eq 1
 test "$(grep -Fxc 'client_body_timeout 10s;' "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf")" -eq 1
-grep -Fx 'limit_conn nf_v1_conn 50;' \
+grep -Fx 'limit_conn nf_v1_edge_conn_v2 500;' \
   "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf" >/dev/null
-grep -Fx 'limit_req zone=nf_v1 burst=100 nodelay;' \
+grep -Fx 'limit_req zone=nf_v1_edge_v2 burst=2000 nodelay;' \
   "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf" >/dev/null
 grep -Fx 'if ($nexusflow_drain_match = "IMPU") {' "$enabled_server_policy" >/dev/null
 grep -Fx '    return 503;' "$enabled_server_policy" >/dev/null
@@ -349,9 +349,9 @@ grep -Fx 'limit_conn_zone $binary_remote_addr zone=nexusflow_audio_transcription
   "$audio_http_policy" >/dev/null
 grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_audio_transcription_rate:10m rate=6r/m;' \
   "$audio_http_policy" >/dev/null
-grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_v1_large_rate:10m rate=120r/m;' \
+grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_v1_large_edge_rate_v3:10m rate=1000r/s;' \
   "$audio_http_policy" >/dev/null
-grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_v1_embedding_rate:10m rate=120r/m;' \
+grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_v1_embedding_edge_rate_v2:10m rate=1000r/s;' \
   "$audio_http_policy" >/dev/null
 grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_upload_rate:10m rate=12r/m;' \
   "$audio_http_policy" >/dev/null

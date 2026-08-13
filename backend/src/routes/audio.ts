@@ -93,29 +93,37 @@ async function requireAudioCallerBeforeBody(
       return;
     }
 
-    const keyRate = await checkRPMFailClosed(
-      `consumer:${caller.id}`,
-      caller.rate_limit
-    );
-    if (!keyRate.available) {
-      res.status(503).json({
-        error: {
-          message: "Request admission control is temporarily unavailable.",
-          type: "server_error",
-          code: "rate_limit_unavailable",
-        },
-      });
-      return;
-    }
-    if (!keyRate.allowed) {
-      res.status(429).json({
-        error: {
-          message: `API key RPM limit exceeded (${caller.rate_limit}/min). Retry after ${Math.ceil(keyRate.resetMs / 1000)}s.`,
-          type: "rate_limit_error",
-          code: "rate_limit_exceeded",
-        },
-      });
-      return;
+    if (caller.rate_limit_override != null) {
+      const keyRate = await checkRPMFailClosed(
+        `consumer:${caller.id}`,
+        caller.rate_limit_override
+      );
+      if (!keyRate.available) {
+        res.status(503).json({
+          error: {
+            message: "Request admission control is temporarily unavailable.",
+            type: "server_error",
+            code: "rate_limit_unavailable",
+          },
+        });
+        return;
+      }
+      if (!keyRate.allowed) {
+        res
+          .status(429)
+          .set("X-RateLimit-Scope", "api_key")
+          .set("X-RateLimit-Limit", String(caller.rate_limit_override))
+          .set("X-RateLimit-Remaining", "0")
+          .set("Retry-After", String(Math.max(1, Math.ceil(keyRate.resetMs / 1000))))
+          .json({
+            error: {
+              message: `API key RPM limit exceeded (${caller.rate_limit_override}/min). Retry after ${Math.ceil(keyRate.resetMs / 1000)}s.`,
+              type: "rate_limit_error",
+              code: "rate_limit_exceeded",
+            },
+          });
+        return;
+      }
     }
 
     res.locals.audioCaller = caller as AuthenticatedAudioCaller;

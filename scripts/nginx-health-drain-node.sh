@@ -86,8 +86,8 @@ render_config() {
 location = /v1/chat/completions {
     client_max_body_size 50m;
     client_body_timeout 30s;
-    limit_conn nexusflow_v1_large_conn_v2 10;
-    limit_req zone=nexusflow_v1_large_rate_v2 burst=20 nodelay;
+    limit_conn nexusflow_v1_large_edge_conn_v3 500;
+    limit_req zone=nexusflow_v1_large_edge_rate_v3 burst=2000 nodelay;
     limit_conn_status 429;
     limit_req_status 429;
     proxy_request_buffering off;
@@ -106,8 +106,8 @@ location = /v1/chat/completions {
 location = /v1/responses {
     client_max_body_size 50m;
     client_body_timeout 30s;
-    limit_conn nexusflow_v1_large_conn_v2 10;
-    limit_req zone=nexusflow_v1_large_rate_v2 burst=20 nodelay;
+    limit_conn nexusflow_v1_large_edge_conn_v3 500;
+    limit_req zone=nexusflow_v1_large_edge_rate_v3 burst=2000 nodelay;
     limit_conn_status 429;
     limit_req_status 429;
     proxy_request_buffering off;
@@ -126,8 +126,8 @@ location = /v1/responses {
 location = /v1/messages {
     client_max_body_size 50m;
     client_body_timeout 30s;
-    limit_conn nexusflow_v1_large_conn_v2 10;
-    limit_req zone=nexusflow_v1_large_rate_v2 burst=20 nodelay;
+    limit_conn nexusflow_v1_large_edge_conn_v3 500;
+    limit_req zone=nexusflow_v1_large_edge_rate_v3 burst=2000 nodelay;
     limit_conn_status 429;
     limit_req_status 429;
     proxy_request_buffering off;
@@ -148,8 +148,8 @@ location = /v1/messages {
 location = /v1/embeddings {
     client_max_body_size 8m;
     client_body_timeout 15s;
-    limit_conn nexusflow_v1_embedding_conn 10;
-    limit_req zone=nexusflow_v1_embedding_rate burst=20 nodelay;
+    limit_conn nexusflow_v1_embedding_edge_conn_v2 500;
+    limit_req zone=nexusflow_v1_embedding_edge_rate_v2 burst=2000 nodelay;
     limit_conn_status 429;
     limit_req_status 429;
     proxy_request_buffering off;
@@ -269,18 +269,14 @@ render_audio_guard_config() {
 # Managed by NexusFlow release tooling. Included once in nginx http context.
 limit_conn_zone $binary_remote_addr zone=nexusflow_audio_transcription_conn:10m;
 limit_req_zone $binary_remote_addr zone=nexusflow_audio_transcription_rate:10m rate=6r/m;
-# The optional root-owned include contains exact press-test client IPs as
-# 'address "";' entries. Empty keys are not accounted by nginx limit zones,
-# so exempt clients continue to be governed by API-key, account and Provider
-# admission without weakening the public IP-level safety net.
-map $remote_addr $nexusflow_v1_large_limit_key {
-    default $remote_addr;
-    include /etc/nginx/nexusflow-v1-large-exempt.conf;
-}
-limit_conn_zone $nexusflow_v1_large_limit_key zone=nexusflow_v1_large_conn_v2:10m;
-limit_req_zone $nexusflow_v1_large_limit_key zone=nexusflow_v1_large_rate_v2:10m rate=120r/m;
-limit_conn_zone $binary_remote_addr zone=nexusflow_v1_embedding_conn:10m;
-limit_req_zone $binary_remote_addr zone=nexusflow_v1_embedding_rate:10m rate=120r/m;
+# Authenticated customer quotas live in the application and are keyed by
+# account/model plus an optional API-key override. IP remains only a coarse
+# edge fuse, deliberately well above normal paid-plan throughput so NATs and
+# horizontally scaled clients do not receive false 429s.
+limit_conn_zone $binary_remote_addr zone=nexusflow_v1_large_edge_conn_v3:10m;
+limit_req_zone $binary_remote_addr zone=nexusflow_v1_large_edge_rate_v3:10m rate=1000r/s;
+limit_conn_zone $binary_remote_addr zone=nexusflow_v1_embedding_edge_conn_v2:10m;
+limit_req_zone $binary_remote_addr zone=nexusflow_v1_embedding_edge_rate_v2:10m rate=1000r/s;
 limit_conn_zone $binary_remote_addr zone=nexusflow_upload_conn:10m;
 limit_req_zone $binary_remote_addr zone=nexusflow_upload_rate:10m rate=12r/m;
 limit_conn_zone $binary_remote_addr zone=nexusflow_upload_download_conn:10m;
@@ -337,9 +333,9 @@ validate_config_file() {
     die "default v1 request-body cap is missing"
   grep -Fx 'client_body_timeout 10s;' "$V1_LOCATION_CONFIG" >/dev/null ||
     die "default v1 slow-client timeout is missing"
-  grep -Fx 'limit_req zone=nf_v1 burst=100 nodelay;' "$V1_LOCATION_CONFIG" >/dev/null ||
+  grep -Fx 'limit_req zone=nf_v1_edge_v2 burst=2000 nodelay;' "$V1_LOCATION_CONFIG" >/dev/null ||
     die "default v1 request-rate limit is missing"
-  grep -Fx 'limit_conn nf_v1_conn 50;' "$V1_LOCATION_CONFIG" >/dev/null ||
+  grep -Fx 'limit_conn nf_v1_edge_conn_v2 500;' "$V1_LOCATION_CONFIG" >/dev/null ||
     die "default v1 connection limit is missing"
   grep -F 'location = /v1/audio/transcriptions {' "$DRAIN_CONFIG" >/dev/null ||
     die "audio ingress exact-location policy is missing from the server include"

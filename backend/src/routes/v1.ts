@@ -15,6 +15,7 @@ import { logUpstreamFailure, logUsage } from "../data/usage";
 import { BillingReservationFailureReason, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
 import { checkConsumerLimitsAsync } from "../services/rate-limiter";
+import { setRateLimitHeaders } from "../utils/rate-limit-headers";
 import {
   reconcileAccountTpm,
   reserveAccountQpm,
@@ -205,7 +206,21 @@ function rejectBillingReservation(res: Response, reason: BillingReservationFailu
   sendBillingReservationFailure(res, reason);
 }
 
-function rejectUserRateLimit(res: Response, message: string): void {
+function rejectUserRateLimit(
+  res: Response,
+  message: string,
+  dimension: "qpm" | "tpm" = "qpm",
+  limit?: number,
+  remaining?: number,
+  resetMs?: number
+): void {
+  setRateLimitHeaders(res, {
+    scope: dimension === "qpm" ? "account_model_qpm" : "account_model_tpm",
+    limit,
+    remaining,
+    resetMs,
+    rejected: true,
+  });
   res.status(429).json({
     error: {
       message,
@@ -384,12 +399,13 @@ router.post("/images/generations", async (req: Request, res: Response) => {
     modelId,
   });
   if (!rpmCheck.allowed) {
-    rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`);
+    rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`, "qpm", rpmCheck.limit, 0, rpmCheck.resetMs);
     return;
   }
 
-  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit_override);
   if (!rateCheck.allowed) {
+    setRateLimitHeaders(res, { ...rateCheck, rejected: true });
     res.status(429).json({
       error: {
         message: rateCheck.reason,
@@ -558,7 +574,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
       `Image generation: ${modelId} (${imageCount} images)`
     );
 
-    res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+    if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
     res.json({
       created: Math.floor(Date.now() / 1000),
       data: imageUrls.map((url) => ({ url, revised_prompt: prompt || null })),
@@ -736,7 +752,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   });
   if (!rpmCheck2.allowed) {
     logToSLS({ apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "rejected", errorReason: "qpm_limit", clientIp });
-    rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${rpmCheck2.limit} requests/min for '${modelId}'.`);
+    rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${rpmCheck2.limit} requests/min for '${modelId}'.`, "qpm", rpmCheck2.limit, 0, rpmCheck2.resetMs);
     return;
   }
   const tpmCheck = await reserveAccountTpm({
@@ -747,14 +763,15 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   });
   if (!tpmCheck.allowed) {
     logToSLS({ apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "rejected", errorReason: "tpm_limit", clientIp });
-    rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${tpmCheck.limit} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining || 0} tokens.`);
+    rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${tpmCheck.limit} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining || 0} tokens.`, "tpm", tpmCheck.limit, tpmCheck.remaining ?? 0);
     return;
   }
 
   // Rate limit check
-  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit_override);
   if (!rateCheck.allowed) {
     logToSLS({ apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "rejected", errorReason: "rate_limit", clientIp });
+    setRateLimitHeaders(res, { ...rateCheck, rejected: true });
     res.status(429).json({
       error: {
         message: rateCheck.reason,
@@ -889,7 +906,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
 
       // Collect all chunks for billing + track TTFT/TPOT
       let fullResponse = "";
@@ -1222,7 +1239,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         billing.discountAmount,
       );
 
-      res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
       if (data.usage && typeof data.usage === "object") {
         const compDetails = data.usage.completion_tokens_details || {};
         data.usage.completion_tokens_details = {
@@ -1347,7 +1364,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     }
 
     // Add rate limit headers
-    res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+    if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
     data.id = logId;
     data.model = modelId;
     res.json(data);
@@ -1501,7 +1518,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     modelId,
   });
   if (!rpmCheck.allowed) {
-    rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`);
+    rejectUserRateLimit(res, `Model-level QPM limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`, "qpm", rpmCheck.limit, 0, rpmCheck.resetMs);
     return;
   }
   const tpmCheck = await reserveAccountTpm({
@@ -1511,13 +1528,14 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     estimatedTokens: estimatedEmbeddingTokens,
   });
   if (!tpmCheck.allowed) {
-    rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${tpmCheck.limit} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining || 0} tokens.`);
+    rejectUserRateLimit(res, `Model-level TPM limit exceeded: ${tpmCheck.limit} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining || 0} tokens.`, "tpm", tpmCheck.limit, tpmCheck.remaining ?? 0);
     return;
   }
 
   // Rate limit check
-  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit);
+  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit_override);
   if (!rateCheck.allowed) {
+    setRateLimitHeaders(res, { ...rateCheck, rejected: true });
     res.status(429).json({
       error: {
         message: rateCheck.reason,
@@ -1635,7 +1653,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
       `Embedding: ${modelId} (${usage.prompt_tokens || 0} tokens)`
     );
 
-    res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+    if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
     res.json(data);
 
   } catch (err: any) {

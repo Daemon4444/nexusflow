@@ -6,6 +6,7 @@ import {
   createApiKey,
   DEFAULT_SELF_SERVICE_API_KEY_RATE_LIMIT,
 } from "../src/data/apikeys";
+import { checkConsumerLimitsAsync } from "../src/services/rate-limiter";
 import { closeDb, db } from "../src/db/client";
 
 async function main(): Promise<void> {
@@ -43,12 +44,28 @@ async function main(): Promise<void> {
     // This is the exact contract emitted by the current dashboard.
     const dashboardRequest = await create({ name: "Dashboard key" });
     assert.equal(dashboardRequest.status, 200);
-    assert.equal(dashboardRequest.body.data.rateLimit, DEFAULT_SELF_SERVICE_API_KEY_RATE_LIMIT);
-    const stored = await db.queryOne<{ rate_limit: number | string }>(
-      "SELECT rate_limit FROM api_keys WHERE id = ?",
+    assert.equal(dashboardRequest.body.data.rateLimit, null);
+    assert.equal(dashboardRequest.body.data.rateLimitSource, "account_plan");
+    const stored = await db.queryOne<{
+      rate_limit: number | string;
+      rate_limit_override: number | string | null;
+    }>(
+      "SELECT rate_limit, rate_limit_override FROM api_keys WHERE id = ?",
       [dashboardRequest.body.data.id]
     );
+    // Legacy value remains populated only for rollback compatibility.
     assert.equal(Number(stored?.rate_limit), DEFAULT_SELF_SERVICE_API_KEY_RATE_LIMIT);
+    assert.equal(stored?.rate_limit_override, null);
+
+    const inherited = await checkConsumerLimitsAsync(dashboardRequest.body.data.id, null);
+    assert.equal(inherited.allowed, true);
+    assert.equal(inherited.remaining, null);
+
+    const firstOverride = await checkConsumerLimitsAsync("explicit-override", 1);
+    const secondOverride = await checkConsumerLimitsAsync("explicit-override", 1);
+    assert.equal(firstOverride.allowed, true);
+    assert.equal(secondOverride.allowed, false);
+    assert.equal(secondOverride.scope, "api_key");
 
     const overrideAttempts = [
       { name: "negative", rateLimit: -1 },

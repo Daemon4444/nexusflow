@@ -57,8 +57,8 @@ printf '%s\n' \
   > "$SITE_CONFIG"
 printf '%s\n' \
   '# pre-existing v1 policy' \
-  'limit_req zone=nf_v1 burst=100 nodelay;' \
-  'limit_conn nf_v1_conn 50;' \
+  'limit_req zone=nf_v1_edge_v2 burst=2000 nodelay;' \
+  'limit_conn nf_v1_edge_conn_v2 500;' \
   > "$V1_LOCATION_CONFIG"
 cp "$SCRIPT_DIR/nginx-health-drain-node.sh" "$NODE_HELPER"
 chmod 0755 "$NODE_HELPER"
