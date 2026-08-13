@@ -274,7 +274,7 @@ limit_req_zone $binary_remote_addr zone=nexusflow_audio_transcription_rate:10m r
 # so exempt clients continue to be governed by API-key, account and Provider
 # admission without weakening the public IP-level safety net.
 map $remote_addr $nexusflow_v1_large_limit_key {
-    default $binary_remote_addr;
+    default $remote_addr;
     include /etc/nginx/nexusflow-v1-large-exempt.conf;
 }
 limit_conn_zone $nexusflow_v1_large_limit_key zone=nexusflow_v1_large_conn:10m;
