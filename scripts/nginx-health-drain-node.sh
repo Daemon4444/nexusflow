@@ -86,8 +86,8 @@ render_config() {
 location = /v1/chat/completions {
     client_max_body_size 50m;
     client_body_timeout 30s;
-    limit_conn nexusflow_v1_large_conn 10;
-    limit_req zone=nexusflow_v1_large_rate burst=20 nodelay;
+    limit_conn nexusflow_v1_large_conn_v2 10;
+    limit_req zone=nexusflow_v1_large_rate_v2 burst=20 nodelay;
     limit_conn_status 429;
     limit_req_status 429;
     proxy_request_buffering off;
@@ -106,8 +106,8 @@ location = /v1/chat/completions {
 location = /v1/responses {
     client_max_body_size 50m;
     client_body_timeout 30s;
-    limit_conn nexusflow_v1_large_conn 10;
-    limit_req zone=nexusflow_v1_large_rate burst=20 nodelay;
+    limit_conn nexusflow_v1_large_conn_v2 10;
+    limit_req zone=nexusflow_v1_large_rate_v2 burst=20 nodelay;
     limit_conn_status 429;
     limit_req_status 429;
     proxy_request_buffering off;
@@ -126,8 +126,8 @@ location = /v1/responses {
 location = /v1/messages {
     client_max_body_size 50m;
     client_body_timeout 30s;
-    limit_conn nexusflow_v1_large_conn 10;
-    limit_req zone=nexusflow_v1_large_rate burst=20 nodelay;
+    limit_conn nexusflow_v1_large_conn_v2 10;
+    limit_req zone=nexusflow_v1_large_rate_v2 burst=20 nodelay;
     limit_conn_status 429;
     limit_req_status 429;
     proxy_request_buffering off;
@@ -277,8 +277,8 @@ map $remote_addr $nexusflow_v1_large_limit_key {
     default $remote_addr;
     include /etc/nginx/nexusflow-v1-large-exempt.conf;
 }
-limit_conn_zone $nexusflow_v1_large_limit_key zone=nexusflow_v1_large_conn:10m;
-limit_req_zone $nexusflow_v1_large_limit_key zone=nexusflow_v1_large_rate:10m rate=120r/m;
+limit_conn_zone $nexusflow_v1_large_limit_key zone=nexusflow_v1_large_conn_v2:10m;
+limit_req_zone $nexusflow_v1_large_limit_key zone=nexusflow_v1_large_rate_v2:10m rate=120r/m;
 limit_conn_zone $binary_remote_addr zone=nexusflow_v1_embedding_conn:10m;
 limit_req_zone $binary_remote_addr zone=nexusflow_v1_embedding_rate:10m rate=120r/m;
 limit_conn_zone $binary_remote_addr zone=nexusflow_upload_conn:10m;
