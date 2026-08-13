@@ -171,6 +171,8 @@ API Key 鉴权
 
 资金检查不是普通的“先查余额、后扣款”。迁移 `011_billing_reservations.sql` 和 `reserveBalanceWithReason/settleReservation/releaseReservation` 用数据库行锁解决并发请求穿透可用资金的问题。主账号可用资金为余额加信控，结算时优先扣余额、不足部分扣信控；两者独立展示和记账。预占失败会保留余额不足、子账号额度耗尽、账号暂停等稳定原因，HTTP 路由不能再把这些情况合并成同一个 402。新增任何收费路径必须接入同一套预占/结算语义。
 
+余额与 Provider TPM 预占的输出 token 估算由 `getReservedOutputTokens`（`backend/src/data/models.ts`）决定：请求显式传 `max_tokens` 按其值（截断到 `maxOutput`）；未传时回退到模型 `defaultOutputReservation`，再回退到全局缺省 `DEFAULT_OUTPUT_RESERVATION_TOKENS = 16384`（同样不超过 `maxOutput`）。禁止回退到 `maxOutput` 峰值：kimi-k3 等大输出模型（maxOutput 1,048,576 > 路由 TPM 上限 1,000,000）会让不带 `max_tokens` 的请求被 `provider_capacity_exhausted` 必然拒绝，并把余额预占放大到实际用量的数百倍。
+
 ### 6.2 图像、视频、语音与异步任务
 
 - OpenAI 风格图片：`POST /v1/images/generations`

@@ -38,16 +38,21 @@ export interface AIModel {
   isNew?: boolean;
   isFeatured?: boolean;
   maxOutput: number;
-  /** 未显式传 max_tokens 时用于余额预占；缺省仍按 maxOutput，避免改变既有模型行为。 */
+  /** 未显式传 max_tokens 时用于余额与 TPM 预占；缺省为 min(maxOutput, 16384)。 */
   defaultOutputReservation?: number;
   supported: string[];
 }
+
+// 未传 max_tokens 时的输出预留缺省值。不能回退到 maxOutput：大输出模型
+// （如 kimi-k3 的 1,048,576）会让单请求预占超过 Provider TPM 上限而被必然拒绝，
+// 同时把余额预占放大到实际用量的数百倍。
+export const DEFAULT_OUTPUT_RESERVATION_TOKENS = 16_384;
 
 export function getReservedOutputTokens(model: AIModel, requestedTokens?: number): number {
   const maximum = Math.max(1, Number(model.maxOutput) || 4096);
   const fallback = Math.min(
     maximum,
-    Math.max(1, Number(model.defaultOutputReservation) || maximum)
+    Math.max(1, Number(model.defaultOutputReservation) || DEFAULT_OUTPUT_RESERVATION_TOKENS)
   );
   const requested = Number(requestedTokens);
   const selected = Number.isFinite(requested) && requested > 0 ? requested : fallback;

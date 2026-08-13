@@ -14,7 +14,7 @@ const openAiParams = [
   ["stream_options.include_usage", "boolean", "可选", "流式响应最后返回 usage。需要计费、统计或 smoke 校验时建议开启。"],
   ["temperature", "number", "可选", "采样温度。范围通常为 0 到 2；越高越随机。"],
   ["top_p", "number", "可选", "核采样阈值。建议不要和 temperature 同时大幅调整。"],
-  ["max_tokens", "integer", "可选", "最大输出 token 数，不能超过模型 maxOutput。"],
+  ["max_tokens", "integer", "可选", "最大输出 token 数，不能超过模型 maxOutput。不传时平台按 16384（不超过 maxOutput）预留余额与速率额度，实际输出长度以上游模型默认为准；预期超长输出请显式传入。"],
   ["stop", "string | string[]", "可选", "停止序列，命中后结束输出。"],
   ["presence_penalty", "number", "可选", "存在惩罚，通常范围 -2 到 2，增加新话题倾向。"],
   ["frequency_penalty", "number", "可选", "频率惩罚，通常范围 -2 到 2，降低重复表达。"],

@@ -29,6 +29,21 @@ assert.equal(snapshot.maxOutput, 393_216);
 assert.equal(getReservedOutputTokens(snapshot), 16_384);
 assert.equal(getReservedOutputTokens(snapshot, 393_216), 393_216);
 assert.equal(getReservedOutputTokens(snapshot, 500_000), 393_216);
+
+// 缺省输出预留不得回退到 maxOutput：kimi-k3 的 maxOutput(1,048,576) 超过
+// Provider TPM 上限(1,000,000)，回退到峰值会导致不带 max_tokens 的请求被必然拒绝。
+const kimiK3 = models.find((model) => model.id === "kimi-k3");
+assert.ok(kimiK3);
+assert.equal(kimiK3.maxOutput, 1_048_576);
+assert.equal(kimiK3.defaultOutputReservation, undefined);
+assert.equal(getReservedOutputTokens(kimiK3), 16_384);
+assert.equal(getReservedOutputTokens(kimiK3, 1_048_576), 1_048_576);
+assert.equal(getReservedOutputTokens(kimiK3, 2_000_000), 1_048_576);
+assert.equal(
+  getReservedOutputTokens({ ...kimiK3, maxOutput: 8_192 }),
+  8_192,
+  "maxOutput 小于全局缺省预留时按 maxOutput 截断"
+);
 assert.equal(snapshot.promptPrice, 1);
 assert.equal(snapshot.completionPrice, 2);
 assert.equal(snapshot.cacheReadPrice, 0.2);
