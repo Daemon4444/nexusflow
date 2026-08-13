@@ -270,16 +270,12 @@ render_audio_guard_config() {
 limit_conn_zone $binary_remote_addr zone=nexusflow_audio_transcription_conn:10m;
 limit_req_zone $binary_remote_addr zone=nexusflow_audio_transcription_rate:10m rate=6r/m;
 # The optional root-owned include contains exact press-test client IPs as
-# "address 1;" entries. Empty keys are not accounted by nginx limit zones,
+# 'address "";' entries. Empty keys are not accounted by nginx limit zones,
 # so exempt clients continue to be governed by API-key, account and Provider
 # admission without weakening the public IP-level safety net.
-geo $nexusflow_v1_large_exempt {
-    default 0;
+map $remote_addr $nexusflow_v1_large_limit_key {
+    default $binary_remote_addr;
     include /etc/nginx/nexusflow-v1-large-exempt.conf;
-}
-map $nexusflow_v1_large_exempt $nexusflow_v1_large_limit_key {
-    0 $binary_remote_addr;
-    1 "";
 }
 limit_conn_zone $nexusflow_v1_large_limit_key zone=nexusflow_v1_large_conn:10m;
 limit_req_zone $nexusflow_v1_large_limit_key zone=nexusflow_v1_large_rate:10m rate=120r/m;
