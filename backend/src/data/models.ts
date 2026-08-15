@@ -372,14 +372,15 @@ const staticModels: AIModel[] = [
     name: "Qwen Turbo",
     provider: "通义千问",
     description: "通义千问高速版，响应极快，成本最低，适合对延迟敏感的应用场景。",
-    contextLength: 1000000,
+    contextLength: 131072,
     promptPrice: 0.3,
     completionPrice: 0.6,
+    thinkingCompletionPrice: 3,
     cacheReadPrice: 0.06,
     category: "大语言模型",
     tags: ["快速", "低成本", "通用"],
     maxOutput: 16384,
-    supported: ["文本", "函数调用"]
+    supported: ["文本", "函数调用", "思考模式"]
   },
   {
     id: "qwen-long",
@@ -391,7 +392,7 @@ const staticModels: AIModel[] = [
     completionPrice: 2,
     category: "大语言模型",
     tags: ["超长上下文", "文档分析"],
-    maxOutput: 32768,
+    maxOutput: 8192,
     supported: ["文本"]
   },
   {
@@ -404,6 +405,11 @@ const staticModels: AIModel[] = [
     completionPrice: 1.5,
     cacheReadPrice: 0.03,
     cacheReadExplicitPrice: 0.015,
+    tokenPricingTiers: [
+      { label: "0<Token≤128K", maxTokens: 131072, promptPrice: 0.15, completionPrice: 1.5, cacheReadPrice: 0.03, cacheReadExplicitPrice: 0.015 },
+      { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 0.6, completionPrice: 6, cacheReadPrice: 0.12, cacheReadExplicitPrice: 0.06 },
+      { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 1.2, completionPrice: 12, cacheReadPrice: 0.24, cacheReadExplicitPrice: 0.12 },
+    ],
     category: "大语言模型",
     tags: ["极速", "低成本", "百万上下文", "通用", "思考模式"],
     isNew: true,
@@ -469,7 +475,7 @@ const staticModels: AIModel[] = [
     tags: ["推理", "数学", "逻辑", "思考链"],
     isFeatured: true,
     maxOutput: 8192,
-    supported: ["文本", "思考链"]
+    supported: ["文本", "函数调用", "思考链", "联网搜索"]
   },
 
   // ========== 视觉模型 ==========
@@ -486,7 +492,7 @@ const staticModels: AIModel[] = [
     tags: ["视觉", "多模态", "OCR", "图文理解"],
     isFeatured: true,
     maxOutput: 8192,
-    supported: ["文本", "图像输入"]
+    supported: ["文本", "图像输入", "视频输入"]
   },
   {
     id: "qwen-vl-plus",
@@ -500,7 +506,7 @@ const staticModels: AIModel[] = [
     category: "多模态模型",
     tags: ["视觉", "多模态", "高性价比"],
     maxOutput: 8192,
-    supported: ["文本", "图像输入"]
+    supported: ["文本", "图像输入", "视频输入"]
   },
   {
     id: "qwen3-vl-plus",
@@ -516,10 +522,10 @@ const staticModels: AIModel[] = [
       { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 3, completionPrice: 30 },
     ],
     category: "多模态模型",
-    tags: ["视觉", "多模态", "高分辨率"],
+    tags: ["视觉", "多模态", "高分辨率", "思考模式"],
     isNew: true,
     maxOutput: 32768,
-    supported: ["文本", "图像输入"]
+    supported: ["文本", "图像输入", "视频输入", "函数调用", "思考模式"]
   },
   {
     id: "qwen3-vl-flash",
@@ -535,9 +541,9 @@ const staticModels: AIModel[] = [
       { label: "128K<Token≤256K", maxTokens: 262144, promptPrice: 0.6, completionPrice: 6 },
     ],
     category: "多模态模型",
-    tags: ["视觉", "极速", "高性价比"],
+    tags: ["视觉", "极速", "高性价比", "思考模式"],
     maxOutput: 32768,
-    supported: ["文本", "图像输入"]
+    supported: ["文本", "图像输入", "视频输入", "函数调用", "思考模式"]
   },
   // ========== 全能模型 ==========
   {
@@ -555,7 +561,7 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "图像输入", "音频输入", "音频输出", "视频输入", "联网搜索"]
+    supported: ["文本", "图像输入", "音频输入", "音频输出", "视频输入", "函数调用", "联网搜索"]
   },
   {
     id: "qwen3.5-omni-flash",
@@ -572,7 +578,7 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "图像输入", "音频输入", "音频输出", "视频输入", "联网搜索"]
+    supported: ["文本", "图像输入", "音频输入", "音频输出", "视频输入", "函数调用", "联网搜索"]
   },
   {
     id: "qwen3-omni-flash",
@@ -588,7 +594,7 @@ const staticModels: AIModel[] = [
     tags: ["全能", "多模态", "音频输入", "音频输出", "视频输入", "思考模式"],
     isNew: false,
     maxOutput: 16384,
-    supported: ["文本", "图像输入", "音频输入", "音频输出", "视频输入", "思考模式"]
+    supported: ["文本", "图像输入", "音频输入", "音频输出", "视频输入", "函数调用", "思考模式"]
   },
 
   // ========== 编程专用 ==========
@@ -607,11 +613,11 @@ const staticModels: AIModel[] = [
       { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 20, completionPrice: 200 },
     ],
     category: "编程模型",
-    tags: ["编程", "代码生成", "工具调用", "百万上下文"],
+    tags: ["编程", "代码生成", "工具调用", "百万上下文", "思考模式"],
     isFeatured: true,
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "代码生成", "函数调用"]
+    supported: ["文本", "代码生成", "函数调用", "思考模式"]
   },
   {
     id: "qwen3-coder-flash",
@@ -628,10 +634,10 @@ const staticModels: AIModel[] = [
       { label: "256K<Token≤1M", maxTokens: 1000000, promptPrice: 5, completionPrice: 25 },
     ],
     category: "编程模型",
-    tags: ["编程", "极速", "高性价比"],
+    tags: ["编程", "极速", "高性价比", "思考模式"],
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "代码生成"]
+    supported: ["文本", "代码生成", "函数调用", "思考模式"]
   },
 
   // ========== 数学模型 ==========
@@ -731,10 +737,10 @@ const staticModels: AIModel[] = [
     supported: ["语音转文本"]
   },
   {
-    id: "qwen3-tts-flash-realtime",
-    name: "Qwen3 TTS Flash Realtime",
+    id: "qwen3-tts-flash",
+    name: "Qwen3 TTS Flash",
     provider: "通义千问",
-    description: "Qwen3代语音合成模型。OpenAI 兼容的 HTTP 接口使用 qwen3-tts-flash 非实时模型，按输入字符计费；华北2（北京）目录价为每万字符 0.8 元。",
+    description: "Qwen3代非实时语音合成模型，通过 OpenAI 兼容 HTTP 接口调用，按输入字符计费；华北2（北京）目录价为每万字符 0.8 元。",
     contextLength: 0,
     promptPrice: 0.8,
     completionPrice: 0,
@@ -743,7 +749,7 @@ const staticModels: AIModel[] = [
       { label: "华北2（北京）", price: 0.8 },
     ],
     category: "语音模型",
-    tags: ["语音合成", "TTS", "实时", "多语言"],
+    tags: ["语音合成", "TTS", "非实时", "多语言"],
     isNew: true,
     maxOutput: 0,
     supported: ["文本转语音"]
@@ -1169,7 +1175,7 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 393216,
-    supported: ["文本", "函数调用", "思考链"]
+    supported: ["文本", "函数调用", "思考模式", "联网搜索", "上下文缓存"]
   },
   {
     id: "deepseek-v3.2",
@@ -1186,7 +1192,7 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "函数调用"]
+    supported: ["文本", "函数调用", "思考模式", "联网搜索", "上下文缓存"]
   },
   {
     id: "deepseek-r1",
@@ -1201,7 +1207,7 @@ const staticModels: AIModel[] = [
     tags: ["推理", "数学", "编程", "思考链"],
     isFeatured: true,
     maxOutput: 16384,
-    supported: ["文本", "思考链"]
+    supported: ["文本", "函数调用", "思考链", "联网搜索", "上下文缓存"]
   },
   {
     id: "deepseek-v3",
@@ -1215,7 +1221,7 @@ const staticModels: AIModel[] = [
     category: "大语言模型",
     tags: ["MoE", "中文优化", "编程"],
     maxOutput: 8192,
-    supported: ["文本", "函数调用"]
+    supported: ["文本", "函数调用", "联网搜索", "上下文缓存"]
   },
   // ========== Claude 官方 API ==========
   {
@@ -1336,7 +1342,7 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 131072,
-    supported: ["文本", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
+    supported: ["文本", "函数调用", "思考模式", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
   },
   {
     id: "glm-5.2-fast-preview",
@@ -1354,7 +1360,7 @@ const staticModels: AIModel[] = [
     tags: ["高速", "长上下文", "百万上下文", "编程", "思考模式"],
     isNew: true,
     maxOutput: 131072,
-    supported: ["文本", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
+    supported: ["文本", "函数调用", "思考模式", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
   },
   {
     id: "kimi-k2.5",
@@ -1369,7 +1375,7 @@ const staticModels: AIModel[] = [
     category: "大语言模型",
     tags: ["长文本", "多轮对话", "中文优化"],
     maxOutput: 98304,
-    supported: ["文本"]
+    supported: ["文本", "函数调用"]
   },
   {
     id: "kimi-k2.6",
@@ -1422,7 +1428,7 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 524288,
-    supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
   },
   {
     id: "MiniMax-M2.1",
@@ -1434,9 +1440,9 @@ const staticModels: AIModel[] = [
     completionPrice: 8.4,
     cacheReadPrice: 0.42,
     category: "大语言模型",
-    tags: ["创意写作", "对话", "通用"],
+    tags: ["创意写作", "对话", "通用", "思考链"],
     maxOutput: 32768,
-    supported: ["文本"]
+    supported: ["文本", "函数调用", "思考链", "联网搜索"]
   },
   {
     id: "MiniMax-M2.5",
@@ -1448,10 +1454,10 @@ const staticModels: AIModel[] = [
     completionPrice: 8.4,
     cacheReadPrice: 0.42,
     category: "大语言模型",
-    tags: ["推理", "编程", "对话"],
+    tags: ["推理", "编程", "对话", "思考链"],
     isNew: true,
     maxOutput: 32768,
-    supported: ["文本", "函数调用"]
+    supported: ["文本", "函数调用", "思考链"]
   },
   // ========== Qwen3 小模型 ==========
   {

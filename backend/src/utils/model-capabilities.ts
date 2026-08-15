@@ -13,6 +13,7 @@ export interface ModelCapabilities {
   thinking_mode: ThinkingMode;
   thinking_default: boolean | null;
   supports_enable_thinking: boolean;
+  supports_thinking_object: boolean;
   supports_thinking_budget: boolean;
   supports_preserve_thinking: boolean;
   supports_search: boolean;
@@ -29,8 +30,8 @@ export interface ModelCapabilities {
 const ALWAYS_THINKING_MODELS = new Set([
   "qwq-plus",
   "deepseek-r1",
-  // 实测 enable_thinking:false 仍返回 reasoning_content，思考不可关
-  "MiniMax/MiniMax-M3",
+  "MiniMax-M2.1",
+  "MiniMax-M2.5",
 ]);
 
 const MIXED_THINKING_DEFAULT_ON = new Set([
@@ -44,7 +45,9 @@ const MIXED_THINKING_DEFAULT_ON = new Set([
   "qwen3.6-35b-a3b",
   "qwen3.5-plus",
   "qwen3.5-flash",
-  "qwen-flash",
+  "qwen3-235b-a22b",
+  "qwen3-32b",
+  "qwen3-8b",
   "deepseek-v4-pro",
   "deepseek-v4-pro-0813",
   "deepseek-v4-flash",
@@ -58,12 +61,12 @@ const MIXED_THINKING_DEFAULT_ON = new Set([
 
 const MIXED_THINKING_DEFAULT_OFF = new Set([
   "qwen-plus",
+  "qwen-flash",
+  "qwen-turbo",
   "qwen3-max",
   "qwen3-plus",
   "qwen3-flash",
   "qwen3-turbo",
-  "qwen3-32b",
-  "qwen3-8b",
   "deepseek-v3.2",
   "kimi-k2.6",
   "kimi-k2.5",
@@ -93,8 +96,31 @@ const PRESERVE_THINKING_MODELS = new Set([
   "kimi-k3",
 ]);
 
-// 官方模型卡明确标注支持联网搜索、但不属于 qwen/deepseek/minimax 判定分支的模型
+// 百炼联网搜索官方支持列表（华北 2）。必须逐模型列出，不能按厂商前缀放大。
 const SEARCH_ENABLED_MODELS = new Set([
+  "qwen3.8-max",
+  "qwen3.7-max",
+  "qwen3.6-max-preview",
+  "qwen3-max",
+  "qwen3.7-plus",
+  "qwen3.6-plus",
+  "qwen3.5-plus",
+  "qwen-plus",
+  "qwen3.7-flash",
+  "qwen3.6-flash",
+  "qwen3.5-flash",
+  "qwen-flash",
+  "qwen-turbo",
+  "qwq-plus",
+  "qwen3.5-omni-plus",
+  "qwen3.5-omni-flash",
+  "deepseek-v4-pro",
+  "deepseek-v4-pro-0813",
+  "deepseek-v4-flash",
+  "deepseek-v3.2",
+  "deepseek-r1",
+  "deepseek-v3",
+  "MiniMax-M2.1",
   "kimi-k3",
 ]);
 
@@ -209,12 +235,7 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
   const isQwenChat = isQwenChatModel(model);
   const isGLM = model.provider === "GLM" || model.provider === "智谱AI";
   const isDeepSeek = model.provider === "DeepSeek";
-  const isMiniMax = model.provider === "MiniMax";
-  const supportsSearch =
-    (isQwenChat && !model.id.includes("math") && !model.id.includes("mt")) ||
-    isDeepSeek ||
-    isMiniMax ||
-    SEARCH_ENABLED_MODELS.has(model.id);
+  const supportsSearch = SEARCH_ENABLED_MODELS.has(model.id);
 
   const supportsExplicitCaching = EXPLICIT_CONTEXT_CACHE_MODELS.has(model.id);
   const supportsContextCaching = supportsExplicitCaching || IMPLICIT_CONTEXT_CACHE_MODELS.has(model.id);
@@ -228,7 +249,8 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     supports_audio_output: supportsAudioOutput,
     thinking_mode: thinking.mode,
     thinking_default: thinking.defaultValue,
-    supports_enable_thinking: thinking.mode === "mixed",
+    supports_enable_thinking: thinking.mode === "mixed" && model.id !== "MiniMax/MiniMax-M3",
+    supports_thinking_object: model.id === "MiniMax/MiniMax-M3",
     supports_thinking_budget: supportsThinkingBudget,
     supports_preserve_thinking: PRESERVE_THINKING_MODELS.has(model.id),
     supports_search: supportsSearch,
@@ -263,8 +285,11 @@ export function getAllowedChatParameters(model: AIModel): string[] {
   if (capabilities.supports_tools) {
     params.push("tools", "tool_choice");
   }
-  if (capabilities.supports_enable_thinking || capabilities.thinking_mode === "always") {
+  if (capabilities.supports_enable_thinking) {
     params.push("enable_thinking");
+  }
+  if (capabilities.supports_thinking_object) {
+    params.push("thinking");
   }
   if (capabilities.supports_thinking_budget) {
     params.push("thinking_budget");

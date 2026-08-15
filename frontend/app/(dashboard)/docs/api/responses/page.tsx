@@ -293,7 +293,7 @@ export default function ResponsesApiPage() {
             marginTop: 10, paddingTop: 10, borderTop: "1px dashed #fcd34d",
             fontSize: 13, color: "#92400e", lineHeight: 1.7,
           }}>
-            当前支持的通义千问系列模型：<code style={{ fontSize: 11 }}>qwen3.8-max</code>、<code style={{ fontSize: 11 }}>qwen3.7-max</code>、<code style={{ fontSize: 11 }}>qwen3.7-plus</code>、<code style={{ fontSize: 11 }}>qwen3.7-flash</code>、<code style={{ fontSize: 11 }}>qwen3.6-plus</code>、<code style={{ fontSize: 11 }}>qwen3.5-plus</code>、<code style={{ fontSize: 11 }}>qwen3.5-flash</code>、<code style={{ fontSize: 11 }}>qwen3.6-flash</code>、<code style={{ fontSize: 11 }}>qwen-plus</code>、<code style={{ fontSize: 11 }}>qwen-flash</code>、<code style={{ fontSize: 11 }}>qwen3-coder-plus</code>、<code style={{ fontSize: 11 }}>qwen3-coder-flash</code> 等。
+            当前支持百炼官方白名单中的 Qwen 与 DeepSeek 模型，包括 <code style={{ fontSize: 11 }}>qwen3.8-max</code>、<code style={{ fontSize: 11 }}>qwen3.7-max</code>、<code style={{ fontSize: 11 }}>qwen3-max</code>、<code style={{ fontSize: 11 }}>qwen3.6-35b-a3b</code>、<code style={{ fontSize: 11 }}>qwen-plus</code>、<code style={{ fontSize: 11 }}>qwen-flash</code>、<code style={{ fontSize: 11 }}>qwen3-coder-plus</code>、<code style={{ fontSize: 11 }}>qwen3-coder-flash</code>、<code style={{ fontSize: 11 }}>deepseek-v4-pro</code>、<code style={{ fontSize: 11 }}>deepseek-v4-pro-0813</code>、<code style={{ fontSize: 11 }}>deepseek-v4-flash</code> 等；目录未声明支持的模型会在本地直接拒绝。
           </div>
         </div>
       </section>
@@ -490,7 +490,7 @@ export default function ResponsesApiPage() {
           </p>
         </div>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>
-          当前 Responses API 支持通义千问系列模型：qwen3.8-max、qwen3.7-max、qwen3.7-plus、qwen3.7-flash、qwen3.6-plus、qwen3.5-plus、qwen3.5-flash、qwen3.6-flash、qwen-plus、qwen-flash、qwen3-coder-plus、qwen3-coder-flash 等。
+          当前 Responses API 严格跟随百炼官方白名单，支持相应 Qwen 模型及 deepseek-v4-pro、deepseek-v4-pro-0813、deepseek-v4-flash；目录未声明支持的模型会在本地直接拒绝。
         </p>
       </section>
 

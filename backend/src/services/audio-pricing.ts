@@ -53,7 +53,7 @@ export function qwen3AsrPricePerSecond(region: string): number {
 export function qwen3TtsPricePer10kCharacters(region: string): number {
   return verifiedPrice(
     QWEN3_TTS_CNY_PER_10K_CHARACTERS,
-    "qwen3-tts-flash-realtime",
+    "qwen3-tts-flash",
     region
   );
 }

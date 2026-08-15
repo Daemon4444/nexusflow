@@ -31,6 +31,7 @@ import {
   type ResolvedUpstream,
 } from "../services/upstream";
 import { detectModelType } from "../services/adapters";
+import { supportsResponsesApi } from "../utils/model-protocols";
 import { calculateOpenAiCacheAwareCost, buildApiDescription, isExplicitCacheRequested } from "../utils/cache-billing";
 import {
   acquireProviderCapacity,
@@ -262,7 +263,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   const modelType = detectModelType(model.category);
-  if (modelType !== "chat") {
+  if (modelType !== "chat" || !supportsResponsesApi(modelId)) {
     res.status(400).json({
       error: {
         message: `Model '${modelId}' does not support the Responses API.`,

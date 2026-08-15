@@ -6,7 +6,7 @@ const MODELS = [
   'qwen-flash', 
   'tongyi-intent-detect-v3',
   'qwen3-asr-flash',
-  'qwen3-tts-flash-realtime',
+  'qwen3-tts-flash',
   'deepseek-v4-flash'
 ];
 

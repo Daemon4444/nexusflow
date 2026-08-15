@@ -90,6 +90,17 @@ const REF: Record<string, Ref> = {
       { max: 1000000, in: 4.8, out: 48, cache: 0.96, read: 0.48, thinkingOut: 64 },
     ],
   },
+  "qwen-turbo": { ctx: 131072, maxOut: 16384, in: 0.3, out: 0.6, cache: 0.06, thinkingOut: 3 },
+  "qwen-long": { ctx: 10000000, maxOut: 8192, in: 0.5, out: 2 },
+  "qwen-flash": {
+    ctx: 1000000, maxOut: 32768,
+    tiers: [
+      { max: 131072, in: 0.15, out: 1.5, cache: 0.03, read: 0.015 },
+      { max: 262144, in: 0.6, out: 6, cache: 0.12, read: 0.06 },
+      { max: 1000000, in: 1.2, out: 12, cache: 0.24, read: 0.12 },
+    ],
+  },
+  "qwq-plus": { ctx: 131072, maxOut: 8192, in: 1.6, out: 4 },
   "qwen3-vl-plus": {
     ctx: 262144, maxOut: 32768,
     tiers: [
@@ -125,6 +136,7 @@ const REF: Record<string, Ref> = {
     ],
   },
   "qwen-vl-max": { ctx: 131072, maxOut: 8192, in: 1.6, out: 4, cache: 0.32 },
+  "qwen-vl-plus": { ctx: 131072, maxOut: 8192, in: 0.8, out: 2, cache: 0.16 },
   "qwen3-235b-a22b": { ctx: 131072, maxOut: 16384, in: 2, out: 8, thinkingOut: 20 },
   "qwen3.6-35b-a3b": { ctx: 262144, maxOut: 65536, in: 1.8, out: 10.8 },
   "qwen3-32b": { ctx: 131072, maxOut: 8192, in: 2, out: 8, thinkingOut: 20 },
@@ -166,12 +178,35 @@ const REF: Record<string, Ref> = {
   "glm-5.2-fast-preview": { ctx: 1048576, maxOut: 131072, in: 16, out: 56, cache: 4 },
   "kimi-k2.5": { ctx: 262144, maxOut: 98304, in: 4, out: 21, cache: 0.8, create: 5, read: 0.4 },
   "kimi-k2.6": { ctx: 262144, maxOut: 98304, in: 6.5, out: 27, cache: 1.3, create: 8.125, read: 0.65 },
-  "kimi-k3": { ctx: 1048576, maxOut: 1048576, in: 20, out: 100, cache: 2 },
   "MiniMax/MiniMax-M3": { ctx: 1000000, maxOut: 524288, in: 4.2, out: 16.8, cache: 0.84 },
   "MiniMax-M2.1": { ctx: 204800, maxOut: 32768, in: 2.1, out: 8.4, cache: 0.42 },
   "MiniMax-M2.5": { ctx: 196608, maxOut: 32768, in: 2.1, out: 8.4, cache: 0.42 },
   "text-embedding-v4": { in: 0.5 },
   "text-embedding-v3": { in: 0.5 },
+};
+
+interface UnitRef {
+  pricingType: NonNullable<AIModel["pricingType"]>;
+  base: number;
+  tiers: Array<{ label: string; price: number }>;
+}
+
+// 非 token 计费的百炼在售模型。PixVerse 是 NexusFlow 的跨渠道产品 ID，
+// 这里校验其百炼渠道对应的 V6 官方计费档位；不把该产品 ID 冒充百炼原生 ID。
+const UNIT_REF: Record<string, UnitRef> = {
+  "qwen3-asr-flash": { pricingType: "per-second", base: 0.00022, tiers: [{ label: "华北2（北京）", price: 0.00022 }] },
+  "qwen3-tts-flash": { pricingType: "per-10k-characters", base: 0.8, tiers: [{ label: "华北2（北京）", price: 0.8 }] },
+  "wan2.6-t2i": { pricingType: "per-image", base: 0.2, tiers: [{ label: "标准", price: 0.2 }] },
+  "wan2.6-t2v": { pricingType: "per-second", base: 0.6, tiers: [{ label: "720P", price: 0.6 }, { label: "1080P", price: 1 }] },
+  "wan2.6-i2v": { pricingType: "per-second", base: 0.6, tiers: [{ label: "720P", price: 0.6 }, { label: "1080P", price: 1 }] },
+  "wan2.6-r2v": { pricingType: "per-second", base: 0.6, tiers: [{ label: "720P", price: 0.6 }, { label: "1080P", price: 1 }] },
+  "wan2.6-i2v-flash": { pricingType: "per-second", base: 0.15, tiers: [{ label: "720P 有声", price: 0.3 }, { label: "1080P 有声", price: 0.5 }, { label: "720P 无声", price: 0.15 }, { label: "1080P 无声", price: 0.25 }] },
+  "wan2.6-r2v-flash": { pricingType: "per-second", base: 0.15, tiers: [{ label: "720P 有声", price: 0.3 }, { label: "1080P 有声", price: 0.5 }, { label: "720P 无声", price: 0.15 }, { label: "1080P 无声", price: 0.25 }] },
+  "pixverse-v6": { pricingType: "per-second", base: 0.15, tiers: [{ label: "360P 有声", price: 0.21 }, { label: "540P 有声", price: 0.27 }, { label: "720P 有声", price: 0.36 }, { label: "1080P 有声", price: 0.68 }, { label: "360P 无声", price: 0.15 }, { label: "540P 无声", price: 0.21 }, { label: "720P 无声", price: 0.27 }, { label: "1080P 无声", price: 0.53 }] },
+  "happyhorse-1.0-t2v": { pricingType: "per-second", base: 0.9, tiers: [{ label: "720P", price: 0.9 }, { label: "1080P", price: 1.6 }] },
+  "happyhorse-1.0-i2v": { pricingType: "per-second", base: 0.9, tiers: [{ label: "720P", price: 0.9 }, { label: "1080P", price: 1.6 }] },
+  "happyhorse-1.0-r2v": { pricingType: "per-second", base: 0.9, tiers: [{ label: "720P", price: 0.9 }, { label: "1080P", price: 1.6 }] },
+  "happyhorse-1.0-video-edit": { pricingType: "per-second", base: 0.9, tiers: [{ label: "720P", price: 0.9 }, { label: "1080P", price: 1.6 }] },
 };
 
 const at6 = (v: number) => Math.round(v * 1_000_000) / 1_000_000;
@@ -253,7 +288,23 @@ for (const [id, ref] of Object.entries(REF)) {
   }
 }
 
-console.log(`=== 校验 ${Object.keys(REF).length} 个模型，发现 ${problems.length} 处不一致 ===`);
+for (const [id, ref] of Object.entries(UNIT_REF)) {
+  const m = models.get(id);
+  if (!m) { add(id, "百炼非 token 计费模型未接入"); continue; }
+  if (m.pricingType !== ref.pricingType) add(id, `计费单位 ${m.pricingType} ≠ 官方 ${ref.pricingType}`);
+  if (at6(m.promptPrice) !== ref.base) add(id, `基础单价 ${m.promptPrice} ≠ 官方 ${ref.base}`);
+  const local = m.pricingTiers || [];
+  if (local.length !== ref.tiers.length) add(id, `单位计费档位数 ${local.length} ≠ 官方 ${ref.tiers.length}`);
+  ref.tiers.forEach((expected, index) => {
+    const actual = local[index];
+    if (!actual) return;
+    if (actual.label !== expected.label) add(id, `单位档${index + 1}标签 ${actual.label} ≠ 官方 ${expected.label}`);
+    if (at6(actual.price) !== expected.price) add(id, `单位档${index + 1}单价 ${actual.price} ≠ 官方 ${expected.price}`);
+  });
+}
+
+console.log(`=== 校验 ${Object.keys(REF).length} 个 token 模型 + ${Object.keys(UNIT_REF).length} 个单位计费模型，发现 ${problems.length} 处不一致 ===`);
 for (const p of problems) console.log("  ✗ " + p);
 console.log(`\n=== schema 表达能力缺口 / 备注 ${notes.length} 条 ===`);
 for (const n of notes) console.log("  ! " + n);
+if (problems.length > 0) process.exitCode = 1;

@@ -115,7 +115,11 @@ export function anthropicToOpenAiPayload(body: AnyRecord): AnyRecord {
   else if (choice?.type === "none") payload.tool_choice = "none";
   else if (choice?.type === "tool" && choice.name) payload.tool_choice = { type: "function", function: { name: choice.name } };
 
-  if (body.thinking?.type === "enabled") {
+  if (body.model === "MiniMax/MiniMax-M3" && body.thinking?.type === "enabled") {
+    payload.thinking = { type: "adaptive" };
+  } else if (body.model === "MiniMax/MiniMax-M3" && body.thinking?.type === "disabled") {
+    payload.thinking = { type: "disabled" };
+  } else if (body.thinking?.type === "enabled") {
     payload.enable_thinking = true;
     if (body.thinking.budget_tokens) payload.thinking_budget = body.thinking.budget_tokens;
   } else if (body.thinking?.type === "disabled") {

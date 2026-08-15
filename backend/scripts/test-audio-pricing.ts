@@ -36,7 +36,7 @@ const asr = models.find((model) => model.id === "qwen3-asr-flash");
 assert.equal(asr?.pricingType, "per-second");
 assert.equal(asr?.promptPrice, 0.00022);
 
-const tts = models.find((model) => model.id === "qwen3-tts-flash-realtime");
+const tts = models.find((model) => model.id === "qwen3-tts-flash");
 assert.equal(tts?.pricingType, "per-10k-characters");
 assert.equal(tts?.promptPrice, 0.8);
 

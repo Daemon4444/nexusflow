@@ -4,13 +4,14 @@ import { findProvider } from "../src/services/providers";
 import { sanitizeModelDoc } from "../src/data/model-overrides";
 import { estimateStreamUsage } from "../src/utils/estimate-stream-usage";
 import { isExplicitCacheRequested } from "../src/utils/cache-billing";
-import { openAiUsageToAnthropic } from "../src/utils/anthropic-openai-bridge";
+import { anthropicToOpenAiPayload, openAiUsageToAnthropic } from "../src/utils/anthropic-openai-bridge";
 import { hasThinkingOutput } from "../src/routes/messages";
 import {
   getAllowedChatParameters,
   getModelCapabilities,
 } from "../src/utils/model-capabilities";
 import { buildUpstreamChatRequest } from "../src/utils/chat-request";
+import { getSupportedProtocols, supportsResponsesApi } from "../src/utils/model-protocols";
 import {
   getUpstreamModelId,
   restorePublicModelAlias,
@@ -385,7 +386,19 @@ assert.equal(m3.promptPrice, 4.2);
 assert.equal(m3.completionPrice, 16.8);
 assert.equal(m3.anthropicPassThrough, false, "上游 apps/anthropic 实测不支持，必须走桥");
 const m3Caps = getModelCapabilities(m3);
-assert.equal(m3Caps.thinking_mode, "always", "实测 enable_thinking:false 仍输出思维链");
+assert.equal(m3Caps.thinking_mode, "mixed", "M3 使用 thinking.type 在 adaptive/disabled 间切换");
+assert.equal(m3Caps.supports_enable_thinking, false, "M3 不接受百炼通用 enable_thinking 开关");
+assert.equal(m3Caps.supports_thinking_object, true, "M3 必须透传 thinking 对象");
+assert.ok(getAllowedChatParameters(m3).includes("thinking"));
+assert.deepEqual(
+  anthropicToOpenAiPayload({ model: m3.id, messages: [], thinking: { type: "enabled", budget_tokens: 1024 } }).thinking,
+  { type: "adaptive" },
+  "Anthropic 桥必须把 M3 思考开关转换为其专用 thinking 对象",
+);
+assert.deepEqual(
+  anthropicToOpenAiPayload({ model: m3.id, messages: [], thinking: { type: "disabled" } }).thinking,
+  { type: "disabled" },
+);
 assert.equal(m3Caps.supports_vision, true);
 // 仅隐式缓存：计费按 0.84 收（显式解析回落隐式价，不多收），但不宣告显式开关
 assert.equal(m3Caps.supports_context_caching, true);
@@ -417,3 +430,28 @@ const qwenMath = models.find((model) => model.id === "qwen-math-plus")!;
 assert.equal(getModelCapabilities(qwenMath).supports_context_caching, false, "不能按 qwen 前缀虚构缓存能力");
 const qwenFlash = models.find((model) => model.id === "qwen-flash")!;
 assert.equal(resolveCachePricing(qwenFlash).explicitHit, 0.015, "qwen-flash 显式命中必须按输入价 10%");
+assert.equal(qwenFlash.tokenPricingTiers?.length, 3, "qwen-flash 必须按官方长上下文三档计价");
+assert.equal(getTokenPricingTier(qwenFlash, 131_073)?.promptPrice, 0.6);
+assert.equal(getTokenPricingTier(qwenFlash, 262_145)?.completionPrice, 12);
+const qwenFlashCaps = getModelCapabilities(qwenFlash);
+assert.equal(qwenFlashCaps.thinking_default, false, "qwen-flash 官方默认关闭思考");
+
+const qwenTurbo = models.find((model) => model.id === "qwen-turbo")!;
+assert.equal(qwenTurbo.contextLength, 131_072);
+assert.equal(qwenTurbo.thinkingCompletionPrice, 3);
+assert.equal(getModelCapabilities(qwenTurbo).thinking_default, false);
+assert.equal(models.find((model) => model.id === "qwen-long")?.maxOutput, 8_192);
+
+assert.equal(models.some((model) => model.id === "qwen3-tts-flash-realtime"), false, "不得再公开隐藏改写的实时 TTS ID");
+assert.ok(models.some((model) => model.id === "qwen3-tts-flash"), "公开 ID 必须与 HTTP 上游一致");
+
+assert.equal(supportsResponsesApi("deepseek-v4-flash"), true);
+assert.equal(supportsResponsesApi("qwen3-coder-plus"), true);
+assert.equal(supportsResponsesApi("qwen-long"), false);
+assert.ok(getSupportedProtocols(qwenFlash).includes("openai/responses"));
+assert.ok(!getSupportedProtocols(qwenTurbo).includes("openai/responses"));
+
+assert.equal(getModelCapabilities(models.find((model) => model.id === "qwen3-vl-plus")!).supports_search, false);
+assert.equal(getModelCapabilities(models.find((model) => model.id === "qwen3-omni-flash")!).supports_search, false);
+assert.equal(getModelCapabilities(models.find((model) => model.id === "MiniMax-M2.1")!).supports_search, true);
+assert.equal(getModelCapabilities(models.find((model) => model.id === "MiniMax-M2.5")!).supports_search, false);
