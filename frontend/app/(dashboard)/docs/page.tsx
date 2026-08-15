@@ -39,10 +39,12 @@ const quickLinks = [
 ];
 
 const popularModels = [
+  { name: "DeepSeek V4 Pro 0813", provider: "DeepSeek", desc: "固定 0813 快照，1M 上下文，适合复杂推理与代码 Agent", tag: "快照" },
+  { name: "DeepSeek V4 Flash 0731", provider: "DeepSeek", desc: "固定 0731 快照，低成本高并发，便于生产回归", tag: "快照" },
   { name: "Seedance 2.0", provider: "火山方舟", desc: "Seedance 系列最厉害的旗舰模型，4K HDR 多模态参考生视频", tag: "旗舰" },
   { name: "Seedance 1.5 Pro", provider: "火山方舟", desc: "样片模式 + adaptive 智能宽高比，性价比之选", tag: "最新" },
   { name: "HappyHorse 1.0", provider: "Alibaba", desc: "视频生成专题页与任务链路接入说明", tag: null },
-  { name: "Qwen3 Max", provider: "阿里云", desc: "旗舰推理与复杂任务处理", tag: "推荐" },
+  { name: "Qwen3.8 Max", provider: "阿里云", desc: "旗舰推理、视觉理解与长周期智能体任务", tag: "推荐" },
   { name: "Claude Opus 4.7", provider: "Anthropic", desc: "顶级推理与代码能力，百万上下文", tag: null },
 ];
 

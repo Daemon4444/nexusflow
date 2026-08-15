@@ -28,7 +28,7 @@ const openAiParams = [
   ["enable_thinking", "boolean", "可选", "思考模式开关。仅对已验证支持的混合思考模型可关闭；仅思考模型会忽略 false 并继续返回 reasoning_content。"],
   ["thinking_budget", "integer", "可选", "限制思考 Token 上限，按模型 ID 前缀透传（qwen3.7- / qwen3.6- / qwen3.5- / qwen3-）。"],
   ["preserve_thinking", "boolean", "可选", "将历史消息中的 reasoning_content 透传回模型，支持 qwen3.8-max、qwen3.7-max、qwen3.6-max-preview、qwen3.6-plus、kimi-k2.6、kimi-k3。"],
-  ["enable_search", "boolean", "可选", "联网搜索，支持通义千问文本类模型（非 VL / math 系列）。"],
+  ["enable_search", "boolean", "可选", "联网搜索仅对模型目录明确声明 supports_search 的官方白名单模型开放；请以 capabilities 与 allowed_parameters 为准。"],
   ["search_options", "object", "可选", "联网搜索配置，与 enable_search 配套使用。"],
   ["enable_context_caching", "boolean", "可选", "启用上下文缓存。重复的 prompt 前缀自动缓存，命中部分按 0.1x 输入价计费。支持通义千问、GLM 系列。"],
   ["seed", "integer", "可选", "随机种子，通义千问文本模型支持透传。"],
@@ -138,7 +138,7 @@ export default function ApiParametersPage() {
           参数矩阵
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 760, margin: 0 }}>
-          这里按后端实际透传和协议转换逻辑列出参数。文本类模型支持 OpenAI、Anthropic、Responses 三种协议；非文本模型按模型能力使用图像、音频、向量或异步任务接口。
+          这里按后端实际透传和协议转换逻辑列出参数。对话模型可使用 OpenAI Chat；Anthropic Messages 与 Responses 仅限模型目录的 supported_protocols 明确声明支持的模型。非文本模型按能力使用图像、音频、向量或异步任务接口。
         </p>
       </div>
 

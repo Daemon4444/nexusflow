@@ -6,8 +6,8 @@ const modelFamilies = [
   {
     name: "DeepSeek V4 系列",
     badge: "最新一代",
-    desc: "2026 年最新发布的第四代模型。V4 Pro 在复杂推理、数学证明和代码 Agent 场景上达到新高度；V4 Flash 则以极低延迟满足高并发在线需求。",
-    models: ["DeepSeek V4 Pro", "DeepSeek V4 Flash"],
+    desc: "2026 年最新发布的第四代模型。稳定 ID 会持续跟随供应商更新；0813 与 0731 是可锁定行为、便于生产回归的固定快照。",
+    models: ["DeepSeek V4 Pro", "DeepSeek V4 Pro 0813", "DeepSeek V4 Flash", "DeepSeek V4 Flash 0731"],
   },
   {
     name: "DeepSeek R1",

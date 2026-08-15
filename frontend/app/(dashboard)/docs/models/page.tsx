@@ -16,7 +16,7 @@ const modelCategories = [
   {
     name: "通义千问系列",
     provider: "阿里云",
-    desc: "阿里云自研大模型，当前重点展示 Qwen3.6 与 Qwen3.5 系列，中文能力优秀，支持超长上下文",
+    desc: "阿里云自研大模型，当前重点展示 Qwen3.8、Qwen3.7、Qwen3.6 与 Qwen3.5 系列，支持视觉理解、智能体与超长上下文",
     href: "/docs/models/qwen",
     introHref: "/docs/models/qwen/intro",
     models: ["Qwen3.8 Max", "Qwen3.7 Max", "Qwen3.7 Flash", "Qwen3.6 Max Preview", "Qwen3.6 Plus", "Qwen3.5 Omni Plus", "Qwen3.5 Omni Flash", "Qwen3.5 Plus", "Qwen3.5 Flash"],
@@ -39,7 +39,7 @@ const modelCategories = [
     desc: "高性能推理与通用模型，代码能力突出，适合复杂任务和高并发场景",
     href: "/docs/models/deepseek",
     introHref: "/docs/models/deepseek/intro",
-    models: ["DeepSeek V4 Pro", "DeepSeek V4 Flash", "DeepSeek R1", "DeepSeek V3.2"],
+    models: ["DeepSeek V4 Pro", "DeepSeek V4 Pro 0813", "DeepSeek V4 Flash", "DeepSeek V4 Flash 0731", "DeepSeek R1", "DeepSeek V3.2"],
     color: "#0ea5e9",
     tag: "高性价比",
   },

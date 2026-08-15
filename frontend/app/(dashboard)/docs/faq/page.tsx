@@ -68,11 +68,11 @@ const faqs = [
     questions: [
       {
         q: "应该选择哪个模型？",
-        a: "取决于您的需求：\n• 复杂推理/编程：Qwen3 Max\n• 日常对话/创作：Qwen3.5 Plus（推荐）\n• 中文内容处理：Qwen3.5 系列\n• 高性价比需求：DeepSeek V4 Flash / DeepSeek V3\n• 图像生成：Wan2.2 / Wan2.6 系列\n\n建议在 Playground 中试用后决定。",
+        a: "取决于您的需求：\n• 复杂推理/编程：Qwen3.8 Max / DeepSeek V4 Pro\n• 日常对话/创作：Qwen3.7 Plus / Qwen3.5 Plus\n• 高性价比需求：DeepSeek V4 Flash / Qwen Flash\n• 锁定生产行为：DeepSeek V4 Pro 0813 / Flash 0731 快照\n• 图像与视频生成：Qwen Image / Wan2.6 / Seedance 系列\n\n建议在 Playground 中试用后决定。",
       },
       {
         q: "同一模型为什么有不同版本？",
-        a: "模型供应商会持续更新模型。版本号越高通常能力越强。建议优先使用当前稳定版本，如 qwen3.5-plus、deepseek-v4-flash；需要固定 DeepSeek V4 Pro 能力时可选择 deepseek-v4-pro-0813 快照。我们会保留旧版本一段时间以便迁移。",
+        a: "稳定模型 ID 会跟随供应商持续更新，适合希望自动获得改进的业务；带日期的快照用于锁定行为和回归结果。DeepSeek 当前同时公开 deepseek-v4-pro-0813 与 deepseek-v4-flash-0731，两者均为独立直传百炼的固定快照；稳定版则使用 deepseek-v4-pro 与 deepseek-v4-flash。",
       },
       {
         q: "可以同时使用多个模型吗？",
@@ -93,7 +93,7 @@ const faqs = [
       },
       {
         q: "如何处理长文本？",
-        a: "选择支持长上下文的模型：\n• Qwen3.5 Max：100 万 Token\n• Qwen3.5 Plus：100 万 Token\n• 其他主力模型：约 12-20 万 Token\n\n超长文本建议分段处理或使用向量检索。",
+        a: "选择支持长上下文的模型：\n• Qwen Long：1000 万 Token\n• Qwen3.8 Max、Qwen3.7 Max/Plus：100 万 Token\n• DeepSeek V4 Pro/Flash（含 0813/0731 快照）：100 万 Token\n• 其他主力模型通常约 12-26 万 Token\n\n超长文本仍建议结合分段、缓存或向量检索控制成本。",
       },
       {
         q: "响应太慢怎么办？",

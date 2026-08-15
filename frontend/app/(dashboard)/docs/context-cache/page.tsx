@@ -76,7 +76,7 @@ print(f"缓存创建: {details.cache_creation_input_tokens} tokens")`;
 
 const supportedModels = [
   { provider: "通义千问", models: "Qwen3.8/3.7、Qwen3.6/3.5（显式）；Qwen3 Max、Qwen Plus/Flash/Turbo、Qwen VL、Qwen3 Coder（按模型支持显式或隐式）", min: "1024 (显式)；约 256/2000 (隐式)" },
-  { provider: "DeepSeek", models: "V3.2（显式/隐式）；V4 Pro/Flash、R1、V3（仅隐式）", min: "1024 (显式) / 256 (隐式)" },
+  { provider: "DeepSeek", models: "V3.2（显式/隐式）；V4 Pro/Pro 0813、Flash/Flash 0731、R1、V3（仅隐式）", min: "1024 (显式) / 256 (隐式)" },
   { provider: "智谱 GLM", models: "GLM 5.1（显式/隐式）；5.2、5、4.7（仅隐式）", min: "1024 (显式) / 256 (隐式)" },
   { provider: "Kimi", models: "K2.6、K2.5（显式/隐式）；K3（仅隐式）", min: "1024 (显式) / 256 (隐式)" },
   { provider: "MiniMax", models: "MiniMax M3、M2.5、M2.1（仅隐式缓存，自动生效）", min: "M3: 512；M2: 256 (隐式)" },

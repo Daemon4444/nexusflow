@@ -14,6 +14,8 @@ const fallbackModelRows = [
   { model: "Qwen3.7 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
   { model: "GLM 5.2", provider: "Zhipu AI", context: "1M", price: "input ¥8 / output ¥28 per 1M" },
   { model: "DeepSeek V4 Flash", provider: "DeepSeek", context: "1M", price: "input ¥1 / output ¥2 per 1M" },
+  { model: "DeepSeek V4 Flash 0731", provider: "DeepSeek", context: "1M", price: "input ¥1 / output ¥2 per 1M" },
+  { model: "DeepSeek V4 Pro 0813", provider: "DeepSeek", context: "1M", price: "input ¥9 / output ¥27 per 1M" },
   { model: "Seedance 2.0", provider: "Volcengine Ark", context: "Async video", price: "from ¥0.44 / second" },
 ];
 
@@ -54,15 +56,17 @@ const fallbackCarouselModels = [
   { name: "Qwen3.5 Flash", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.2 · Out ¥2", badge: "Fast", tone: "teal" },
   { name: "Qwen3.5 Omni Plus", provider: "Tongyi Qianwen", ctx: "262K omni", price: "In ¥7 · Out ¥40", badge: "Omni", tone: "violet" },
   { name: "Qwen3.5 Omni Flash", provider: "Tongyi Qianwen", ctx: "262K omni", price: "In ¥2.2 · Out ¥13.3", badge: "Omni", tone: "violet" },
-  { name: "Qwen VL Flash", provider: "Tongyi Qianwen", ctx: "262K vision", price: "In ¥0.15 · Out ¥1.5", badge: "Vision", tone: "violet" },
-  { name: "Qwen Coder Flash", provider: "Tongyi Qianwen", ctx: "1M code", price: "In ¥1 · Out ¥4", badge: "Code", tone: "slate" },
+  { name: "Qwen3 VL Flash", provider: "Tongyi Qianwen", ctx: "262K vision", price: "In ¥0.15 · Out ¥1.5", badge: "Vision", tone: "violet" },
+  { name: "Qwen3 Coder Flash", provider: "Tongyi Qianwen", ctx: "1M code", price: "In ¥1 · Out ¥4", badge: "Code", tone: "slate" },
   { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "1M context", price: "In ¥1 · Out ¥2", badge: "Fast", tone: "red" },
+  { name: "DeepSeek V4 Flash 0731", provider: "DeepSeek", ctx: "1M context", price: "In ¥1 · Out ¥2", badge: "Snapshot", tone: "red" },
+  { name: "DeepSeek V4 Pro 0813", provider: "DeepSeek", ctx: "1M context", price: "In ¥9 · Out ¥27", badge: "Snapshot", tone: "red" },
   { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "1M context", price: "In ¥12 · Out ¥24", badge: "Reasoning", tone: "red" },
   { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },
   { name: "GLM 5.2", provider: "Zhipu AI", ctx: "1M context", price: "In ¥8 · Out ¥28", badge: "Flagship", tone: "violet" },
   { name: "Text Embedding V4", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
   { name: "Qwen Image Max", provider: "Tongyi Qianwen", ctx: "Image", price: "per image", badge: "Image", tone: "orange" },
-  { name: "PixVerse V4.5", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
+  { name: "PixVerse V6", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
   { name: "HappyHorse 1.0", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.9/s", badge: "Video", tone: "orange" },
 ];
 

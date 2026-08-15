@@ -192,19 +192,19 @@ export default function MultiProtocolPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, fontSize: 13, color: "#92400e", lineHeight: 1.6 }}>
             <div>
               <code style={{ fontSize: 12, fontWeight: 700 }}> /v1/chat/completions</code>
-              <div style={{ marginTop: 2 }}>全部模型支持</div>
+              <div style={{ marginTop: 2 }}>文本、推理、多模态与编程模型</div>
             </div>
             <div>
               <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/messages</code>
-              <div style={{ marginTop: 2 }}>全部模型支持</div>
+              <div style={{ marginTop: 2 }}>支持 Messages 的对话模型</div>
             </div>
           </div>
           <div style={{
             marginTop: 10, paddingTop: 10, borderTop: "1px dashed #fcd34d",
             fontSize: 13, color: "#92400e", lineHeight: 1.6,
           }}>
-            <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/responses</code> — <strong>仅通义千问系列支持</strong>；
-            DeepSeek / GLM / Kimi / MiniMax 调用会返回 <code style={{ fontSize: 11 }}>Unsupported model</code>，请改用前两个端点。
+            <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/responses</code> — <strong>支持百炼官方白名单中的 Qwen 与 DeepSeek</strong>，
+            包括 DeepSeek V4 Pro、Pro 0813、Flash 和 Flash 0731。GLM / Kimi / MiniMax 等未声明模型会返回 <code style={{ fontSize: 11 }}>Unsupported model</code>；精确范围以模型目录的 <code style={{ fontSize: 11 }}>supported_protocols</code> 为准。
           </div>
         </div>
       </section>

@@ -54,6 +54,8 @@ const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string;
     { id: "qwen3.5-plus", ctx: "1M", input: "¥0.8/M", output: "¥4.8/M" },
     { id: "qwen3.5-flash", ctx: "1M", input: "¥0.2/M", output: "¥2/M" },
     { id: "qwen-plus", ctx: "1M", input: "¥0.8/M", output: "¥2/M" },
+    { id: "qwen-flash", ctx: "1M", input: "¥0.15–1.2/M（三档）", output: "¥1.5–12/M（三档）" },
+    { id: "qwen-long", ctx: "10M", input: "¥0.5/M", output: "¥2/M" },
     { id: "qwen-turbo", ctx: "128K", input: "¥0.3/M", output: "¥0.6/M（思考 ¥3/M）" },
   ],
   reasoning: [
