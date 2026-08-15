@@ -5,11 +5,24 @@ import Link from "next/link";
 
 const deepseekModels = [
   {
+    id: "deepseek-v4-pro-0813",
+    name: "DeepSeek V4 Pro 0813",
+    desc: "V4 Pro 的 0813 快照。NexusFlow 同步 API 使用百炼即时推理价；百炼已公布闲时调度价 ¥4.5/¥13.5，但该异步模式尚未开放。",
+    ctx: "1,000,000",
+    maxOutput: "393,216",
+    inputPrice: "¥9",
+    outputPrice: "¥27",
+    tags: ["V4", "0813", "旗舰", "混合思考"],
+    features: ["复杂推理", "代码 Agent", "函数调用", "联网搜索", "隐式缓存 ¥1.8/M"],
+    isNew: true,
+    isFeatured: true,
+  },
+  {
     id: "deepseek-v4-pro",
     name: "DeepSeek V4 Pro",
     desc: "DeepSeek V4 旗舰推理模型，适合复杂数学、长链路决策和代码 Agent 任务。",
     ctx: "1,000,000",
-    maxOutput: "16,384",
+    maxOutput: "393,216",
     inputPrice: "¥12",
     outputPrice: "¥24",
     tags: ["V4", "旗舰", "推理"],
@@ -89,7 +102,7 @@ export default function DeepSeekModelsPage() {
         </div>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 700 }}>
           DeepSeek 是国内领先的开源大模型，以极高的性价比著称。
-          在代码生成、数学推理方面表现突出，是预算敏感场景的理想选择。文本类模型可通过 OpenAI Chat、Anthropic Messages 和 Responses API 三类公共协议接入。
+          在代码生成、数学推理方面表现突出，是预算敏感场景的理想选择。文本类 DeepSeek 模型可通过 OpenAI Chat 和 Anthropic Messages 接入。
         </p>
       </div>
 
@@ -97,11 +110,10 @@ export default function DeepSeekModelsPage() {
         <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)", marginBottom: 16 }}>
           接入协议
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
           {[
             { href: "/docs/api/chat", label: "OpenAI Chat", endpoint: "/v1/chat/completions" },
             { href: "/docs/api/anthropic", label: "Anthropic Messages", endpoint: "/v1/messages" },
-            { href: "/docs/api/responses", label: "Responses API", endpoint: "/v1/responses" },
           ].map((item) => (
             <Link key={item.label} href={item.href} style={{ padding: 16, borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{item.label}</div>

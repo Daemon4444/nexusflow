@@ -53,6 +53,14 @@ interface AIModel {
   tokenPricingTiers?: TokenPricingTier[];
   cachePricing?: CachePricing | null;
   thinkingPricing?: ThinkingPricing | null;
+  alternatePricingModes?: Array<{
+    id: string;
+    label: string;
+    promptPrice: number;
+    completionPrice: number;
+    availability: "available" | "announced";
+    note?: string;
+  }>;
   category: string;
   tags: string[];
   isNew?: boolean;
@@ -464,6 +472,27 @@ export default function ModelDetailPage() {
                 <div key={tier.label} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "10px 12px", borderBottom: index < model.pricingTiers!.length - 1 ? "1px solid var(--border)" : "none", fontSize: 13 }}>
                   <span style={{ fontWeight: 500 }}>{tier.label}</span>
                   <strong>¥{tier.price}/{pricingUnit}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {model.alternatePricingModes && model.alternatePricingModes.length > 0 && (
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
+              其它官方定价模式
+            </div>
+            <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+              {model.alternatePricingModes.map((mode, index) => (
+                <div key={mode.id} style={{ padding: "12px 14px", borderBottom: index < model.alternatePricingModes!.length - 1 ? "1px solid var(--border)" : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", fontSize: 13 }}>
+                    <strong>{mode.label}</strong>
+                    <span>输入 ¥{mode.promptPrice}/M · 输出 ¥{mode.completionPrice}/M</span>
+                    <span style={{ color: mode.availability === "available" ? "var(--success)" : "var(--warning, #d97706)", fontWeight: 600 }}>
+                      {mode.availability === "available" ? "可用" : "官方已公布，暂未开放"}
+                    </span>
+                  </div>
+                  {mode.note && <div style={{ marginTop: 7, color: "var(--text-tertiary)", fontSize: 12, lineHeight: 1.6 }}>{mode.note}</div>}
                 </div>
               ))}
             </div>

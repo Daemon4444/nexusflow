@@ -107,6 +107,7 @@ const pricingTable = [
   { model: "claude-sonnet-4-6", ctx: "1M", input: "≈¥20.4", output: "≈¥102", category: "均衡" },
   { model: "claude-haiku-4-5", ctx: "200K", input: "≈¥6.8", output: "≈¥34", category: "高速" },
   { model: "deepseek-v4-pro", ctx: "1M", input: "¥12", output: "¥24", category: "推理旗舰" },
+  { model: "deepseek-v4-pro-0813", ctx: "1M", input: "¥9", output: "¥27", category: "0813 快照（闲时价待开放）" },
   { model: "deepseek-v4-flash", ctx: "1M", input: "¥1", output: "¥2", category: "高速轻量 MoE" },
   { model: "deepseek-r1", ctx: "128K", input: "¥4", output: "¥16", category: "推理" },
   { model: "deepseek-v3.2", ctx: "128K", input: "¥2", output: "¥3", category: "通用" },

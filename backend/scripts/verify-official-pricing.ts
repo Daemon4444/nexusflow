@@ -136,6 +136,7 @@ const REF: Record<string, Ref> = {
   "qwen3.5-omni-flash": { ctx: 262144, maxOut: 65536, in: 2.2, out: 13.3, audioIn: 18, audioOut: 72 },
   "qwen3-omni-flash": { ctx: 65536, maxOut: 16384, in: 1.8, out: 6.9, audioIn: 15.8, audioOut: 62.6 },
   "deepseek-v4-pro": { ctx: 1000000, maxOut: 393216, in: 12, out: 24, cache: 1 },
+  "deepseek-v4-pro-0813": { ctx: 1000000, maxOut: 393216, in: 9, out: 27, cache: 1.8 },
   "deepseek-v4-flash": { ctx: 1000000, maxOut: 393216, in: 1, out: 2, cache: 0.2 },
   "deepseek-v3.2": { ctx: 131072, maxOut: 65536, in: 2, out: 3, cache: 0.4, create: 2.5, read: 0.2 },
   "deepseek-r1": { ctx: 131072, maxOut: 16384, in: 4, out: 16, cache: 0.8 },

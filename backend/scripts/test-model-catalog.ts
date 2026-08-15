@@ -53,6 +53,35 @@ assert.equal(findProvider(snapshot.id)?.id, "dashscope");
 assert.equal(getUpstreamModelId(snapshot.id), "deepseek-v4-flash-0731");
 assert.equal(getUpstreamModelId("deepseek-v4-pro"), "deepseek-v4-pro");
 
+const pro0813 = models.find((model) => model.id === "deepseek-v4-pro-0813");
+assert.ok(pro0813, "deepseek-v4-pro-0813 must be public as an independent snapshot");
+assert.equal(pro0813.contextLength, 1_000_000);
+assert.equal(pro0813.maxOutput, 393_216);
+assert.equal(pro0813.promptPrice, 9, "同步 API 必须使用百炼即时推理输入价");
+assert.equal(pro0813.completionPrice, 27, "同步 API 必须使用百炼即时推理输出价");
+assert.equal(pro0813.cacheReadPrice, 1.8, "0813 隐式缓存按官方通用 20% 规则");
+assert.equal(getReservedOutputTokens(pro0813), 16_384);
+assert.equal(getUpstreamModelId(pro0813.id), pro0813.id);
+assert.equal(findProvider(pro0813.id)?.id, "dashscope");
+assert.deepEqual(pro0813.alternatePricingModes, [{
+  id: "idle-scheduling",
+  label: "闲时调度",
+  promptPrice: 4.5,
+  completionPrice: 13.5,
+  availability: "announced",
+  note: "百炼已公布价格，但官方闲时调度功能尚未开放；NexusFlow 当前不接受该模式请求。",
+}]);
+const pro0813Capabilities = getModelCapabilities(pro0813);
+assert.equal(pro0813Capabilities.thinking_mode, "mixed");
+assert.equal(pro0813Capabilities.thinking_default, true);
+assert.equal(pro0813Capabilities.supports_context_caching, true);
+assert.equal(pro0813Capabilities.supports_explicit_context_caching, false);
+assert.equal(resolveCachePricing(pro0813).implicitHit, 1.8);
+
+const sanitized0813 = sanitizeModelDoc(pro0813);
+assert.equal(sanitized0813.ok, true, "模型覆盖层必须保留并校验其它官方定价模式");
+if (sanitized0813.ok) assert.deepEqual(sanitized0813.model.alternatePricingModes, pro0813.alternatePricingModes);
+
 const upstreamRequest = buildUpstreamChatRequest(snapshot, {
   model: snapshot.id,
   messages: [{ role: "user", content: "hello" }],

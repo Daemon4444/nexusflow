@@ -54,6 +54,7 @@ async function getAllModels(): Promise<AIModel[]> {
         pricingType: model.pricingType || existing.pricingType,
         pricingTiers: model.pricingTiers || existing.pricingTiers,
         tokenPricingTiers: model.tokenPricingTiers || existing.tokenPricingTiers,
+        alternatePricingModes: existing.alternatePricingModes,
       });
     } else {
       modelMap.set(model.id, model);

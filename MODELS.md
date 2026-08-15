@@ -165,6 +165,7 @@ Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 Ne
 |---------|------|------------|----------|----------|----------|------|
 | `qwq-plus` | QwQ Plus | 131K | 16K | ¥1.6/M | ¥4/M | 思考链，数学逻辑 |
 | `deepseek-v4-pro` | DeepSeek V4 Pro | 1M | 384K | ¥12/M | ¥24/M | V4旗舰推理 |
+| `deepseek-v4-pro-0813` | DeepSeek V4 Pro 0813 | 1M | 384K | ¥9/M（闲时调度 ¥4.5/M，暂未开放） | ¥27/M（闲时调度 ¥13.5/M，暂未开放） | V4 Pro 0813 快照、混合思考、隐式缓存 |
 | `deepseek-r1` | DeepSeek R1 | 131K | 16K | ¥4/M | ¥16/M | 思考链，数学编程 |
 | `qwen-math-plus` | Qwen Math Plus | 4K | 4K | ¥4/M | ¥12/M | 数学专用，LaTeX |
 

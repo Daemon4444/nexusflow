@@ -9,6 +9,7 @@ const API_BASE = "https://nexusflow.hk";
 type TabKey = "chat" | "reasoning";
 
 const models = [
+  { id: "deepseek-v4-pro-0813", category: "推理模型", context: "1M", input: 9, output: 27, desc: "V4 Pro 0813 快照；闲时调度 ¥4.5/¥13.5 尚未开放" },
   { id: "deepseek-v4-pro", category: "推理模型", context: "1M", input: 12, output: 24, desc: "V4 旗舰推理模型" },
   { id: "deepseek-v4-flash", category: "大语言模型", context: "1M", input: 1, output: 2, desc: "高效轻量 MoE，低延迟、高并发" },
   { id: "deepseek-v3.2", category: "大语言模型", context: "128K", input: 2, output: 3, desc: "V3.2 通用模型" },
@@ -114,17 +115,6 @@ const protocolCurlExamples = [
     ]
   }'`,
   },
-  {
-    title: "Responses API",
-    endpoint: "/v1/responses",
-    code: `curl ${API_BASE}/v1/responses \\
-  -H "Authorization: Bearer $API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "model": "deepseek-v4-flash",
-    "input": "只回复 OK"
-  }'`,
-  },
 ];
 
 export default function DeepSeekApiPage() {
@@ -146,7 +136,7 @@ export default function DeepSeekApiPage() {
           DeepSeek 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          DeepSeek 系列模型，支持推理模式和流式输出。文本类 DeepSeek 模型可通过 OpenAI Chat Completions、Anthropic Messages 和 Responses API 三类公共协议调用。
+          DeepSeek 系列模型支持推理模式和流式输出，可通过 OpenAI Chat Completions 和 Anthropic Messages 调用。百炼 Responses 端点当前不支持 DeepSeek，因此 NexusFlow 不宣告该协议。
         </p>
       </div>
 
@@ -161,8 +151,7 @@ export default function DeepSeekApiPage() {
         </div>
         <p style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.7 }}>
           这是默认示例端点。多协议调用方式见 <Link href="/docs/multi-protocol" style={{ color: "var(--accent)" }}>多协议支持</Link>、
-          <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link> 和
-          <Link href="/docs/api/responses" style={{ color: "var(--accent)" }}> Responses API</Link>。
+          <Link href="/docs/api/anthropic" style={{ color: "var(--accent)" }}> Anthropic Messages</Link>。
         </p>
       </section>
 

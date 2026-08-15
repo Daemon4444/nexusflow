@@ -43,6 +43,7 @@ const implicitModels = [
   { model: "qwen-vl-max", provider: "通义千问", minTokens: "~256" },
   { model: "qwen-vl-plus", provider: "通义千问", minTokens: "~256" },
   { model: "deepseek-v4-pro", provider: "DeepSeek", minTokens: "~256" },
+  { model: "deepseek-v4-pro-0813", provider: "DeepSeek", minTokens: "~256" },
   { model: "deepseek-v4-flash", provider: "DeepSeek", minTokens: "~256" },
   { model: "deepseek-v3.2", provider: "DeepSeek", minTokens: "~256" },
   { model: "deepseek-r1", provider: "DeepSeek", minTokens: "~256" },

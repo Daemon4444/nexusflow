@@ -33,6 +33,19 @@ export interface AIModel {
   pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters"; // default: "token"
   pricingTiers?: PricingTier[];  // resolution-based pricing for video/image
   tokenPricingTiers?: TokenPricingTier[]; // input-token-based tier pricing for text models
+  /**
+   * 官方公布但不一定已开放的其它调用模式价格。主 promptPrice/completionPrice
+   * 始终代表 NexusFlow 当前公共同步 API 的实际结算价；不可用模式只做披露，
+   * 绝不能参与预占或实扣。
+   */
+  alternatePricingModes?: Array<{
+    id: string;
+    label: string;
+    promptPrice: number;
+    completionPrice: number;
+    availability: "available" | "announced";
+    note?: string;
+  }>;
   category: string;
   tags: string[];
   isNew?: boolean;
@@ -1109,6 +1122,33 @@ const staticModels: AIModel[] = [
     cacheReadPrice: 0.2,
     category: "大语言模型",
     tags: ["V4", "极速", "高并发", "混合思考", "性价比"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 393216,
+    defaultOutputReservation: 16384,
+    supported: ["文本", "函数调用", "思考模式", "联网搜索", "上下文缓存"]
+  },
+  {
+    id: "deepseek-v4-pro-0813",
+    name: "DeepSeek V4 Pro 0813",
+    provider: "DeepSeek",
+    description: "DeepSeek V4 Pro 的 0813 快照版本，面向复杂推理、代码生成和长周期智能体任务。NexusFlow 同步 API 按百炼即时推理价结算；百炼公布的闲时调度价暂未开放，仅作价格披露。",
+    contextLength: 1000000,
+    promptPrice: 9,
+    completionPrice: 27,
+    cacheReadPrice: 1.8,
+    alternatePricingModes: [
+      {
+        id: "idle-scheduling",
+        label: "闲时调度",
+        promptPrice: 4.5,
+        completionPrice: 13.5,
+        availability: "announced",
+        note: "百炼已公布价格，但官方闲时调度功能尚未开放；NexusFlow 当前不接受该模式请求。",
+      },
+    ],
+    category: "推理模型",
+    tags: ["V4", "0813快照", "旗舰", "推理", "编程", "混合思考"],
     isFeatured: true,
     isNew: true,
     maxOutput: 393216,

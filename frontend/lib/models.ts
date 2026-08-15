@@ -8,6 +8,14 @@ export interface ModelSummary {
   maxOutput?: number;
   promptPrice?: number;
   completionPrice?: number;
+  alternatePricingModes?: Array<{
+    id: string;
+    label: string;
+    promptPrice: number;
+    completionPrice: number;
+    availability: "available" | "announced";
+    note?: string;
+  }>;
   pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   supportedProtocols?: string[];
   supported_protocols?: string[];
@@ -57,6 +65,7 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
     "qwen3.7-max",
     "qwen3.7-plus",
     "deepseek-v4-flash",
+    "deepseek-v4-pro-0813",
     "deepseek-v4-pro",
     "glm-5.2",
     "glm-5.2-fast-preview",
@@ -83,6 +92,7 @@ export function pickDefaultPlaygroundModel(models: ModelSummary[], requestedMode
     requestedModel,
     "qwen3.8-max",
     "qwen3.7-max",
+    "deepseek-v4-pro-0813",
     "deepseek-v4-pro",
     "deepseek-v4-flash",
     "qwen3.6-max-preview",

@@ -55,6 +55,7 @@ const thinkingSupport = [
   ["deepseek-v3.2", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
   ["deepseek-v4-flash", "混合思考", "支持 true / false", "开启后返回 reasoning_content，关闭后直接生成答案。"],
   ["deepseek-v4-pro", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
+  ["deepseek-v4-pro-0813", "混合思考", "支持 true / false", "百炼 0813 快照线上验证：false 返回直答；V4 混合思考参数规则与正式版一致。"],
   ["glm-5.2", "混合思考", "支持 true / false", "长程任务旗舰，1M 上下文。默认开启思考；true 返回 reasoning_content，最大思维链 128K；false 不返回。支持 thinking_budget。"],
   ["glm-5.2-fast-preview", "混合思考", "支持 true / false", "GLM-5.2 高速版，能力对齐标准版，输出 TPS 1.5~2 倍。默认开启思考；支持 thinking_budget。"],
   ["glm-5.1", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],

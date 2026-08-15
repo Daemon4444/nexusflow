@@ -180,6 +180,34 @@ export function sanitizeModelDoc(input: unknown): ValidationResult {
     if (tiers.length > 0) model.tokenPricingTiers = tiers;
   }
 
+  if (o.alternatePricingModes !== undefined && o.alternatePricingModes !== null) {
+    if (!Array.isArray(o.alternatePricingModes)) return { ok: false, error: "alternatePricingModes 必须是数组" };
+    const modes: NonNullable<AIModel["alternatePricingModes"]> = [];
+    for (const raw of o.alternatePricingModes as any[]) {
+      const modeId = typeof raw?.id === "string" ? raw.id.trim() : "";
+      const label = typeof raw?.label === "string" ? raw.label.trim() : "";
+      const promptPrice = Number(raw?.promptPrice);
+      const completionPrice = Number(raw?.completionPrice);
+      const availability = raw?.availability;
+      if (!modeId || !ID_RE.test(modeId)) return { ok: false, error: "alternatePricingModes[].id 非法" };
+      if (!label) return { ok: false, error: "alternatePricingModes[].label 必填" };
+      if (!isFiniteNonNegative(promptPrice)) return { ok: false, error: "alternatePricingModes[].promptPrice 必须是 ≥0 的数字" };
+      if (!isFiniteNonNegative(completionPrice)) return { ok: false, error: "alternatePricingModes[].completionPrice 必须是 ≥0 的数字" };
+      if (availability !== "available" && availability !== "announced") {
+        return { ok: false, error: "alternatePricingModes[].availability 只能是 available / announced" };
+      }
+      modes.push({
+        id: modeId,
+        label,
+        promptPrice,
+        completionPrice,
+        availability,
+        note: typeof raw?.note === "string" ? raw.note.trim() : undefined,
+      });
+    }
+    if (modes.length > 0) model.alternatePricingModes = modes;
+  }
+
   if (o.isNew !== undefined) model.isNew = !!o.isNew;
   if (o.isFeatured !== undefined) model.isFeatured = !!o.isFeatured;
 

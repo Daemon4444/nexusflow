@@ -1173,6 +1173,7 @@ function PlaygroundInner() {
   const visibleModels = useMemo(() => {
     const preferredOrder = [
       requestedModel,
+      "deepseek-v4-pro-0813",
       "deepseek-v4-pro",
       "qwen3.6-max-preview",
       "qwen3.6-plus",

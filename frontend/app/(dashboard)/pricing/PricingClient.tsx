@@ -26,6 +26,13 @@ interface AIModel {
   pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   pricingTiers?: PricingTier[];
   tokenPricingTiers?: TokenPricingTier[];
+  alternatePricingModes?: Array<{
+    id: string;
+    label: string;
+    promptPrice: number;
+    completionPrice: number;
+    availability: "available" | "announced";
+  }>;
   /** 后端已解析的缓存价，与实扣路径同源。仅隐式缓存的模型无显式字段。 */
   cachePricing?: {
     implicitHit: number;
@@ -319,6 +326,12 @@ export default function PricingPage({ initialModels, initialError = "" }: Pricin
                         缓存命中 隐式¥{model.cachePricing.implicitHit}{model.cachePricing.explicitHit !== undefined ? ` / 显式¥${model.cachePricing.explicitHit}` : ""}
                       </span>
                     )}
+                    {model.alternatePricingModes?.map((mode) => (
+                      <span key={mode.id} style={{ fontSize: 11.5, color: "var(--text-tertiary)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+                        {mode.label} 入¥{mode.promptPrice}/出¥{mode.completionPrice}
+                        {mode.availability === "announced" ? "（官方已公布，暂未开放）" : ""}
+                      </span>
+                    ))}
                     </span>
                   </Link>
                   );
