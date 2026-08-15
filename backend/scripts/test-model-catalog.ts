@@ -24,7 +24,15 @@ assert.equal(models.some((model) => model.id === "kimi/kimi-k3"), false, "旧 K3
 
 const snapshot = models.find((model) => model.id === "deepseek-v4-flash");
 assert.ok(snapshot);
-assert.equal(models.some((model) => model.id === "deepseek-v4-flash-0731"), false);
+const flash0731 = models.find((model) => model.id === "deepseek-v4-flash-0731");
+assert.ok(flash0731, "0731 必须作为独立快照公开，不能隐藏在稳定 ID 后面");
+assert.equal(flash0731.contextLength, 1_000_000);
+assert.equal(flash0731.maxOutput, 393_216);
+assert.equal(flash0731.promptPrice, 1);
+assert.equal(flash0731.completionPrice, 2);
+assert.equal(getUpstreamModelId(flash0731.id), flash0731.id, "0731 快照必须同名直传上游");
+assert.equal(getModelCapabilities(flash0731).thinking_default, true);
+assert.ok(getSupportedProtocols(flash0731).includes("openai/responses"));
 assert.equal(snapshot.contextLength, 1_000_000);
 assert.equal(snapshot.maxOutput, 393_216);
 assert.equal(getReservedOutputTokens(snapshot), 16_384);

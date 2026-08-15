@@ -31,6 +31,7 @@ const RESPONSES_API_MODELS = new Set([
   "deepseek-v4-pro",
   "deepseek-v4-pro-0813",
   "deepseek-v4-flash",
+  "deepseek-v4-flash-0731",
 ]);
 
 export function supportsResponsesApi(modelId: string): boolean {

@@ -109,6 +109,7 @@ const pricingTable = [
   { model: "deepseek-v4-pro", ctx: "1M", input: "¥12", output: "¥24", category: "推理旗舰" },
   { model: "deepseek-v4-pro-0813", ctx: "1M", input: "¥9", output: "¥27", category: "0813 快照（闲时价待开放）" },
   { model: "deepseek-v4-flash", ctx: "1M", input: "¥1", output: "¥2", category: "高速轻量 MoE" },
+  { model: "deepseek-v4-flash-0731", ctx: "1M", input: "¥1", output: "¥2", category: "0731 固定快照" },
   { model: "deepseek-r1", ctx: "128K", input: "¥4", output: "¥16", category: "推理" },
   { model: "deepseek-v3.2", ctx: "128K", input: "¥2", output: "¥3", category: "通用" },
   { model: "glm-5.2", ctx: "1M", input: "¥8", output: "¥28", category: "长程旗舰" },

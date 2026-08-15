@@ -1135,6 +1135,22 @@ const staticModels: AIModel[] = [
     supported: ["文本", "函数调用", "思考模式", "联网搜索", "上下文缓存"]
   },
   {
+    id: "deepseek-v4-flash-0731",
+    name: "DeepSeek V4 Flash 0731",
+    provider: "DeepSeek",
+    description: "DeepSeek V4 Flash 的 0731 固定快照。面向需要锁定模型行为和回归结果的生产任务；与稳定版并列公开，不参与稳定 ID 的隐式改写。",
+    contextLength: 1000000,
+    promptPrice: 1,
+    completionPrice: 2,
+    cacheReadPrice: 0.2,
+    category: "大语言模型",
+    tags: ["V4", "0731快照", "极速", "混合思考", "固定版本"],
+    isNew: true,
+    maxOutput: 393216,
+    defaultOutputReservation: 16384,
+    supported: ["文本", "函数调用", "思考模式", "联网搜索", "上下文缓存"]
+  },
+  {
     id: "deepseek-v4-pro-0813",
     name: "DeepSeek V4 Pro 0813",
     provider: "DeepSeek",
