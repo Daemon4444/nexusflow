@@ -1,6 +1,4 @@
-const UPSTREAM_MODEL_ALIASES: Readonly<Record<string, string>> = Object.freeze({
-  "deepseek-v4-flash": "deepseek-v4-flash-0731",
-});
+const UPSTREAM_MODEL_ALIASES: Readonly<Record<string, string>> = Object.freeze({});
 
 export function getUpstreamModelId(publicModelId: string): string {
   return UPSTREAM_MODEL_ALIASES[publicModelId] || publicModelId;

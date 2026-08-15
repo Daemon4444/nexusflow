@@ -50,7 +50,7 @@ assert.equal(snapshot.cacheReadPrice, 0.2);
 assert.doesNotMatch(snapshot.description, /0731|快照|稳定别名/);
 assert.equal(snapshot.tags.some((tag) => /0731|快照|稳定别名/.test(tag)), false);
 assert.equal(findProvider(snapshot.id)?.id, "dashscope");
-assert.equal(getUpstreamModelId(snapshot.id), "deepseek-v4-flash-0731");
+assert.equal(getUpstreamModelId(snapshot.id), snapshot.id);
 assert.equal(getUpstreamModelId("deepseek-v4-pro"), "deepseek-v4-pro");
 
 const pro0813 = models.find((model) => model.id === "deepseek-v4-pro-0813");
@@ -88,17 +88,17 @@ const upstreamRequest = buildUpstreamChatRequest(snapshot, {
   stream: false,
   enable_thinking: false,
 });
-assert.equal(upstreamRequest.model, "deepseek-v4-flash-0731");
+assert.equal(upstreamRequest.model, snapshot.id);
 assert.equal(upstreamRequest.enable_thinking, false);
 const response = restorePublicModelAlias({
-  model: "deepseek-v4-flash-0731",
-  response: { model: "deepseek-v4-flash-0731" },
+  model: snapshot.id,
+  response: { model: snapshot.id },
 }, snapshot.id);
 assert.equal(response.model, snapshot.id);
 assert.equal(response.response.model, snapshot.id);
 assert.match(
   rewriteUpstreamModelAliasText(
-    'data: {"model":"deepseek-v4-flash-0731"}',
+    'data: {"model":"deepseek-v4-flash"}',
     snapshot.id
   ),
   /"model":"deepseek-v4-flash"/
