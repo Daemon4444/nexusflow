@@ -4531,6 +4531,13 @@ body {
   --quiet-wash: var(--nf-wash);
   --quiet-teal: var(--nf-accent);
 }
+/* Keep the console wordmark on the same desktop grid line as page content:
+   220px sidebar + 32px content gutter. */
+@media (min-width: 920px) {
+  body:has(.nf-console-shell) .nf-header-console {
+    padding-left: 252px !important;
+  }
+}
 .nf-console-shell .usr-sidebar { width: 220px !important; padding: 0 !important; background: #fbfbfc !important; border-right: 1px solid var(--nf-line) !important; }
 .nf-workspace-select { min-height: 40px; margin: 12px 15px 8px; padding: 0 12px; display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 9px; border: 1px solid var(--nf-line); border-radius: 8px; background: #fff; color: #454149; font-size: 13px; font-weight: 500; }
 .nf-workspace-mark { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; background: var(--nf-accent-soft); color: var(--nf-accent); font-size: 10px; font-weight: 700; }
