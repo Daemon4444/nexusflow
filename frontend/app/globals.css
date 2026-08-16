@@ -4531,11 +4531,11 @@ body {
   --quiet-wash: var(--nf-wash);
   --quiet-teal: var(--nf-accent);
 }
-/* Keep the console wordmark on the same desktop grid line as page content:
-   220px sidebar + 32px content gutter. */
+/* Anchor the console wordmark to the left sidebar grid. The page content keeps
+   its separate 220px sidebar + 32px gutter alignment. */
 @media (min-width: 920px) {
   body:has(.nf-console-shell) .nf-header-console {
-    padding-left: 252px !important;
+    padding-left: 16px !important;
   }
 }
 .nf-console-shell .usr-sidebar { width: 220px !important; padding: 0 !important; background: #fbfbfc !important; border-right: 1px solid var(--nf-line) !important; }
