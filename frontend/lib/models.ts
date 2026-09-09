@@ -58,7 +58,8 @@ export function formatModelPrice(model: ModelSummary) {
 export function getRecommendedModels(models: ModelSummary[], limit = 6) {
   const callableModels = models.filter((model) => !model.availability || model.availability === "available");
   const preferredIds = [
-    // Qwen3.8 Max 最新旗舰（首页主推）
+    // Claude Sonnet 5 使用稳定公开 ID；上游快照 ID 仅在文档中披露。
+    "claude-sonnet-5",
     "qwen3.8-max",
     "kimi-k3",
     "claude-sonnet-4-6",

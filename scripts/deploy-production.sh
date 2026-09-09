@@ -16,6 +16,7 @@ COMMAND="${1:-}"
 ARTIFACT=""
 BUILD_SHA=""
 DRY_RUN=false
+REQUIRED_PROVIDER_HOSTS_CSV="api.anthropic.com,api.himodels.ai,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com"
 
 usage() {
   cat <<'EOF'
@@ -221,7 +222,7 @@ verify_pm2_runtime_environment() {
   local sha="$2"
   release_require_command pm2
   pm2 jlist |
-    EXPECTED_ROOT="$directory" EXPECTED_SHA="$sha" node -e '
+    EXPECTED_ROOT="$directory" EXPECTED_SHA="$sha" REQUIRED_PROVIDER_HOSTS_CSV="$REQUIRED_PROVIDER_HOSTS_CSV" node -e '
       let body = "";
       process.stdin.on("data", (chunk) => { body += chunk; });
       process.stdin.on("end", () => {
@@ -237,14 +238,7 @@ verify_pm2_runtime_environment() {
         if (backends.length !== 2 || frontends.length !== 1) process.exit(1);
         const valid = backends.every((entry) => {
           const env = entry?.pm2_env || {};
-          const requiredProviderHosts = [
-            "api.anthropic.com",
-            "dashscope.aliyuncs.com",
-            "app-api.pixverse.ai",
-            "ark.cn-beijing.volces.com",
-            "token.genvia.ai",
-            "jawayid.com",
-          ];
+          const requiredProviderHosts = process.env.REQUIRED_PROVIDER_HOSTS_CSV.split(",");
           const configuredProviderHosts = new Set(
             String(env.PROVIDER_OUTBOUND_HOST_ALLOWLIST || "")
               .split(/[\s,]+/)
@@ -441,7 +435,7 @@ validate_backend_env_source() {
     release_die "configured backend environment must not be accessible by group/world (mode $mode)"
   (
     cd "$ROOT"
-    BACKEND_ENV_PATH="$resolved" node -e '
+    BACKEND_ENV_PATH="$resolved" REQUIRED_PROVIDER_HOSTS_CSV="$REQUIRED_PROVIDER_HOSTS_CSV" node -e '
       const fs = require("fs");
       const dotenv = require("dotenv");
       const values = dotenv.parse(
@@ -486,14 +480,7 @@ validate_backend_env_source() {
         );
         process.exit(1);
       }
-      const requiredProviderHosts = [
-        "api.anthropic.com",
-        "dashscope.aliyuncs.com",
-        "app-api.pixverse.ai",
-        "ark.cn-beijing.volces.com",
-        "token.genvia.ai",
-        "jawayid.com",
-      ];
+      const requiredProviderHosts = process.env.REQUIRED_PROVIDER_HOSTS_CSV.split(",");
       const configuredProviderHosts = new Set(
         String(values.PROVIDER_OUTBOUND_HOST_ALLOWLIST || "")
           .split(/[\s,]+/)

@@ -9,6 +9,7 @@ import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSumma
 import Footer from "@/components/Footer";
 
 const fallbackModelRows = [
+  { model: "Claude Sonnet 5", provider: "Anthropic via HiModels", context: "1M", price: "input ¥13.6 / output ¥68 per 1M" },
   { model: "Qwen3.8 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
   { model: "Kimi K3", provider: "Moonshot AI", context: "1M", price: "input ¥20 / output ¥100 per 1M" },
   { model: "Qwen3.7 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
@@ -46,6 +47,7 @@ const workflow = [
 ];
 
 const fallbackCarouselModels = [
+  { name: "Claude Sonnet 5", provider: "Anthropic via HiModels", ctx: "1M context", price: "In ¥13.6 · Out ¥68", badge: "Featured", tone: "orange" },
   { name: "Qwen3.8 Max", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥12 · Out ¥36", badge: "New", tone: "blue" },
   { name: "Kimi K3", provider: "Moonshot AI", ctx: "1M context", price: "In ¥20 · Out ¥100", badge: "New", tone: "teal" },
   { name: "Qwen3.7 Max", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥12 · Out ¥36", badge: "Flagship", tone: "blue" },
@@ -189,6 +191,32 @@ interface FlagshipSlide {
 }
 
 const flagshipSlides: FlagshipSlide[] = [
+  {
+    key: "claude-sonnet-5",
+    accent: "#fdba74",
+    border: "rgba(251,146,60,0.3)",
+    gradient: "linear-gradient(135deg, #0c0704 0%, #27160d 48%, #7c2d12 100%)",
+    glow: "rgba(251,146,60,0.24)",
+    btnGradient: "linear-gradient(135deg, #fb923c, #c2410c)",
+    btnShadow: "0 6px 20px rgba(194,65,12,0.4)",
+    primaryBadge: "Featured LLM",
+    secondaryBadge: "首选",
+    byline: "by Anthropic · HiModels",
+    title: "Claude Sonnet 5",
+    titleGradient: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 48%, #fb923c 100%)",
+    lead: "Claude Sonnet 5 是 NexusFlow 当前优先推荐的 Claude 模型，面向生产级对话、复杂分析与长上下文工作流——使用稳定公开 ID ",
+    modelCode: "claude-sonnet-5",
+    sub: "通过 HiModels 原生 Anthropic Messages 兼容上游接入。输入 ¥13.6/M、输出 ¥68/M；首页始终使用不带日期后缀的稳定模型 ID。",
+    primaryHref: "/models/claude-sonnet-5",
+    primaryLabel: "了解 Claude Sonnet 5",
+    docsHref: "/docs/api/claude",
+    stats: [
+      { v: "1M", l: "Token 上下文窗口" },
+      { v: "128K", l: "最大输出" },
+      { v: "¥13.6/M", l: "输入价格" },
+      { v: "¥68/M", l: "输出价格" },
+    ],
+  },
   {
     key: "qwen3.8-max",
     accent: "#a5b4fc",
@@ -502,7 +530,7 @@ export default function LandingPage() {
   const carouselModels = recommended.length > 0
     ? recommended.concat(models.filter((model) => !recommended.some((item) => item.id === model.id)).slice(0, 12)).map(modelToCarousel)
     : fallbackCarouselModels;
-  const modelCount = models.length || fallbackCarouselModels.length;
+  const modelCount = models.length || 77;
 
   return (
     <>
@@ -531,18 +559,18 @@ export default function LandingPage() {
 
       <section className="nf-hero">
         <div className="nf-hero-copy">
-          <Link href="/models/qwen3.8-max" style={{
+          <Link href="/models/claude-sonnet-5" style={{
             display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 14,
             padding: "6px 14px", borderRadius: 999, textDecoration: "none",
-            background: "linear-gradient(135deg, rgba(129,140,248,0.16), rgba(99,102,241,0.1))",
-            border: "1px solid rgba(129,140,248,0.38)", fontSize: 12.5, fontWeight: 600,
+            background: "linear-gradient(135deg, rgba(251,146,60,0.16), rgba(194,65,12,0.1))",
+            border: "1px solid rgba(251,146,60,0.38)", fontSize: 12.5, fontWeight: 600,
             color: "var(--text-primary)",
           }}>
             <span style={{
               padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 800,
-              letterSpacing: "0.08em", background: "#4338ca", color: "#fff",
+              letterSpacing: "0.08em", background: "#c2410c", color: "#fff",
             }}>NEW</span>
-            Qwen3.8 Max is live — 2.4T params · native vision · 1M context
+            Claude Sonnet 5 is live — 1M context · 128K output
             <span aria-hidden style={{ fontWeight: 700 }}>→</span>
           </Link>
           <div className="nf-eyebrow">One API, every leading AI model</div>
@@ -560,8 +588,8 @@ export default function LandingPage() {
           </div>
           <div className="nf-hero-metrics">
             <div><strong>{modelCount}+</strong><span>model options</span></div>
-            <div><strong>2.4T</strong><span>Qwen3.8 Max flagship</span></div>
-            <div><strong>4K HDR</strong><span>Seedance 2.0 video</span></div>
+            <div><strong>1M</strong><span>Claude Sonnet 5 context</span></div>
+            <div><strong>128K</strong><span>Claude Sonnet 5 max output</span></div>
           </div>
         </div>
 

@@ -1,32 +1,34 @@
-# Anthropic Claude Source Notes - 2026-05-10
+# Claude / HiModels Source Notes - 2026-09-09
+
+HiModels snapshot version: `20260820`.
 
 Sources:
-- Models overview: https://platform.claude.com/docs/en/about-claude/models/overview
-- Pricing: https://platform.claude.com/docs/en/about-claude/pricing
-- Messages API examples/reference: https://docs.anthropic.com/en/api/messages-examples and https://docs.anthropic.com/zh-TW/api/messages
+- Anthropic model overview: https://platform.claude.com/docs/en/about-claude/models/overview
+- Anthropic pricing: https://platform.claude.com/docs/en/about-claude/pricing
+- Anthropic Messages reference: https://docs.anthropic.com/en/api/messages-examples and https://docs.anthropic.com/zh-TW/api/messages
+- HiModels upstream model snapshot mapping verified for this integration on 2026-09-09
 
-Implemented Claude models:
+## Model mapping and prices
 
-| NexusFlow model ID | Official model/alias | Context | Max output | Official base price |
-| --- | --- | ---: | ---: | --- |
-| `claude-opus-4-7` | Claude Opus 4.7 | 1M | 128K | $5 input / $25 output per MTok |
-| `claude-sonnet-4-6` | Claude Sonnet 4.6 | 1M | 64K | $3 input / $15 output per MTok |
-| `claude-haiku-4-5` | Claude Haiku 4.5 alias | 200K | 64K | $1 input / $5 output per MTok |
+NexusFlow exposes stable public IDs without a date suffix. The provider adapter maps each public ID to a fixed HiModels upstream snapshot:
 
-NexusFlow stores text model prices as CNY per 1M tokens. The committed catalog uses a rounded exchange assumption of `1 USD ~= ¥6.8`:
+| NexusFlow public ID | HiModels upstream snapshot ID | Context | Max output | Official USD input/output per MTok | CNY input/output per MTok at 6.8 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `claude-sonnet-5` | `claude-sonnet-5-20260820` | 1M | 128K | $2 / $10 | ¥13.6 / ¥68 |
+| `claude-opus-5` | `claude-opus-5-20260820` | 1M | 128K | $5 / $25 | ¥34 / ¥170 |
+| `claude-fable-5` | `claude-fable-5-20260820` | 1M | 128K | $10 / $50 | ¥68 / ¥340 |
+| `claude-opus-4-8` | `claude-opus-4-8-20260820` | 1M | 128K | $5 / $25 | ¥34 / ¥170 |
+| `claude-opus-4-7` | `claude-opus-4-7-20260820` | 1M | 128K | $5 / $25 | ¥34 / ¥170 |
+| `claude-sonnet-4-6` | `claude-sonnet-4-6-20260820` | 1M | 64K | $3 / $15 | ¥20.4 / ¥102 |
+| `claude-haiku-4-5` | `claude-haiku-4-5-20260820` | 200K | 64K | $1 / $5 | ¥6.8 / ¥34 |
 
-| Model | Input CNY / MTok | Output CNY / MTok |
-| --- | ---: | ---: |
-| `claude-opus-4-7` | ¥34 | ¥170 |
-| `claude-sonnet-4-6` | ¥20.4 | ¥102 |
-| `claude-haiku-4-5` | ¥6.8 | ¥34 |
+The existing context and output limits are retained for Opus 4.7, Sonnet 4.6, and Haiku 4.5. The approved catalog values for Sonnet 5, Opus 4.8, Opus 5, and Fable 5 are 1M context and 128K maximum output.
 
-Prompt caching pricing follows Anthropic's documented multipliers:
-- 5-minute cache write: 1.25x base input price.
-- 1-hour cache write: 2x base input price. NexusFlow currently bills generic `cache_creation_input_tokens` at 1.25x because the response usage does not distinguish cache duration in the existing route.
-- Cache read / hit: 0.1x base input price.
+## Integration facts
 
-API routing:
-- Claude models use Anthropic native Messages API: `POST https://api.anthropic.com/v1/messages`.
-- Required upstream headers: `x-api-key`, `anthropic-version`, `content-type`.
-- Public NexusFlow endpoint remains `POST /v1/messages`; user auth can be `x-api-key` or `Authorization: Bearer`.
+- Public endpoint: `POST /v1/messages`.
+- Actual upstream: HiModels native Anthropic Messages compatibility, not a direct call to Anthropic's official API.
+- Client authentication remains the NexusFlow API key contract; server-side upstream credentials belong to the HiModels provider configuration rather than an official Anthropic integration.
+- Non-streaming Messages and Anthropic-format SSE streaming were verified against the HiModels path.
+- Response usage includes standard input/output counts and can include cache-related fields.
+- Cache fields do not by themselves prove that every model supports `cache_control`. Tools, prompt caching, and other optional features must be documented per model and channel only after verification.

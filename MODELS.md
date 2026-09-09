@@ -24,7 +24,7 @@
 
 NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
-- **71 个运行时模型（2026-08-03 校准）**：涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成
+- **77 个静态目录模型（2026-09-09 校准）**：涵盖大语言模型、推理模型、多模态模型、编程模型、向量模型、语音模型、图像生成和视频生成；Claude 上游使用 `20260820` 固定快照，运行时数量仍以 API 与数据库覆盖层为准
 - **OpenAI 协议兼容**: 支持 OpenAI Chat Completions、Embeddings、Image Generations 协议
 - **多协议支持**: 同时支持 Anthropic Messages 和 OpenAI Responses API 协议
 - **统一计费**: 按 Token 或按生成数量计费，价格透明
@@ -36,16 +36,16 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
 | 分类 | 模型数量 | 说明 |
 |------|----------|------|
-| 大语言模型 | 30 | 通用对话、文本生成 |
-| 推理模型 | 4 | 数学、逻辑、复杂推理 |
-| 多模态模型 | 8 | 视觉理解、图像输入 |
+| 大语言模型 | 37 | 通用对话、文本生成 |
+| 推理模型 | 5 | 数学、逻辑、复杂推理 |
+| 多模态模型 | 10 | 视觉理解、图像输入 |
 | 编程模型 | 2 | 代码生成、代码补全 |
 | 专业模型 | 2 | 翻译、意图识别 |
 | 向量模型 | 2 | 文本嵌入、语义搜索 |
 | 语音模型 | 2 | 语音识别、语音合成 |
 | 图像生成 | 1 | 文生图、图像编辑 |
 | 视频生成 | 16 | 文生视频、图生视频、视频编辑 |
-| **总计** | **67** | 运行时快照；以后以 API 为准 |
+| **总计** | **77** | 当前静态目录；运行时以 API 与数据库覆盖层为准 |
 
 ---
 
@@ -56,6 +56,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 | 渠道名称 | API 基础地址 | 主要服务 | 状态 |
 |----------|--------------|----------|------|
 | DashScope (阿里云百炼) | `https://dashscope.aliyuncs.com/api/v1` | Qwen系列、DeepSeek、GLM、Kimi、MiniMax、万相视频、HappyHorse | **活跃** |
+| HiModels | 原生 Anthropic Messages 兼容端点 | 七个 Claude 公共 ID 对应的 `20260820` 固定快照 | **已验证同步与流式** |
 | Jaway K3 专线 | `https://jawayid.com:3000/v1` | `kimi-k3`（OpenAI Chat + Anthropic Messages） | **活跃** |
 | PixVerse 官方 | `https://app-api.pixverse.ai/openapi/v2` | PixVerse V6 视频生成 | **活跃** |
 
@@ -78,24 +79,27 @@ DASHSCOPE_API_KEY=sk-your-dashscope-api-key
 
 # PixVerse 官方 API Key
 PIXVERSE_API_KEY=sk-your-pixverse-api-key
-
-# Anthropic Claude 官方 API Key
-ANTHROPIC_API_KEY=sk-ant-your-anthropic-api-key
 ```
+
+Claude 请求使用服务端管理的 HiModels Provider 配置；客户端只需 NexusFlow API Key，不需要 Anthropic 官方 API Key。
 
 ---
 
 ## 大语言模型
 
-### Claude 官方 API
+### Claude（HiModels 原生 Messages 兼容）
 
-| 模型 ID | 名称 | 上下文窗口 | 最大输出 | 官方 USD 输入/输出 | NexusFlow 计费输入/输出 | 接口 |
+| NexusFlow 公共模型 ID | HiModels 上游快照 ID | 上下文窗口 | 最大输出 | 官方 USD 输入/输出 | NexusFlow 计费输入/输出 | 接口 |
 |---------|------|------------|----------|---------------------|--------------------------|------|
-| `claude-opus-4-7` | Claude Opus 4.7 | 1M | 128K | $5/M / $25/M | 约 ¥34/M / ¥170/M | `/v1/messages` |
-| `claude-sonnet-4-6` | Claude Sonnet 4.6 | 1M | 64K | $3/M / $15/M | 约 ¥20.4/M / ¥102/M | `/v1/messages` |
-| `claude-haiku-4-5` | Claude Haiku 4.5 | 200K | 64K | $1/M / $5/M | 约 ¥6.8/M / ¥34/M | `/v1/messages` |
+| `claude-sonnet-5` | `claude-sonnet-5-20260820` | 1M | 128K | $2/M / $10/M | ¥13.6/M / ¥68/M | `/v1/messages` |
+| `claude-opus-5` | `claude-opus-5-20260820` | 1M | 128K | $5/M / $25/M | ¥34/M / ¥170/M | `/v1/messages` |
+| `claude-fable-5` | `claude-fable-5-20260820` | 1M | 128K | $10/M / $50/M | ¥68/M / ¥340/M | `/v1/messages` |
+| `claude-opus-4-8` | `claude-opus-4-8-20260820` | 1M | 128K | $5/M / $25/M | ¥34/M / ¥170/M | `/v1/messages` |
+| `claude-opus-4-7` | `claude-opus-4-7-20260820` | 1M | 128K | $5/M / $25/M | ¥34/M / ¥170/M | `/v1/messages` |
+| `claude-sonnet-4-6` | `claude-sonnet-4-6-20260820` | 1M | 64K | $3/M / $15/M | ¥20.4/M / ¥102/M | `/v1/messages` |
+| `claude-haiku-4-5` | `claude-haiku-4-5-20260820` | 200K | 64K | $1/M / $5/M | ¥6.8/M / ¥34/M | `/v1/messages` |
 
-Claude 模型通过 Anthropic 原生 Messages API 转发。公共入口仍是 NexusFlow `/v1/messages`，后端需要配置 `ANTHROPIC_API_KEY`。
+客户端使用不带日期后缀的稳定公共 ID；NexusFlow 将其映射到对应 HiModels 固定快照。HiModels 原生 Anthropic Messages 兼容路径的非流式与 SSE 流式调用均已验证，响应 usage 可包含缓存字段；这不代表全部型号都统一支持工具或缓存控制，相关可选能力以具体模型和渠道说明为准。
 
 ### 通义千问 Qwen 系列
 
@@ -334,9 +338,9 @@ NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Mess
 | 智谱 GLM 系列 (含 GLM 5.2) | ✅ | ✅ | ❌ |
 | Kimi 系列 | ✅ | ✅（`kimi-k3` 由上游原生 Messages 端点支持） | ❌ |
 | MiniMax 系列 | ✅ | ✅ | ❌ |
-| Anthropic Claude 系列 | ✅ | ✅ | ✅ |
+| Claude 系列（HiModels 上游） | ❌ | ✅（原生 Messages 兼容） | ❌ |
 
-对 GLM / DeepSeek / Kimi / MiniMax 调用 `/v1/responses` 时，会返回 `Unsupported model` 错误。请改用 `/v1/chat/completions` 或 `/v1/messages`。
+对 GLM / DeepSeek / Kimi / MiniMax 调用 `/v1/responses`，或对 Claude 调用 `/v1/chat/completions`、`/v1/responses` 时，会返回 `Unsupported model` 错误。请使用该模型详情返回的 `supported_protocols`。
 
 > 运维：`/v1/messages` 按模型字段 `anthropicPassThrough` 决定路由——显式 `true` 可让自定义 Provider 直通其原生 Anthropic Messages 端点；`false` 走平台内 Anthropic↔OpenAI 协议转换桥。该字段可在 admin「模型目录」按模型覆盖，10 秒内全节点生效。
 
@@ -434,14 +438,14 @@ Authorization: Bearer YOUR_API_KEY
 | 提供商 | 模型数量 | 主要模型 |
 |--------|----------|----------|
 | 通义千问 | 41 | Qwen系列、万相、QwQ、Math、MT、ASR、TTS、意图识别 |
-| DeepSeek | 5 | V3、V3.2、V4 Pro、V4 Flash、R1 |
+| DeepSeek | 7 | V3、V3.2、V4 Pro、V4 Flash、R1 |
 | 拍我AI (PixVerse) | 1 | PixVerse V6 |
 | 火山方舟 (Volcengine) | 6 | Seedance 系列 |
 | 阿里巴巴 (Alibaba) | 4 | HappyHorse 系列 |
-| 智谱AI | 4 | GLM 4.7、GLM 5、GLM 5.1、GLM 5.2 |
+| 智谱AI | 5 | GLM 4.7、GLM 5、GLM 5.1、GLM 5.2 |
 | 月之暗面 | 3 | Kimi K3、Kimi K2.6、Kimi K2.5 |
 | MiniMax | 3 | M3、M2.1、M2.5 |
-| Anthropic | 3 | Claude Opus 4.7、Sonnet 4.6、Haiku 4.5 |
+| Anthropic via HiModels | 7 | Claude Sonnet 5、Opus 5、Fable 5、Opus 4.8/4.7、Sonnet 4.6、Haiku 4.5 |
 
 ---
 
@@ -452,6 +456,7 @@ Authorization: Bearer YOUR_API_KEY
                                     ↓
                             ┌───────────────────┐
                             │ DashScope (百炼)   │ ← Qwen/DeepSeek/GLM/Kimi/MiniMax/Wan/HappyHorse
+                            │ HiModels           │ ← Claude（原生 Anthropic Messages 兼容）
                             │ PIXVERSE Official │ ← PixVerse V6
                             └───────────────────┘
 ```
@@ -460,8 +465,8 @@ Authorization: Bearer YOUR_API_KEY
 
 ## 更新日期
 
-文档更新时间: 2026-07-21
-模型数据来源: `/api/models` API + 代码配置文件
+文档更新时间: 2026-09-09（HiModels 上游快照版本：20260820）
+模型数据来源: `backend/src/data/models.ts`（77 个静态条目）+ `/api/models` 运行时目录 + 数据库覆盖层
 
 ---
 

@@ -8,7 +8,7 @@ const curlExample = `curl ${API_BASE}/v1/messages \\
   -H "anthropic-version: 2023-06-01" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "claude-sonnet-4-6",
+    "model": "claude-sonnet-5",
     "max_tokens": 1024,
     "messages": [
       {"role": "user", "content": "用三句话解释什么是模型网关"}
@@ -29,9 +29,13 @@ const streamExample = `curl ${API_BASE}/v1/messages \\
   }'`;
 
 const models = [
-  ["claude-opus-4-7", "1M", "128K", "$5 / $25"],
-  ["claude-sonnet-4-6", "1M", "64K", "$3 / $15"],
-  ["claude-haiku-4-5", "200K", "64K", "$1 / $5"],
+  { publicId: "claude-sonnet-5", snapshotId: "claude-sonnet-5-20260820", context: "1M", output: "128K", usd: "$2 / $10" },
+  { publicId: "claude-opus-5", snapshotId: "claude-opus-5-20260820", context: "1M", output: "128K", usd: "$5 / $25" },
+  { publicId: "claude-fable-5", snapshotId: "claude-fable-5-20260820", context: "1M", output: "128K", usd: "$10 / $50" },
+  { publicId: "claude-opus-4-8", snapshotId: "claude-opus-4-8-20260820", context: "1M", output: "128K", usd: "$5 / $25" },
+  { publicId: "claude-opus-4-7", snapshotId: "claude-opus-4-7-20260820", context: "1M", output: "128K", usd: "$5 / $25" },
+  { publicId: "claude-sonnet-4-6", snapshotId: "claude-sonnet-4-6-20260820", context: "1M", output: "64K", usd: "$3 / $15" },
+  { publicId: "claude-haiku-4-5", snapshotId: "claude-haiku-4-5-20260820", context: "200K", output: "64K", usd: "$1 / $5" },
 ];
 
 export default function ClaudeDocsPage() {
@@ -56,8 +60,8 @@ export default function ClaudeDocsPage() {
           Claude API 接入
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 780, margin: 0 }}>
-          NexusFlow 的 <code>/v1/messages</code> 同时支持 Anthropic 原生 Claude 模型和兼容层模型。
-          当 <code>model</code> 为 <code>claude-*</code> 时，请求会直连 Anthropic 官方 Messages API，并保留原生响应与 SSE 事件格式。
+          Claude 系列通过 HiModels 的原生 Anthropic Messages 兼容上游接入，而不是由 NexusFlow 直连 Anthropic 官方 API。
+          客户端始终提交不带日期后缀的稳定公共模型 ID；NexusFlow 将其映射到下表所列的 HiModels 固定快照。同步 <code>/v1/messages</code> 与 SSE 流式响应均已验证。
         </p>
       </div>
 
@@ -72,7 +76,7 @@ export default function ClaudeDocsPage() {
             ✓ 协议支持范围
           </div>
           <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.7 }}>
-            <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/messages</code> 支持 NexusFlow 接入的全部模型 — 包含 Claude 官方系列，以及通义千问、GLM、DeepSeek、Kimi、MiniMax 等。
+            下列七个 Claude 公共 ID 均使用 HiModels 原生 Anthropic Messages 兼容路径；非流式响应与 Anthropic SSE 事件流均已验证。
             JSON 请求体兼容固定 <code>Content-Length</code>、HTTP/1.1 chunked，以及不携带 <code>Content-Length</code> 的 HTTP/2 客户端。
           </div>
         </div>
@@ -110,12 +114,12 @@ export default function ClaudeDocsPage() {
             </thead>
             <tbody>
               {[
-                ["model", true, "Claude 模型 ID，例如 claude-sonnet-4-6、claude-opus-4-7"],
+                ["model", true, "稳定公共模型 ID，例如 claude-sonnet-5、claude-opus-5"],
                 ["messages", true, "Anthropic Messages 格式消息数组"],
-                ["max_tokens", true, "最大输出 token 数"],
+                ["max_tokens", true, "最大输出 token 数，不得超过该模型上限"],
                 ["stream", false, "设为 true 时返回 Anthropic SSE 事件流"],
                 ["system", false, "系统提示词，使用 Anthropic 顶层 system 字段"],
-                ["tools", false, "Anthropic 工具定义；Claude 模型会原样转发给官方 API"],
+                ["tools", false, "是否支持及具体行为取决于所选模型和 HiModels 上游能力；使用前请核对当前模型说明"],
               ].map(([name, required, desc], i) => (
                 <tr key={String(name)} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
                   <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code>{String(name)}</code></td>
@@ -134,7 +138,8 @@ export default function ClaudeDocsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>模型</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>公共模型 ID</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", borderBottom: "1px solid var(--border)" }}>HiModels 上游快照 ID</th>
                 <th style={{ padding: "10px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>上下文</th>
                 <th style={{ padding: "10px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>最大输出</th>
                 <th style={{ padding: "10px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>USD / MTok 输入/输出</th>
@@ -142,11 +147,12 @@ export default function ClaudeDocsPage() {
             </thead>
             <tbody>
               {models.map((model, i) => (
-                <tr key={model[0]} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code>{model[0]}</code></td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>{model[1]}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>{model[2]}</td>
-                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>{model[3]}</td>
+                <tr key={model.publicId} style={{ background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code>{model.publicId}</code></td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)" }}><code>{model.snapshotId}</code></td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>{model.context}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>{model.output}</td>
+                  <td style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", textAlign: "right", fontWeight: 600 }}>{model.usd}</td>
                 </tr>
               ))}
             </tbody>
@@ -167,29 +173,15 @@ export default function ClaudeDocsPage() {
       </section>
 
       <section style={{ marginBottom: 36 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Prompt Caching（上下文缓存）</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>Usage 与可选能力</h2>
         <p style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)", marginBottom: 14 }}>
-          通过 <code>/v1/messages</code> 调用时支持 Prompt Caching。在 system 或 messages 的 content block 上添加 <code>cache_control</code> 注解，重复前缀将被缓存，后续请求命中缓存部分享受 90% 折扣：
+          已验证的同步和流式响应会返回 Anthropic Messages 格式的 <code>usage</code>。上游响应可能包含
+          <code> cache_creation_input_tokens</code> 与 <code>cache_read_input_tokens</code> 等缓存统计字段。
         </p>
-        <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", fontSize: 13, marginBottom: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 14px", background: "var(--bg-elevated)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
-            <span>Token 类型</span><span>计费倍率</span><span>说明</span>
-          </div>
-          {[
-            ["cache_creation_input_tokens", "1.25x", "首次写入缓存"],
-            ["cache_read_input_tokens", "0.1x", "命中缓存，90% 折扣"],
-            ["input_tokens", "1x", "未缓存部分，正常计费"],
-          ].map(([type, rate, desc], i) => (
-            <div key={type} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 14px", borderBottom: i < 2 ? "1px solid var(--border)" : "none", background: i % 2 === 0 ? "var(--bg)" : "var(--bg-elevated)" }}>
-              <code style={{ fontSize: 11 }}>{type}</code>
-              <span style={{ color: "var(--success)", fontWeight: 500 }}>{rate}</span>
-              <span style={{ color: "var(--text-tertiary)" }}>{desc}</span>
-            </div>
-          ))}
+        <div style={{ padding: "14px 18px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-elevated)", fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>
+          缓存统计字段存在不代表七个模型都接受 <code>cache_control</code>，工具定义也不是全系列统一承诺。
+          请按当前模型与 HiModels 渠道说明启用可选能力；NexusFlow 不把未验证能力作为所有 Claude 模型的通用保证。
         </div>
-        <p style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: 1.6 }}>
-          用法示例：在 system 块上添加 <code>{`"cache_control": {"type": "ephemeral"}`}</code>。适用于长 system prompt、文档上下文等重复内容。所有 <code>/v1/messages</code> 协议下的模型均支持。
-        </p>
       </section>
 
       <section style={{ padding: 18, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-elevated)" }}>

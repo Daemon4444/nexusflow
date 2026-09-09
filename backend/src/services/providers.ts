@@ -14,10 +14,10 @@ export interface ProviderConfig {
 
 export const providers: ProviderConfig[] = [
   {
-    id: "anthropic",
-    name: "Anthropic",
-    baseUrl: "https://api.anthropic.com/v1",
-    apiKeyEnv: "ANTHROPIC_API_KEY",
+    id: "himodels",
+    name: "HiModels",
+    baseUrl: "https://api.himodels.ai/v1",
+    apiKeyEnv: "HIMODELS_API_KEY",
     models: ["claude-"],
   },
   // 阿里云百炼 (DashScope) - 统一入口
@@ -76,38 +76,40 @@ export async function ensureRoutingDefaults(): Promise<void> {
   const { ensureProvider, getCapacity, getProviderById, upsertCapacity } = require("../data/providers") as typeof import("../data/providers");
   const { models } = require("../data/models") as typeof import("../data/models");
   const dashscopeConfig = providers.find((provider) => provider.id === "dashscope")!;
+  const himodelsConfig = providers.find((provider) => provider.id === "himodels")!;
+  const volcengineArkConfig = providers.find((provider) => provider.id === "volcengine-ark")!;
   const dashscope = await ensureProvider({
-    id: "dashscope",
-    name: "阿里云百炼",
-    slug: "dashscope",
+    id: dashscopeConfig.id,
+    name: dashscopeConfig.name,
+    slug: dashscopeConfig.id,
     description: "百炼 OpenAI 兼容模式渠道。",
     website: "https://help.aliyun.com/zh/model-studio/",
     api_base_url: dashscopeConfig.baseUrl,
-    api_key: process.env.DASHSCOPE_API_KEY || "",
+    api_key: getProviderApiKey(dashscopeConfig),
     contact_name: "平台运营",
     contact_email: "ops@nexusflow.hk",
     status: "enabled",
   });
-  const anthropic = await ensureProvider({
-    id: "anthropic",
-    name: "Anthropic",
-    slug: "anthropic",
-    description: "Anthropic Claude Messages API 官方渠道。",
-    website: "https://docs.anthropic.com/",
-    api_base_url: "https://api.anthropic.com/v1",
-    api_key: process.env.ANTHROPIC_API_KEY || "",
+  const himodels = await ensureProvider({
+    id: himodelsConfig.id,
+    name: himodelsConfig.name,
+    slug: himodelsConfig.id,
+    description: "HiModels 原生 Anthropic Messages 兼容渠道，承载 Claude 系列模型。",
+    website: "https://himodels.ai/",
+    api_base_url: himodelsConfig.baseUrl,
+    api_key: getProviderApiKey(himodelsConfig),
     contact_name: "平台运营",
     contact_email: "ops@nexusflow.hk",
-    status: "enabled",
+    status: "disabled",
   });
   const volcengineArk = await ensureProvider({
-    id: "volcengine-ark",
-    name: "火山方舟",
-    slug: "volcengine-ark",
+    id: volcengineArkConfig.id,
+    name: volcengineArkConfig.name,
+    slug: volcengineArkConfig.id,
     description: "火山引擎方舟 OpenAI 兼容渠道，可在后台按模型添加路由。",
     website: "https://www.volcengine.com/product/ark",
-    api_base_url: "https://ark.cn-beijing.volces.com/api/v3",
-    api_key: process.env.ARK_API_KEY || "",
+    api_base_url: volcengineArkConfig.baseUrl,
+    api_key: getProviderApiKey(volcengineArkConfig),
     contact_name: "平台运营",
     contact_email: "ops@nexusflow.hk",
     status: "enabled",
@@ -116,12 +118,12 @@ export async function ensureRoutingDefaults(): Promise<void> {
   // Provider，则保持无路由并失败关闭，绝不能重新种回 DashScope。
   const jawayK3 = await getProviderById("jawayid-k3");
   for (const model of models) {
-    let routedProvider: any;
+    let routedProvider: { id: string };
     if (model.id === "kimi-k3") {
       if (!jawayK3) continue;
       routedProvider = jawayK3;
     } else if (model.id.startsWith("claude-")) {
-      routedProvider = anthropic;
+      routedProvider = himodels;
     } else if (model.id.startsWith("seedance-")) {
       routedProvider = volcengineArk;
     } else {
@@ -136,7 +138,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
       concurrent_limit: isTaskModel ? 10 : 0,
       priority: 10,
       weight: 100,
-      is_enabled: true,
+      is_enabled: !model.id.startsWith("claude-"),
     });
   }
 }

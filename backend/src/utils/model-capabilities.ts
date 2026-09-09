@@ -126,7 +126,7 @@ const SEARCH_ENABLED_MODELS = new Set([
   "kimi-k3",
 ]);
 
-// 阿里云百炼 Context Cache 官方页（华北 2）明确列出的显式缓存模型。
+// 上游逐模型确认支持显式缓存且返回缓存 usage 字段的模型。
 // 不能按厂商前缀放大：同一厂商常同时存在显式+隐式和仅隐式模型。
 const EXPLICIT_CONTEXT_CACHE_MODELS = new Set([
   "qwen3.8-max",
@@ -231,7 +231,7 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
     hasAny(text, ["音频输出", "全能"]);
   const supportsTools =
     modelType === "chat" &&
-    (hasAny(text, ["函数调用", "工具调用"]) || model.provider === "DeepSeek" || model.provider === "GLM" || model.provider === "Anthropic");
+    (hasAny(text, ["函数调用", "工具调用"]) || model.provider === "DeepSeek" || model.provider === "GLM");
   const supportsThinkingBudget =
     thinking.mode !== "none" &&
     THINKING_BUDGET_PREFIXES.some((prefix) => model.id.startsWith(prefix));
@@ -270,6 +270,9 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
 export function getAllowedChatParameters(model: AIModel): string[] {
   const capabilities = getModelCapabilities(model);
   if (capabilities.model_type !== "chat") return [];
+  if (model.id.startsWith("claude-")) {
+    return ["model", "messages", "max_tokens", "stream", "system"];
+  }
 
   const params = [
     "model",

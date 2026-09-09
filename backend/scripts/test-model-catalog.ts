@@ -113,6 +113,76 @@ assert.match(
   /"model":"deepseek-v4-flash"/
 );
 
+// ========== HiModels Claude 原生 Messages 目录与别名 ==========
+const claudeExpectations = [
+  { id: "claude-haiku-4-5", upstream: "claude-haiku-4-5-20260820", context: 200_000, maxOutput: 64_000, input: 6.8, output: 34, cacheRead: 0.68 },
+  { id: "claude-sonnet-4-6", upstream: "claude-sonnet-4-6-20260820", context: 1_000_000, maxOutput: 64_000, input: 20.4, output: 102, cacheRead: 2.04 },
+  { id: "claude-sonnet-5", upstream: "claude-sonnet-5-20260820", context: 1_000_000, maxOutput: 128_000, input: 13.6, output: 68, cacheRead: 1.36 },
+  { id: "claude-opus-4-7", upstream: "claude-opus-4-7-20260820", context: 1_000_000, maxOutput: 128_000, input: 34, output: 170, cacheRead: 3.4 },
+  { id: "claude-opus-4-8", upstream: "claude-opus-4-8-20260820", context: 1_000_000, maxOutput: 128_000, input: 34, output: 170, cacheRead: 3.4 },
+  { id: "claude-opus-5", upstream: "claude-opus-5-20260820", context: 1_000_000, maxOutput: 128_000, input: 34, output: 170, cacheRead: 3.4 },
+  { id: "claude-fable-5", upstream: "claude-fable-5-20260820", context: 1_000_000, maxOutput: 128_000, input: 68, output: 340, cacheRead: 6.8 },
+] as const;
+assert.deepEqual(
+  models.filter((model) => model.id.startsWith("claude-")).map((model) => model.id).sort(),
+  claudeExpectations.map(({ id }) => id).sort(),
+  "Claude 目录必须只公开七个稳定无日期后缀 ID"
+);
+const hiModelsProvider = findProvider("claude-haiku-4-5");
+assert.ok(hiModelsProvider);
+assert.equal(hiModelsProvider.baseUrl, "https://api.himodels.ai/v1");
+assert.equal(hiModelsProvider.apiKeyEnv, "HIMODELS_API_KEY");
+for (const expected of claudeExpectations) {
+  const claude = models.find((model) => model.id === expected.id);
+  assert.ok(claude, `${expected.id} must exist in the catalog`);
+  assert.equal(claude.provider, "Anthropic", "目录 provider 表示模型家族，不表示直连渠道");
+  assert.equal(claude.contextLength, expected.context);
+  assert.equal(claude.maxOutput, expected.maxOutput);
+  assert.equal(claude.promptPrice, expected.input);
+  assert.equal(claude.completionPrice, expected.output);
+  assert.equal(claude.cacheReadPrice, expected.cacheRead);
+  assert.equal(claude.anthropicPassThrough, true);
+  assert.equal(findProvider(claude.id)?.id, "himodels");
+  assert.equal(getUpstreamModelId(claude.id), expected.upstream);
+  assert.equal(getUpstreamModelId(claude.id, "himodels"), expected.upstream);
+  assert.equal(getUpstreamModelId(claude.id, "anthropic"), claude.id);
+  assert.deepEqual(getSupportedProtocols(claude), ["anthropic/messages"]);
+  assert.deepEqual(getAllowedChatParameters(claude), ["model", "messages", "max_tokens", "stream", "system"]);
+  assert.equal(restorePublicModelAlias({ model: expected.upstream }, claude.id).model, claude.id);
+  assert.equal(
+    rewriteUpstreamModelAliasText(`data: {"model":"${expected.upstream}"}`, claude.id),
+    `data: {"model":"${claude.id}"}`
+  );
+  const claudeCapabilities = getModelCapabilities(claude);
+  assert.equal(claudeCapabilities.supports_tools, false);
+  assert.equal(claudeCapabilities.supports_vision, false);
+  assert.equal(claudeCapabilities.thinking_mode, "none");
+  assert.equal(claudeCapabilities.supports_context_caching, false);
+  assert.equal(claudeCapabilities.supports_explicit_context_caching, false);
+}
+
+const haikuObject = restorePublicModelAlias({
+  model: "claude-haiku-4-5-20251001",
+  nested: { model: "claude-haiku-4-5-20260820" },
+}, "claude-haiku-4-5");
+assert.equal(haikuObject.model, "claude-haiku-4-5");
+assert.equal(haikuObject.nested.model, "claude-haiku-4-5");
+assert.equal(
+  rewriteUpstreamModelAliasText(
+    'event: message_start\ndata: {"message":{"model": "claude-haiku-4-5-20251001"}}',
+    "claude-haiku-4-5"
+  ),
+  'event: message_start\ndata: {"message":{"model": "claude-haiku-4-5"}}'
+);
+assert.equal(
+  rewriteUpstreamModelAliasText(
+    'data: {"text":"claude-haiku-4-5-20251001"}',
+    "claude-haiku-4-5"
+  ),
+  'data: {"text":"claude-haiku-4-5-20251001"}',
+  "response normalization must not rewrite user-visible text"
+);
+
 const capabilities = getModelCapabilities(snapshot);
 assert.equal(capabilities.model_type, "chat");
 assert.equal(capabilities.thinking_mode, "mixed");

@@ -405,7 +405,7 @@ router.post("/", async (req: Request, res: Response) => {
       const response = await safeProviderFetch(`${passThroughBase}/messages`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ ...req.body, model: getUpstreamModelId(modelId) }),
+        body: JSON.stringify({ ...req.body, model: getUpstreamModelId(modelId, upstream.providerId) }),
         signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
       });
 
@@ -454,8 +454,27 @@ router.post("/", async (req: Request, res: Response) => {
         let lastChunkTime = 0;
 
         const reader = response.body as any;
-        // 单实例 decoder + stream:true：多字节 UTF-8 跨 TCP 分片时不产生乱码
         const decoder = new TextDecoder();
+        let sseLineBuffer = "";
+        const writeSseText = (text: string, flush = false) => {
+          sseLineBuffer += text;
+          const lines = sseLineBuffer.split("\n");
+          sseLineBuffer = lines.pop() || "";
+          const flushWithoutNewline = flush && sseLineBuffer.length > 0;
+          if (flushWithoutNewline) {
+            lines.push(sseLineBuffer);
+            sseLineBuffer = "";
+          }
+          lines.forEach((line, index) => {
+            const suffix = flushWithoutNewline && index === lines.length - 1 ? "" : "\n";
+            const rewritten = rewriteUpstreamModelAliasText(
+              line.replace(/"id"\s*:\s*"msg_[^"]*"/, `"id":"msg_${logId}"`),
+              modelId
+            ) + suffix;
+            fullResponse += rewritten;
+            res.write(rewritten);
+          });
+        };
         const writeChunk = (chunk: any) => {
           const now = Date.now();
           if (chunkCount === 0) {
@@ -464,14 +483,7 @@ router.post("/", async (req: Request, res: Response) => {
           }
           lastChunkTime = now;
           chunkCount++;
-          const text = typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
-          // 只重写 Anthropic 事件 id（msg_ 前缀），避免误伤正文中的 JSON 示例
-          const rewritten = rewriteUpstreamModelAliasText(
-            text.replace(/"id":"msg_[^"]*"/, `"id":"msg_${logId}"`),
-            modelId
-          );
-          fullResponse += rewritten;
-          res.write(rewritten);
+          writeSseText(typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true }));
         };
 
         if (reader && typeof reader[Symbol.asyncIterator] === "function") {
@@ -484,6 +496,7 @@ router.post("/", async (req: Request, res: Response) => {
             writeChunk(value);
           }
         }
+        writeSseText(decoder.decode(), true);
         res.end();
 
         for (const line of fullResponse.split(/\r?\n/)) {

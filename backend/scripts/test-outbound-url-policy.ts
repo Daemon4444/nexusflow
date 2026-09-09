@@ -6,6 +6,7 @@ import {
   assertRedirectBlocked,
   assertSafeOutboundUrl,
   createRestrictedLookup,
+  DEFAULT_PROVIDER_OUTBOUND_HOSTS,
   isPublicUnicastAddress,
   OutboundUrlPolicyError,
   parseAndValidateOutboundUrl,
@@ -46,6 +47,14 @@ function listTypeScriptFiles(directory: string): string[] {
 }
 
 async function main(): Promise<void> {
+  assert.ok(DEFAULT_PROVIDER_OUTBOUND_HOSTS.includes("api.himodels.ai"));
+  assert.ok(DEFAULT_PROVIDER_OUTBOUND_HOSTS.includes("api.anthropic.com"));
+  assert.equal(
+    parseAndValidateOutboundUrl("https://api.himodels.ai/v1", {
+      allowlist: new Set(DEFAULT_PROVIDER_OUTBOUND_HOSTS),
+    }).hostname,
+    "api.himodels.ai"
+  );
   assert.equal(isPublicUnicastAddress(publicV4.address), true);
   assert.equal(isPublicUnicastAddress(publicV6.address), true);
   for (const unsafe of [

@@ -10,6 +10,8 @@ process.env.PROVIDER_OUTBOUND_HOST_ALLOWLIST = [
   "managed-pinned.example.invalid",
   "provider-fallback.example.invalid",
   "channel-only.example.invalid",
+  "api.anthropic.com",
+  "api.himodels.ai",
   "dashscope.aliyuncs.com",
 ].join(",");
 
@@ -171,6 +173,64 @@ async function main(): Promise<void> {
     assert.equal(unavailableCapacityState.code, "provider_capacity_store_unavailable");
   }
   await redis.del(channelOnlyTpmEventsKey);
+
+  // Claude uses the encrypted managed-provider row at runtime. No real secret or
+  // official Anthropic fallback is involved in this test.
+  await ensureProvider({
+    id: "himodels",
+    name: "HiModels",
+    slug: "himodels",
+    api_base_url: "https://api.himodels.ai/v1",
+    api_key: "test-only-himodels-secret",
+    contact_name: "Test",
+    contact_email: "routing-himodels@example.invalid",
+    status: "enabled",
+  });
+  await upsertCapacity("himodels", "claude-haiku-4-5", {
+    rpm_limit: 100,
+    tpm_limit: 100_000,
+    daily_limit: 1_000,
+    concurrent_limit: 0,
+    priority: 100,
+    weight: 100,
+    is_enabled: true,
+  });
+  const claude = await resolveUpstream("claude-haiku-4-5");
+  assert.equal(claude.ok, true, JSON.stringify(claude));
+  if (claude.ok) {
+    assert.equal(claude.upstream.providerId, "himodels");
+    assert.equal(claude.upstream.baseUrl, "https://api.himodels.ai/v1");
+    assert.equal(claude.upstream.apiKey, "test-only-himodels-secret");
+    assert.equal(claude.upstream.managed, true);
+  }
+
+  await ensureProvider({
+    id: "anthropic",
+    name: "Legacy Anthropic",
+    slug: "anthropic",
+    api_base_url: "https://api.anthropic.com/v1",
+    api_key: "test-only-legacy-anthropic-secret",
+    contact_name: "Test",
+    contact_email: "routing-anthropic@example.invalid",
+    status: "disabled",
+  });
+  await upsertCapacity("anthropic", "claude-haiku-4-5", {
+    rpm_limit: 100,
+    tpm_limit: 100_000,
+    daily_limit: 1_000,
+    concurrent_limit: 0,
+    priority: 1_000,
+    weight: 1_000,
+    is_enabled: true,
+  });
+  const noLegacyFallback = await resolveUpstream("claude-haiku-4-5");
+  assert.equal(noLegacyFallback.ok, true, JSON.stringify(noLegacyFallback));
+  if (noLegacyFallback.ok) assert.equal(noLegacyFallback.upstream.providerId, "himodels");
+
+  await upsertCapacity("himodels", "claude-haiku-4-5", { is_enabled: false });
+  const disabledHiModels = await resolveUpstream("claude-haiku-4-5");
+  assert.equal(disabledHiModels.ok, false);
+  if (!disabledHiModels.ok) assert.equal(disabledHiModels.code, "provider_unavailable");
 
   // Models without any managed row retain the legacy fallback during rollout.
   const legacy = await resolveUpstream("qwen-plus");

@@ -15,6 +15,7 @@ import {
   summarizeRouteHealth,
   unavailableAvailabilityPercentage,
 } from "../services/provider-monitor-semantics";
+import { ensureRoutingDefaults } from "../services/providers";
 import { models as staticModels } from "../data/models";
 import {
   getProviderChannelConfig,
@@ -49,30 +50,7 @@ function maskSecret(secret: string): string {
 }
 
 async function ensureInternalProviders(): Promise<void> {
-  const dashscope = await ensureProvider({
-    id: "dashscope",
-    name: "阿里云百炼",
-    slug: "dashscope",
-    description: "百炼 OpenAI 兼容模式渠道，当前默认承载通义千问、DeepSeek、GLM、Kimi、MiniMax、PixVerse、HappyHorse 等模型。",
-    website: "https://help.aliyun.com/zh/model-studio/",
-    api_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    api_key: process.env.DASHSCOPE_API_KEY || "",
-    contact_name: "平台运营",
-    contact_email: "ops@nexusflow.ai",
-    status: "enabled",
-  });
-  const anthropic = await ensureProvider({
-    id: "anthropic",
-    name: "Anthropic Claude",
-    slug: "anthropic",
-    description: "Anthropic Messages API 官方渠道，承载 Claude 系列模型。",
-    website: "https://docs.anthropic.com/",
-    api_base_url: "https://api.anthropic.com",
-    api_key: process.env.ANTHROPIC_API_KEY || "",
-    contact_name: "平台运营",
-    contact_email: "ops@nexusflow.ai",
-    status: "enabled",
-  });
+  await ensureRoutingDefaults();
   await ensureProvider({
     id: "pixverse",
     name: "PixVerse 双通道",
@@ -85,40 +63,6 @@ async function ensureInternalProviders(): Promise<void> {
     contact_email: "ops@nexusflow.ai",
     status: "enabled",
   });
-  const volcengineArk = await ensureProvider({
-    id: "volcengine-ark",
-    name: "火山方舟",
-    slug: "volcengine-ark",
-    description: "火山引擎方舟 OpenAI 兼容渠道，承载豆包 Seedance 系列视频生成模型。",
-    website: "https://www.volcengine.com/product/ark",
-    api_base_url: "https://ark.cn-beijing.volces.com/api/v3",
-    api_key: process.env.ARK_API_KEY || "",
-    contact_name: "平台运营",
-    contact_email: "ops@nexusflow.ai",
-    status: "enabled",
-  });
-
-  for (const model of staticModels) {
-    let targetProvider: any;
-    if (model.id.startsWith("claude-")) {
-      targetProvider = anthropic;
-    } else if (model.id.startsWith("seedance-")) {
-      targetProvider = volcengineArk;
-    } else {
-      targetProvider = dashscope;
-    }
-    if (await getCapacity(targetProvider.id, model.id)) continue;
-    const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
-    await upsertCapacity(targetProvider.id, model.id, {
-      rpm_limit: 1000,
-      tpm_limit: isTaskModel ? 0 : 1000000,
-      daily_limit: 100000,
-      concurrent_limit: isTaskModel ? 10 : 0,
-      priority: 10,
-      weight: 100,
-      is_enabled: true,
-    });
-  }
 
   await ensurePixVerseChannelConfig();
   await ensureDashScopeChannelConfig();
@@ -199,7 +143,7 @@ function getSaturation(
 }
 
 function getRecommendedProviderId(modelId: string): string {
-  if (modelId.startsWith("claude-")) return "anthropic";
+  if (modelId.startsWith("claude-")) return "himodels";
   if (modelId.startsWith("pixverse-")) return "pixverse";
   return "dashscope";
 }
@@ -616,9 +560,9 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
         level: "warning",
         scope: "model",
         modelId: model.id,
-        title: `${model.name} 存在非 Anthropic 路由`,
-        detail: "Claude 模型需要走 Anthropic Messages API，OpenAI 兼容渠道不能承载该协议。",
-        action: "保留 Anthropic 路由，停用或删除其它供应商上的 Claude 路由。",
+        title: `${model.name} 存在非 HiModels 路由`,
+        detail: "Claude 模型当前需要通过 HiModels 的原生 Anthropic Messages 兼容端点承载。",
+        action: "保留 HiModels 路由，停用或删除其它供应商上的 Claude 路由。",
       });
     }
   }

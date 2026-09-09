@@ -29,7 +29,7 @@ const anthropicExample = `curl https://nexusflow.hk/v1/messages \\
   -H "anthropic-version: 2023-06-01" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "claude-sonnet-4-6",
+    "model": "qwen3.5-plus",
     "max_tokens": 1024,
     "system": [
       {
@@ -80,7 +80,7 @@ const supportedModels = [
   { provider: "智谱 GLM", models: "GLM 5.1（显式/隐式）；5.2、5、4.7（仅隐式）", min: "1024 (显式) / 256 (隐式)" },
   { provider: "Kimi", models: "K2.6、K2.5（显式/隐式）；K3（仅隐式）", min: "1024 (显式) / 256 (隐式)" },
   { provider: "MiniMax", models: "MiniMax M3、M2.5、M2.1（仅隐式缓存，自动生效）", min: "M3: 512；M2: 256 (隐式)" },
-  { provider: "Anthropic", models: "Claude Opus 4.7, Sonnet 4.6, Haiku 4.5", min: "1024" },
+  { provider: "Claude / HiModels", models: "七个 Claude 公共 ID 的 usage 可包含缓存字段；不据此承诺全系列支持 cache_control", min: "以模型与渠道说明为准" },
 ];
 
 export default function ContextCachePage() {

@@ -40,7 +40,7 @@ mkdir -p \
 ln -s "$REPOSITORY_ROOT/node_modules" "$FIXTURE_ROOT/node_modules"
 printf '%s\n' \
   'PG_HOST=database.invalid' \
-  'PROVIDER_OUTBOUND_HOST_ALLOWLIST=api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com' \
+  'PROVIDER_OUTBOUND_HOST_ALLOWLIST=api.anthropic.com,api.himodels.ai,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com' \
   'PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST=jawayid.com:3000' \
   > "$BACKEND_ENV"
 
@@ -244,7 +244,7 @@ case "$command" in
     fi
     entries=()
     if test -f "$NEXUSFLOW_TEST_STATE/app-quadrant-backend"; then
-      backend='{"name":"quadrant-backend","pm2_env":{"status":"online","pm_cwd":"%s/backend","pm_exec_path":"%s/backend/dist/index.js","NODE_ENV":"%s","NEXUSFLOW_RELEASE_RUNTIME":"%s","ENABLE_MOCK_PAYMENT":"%s","ENABLE_SEED_API_KEYS":"%s","USE_PG_MEM":"%s","PROVIDER_OUTBOUND_HOST_ALLOWLIST":"api.anthropic.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com","PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST":"jawayid.com:3000","PORT":3001,"BUILD_SHA":"%s"}}'
+      backend='{"name":"quadrant-backend","pm2_env":{"status":"online","pm_cwd":"%s/backend","pm_exec_path":"%s/backend/dist/index.js","NODE_ENV":"%s","NEXUSFLOW_RELEASE_RUNTIME":"%s","ENABLE_MOCK_PAYMENT":"%s","ENABLE_SEED_API_KEYS":"%s","USE_PG_MEM":"%s","PROVIDER_OUTBOUND_HOST_ALLOWLIST":"api.anthropic.com,api.himodels.ai,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com","PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST":"jawayid.com:3000","PORT":3001,"BUILD_SHA":"%s"}}'
       printf -v backend_one "$backend" \
         "$root" "$root" "$node_env" "$release_runtime" "$mock" "$seed" "$pg_mem" "$sha"
       printf -v backend_two "$backend" \
@@ -700,7 +700,20 @@ proxy_status=$?
 set -e
 test "$proxy_status" -ne 0
 
+cp "$BACKEND_ENV" "$BACKEND_ENV.with-himodels"
+node -e '
+  const fs = require("fs");
+  const file = process.argv[1];
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace(",api.himodels.ai", ""));
+' "$BACKEND_ENV"
+set +e
+run_primitive preflight
+provider_host_status=$?
+set -e
+mv "$BACKEND_ENV.with-himodels" "$BACKEND_ENV"
+test "$provider_host_status" -ne 0
+
 "$SCRIPT_DIR/test-nginx-health-drain-installer.sh"
 
-printf 'release-primitive-regressions-ok bootstrap=%s ingress_guard=%s nginx_syntax=%s legacy_unmanifested=%s legacy_missing=%s legacy_symlink=%s legacy_adjacent=%s v3_render=%s forged_downgrade=%s wildcard=%s unprepared=%s mixed=%s save=%s start_failure=%s wrong_path=%s unsafe=%s old_health=%s archive_escape=%s archive_extra=%s proxy=%s\n' \
-  0 0 "$nginx_syntax_status" "$legacy_unmanifested_status" "$legacy_missing_status" "$legacy_symlink_status" "$legacy_adjacent_status" "$v3_render_status" "$forged_downgrade_status" "$wildcard_status" "$unprepared_rollback_status" "$mixed_version_status" "$save_status" "$start_failure_status" "$wrong_path_status" "$unsafe_status" "$old_health_status" "$archive_escape_status" "$archive_extra_status" "$proxy_status"
+printf 'release-primitive-regressions-ok bootstrap=%s ingress_guard=%s nginx_syntax=%s legacy_unmanifested=%s legacy_missing=%s legacy_symlink=%s legacy_adjacent=%s v3_render=%s forged_downgrade=%s wildcard=%s unprepared=%s mixed=%s save=%s start_failure=%s wrong_path=%s unsafe=%s old_health=%s archive_escape=%s archive_extra=%s proxy=%s provider_host=%s\n' \
+  0 0 "$nginx_syntax_status" "$legacy_unmanifested_status" "$legacy_missing_status" "$legacy_symlink_status" "$legacy_adjacent_status" "$v3_render_status" "$forged_downgrade_status" "$wildcard_status" "$unprepared_rollback_status" "$mixed_version_status" "$save_status" "$start_failure_status" "$wrong_path_status" "$unsafe_status" "$old_health_status" "$archive_escape_status" "$archive_extra_status" "$proxy_status" "$provider_host_status"

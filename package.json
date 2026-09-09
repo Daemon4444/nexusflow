@@ -23,11 +23,13 @@
   },
   "overrides": {
     "body-parser": "2.3.0",
-    "postcss": "8.5.24",
-    "sharp": "0.35.3",
+    "postcss": "8.5.28",
+    "sharp": "0.35.4",
+    "urllib": "4.9.1",
     "next": {
-      "postcss": "8.5.24",
-      "sharp": "0.35.3"
+      ".": "16.3.4",
+      "postcss": "8.5.28",
+      "sharp": "0.35.4"
     },
     "@alicloud/log@1.2.6": {
       "protobufjs": "8.7.1"

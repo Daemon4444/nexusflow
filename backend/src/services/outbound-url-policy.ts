@@ -12,6 +12,7 @@ import { isProductionRuntime } from "../utils/runtime-safety";
 
 export const DEFAULT_PROVIDER_OUTBOUND_HOSTS = [
   "api.anthropic.com",
+  "api.himodels.ai",
   "dashscope.aliyuncs.com",
   "app-api.pixverse.ai",
   "ark.cn-beijing.volces.com",
@@ -324,17 +325,25 @@ export function createRestrictedLookup(
   };
 }
 
-let directDispatcher: Dispatcher | null = null;
+const PROVIDER_FETCH_TIMEOUT_MS = 600_000;
+const EXTERNAL_RESOURCE_FETCH_TIMEOUT_MS = 300_000;
+const directDispatchers = new Map<OutboundUrlKind, Dispatcher>();
 
-function getRestrictedDispatcher(): Dispatcher {
-  if (!directDispatcher) {
-    directDispatcher = new Agent({
-      connect: {
-        lookup: createRestrictedLookup(),
-      },
-    });
-  }
-  return directDispatcher;
+function getRestrictedDispatcher(kind: OutboundUrlKind): Dispatcher {
+  const existing = directDispatchers.get(kind);
+  if (existing) return existing;
+  const timeout = kind === "provider"
+    ? PROVIDER_FETCH_TIMEOUT_MS
+    : EXTERNAL_RESOURCE_FETCH_TIMEOUT_MS;
+  const dispatcher = new Agent({
+    headersTimeout: timeout,
+    bodyTimeout: timeout,
+    connect: {
+      lookup: createRestrictedLookup(),
+    },
+  });
+  directDispatchers.set(kind, dispatcher);
+  return dispatcher;
 }
 
 export function assertRedirectBlocked(
@@ -367,7 +376,7 @@ async function safeOutboundFetch(
   const response = await undiciFetch(url, {
     ...(init as any),
     redirect: "manual",
-    dispatcher: getRestrictedDispatcher(),
+    dispatcher: getRestrictedDispatcher(kind),
   });
   const location = response.headers.get("location");
   try {

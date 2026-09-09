@@ -1,7 +1,8 @@
 /**
- * 用百炼官方全量价本校验本地模型目录。
- * 参考值逐条抄自官方 CSV（中国内地部署范围），仅覆盖本平台在售的模型。
- * 用途：一次性核对，不参与运行时。
+ * 用官方价本校验本地模型目录。
+ * 百炼参考值逐条抄自官方 CSV（中国内地部署范围）；Claude 参考值来自
+ * Anthropic 官方定价页 https://docs.anthropic.com/en/docs/about-claude/pricing ，
+ * 按 1 USD = 6.8 CNY 折算。仅覆盖本平台在售的模型，不参与运行时。
  */
 import { getStaticModels, resolveCachePricing, resolveCompletionPrice, AIModel } from "../src/data/models";
 
@@ -20,6 +21,13 @@ interface Ref {
 }
 
 const REF: Record<string, Ref> = {
+  "claude-haiku-4-5": { ctx: 200000, maxOut: 64000, in: 6.8, out: 34, cache: 0.68, read: 0.68 },
+  "claude-sonnet-4-6": { ctx: 1000000, maxOut: 64000, in: 20.4, out: 102, cache: 2.04, read: 2.04 },
+  "claude-sonnet-5": { ctx: 1000000, maxOut: 128000, in: 13.6, out: 68, cache: 1.36, read: 1.36 },
+  "claude-opus-4-7": { ctx: 1000000, maxOut: 128000, in: 34, out: 170, cache: 3.4, read: 3.4 },
+  "claude-opus-4-8": { ctx: 1000000, maxOut: 128000, in: 34, out: 170, cache: 3.4, read: 3.4 },
+  "claude-opus-5": { ctx: 1000000, maxOut: 128000, in: 34, out: 170, cache: 3.4, read: 3.4 },
+  "claude-fable-5": { ctx: 1000000, maxOut: 128000, in: 68, out: 340, cache: 6.8, read: 6.8 },
   "qwen3.8-max": { ctx: 1000000, maxOut: 131072, in: 12, out: 36, cache: 1.5, create: 15, read: 1 },
   "qwen3.7-max": { ctx: 1000000, maxOut: 131072, in: 12, out: 36, cache: 2.4, create: 15, read: 1.2 },
   "qwen3.7-plus": {
