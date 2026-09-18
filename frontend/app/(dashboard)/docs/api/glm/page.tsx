@@ -7,6 +7,7 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
+  { id: "glm-5.3", context: "1M", input: 8, output: 28, desc: "GLM-5.3 新一代旗舰，三档深度思考，长程智能体" },
   { id: "glm-5.2", context: "1M", input: 8, output: 28, desc: "GLM-5.2 长程任务旗舰，1M 上下文" },
   { id: "glm-5.2-fast-preview", context: "1M", input: 16, output: 56, desc: "GLM-5.2 高速版，输出 TPS 达标准版 1.5~2 倍" },
   { id: "glm-5.1", context: "198K", input: 6, output: 24, desc: "GLM-5.1 增强版旗舰" },

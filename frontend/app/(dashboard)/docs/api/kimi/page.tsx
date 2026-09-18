@@ -8,6 +8,9 @@ const API_BASE = "https://nexusflow.hk";
 
 const models = [
   { id: "kimi-k3", context: "1M", input: 20, output: 100, desc: "K3 最强旗舰，2.8万亿参数，原生视觉理解+深度思考，缓存命中 ¥2/M" },
+  { id: "kimi-k2.7-code", context: "256K", input: 6.5, output: 27, desc: "K2.7 编程模型，支持文本/图片/视频输入，长程编程与智能体工具调用" },
+  { id: "kimi/kimi-k2.7-code-highspeed", context: "256K", input: 13, output: 54, desc: "K2.7 Code 高速版，能力对齐标准版，输出速度显著提升" },
+  { id: "kimi-k2-thinking", context: "256K", input: 4, output: 16, desc: "K2 Agentic 思考模型，长程智能体任务、深度推理与工具调用规划" },
   { id: "kimi-k2.6", context: "256K", input: 6.5, output: 27, desc: "K2.6 旗舰，长文本创意写作" },
   { id: "kimi-k2.5", context: "256K", input: 4, output: 21, desc: "K2.5 均衡模型" },
 ];

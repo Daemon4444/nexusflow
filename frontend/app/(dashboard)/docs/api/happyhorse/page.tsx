@@ -17,7 +17,7 @@ const tabs: { key: TabKey; label: string; model: string }[] = [
 
 const requestParams: Record<TabKey, { name: string; type: string; required: boolean; desc: string }[]> = {
   t2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：happyhorse-1.0-t2v" },
+    { name: "model", type: "string", required: true, desc: "happyhorse-1.0-t2v 或 happyhorse-1.1-t2v（新一代，480P，最长 10 秒）" },
     { name: "prompt", type: "string", required: true, desc: "文本提示词，描述期望生成的视频内容。支持中英文，不超过 2500 个中文字符。" },
     { name: "resolution", type: "string", required: false, desc: "分辨率档位：720P（默认）或 1080P。影响计费：720P ¥0.9/秒，1080P ¥1.6/秒。" },
     { name: "ratio", type: "string", required: false, desc: "宽高比。可选值：16:9（默认）、9:16、1:1、4:3、3:4。" },
@@ -26,7 +26,7 @@ const requestParams: Record<TabKey, { name: string; type: string; required: bool
     { name: "seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]，固定 seed 可提升可复现性。" },
   ],
   i2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：happyhorse-1.0-i2v" },
+    { name: "model", type: "string", required: true, desc: "happyhorse-1.0-i2v 或 happyhorse-1.1-i2v（新一代，480P，最长 10 秒）" },
     { name: "img_url", type: "string", required: true, desc: "首帧参考图 URL（JPG/PNG/WEBP，≤10MB）。" },
     { name: "prompt", type: "string", required: false, desc: "文本提示词，描述视频动态效果。可选但建议填写。" },
     { name: "resolution", type: "string", required: false, desc: "分辨率档位：720P（默认）或 1080P。" },
@@ -35,7 +35,7 @@ const requestParams: Record<TabKey, { name: string; type: string; required: bool
     { name: "seed", type: "integer", required: false, desc: "随机种子 [0, 2147483647]。" },
   ],
   r2v: [
-    { name: "model", type: "string", required: true, desc: "固定值：happyhorse-1.0-r2v" },
+    { name: "model", type: "string", required: true, desc: "happyhorse-1.0-r2v 或 happyhorse-1.1-r2v（新一代，480P，最长 10 秒）" },
     { name: "prompt", type: "string", required: true, desc: "文本提示词，描述视频内容。" },
     { name: "img_urls", type: "string[]", required: true, desc: "参考图片 URL 数组，1-9 张。" },
     { name: "resolution", type: "string", required: false, desc: "分辨率档位：720P（默认）或 1080P。" },
@@ -562,14 +562,19 @@ export default function HappyHorseApiPage() {
             </thead>
             <tbody>
               <tr style={{ background: "var(--bg)" }}>
-                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>720P</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>happyhorse-1.0（720P）</td>
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--accent)", fontWeight: 600 }}>¥0.9 / 秒</td>
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>按输出视频时长计费（如 5 秒 = ¥4.5）</td>
               </tr>
               <tr style={{ background: "var(--bg-elevated)" }}>
-                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>1080P</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>happyhorse-1.0（1080P）</td>
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--accent)", fontWeight: 600 }}>¥1.6 / 秒</td>
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>按输出视频时长计费（如 5 秒 = ¥8.0）</td>
+              </tr>
+              <tr style={{ background: "var(--bg)" }}>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>happyhorse-1.1（480P）</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--accent)", fontWeight: 600 }}>¥0.45 / 秒</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>新一代模型，仅 480P 档，最长 10 秒。提供 happyhorse-1.1-t2v / i2v / r2v。</td>
               </tr>
             </tbody>
           </table>

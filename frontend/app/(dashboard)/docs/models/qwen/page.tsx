@@ -5,6 +5,19 @@ import Link from "next/link";
 
 const qwenModels = [
   {
+    id: "qwen3.8-flash",
+    name: "Qwen3.8 Flash",
+    desc: "Qwen3.8 代多模态 Flash 模型，兼具强大的理解与生成能力和出色的响应速度。原生支持百万级上下文，编程辅助、智能体协作、图文理解场景表现突出，支持自动修复代码、操作桌面应用、分析图表与长视频。",
+    ctx: "1,000,000",
+    maxOutput: "131,072",
+    inputPrice: "¥0.8",
+    outputPrice: "¥2.7",
+    tags: ["极速", "多模态", "最新", "百万上下文"],
+    features: ["图像理解", "函数调用", "思考模式", "上下文缓存", "百万上下文"],
+    isNew: true,
+    isFeatured: true,
+  },
+  {
     id: "qwen3.8-max",
     name: "Qwen3.8 Max",
     desc: "通义千问3.8代旗舰模型，2.4万亿参数MoE，编程与办公能力全面跃升，可自主编程十数天交付完整项目。原生视觉理解贯穿规划、执行与验证全流程，支持超长文档与长视频深度解析。百万级上下文。",

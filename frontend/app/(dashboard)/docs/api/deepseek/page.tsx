@@ -11,6 +11,7 @@ type TabKey = "chat" | "reasoning";
 const models = [
   { id: "deepseek-v4-pro-0813", category: "推理模型", context: "1M", input: 9, output: 27, desc: "V4 Pro 0813 快照；闲时调度 ¥4.5/¥13.5 尚未开放" },
   { id: "deepseek-v4-pro", category: "推理模型", context: "1M", input: 12, output: 24, desc: "V4 旗舰推理模型" },
+  { id: "deepseek-v4.1-flash", category: "大语言模型", context: "1M", input: 1, output: 4, desc: "V4.1 Flash；官方峰谷价忙时 ¥2/¥8、闲时 ¥1/¥4，平台按闲时平价结算" },
   { id: "deepseek-v4-flash", category: "大语言模型", context: "1M", input: 1, output: 2, desc: "高效轻量 MoE，低延迟、高并发" },
   { id: "deepseek-v4-flash-0731", category: "大语言模型", context: "1M", input: 1, output: 2, desc: "V4 Flash 0731 固定快照，独立同名直传" },
   { id: "deepseek-v3.2", category: "大语言模型", context: "128K", input: 2, output: 3, desc: "V3.2 通用模型" },

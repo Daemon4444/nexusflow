@@ -19,8 +19,17 @@ const supportedModels = [
   { id: "seedance-1.0-pro-fast", provider: "Seedance / Volcengine", mode: "文生/首帧", price720: "¥0.09 / 秒", price1080: "¥0.20 / 秒" },
   { id: "wan2.6-t2v", provider: "Wan / Alibaba", mode: "文生视频", price720: "¥0.6 / 秒", price1080: "¥1 / 秒" },
   { id: "wan2.6-i2v", provider: "Wan / Alibaba", mode: "图生视频", price720: "¥0.6 / 秒", price1080: "¥1 / 秒" },
+  { id: "wan2.7-t2v", provider: "Wan / Alibaba", mode: "文生视频", price720: "¥0.6 / 秒", price1080: "—" },
+  { id: "wan2.7-i2v", provider: "Wan / Alibaba", mode: "图生视频", price720: "¥0.6 / 秒", price1080: "—" },
+  { id: "wan2.7-r2v", provider: "Wan / Alibaba", mode: "参考生视频", price720: "¥0.6 / 秒", price1080: "—" },
+  { id: "wan2.7-videoedit", provider: "Wan / Alibaba", mode: "视频编辑", price720: "¥0.6 / 秒", price1080: "—" },
+  { id: "wan3.0-video", provider: "Wan / Alibaba", mode: "文生视频", price720: "480P ¥0.3 / 秒", price1080: "—" },
+  { id: "wan3.0-video-prime", provider: "Wan / Alibaba", mode: "文生视频（旗舰）", price720: "480P ¥0.45 / 秒", price1080: "—" },
   { id: "happyhorse-1.0-t2v", provider: "HappyHorse / Alibaba", mode: "文生视频", price720: "¥0.9 / 秒", price1080: "¥1.6 / 秒" },
   { id: "happyhorse-1.0-i2v", provider: "HappyHorse / Alibaba", mode: "图生视频", price720: "¥0.9 / 秒", price1080: "¥1.6 / 秒" },
+  { id: "happyhorse-1.1-t2v", provider: "HappyHorse / Alibaba", mode: "文生视频", price720: "480P ¥0.45 / 秒", price1080: "—" },
+  { id: "happyhorse-1.1-i2v", provider: "HappyHorse / Alibaba", mode: "图生视频", price720: "480P ¥0.45 / 秒", price1080: "—" },
+  { id: "happyhorse-1.1-r2v", provider: "HappyHorse / Alibaba", mode: "参考生视频", price720: "480P ¥0.45 / 秒", price1080: "—" },
   { id: "pixverse-v6", provider: "PixVerse", mode: "文生视频", price720: "¥0.36 有声 / ¥0.27 无声", price1080: "¥0.68 有声 / ¥0.53 无声" },
 ];
 

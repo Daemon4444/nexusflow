@@ -13,7 +13,7 @@ const fallbackModelRows = [
   { model: "Qwen3.8 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
   { model: "Kimi K3", provider: "Moonshot AI", context: "1M", price: "input ¥20 / output ¥100 per 1M" },
   { model: "Qwen3.7 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
-  { model: "GLM 5.2", provider: "Zhipu AI", context: "1M", price: "input ¥8 / output ¥28 per 1M" },
+  { model: "GLM 5.3", provider: "Zhipu AI", context: "1M", price: "input ¥8 / output ¥28 per 1M" },
   { model: "DeepSeek V4 Flash", provider: "DeepSeek", context: "1M", price: "input ¥1 / output ¥2 per 1M" },
   { model: "DeepSeek V4 Flash 0731", provider: "DeepSeek", context: "1M", price: "input ¥1 / output ¥2 per 1M" },
   { model: "DeepSeek V4 Pro 0813", provider: "DeepSeek", context: "1M", price: "input ¥9 / output ¥27 per 1M" },
@@ -65,7 +65,7 @@ const fallbackCarouselModels = [
   { name: "DeepSeek V4 Pro 0813", provider: "DeepSeek", ctx: "1M context", price: "In ¥9 · Out ¥27", badge: "Snapshot", tone: "red" },
   { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "1M context", price: "In ¥12 · Out ¥24", badge: "Reasoning", tone: "red" },
   { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },
-  { name: "GLM 5.2", provider: "Zhipu AI", ctx: "1M context", price: "In ¥8 · Out ¥28", badge: "Flagship", tone: "violet" },
+  { name: "GLM 5.3", provider: "Zhipu AI", ctx: "1M context", price: "In ¥8 · Out ¥28", badge: "New", tone: "violet" },
   { name: "Text Embedding V4", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
   { name: "Qwen Image Max", provider: "Tongyi Qianwen", ctx: "Image", price: "per image", badge: "Image", tone: "orange" },
   { name: "PixVerse V6", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
@@ -296,29 +296,29 @@ const flagshipSlides: FlagshipSlide[] = [
     ],
   },
   {
-    key: "glm-5.2-fast",
+    key: "glm-5.3",
     accent: "#c4b5fd",
     border: "rgba(167,139,250,0.3)",
     gradient: "linear-gradient(135deg, #07040d 0%, #170f2e 48%, #3b1d78 100%)",
     glow: "rgba(167,139,250,0.22)",
     btnGradient: "linear-gradient(135deg, #a78bfa, #7c3aed)",
     btnShadow: "0 6px 20px rgba(124,58,237,0.4)",
-    primaryBadge: "Speed LLM",
-    secondaryBadge: "新品预览",
+    primaryBadge: "Flagship LLM",
+    secondaryBadge: "最新上线",
     byline: "by 智谱AI Zhipu AI",
-    title: "GLM 5.2 Fast",
+    title: "GLM 5.3",
     titleGradient: "linear-gradient(135deg, #f8fafc 0%, #ddd6fe 48%, #a78bfa 100%)",
-    lead: "GLM-5.2 的高速版本：能力对齐标准版，1M 超长上下文，输出 TPS 可达标准版的 1.5~2 倍。为实时对话、Agent 多轮调用与流式代码生成而生——直接调用 ",
-    modelCode: "glm-5.2-fast-preview",
-    sub: "推理加速不减智商。输入 ¥16/M、输出 ¥56/M、缓存命中 ¥4/M，支持思考模式、函数调用与结构化输出。",
-    primaryHref: "/models/glm-5.2-fast-preview",
-    primaryLabel: "了解 GLM 5.2 Fast",
+    lead: "智谱新一代旗舰：1M 无损超长上下文，三档深度思考调节，编程与复杂推理进一步增强，为长程智能体任务而生——直接调用 ",
+    modelCode: "glm-5.3",
+    sub: "输入 ¥8/M、输出 ¥28/M、缓存命中 ¥2/M，支持思考模式、函数调用与结构化输出。",
+    primaryHref: "/models/glm-5.3",
+    primaryLabel: "了解 GLM 5.3",
     docsHref: "/docs/api/glm",
     stats: [
-      { v: "1.5~2×", l: "输出速度提升" },
       { v: "1M", l: "Token 上下文窗口" },
+      { v: "3 档", l: "深度思考调节" },
       { v: "131K", l: "最大输出长度" },
-      { v: "¥4/M", l: "缓存命中输入价" },
+      { v: "¥2/M", l: "缓存命中输入价" },
     ],
   },
   {
@@ -530,7 +530,7 @@ export default function LandingPage() {
   const carouselModels = recommended.length > 0
     ? recommended.concat(models.filter((model) => !recommended.some((item) => item.id === model.id)).slice(0, 12)).map(modelToCarousel)
     : fallbackCarouselModels;
-  const modelCount = models.length || 77;
+  const modelCount = models.length || 95;
 
   return (
     <>

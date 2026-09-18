@@ -7,7 +7,7 @@ import Link from "next/link";
 const API_BASE = "https://nexusflow.hk";
 
 const requestParams = [
-  { name: "model", type: "string", required: true, desc: "固定值：wan2.6-t2i" },
+  { name: "model", type: "string", required: true, desc: "图像模型 ID：wan2.6-t2i、wan2.7-image（¥0.2/张）、wan2.7-image-pro（¥0.5/张）" },
   { name: "prompt", type: "string", required: true, desc: "图像描述文本，支持中英文。描述越详细，生成效果越好。不超过 2500 个中文字符。" },
   { name: "size", type: "string", required: false, desc: "图像尺寸。可选值：1024x1024（默认）、768x1024、1024x768、720x1280、1280x720。" },
   { name: "n", type: "integer", required: false, desc: "生成图像数量，范围 1-4，默认 1。" },
@@ -306,6 +306,16 @@ export default function ImagesApiPage() {
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>wan2.6-t2i</td>
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--accent)", fontWeight: 600 }}>¥0.20 / 张</td>
                 <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>按生成图片数量计费（如 n=4 则 ¥0.80）。仅对成功任务计费，失败任务不扣费。</td>
+              </tr>
+              <tr style={{ background: "var(--bg-elevated)" }}>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>wan2.7-image</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--accent)", fontWeight: 600 }}>¥0.20 / 张</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>Wan2.7 新一代文生图，按生成图片数量计费，仅对成功任务计费。</td>
+              </tr>
+              <tr style={{ background: "var(--bg)" }}>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>wan2.7-image-pro</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--accent)", fontWeight: 600 }}>¥0.50 / 张</td>
+                <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", color: "var(--text-secondary)" }}>Wan2.7 旗舰文生图，画质与语义遵循更强，按生成图片数量计费。</td>
               </tr>
             </tbody>
           </table>

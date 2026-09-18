@@ -97,6 +97,7 @@ const modelCategories = [
 
 const pricingTable = [
   { model: "qwen3.8-max", ctx: "1M", input: "¥12", output: "¥36", category: "旗舰" },
+  { model: "qwen3.8-flash", ctx: "1M", input: "¥0.8", output: "¥2.7", category: "极速多模态" },
   { model: "qwen3.7-max", ctx: "1M", input: "¥12", output: "¥36", category: "旗舰" },
   { model: "qwen3.7-flash", ctx: "1M", input: "¥0.2", output: "¥0.8", category: "极速多模态" },
   { model: "qwen3.6-max-preview", ctx: "256K", input: "¥9", output: "¥54", category: "旗舰" },
@@ -113,17 +114,23 @@ const pricingTable = [
   { model: "deepseek-v4-pro", ctx: "1M", input: "¥12", output: "¥24", category: "推理旗舰" },
   { model: "deepseek-v4-pro-0813", ctx: "1M", input: "¥9", output: "¥27", category: "0813 快照（闲时价待开放）" },
   { model: "deepseek-v4-flash", ctx: "1M", input: "¥1", output: "¥2", category: "高速轻量 MoE" },
+  { model: "deepseek-v4.1-flash", ctx: "1M", input: "¥1", output: "¥4", category: "高速轻量 MoE（按闲时平价）" },
   { model: "deepseek-v4-flash-0731", ctx: "1M", input: "¥1", output: "¥2", category: "0731 固定快照" },
   { model: "deepseek-r1", ctx: "128K", input: "¥4", output: "¥16", category: "推理" },
   { model: "deepseek-v3.2", ctx: "128K", input: "¥2", output: "¥3", category: "通用" },
+  { model: "glm-5.3", ctx: "1M", input: "¥8", output: "¥28", category: "新一代旗舰、三档深度思考" },
   { model: "glm-5.2", ctx: "1M", input: "¥8", output: "¥28", category: "长程旗舰" },
   { model: "glm-5.2-fast-preview", ctx: "1M", input: "¥16", output: "¥56", category: "高速" },
   { model: "glm-5.1", ctx: "198K", input: "¥6", output: "¥24", category: "旗舰" },
   { model: "glm-5", ctx: "198K", input: "¥4", output: "¥18", category: "均衡" },
   { model: "kimi-k3", ctx: "1M", input: "¥20", output: "¥100", category: "旗舰" },
+  { model: "kimi-k2.7-code", ctx: "256K", input: "¥6.5", output: "¥27", category: "编程（文本/图片/视频输入）" },
+  { model: "kimi/kimi-k2.7-code-highspeed", ctx: "256K", input: "¥13", output: "¥54", category: "编程高速版" },
+  { model: "kimi-k2-thinking", ctx: "256K", input: "¥4", output: "¥16", category: "Agentic 思考" },
   { model: "kimi-k2.6", ctx: "256K", input: "¥6.5", output: "¥27", category: "推理" },
   { model: "kimi-k2.5", ctx: "256K", input: "¥4", output: "¥21", category: "均衡" },
   { model: "MiniMax/MiniMax-M3", ctx: "1M", input: "¥4.2", output: "¥16.8", category: "旗舰多模态" },
+  { model: "MiniMax/MiniMax-M2.7", ctx: "192K", input: "¥2.1", output: "¥8.4", category: "思考模型" },
   { model: "MiniMax-M2.5", ctx: "192K", input: "¥2.1", output: "¥8.4", category: "均衡" },
 ];
 

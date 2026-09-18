@@ -45,6 +45,7 @@ const qwenProtocols = [
 const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string; output: string }[]> = {
   llm: [
     { id: "qwen3.8-max", ctx: "1M", input: "¥12/M", output: "¥36/M" },
+    { id: "qwen3.8-flash", ctx: "1M", input: "¥0.8/M", output: "¥2.7/M" },
     { id: "qwen3.7-max", ctx: "1M", input: "¥12/M", output: "¥36/M" },
     { id: "qwen3-max", ctx: "256K", input: "¥2.5/M", output: "¥10/M" },
     { id: "qwen3.6-max-preview", ctx: "256K", input: "¥9/M", output: "¥54/M" },
@@ -64,6 +65,7 @@ const modelsByTab: Record<ModelTabKey, { id: string; ctx: string; input: string;
   ],
   vision: [
     { id: "qwen3.8-max", ctx: "1M", input: "¥12/M", output: "¥36/M" },
+    { id: "qwen3.8-flash", ctx: "1M", input: "¥0.8/M", output: "¥2.7/M" },
     { id: "qwen3.5-omni-plus", ctx: "256K", input: "¥7/M", output: "¥40/M" },
     { id: "qwen3.5-omni-flash", ctx: "256K", input: "¥2.2/M", output: "¥13.3/M" },
     { id: "qwen3-omni-flash", ctx: "64K", input: "¥1.8/M", output: "¥6.9/M" },
