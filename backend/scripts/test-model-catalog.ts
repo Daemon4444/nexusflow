@@ -11,6 +11,7 @@ import {
   getModelCapabilities,
 } from "../src/utils/model-capabilities";
 import { buildUpstreamChatRequest } from "../src/utils/chat-request";
+import { estimateAsyncCost } from "../src/services/async-billing";
 import { getSupportedProtocols, supportsResponsesApi } from "../src/utils/model-protocols";
 import {
   getUpstreamModelId,
@@ -533,3 +534,142 @@ assert.equal(getModelCapabilities(models.find((model) => model.id === "qwen3-vl-
 assert.equal(getModelCapabilities(models.find((model) => model.id === "qwen3-omni-flash")!).supports_search, false);
 assert.equal(getModelCapabilities(models.find((model) => model.id === "MiniMax-M2.1")!).supports_search, true);
 assert.equal(getModelCapabilities(models.find((model) => model.id === "MiniMax-M2.5")!).supports_search, false);
+
+// ========== 百炼新模型上架（2026-09-18）：文本 7 个 ==========
+const qwen38Flash = models.find((model) => model.id === "qwen3.8-flash")!;
+assert.ok(qwen38Flash, "qwen3.8-flash 必须在目录中");
+assert.equal(findProvider(qwen38Flash.id)?.id, "dashscope");
+assert.equal(qwen38Flash.contextLength, 1_000_000);
+assert.equal(qwen38Flash.maxOutput, 131_072);
+assert.equal(qwen38Flash.promptPrice, 0.8);
+assert.equal(qwen38Flash.completionPrice, 2.7);
+assert.equal(qwen38Flash.category, "多模态模型");
+assert.ok(getSupportedProtocols(qwen38Flash).includes("openai/responses"), "qwen3.8 系列官方支持 Responses API");
+const qwen38FlashCaps = getModelCapabilities(qwen38Flash);
+assert.equal(qwen38FlashCaps.thinking_mode, "mixed");
+assert.equal(qwen38FlashCaps.thinking_default, true);
+assert.equal(qwen38FlashCaps.supports_vision, true);
+assert.equal(qwen38FlashCaps.supports_context_caching, true);
+assert.equal(qwen38FlashCaps.supports_explicit_context_caching, true);
+
+const glm53 = models.find((model) => model.id === "glm-5.3")!;
+assert.ok(glm53, "glm-5.3 必须在目录中");
+assert.equal(findProvider(glm53.id)?.id, "dashscope");
+assert.equal(glm53.contextLength, 1_048_576);
+assert.equal(glm53.maxOutput, 131_072);
+assert.equal(glm53.promptPrice, 8);
+assert.equal(glm53.completionPrice, 28);
+assert.equal(resolveCachePricing(glm53).implicitHit, 2);
+const glm53Caps = getModelCapabilities(glm53);
+assert.equal(glm53Caps.thinking_mode, "mixed");
+assert.equal(glm53Caps.thinking_default, true);
+assert.equal(glm53Caps.supports_thinking_budget, true, "glm- 前缀必须支持思考预算");
+assert.equal(glm53Caps.supports_context_caching, true);
+assert.equal(glm53Caps.supports_explicit_context_caching, false);
+
+const d41Flash = models.find((model) => model.id === "deepseek-v4.1-flash")!;
+assert.ok(d41Flash, "deepseek-v4.1-flash 必须在目录中");
+assert.equal(findProvider(d41Flash.id)?.id, "dashscope");
+assert.equal(d41Flash.contextLength, 1_000_000);
+assert.equal(d41Flash.maxOutput, 393_216);
+assert.equal(getReservedOutputTokens(d41Flash), 16_384);
+assert.equal(d41Flash.promptPrice, 1, "沿用平价口径取闲时价");
+assert.equal(d41Flash.completionPrice, 4);
+assert.equal(d41Flash.cacheReadPrice, 0.2);
+const d41Caps = getModelCapabilities(d41Flash);
+assert.equal(d41Caps.thinking_mode, "mixed");
+assert.equal(d41Caps.thinking_default, true);
+assert.equal(d41Caps.supports_context_caching, true);
+assert.equal(d41Caps.supports_explicit_context_caching, false);
+assert.equal(supportsResponsesApi(d41Flash.id), false, "未经官方证实前不得宣告 Responses API");
+
+const kimi27Code = models.find((model) => model.id === "kimi-k2.7-code")!;
+assert.ok(kimi27Code, "kimi-k2.7-code 必须在目录中");
+assert.equal(findProvider(kimi27Code.id)?.id, "dashscope");
+assert.equal(kimi27Code.contextLength, 262_144);
+assert.equal(kimi27Code.maxOutput, 98_304);
+assert.equal(kimi27Code.promptPrice, 6.5);
+assert.equal(kimi27Code.completionPrice, 27);
+assert.equal(resolveCachePricing(kimi27Code).explicitHit, 0.65);
+const kimi27Caps = getModelCapabilities(kimi27Code);
+assert.equal(kimi27Caps.thinking_mode, "mixed");
+assert.equal(kimi27Caps.thinking_default, true);
+assert.ok(getAllowedChatParameters(kimi27Code).includes("preserve_thinking"));
+
+const kimi27Highspeed = models.find((model) => model.id === "kimi/kimi-k2.7-code-highspeed")!;
+assert.ok(kimi27Highspeed, "高速版上游 id 带斜杠前缀，目录必须同名公开");
+assert.equal(findProvider(kimi27Highspeed.id)?.id, "dashscope", "带斜杠 ID 必须被 kimi 前缀路由覆盖");
+assert.equal(getUpstreamModelId(kimi27Highspeed.id), kimi27Highspeed.id);
+assert.equal(kimi27Highspeed.promptPrice, 13);
+assert.equal(kimi27Highspeed.completionPrice, 54);
+assert.equal(getModelCapabilities(kimi27Highspeed).thinking_mode, "mixed");
+
+const kimiK2Thinking = models.find((model) => model.id === "kimi-k2-thinking")!;
+assert.ok(kimiK2Thinking, "kimi-k2-thinking 必须在目录中");
+assert.equal(findProvider(kimiK2Thinking.id)?.id, "dashscope");
+assert.equal(kimiK2Thinking.promptPrice, 4);
+assert.equal(kimiK2Thinking.completionPrice, 16);
+assert.equal(getModelCapabilities(kimiK2Thinking).thinking_mode, "always", "-thinking 后缀必须识别为纯思考模型");
+
+const m27 = models.find((model) => model.id === "MiniMax/MiniMax-M2.7")!;
+assert.ok(m27, "MiniMax/MiniMax-M2.7 必须在目录中");
+assert.equal(findProvider(m27.id)?.id, "dashscope");
+assert.equal(m27.contextLength, 196_608);
+assert.equal(m27.maxOutput, 32_768);
+assert.equal(m27.promptPrice, 2.1);
+assert.equal(m27.completionPrice, 8.4);
+assert.equal(m27.anthropicPassThrough, false, "MiniMax 思考系列上游 apps/anthropic 不支持，必须走桥");
+const m27Caps = getModelCapabilities(m27);
+assert.equal(m27Caps.thinking_mode, "always", "M2.7 仅思考模式");
+assert.equal(m27Caps.supports_enable_thinking, false, "纯思考模型不得宣告 enable_thinking 开关");
+assert.equal(m27Caps.supports_context_caching, true);
+assert.equal(m27Caps.supports_explicit_context_caching, false);
+
+// ========== 百炼新模型上架（2026-09-18）：视频/图片 11 个 ==========
+const asyncCatalog = [
+  { id: "wan2.7-image", price: 0.2, category: "图像生成" },
+  { id: "wan2.7-image-pro", price: 0.5, category: "图像生成" },
+  { id: "wan2.7-t2v", price: 0.6, category: "视频生成" },
+  { id: "wan2.7-i2v", price: 0.6, category: "视频生成" },
+  { id: "wan2.7-r2v", price: 0.6, category: "视频生成" },
+  { id: "wan2.7-videoedit", price: 0.6, category: "视频生成" },
+  { id: "wan3.0-video", price: 0.3, category: "视频生成" },
+  { id: "wan3.0-video-prime", price: 0.45, category: "视频生成" },
+  { id: "happyhorse-1.1-t2v", price: 0.45, category: "视频生成" },
+  { id: "happyhorse-1.1-i2v", price: 0.45, category: "视频生成" },
+  { id: "happyhorse-1.1-r2v", price: 0.45, category: "视频生成" },
+] as const;
+for (const expected of asyncCatalog) {
+  const entry = models.find((model) => model.id === expected.id);
+  assert.ok(entry, `${expected.id} 必须在目录中`);
+  assert.equal(entry.category, expected.category);
+  assert.equal(entry.promptPrice, expected.price);
+  assert.equal(findProvider(entry.id)?.id, "dashscope");
+  assert.equal(entry.pricingType, expected.category === "图像生成" ? "per-image" : "per-second");
+}
+
+// 视频按秒计费走 async-billing 的硬编码分支（目录价仅展示，不参与结算），必须同步断言
+for (const [id, expected] of [
+  ["wan2.7-t2v", 0.6],
+  ["wan2.7-i2v", 0.6],
+  ["wan2.7-r2v", 0.6],
+  ["wan2.7-videoedit", 0.6],
+  ["wan3.0-video", 0.3],
+  ["wan3.0-video-prime", 0.45],
+  ["happyhorse-1.1-t2v", 0.45],
+  ["happyhorse-1.1-i2v", 0.45],
+  ["happyhorse-1.1-r2v", 0.45],
+] as const) {
+  const entry = models.find((model) => model.id === id);
+  assert.ok(entry, `${id} 必须在目录中`);
+  assert.equal(
+    estimateAsyncCost(entry, { duration: 10 }),
+    Math.round(expected * 10 * 100) / 100,
+    `${id} 每秒结算价必须为 ¥${expected}，且不得被旧前缀分支吞掉`
+  );
+}
+for (const [id, expected] of [["wan2.7-image", 0.2], ["wan2.7-image-pro", 0.5]] as const) {
+  const entry = models.find((model) => model.id === id);
+  assert.ok(entry);
+  assert.equal(estimateAsyncCost(entry, { n: 2 }), expected * 2, `${id} 图片按张计费`);
+}

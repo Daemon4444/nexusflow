@@ -324,7 +324,7 @@ export async function getDaily(userId?: string) {
     `SELECT
       to_char(timezone('Asia/Shanghai', created_at), 'MM-DD') as date,
       COUNT(*)::int as requests,
-      COALESCE(SUM(total_tokens), 0)::int as tokens,
+      COALESCE(SUM(total_tokens), 0)::float8 as tokens,
       ROUND(COALESCE(SUM(cost), 0)::numeric, 2)::float as cost
     FROM usage_logs
     WHERE created_at >= NOW() - INTERVAL '7 days'
@@ -341,7 +341,7 @@ export async function getByModel(userId?: string) {
     `SELECT
       model,
       COUNT(*)::int as requests,
-      COALESCE(SUM(total_tokens), 0)::int as tokens,
+      COALESCE(SUM(total_tokens), 0)::float8 as tokens,
       ROUND(COALESCE(SUM(cost), 0)::numeric, 6)::float as cost
     FROM usage_logs
     ${clause}
@@ -452,7 +452,7 @@ export async function getUsageSummary(userId: string) {
   const row = await db.queryOne<any>(
     `SELECT
       COUNT(*)::int as "totalRequests",
-      COALESCE(SUM(total_tokens), 0)::int as "totalTokens",
+      COALESCE(SUM(total_tokens), 0)::float8 as "totalTokens",
       COALESCE(SUM(cost), 0) as "totalCost",
       COALESCE(AVG(CASE WHEN latency_ms > 0 THEN latency_ms END), 0) as "avgLatencyMs",
       ROUND((SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END)::numeric / GREATEST(COUNT(*), 1)) * 100, 1) as "successRate"

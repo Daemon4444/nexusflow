@@ -68,6 +68,22 @@ function getVideoUnitPrice(modelId: string, params: AsyncCostParams): number {
     return resolution === "1080p" ? 1 : 0.6;
   }
 
+  if (modelId.startsWith("wan2.7-")) {
+    return 0.6;
+  }
+
+  if (modelId === "wan3.0-video-prime") {
+    return 0.45;
+  }
+
+  if (modelId === "wan3.0-video") {
+    return 0.3;
+  }
+
+  if (modelId.startsWith("happyhorse-1.1-")) {
+    return 0.45;
+  }
+
   if (modelId.startsWith("happyhorse-1.0-")) {
     return resolution === "1080p" ? 1.6 : 0.9;
   }

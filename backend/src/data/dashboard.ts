@@ -225,7 +225,7 @@ export async function getModelDistribution() {
     `SELECT
        model,
        COUNT(*)::int as requests,
-       COALESCE(SUM(total_tokens), 0)::int as tokens,
+       COALESCE(SUM(total_tokens), 0)::float8 as tokens,
        ROUND(COALESCE(SUM(cost), 0)::numeric, 2)::float as cost
      FROM usage_logs
      WHERE created_at >= NOW() - INTERVAL '7 days'

@@ -32,10 +32,12 @@ const ALWAYS_THINKING_MODELS = new Set([
   "deepseek-r1",
   "MiniMax-M2.1",
   "MiniMax-M2.5",
+  "MiniMax/MiniMax-M2.7",
 ]);
 
 const MIXED_THINKING_DEFAULT_ON = new Set([
   "qwen3.8-max",
+  "qwen3.8-flash",
   "qwen3.7-max",
   "qwen3.7-plus",
   "qwen3.7-flash",
@@ -52,11 +54,15 @@ const MIXED_THINKING_DEFAULT_ON = new Set([
   "deepseek-v4-pro-0813",
   "deepseek-v4-flash",
   "deepseek-v4-flash-0731",
+  "deepseek-v4.1-flash",
   "glm-5.2",
   "glm-5.2-fast-preview",
+  "glm-5.3",
   "glm-5.1",
   "glm-5",
   "glm-4.7",
+  "kimi-k2.7-code",
+  "kimi/kimi-k2.7-code-highspeed",
   "kimi-k3",
 ]);
 
@@ -94,6 +100,8 @@ const PRESERVE_THINKING_MODELS = new Set([
   "qwen3.6-max-preview",
   "qwen3.6-plus",
   "kimi-k2.6",
+  "kimi-k2.7-code",
+  "kimi/kimi-k2.7-code-highspeed",
   "kimi-k3",
 ]);
 
@@ -130,6 +138,7 @@ const SEARCH_ENABLED_MODELS = new Set([
 // 不能按厂商前缀放大：同一厂商常同时存在显式+隐式和仅隐式模型。
 const EXPLICIT_CONTEXT_CACHE_MODELS = new Set([
   "qwen3.8-max",
+  "qwen3.8-flash",
   "qwen3.7-max",
   "qwen3.7-plus",
   "qwen3.7-flash",
@@ -153,6 +162,7 @@ const EXPLICIT_CONTEXT_CACHE_MODELS = new Set([
 
 const IMPLICIT_CONTEXT_CACHE_MODELS = new Set([
   "qwen3.8-max",
+  "qwen3.8-flash",
   "qwen3.7-max",
   "qwen3.7-plus",
   "qwen3.7-flash",
@@ -170,18 +180,24 @@ const IMPLICIT_CONTEXT_CACHE_MODELS = new Set([
   "deepseek-v4-pro-0813",
   "deepseek-v4-flash",
   "deepseek-v4-flash-0731",
+  "deepseek-v4.1-flash",
   "deepseek-v3.2",
   "deepseek-r1",
   "deepseek-v3",
   "kimi-k2.6",
   "kimi-k2.5",
+  "kimi-k2.7-code",
+  "kimi/kimi-k2.7-code-highspeed",
+  "kimi-k2-thinking",
   "kimi-k3",
   "glm-4.7",
   "glm-5",
   "glm-5.1",
   "glm-5.2",
   "glm-5.2-fast-preview",
+  "glm-5.3",
   "MiniMax/MiniMax-M3",
+  "MiniMax/MiniMax-M2.7",
   "MiniMax-M2.5",
   "MiniMax-M2.1",
 ]);

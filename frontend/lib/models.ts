@@ -61,6 +61,8 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
     // Claude Sonnet 5 使用稳定公开 ID；上游快照 ID 仅在文档中披露。
     "claude-sonnet-5",
     "qwen3.8-max",
+    "qwen3.8-flash",
+    "glm-5.3",
     "kimi-k3",
     "claude-sonnet-4-6",
     "qwen3.7-max",

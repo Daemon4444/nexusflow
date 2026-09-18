@@ -15,6 +15,7 @@ export type SupportedProtocol =
 // 该端点并非所有 Qwen 模型通用；例如 qwen-long 会被上游明确拒绝。
 const RESPONSES_API_MODELS = new Set([
   "qwen3.8-max",
+  "qwen3.8-flash",
   "qwen3.7-max",
   "qwen3-max",
   "qwen3.7-plus",
