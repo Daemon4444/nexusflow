@@ -192,13 +192,22 @@ assert.match(
 
 assert.equal(
   source.split("candidate=\\$(readlink -f '$CURRENT_LINK' 2>/dev/null)").length - 1,
-  2,
-  "peer capability and static capture must resolve the current link explicitly"
+  3,
+  "peer baseline verification, capability capture, and static capture must resolve the current link explicitly"
 );
 assert.equal(
   source.split('&& test -d \\"\\$candidate\\"; then').length - 1,
-  2,
-  "peer capability and static capture must reject a missing current-link target"
+  3,
+  "peer baseline verification, capability capture, and static capture must reject a missing current-link target"
+);
+assert.match(
+  source,
+  /"\$BASELINE_RELEASE_DIRECTORY\/scripts\/deploy-production\.sh" verify --sha "\$BASELINE_SHA"/,
+  "local rollback verification must use the baseline release policy"
+);
+assert.ok(
+  source.includes('&& \\"\\$baseline/scripts/deploy-production.sh\\" verify --sha'),
+  "peer rollback verification must use the baseline release policy"
 );
 assert.doesNotMatch(
   source,

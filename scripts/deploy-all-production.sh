@@ -869,10 +869,22 @@ release_validate_sha "$BASELINE_SHA"
 release_validate_sha "$PEER_BASELINE_SHA"
 test "$BASELINE_SHA" = "$PEER_BASELINE_SHA" ||
   release_die "nodes do not share one rollback baseline; refusing to release"
-"$SCRIPT_DIR/deploy-production.sh" verify --sha "$BASELINE_SHA"
-peer_release_command \
-  "cd '$PEER_ROOT' && scripts/deploy-production.sh verify --sha '$BASELINE_SHA'"
 BASELINE_RELEASE_DIRECTORY="$(release_resolve_path "$CURRENT_LINK" 2>/dev/null || printf '%s' "$ROOT")"
+test -x "$BASELINE_RELEASE_DIRECTORY/scripts/deploy-production.sh" ||
+  release_die "local rollback baseline verifier is unavailable"
+"$BASELINE_RELEASE_DIRECTORY/scripts/deploy-production.sh" verify --sha "$BASELINE_SHA"
+peer_release_command \
+  "baseline=''
+   candidate=''
+   if candidate=\$(readlink -f '$CURRENT_LINK' 2>/dev/null) \
+     && test -d \"\$candidate\"; then
+     baseline=\"\$candidate\"
+   else
+     baseline='$PEER_ROOT'
+   fi
+   test -x \"\$baseline/scripts/deploy-production.sh\" \
+   && \"\$baseline/scripts/deploy-production.sh\" verify --sha '$BASELINE_SHA'" ||
+  release_die "peer rollback baseline verifier failed"
 if test -f "$BASELINE_RELEASE_DIRECTORY/.release-capabilities.json" &&
   node -e '
     const value = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
