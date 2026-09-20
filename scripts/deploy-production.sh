@@ -16,7 +16,7 @@ COMMAND="${1:-}"
 ARTIFACT=""
 BUILD_SHA=""
 DRY_RUN=false
-REQUIRED_PROVIDER_HOSTS_CSV="api.anthropic.com,api.himodels.ai,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com"
+REQUIRED_PROVIDER_HOSTS_CSV="api.anthropic.com,api.himodels.ai,developerhelena-1129-resource.services.ai.azure.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com"
 
 usage() {
   cat <<'EOF'

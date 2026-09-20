@@ -46,8 +46,10 @@ interface AIModel {
   provider: string;
   description: string;
   contextLength: number;
-  promptPrice: number;
-  completionPrice: number;
+  promptPrice: number | null;
+  completionPrice: number | null;
+  lifecycle?: "announced";
+  pricingStatus?: "unpublished";
   pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   pricingTiers?: UnitPricingTier[];
   tokenPricingTiers?: TokenPricingTier[];
@@ -375,7 +377,17 @@ export default function ModelDetailPage() {
   const isUnitPriced = pricingType !== "token";
   const isAvailable = !model.availability || model.availability === "available";
   const supportsPlayground = model.category !== "语音模型";
-  const availabilityLabel = isAvailable ? "可用" : model.availability === "disabled" ? "已下架" : "暂不可用";
+  const pricingPending = model.promptPrice == null || model.completionPrice == null;
+  const availabilityLabel = isAvailable
+    ? "可用"
+    : model.lifecycle === "announced"
+      ? "即将上线"
+      : model.availability === "disabled"
+        ? "已下架"
+        : "暂不可用";
+  const availabilityDescription = model.availabilityReason === "pricing_unpublished"
+    ? "Azure 官方价格与轮换凭据验证完成后开放调用。"
+    : model.availabilityReason || "当前没有已配置的可用渠道，请稍后再试。";
   const pricingUnit = pricingType === "per-second"
     ? "秒"
     : pricingType === "per-image"
@@ -384,7 +396,14 @@ export default function ModelDetailPage() {
         ? "万字符"
         : "百万 Token";
   const unitPrice = model.pricingTiers?.[0]?.price ?? model.promptPrice;
-  const summaryItems = isUnitPriced
+  const summaryItems = pricingPending
+    ? [
+        ["上下文", formatTokens(model.contextLength)],
+        ["最大输出", formatTokens(model.maxOutput)],
+        ["价格", "待官方公布"],
+        ["可用状态", availabilityLabel],
+      ]
+    : isUnitPriced
     ? [
         ["计费方式", `按${pricingUnit}`],
         ["可用状态", availabilityLabel],
@@ -739,7 +758,7 @@ export default function ModelDetailPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{isAvailable && supportsPlayground ? "立即体验" : isAvailable ? "通过 API 调用" : availabilityLabel}</div>
-            <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>{isAvailable && supportsPlayground ? "在 Playground 中测试此模型" : isAvailable ? "该模型暂未接入网页 Playground，请参考上方 API 示例。" : model.availabilityReason || "当前没有已配置的可用渠道，请稍后再试。"}</div>
+            <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>{isAvailable && supportsPlayground ? "在 Playground 中测试此模型" : isAvailable ? "该模型暂未接入网页 Playground，请参考上方 API 示例。" : availabilityDescription}</div>
           </div>
           {isAvailable && supportsPlayground ? (
             <Link href={`/playground?model=${encodeURIComponent(model.id)}`} className="btn-primary" style={{ padding: "10px 20px" }}>

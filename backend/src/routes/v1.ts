@@ -46,6 +46,7 @@ import {
   observeOpenAiStreamLine,
 } from "../utils/openai-stream-state";
 import { restorePublicModelAlias } from "../utils/upstream-model-aliases";
+import { getProviderAuthHeaders } from "../services/providers";
 
 const router = Router();
 
@@ -865,7 +866,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const response = await safeProviderFetch(`${upstream.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${upstreamApiKey}`,
+          ...getProviderAuthHeaders(upstream.providerId, upstreamApiKey),
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
@@ -1120,7 +1121,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const response = await safeProviderFetch(`${upstream.baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${upstreamApiKey}`,
+          ...getProviderAuthHeaders(upstream.providerId, upstreamApiKey),
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
@@ -1257,7 +1258,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     const response = await safeProviderFetch(`${upstream.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${upstreamApiKey}`,
+        ...getProviderAuthHeaders(upstream.providerId, upstreamApiKey),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),
@@ -1581,7 +1582,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
     const response = await safeProviderFetch(`${upstream.baseUrl}/embeddings`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${upstreamApiKey}`,
+        ...getProviderAuthHeaders(upstream.providerId, upstreamApiKey),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),

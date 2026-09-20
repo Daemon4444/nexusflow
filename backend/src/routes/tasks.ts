@@ -52,6 +52,8 @@ import { sendBillingReservationFailure } from "../utils/billing-response";
 import {
   normalizeDashScopeVideoResolution,
   normalizeDashScopeVideoSize,
+  requiresImageInput,
+  requiresVideoInput,
   VideoParameterError,
 } from "../utils/video-parameters";
 import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
@@ -166,7 +168,6 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedCost = await estimateDiscountedAsyncCost(apiKeyRecord.user_id, model, params);
   const requiresReferenceImage =
     modelId === "wanx-style-repaint" ||
     modelId === "wanx-style-repaint-v1" ||
@@ -192,14 +193,14 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  if (modelType === "video" && (modelId.includes("-i2v") || modelId.includes("-r2v")) && !params.img_url && !params.img_urls?.length) {
+  if (modelType === "video" && requiresImageInput(modelId) && !params.img_url && !params.img_urls?.length) {
     res.status(400).json({
       error: { message: `Model '${modelId}' requires img_url or img_urls`, type: "invalid_request_error", code: "invalid_request" },
     });
     return;
   }
 
-  if (modelId === "happyhorse-1.0-video-edit" && !params.video_url) {
+  if (modelType === "video" && requiresVideoInput(modelId) && !params.video_url) {
     res.status(400).json({
       error: { message: `Model '${modelId}' requires video_url`, type: "invalid_request_error", code: "invalid_request" },
     });
@@ -212,8 +213,8 @@ router.post("/", async (req: Request, res: Response) => {
     || modelId.startsWith("happyhorse-");
   if (modelType === "video" && !isSpecialVideoProvider) {
     try {
-      if (modelId.includes("-i2v")) {
-        params.resolution = normalizeDashScopeVideoResolution(params.resolution, params.size);
+      if (modelId.includes("-i2v") || modelId.startsWith("wan3.0-video") || modelId === "wan2.7-videoedit") {
+        params.resolution = normalizeDashScopeVideoResolution(params.resolution, params.size, modelId);
       } else {
         params.size = normalizeDashScopeVideoSize({
           size: params.size,
@@ -236,6 +237,7 @@ router.post("/", async (req: Request, res: Response) => {
     }
   }
 
+  const estimatedCost = await estimateDiscountedAsyncCost(apiKeyRecord.user_id, model, params);
   const resolvedUpstream = await resolveUpstream(modelId, {
     region: getRequestedRegion(req),
     userId: apiKeyRecord.user_id,
@@ -330,9 +332,17 @@ router.post("/", async (req: Request, res: Response) => {
       } else if (modelId.startsWith("seedance-")) {
         adapted = adaptSeedanceRequest(upstreamApiKey, { model: modelId, prompt, ...params }, selected.apiBaseUrl);
       } else if (modelId.startsWith("happyhorse-")) {
-        adapted = adaptHappyHorseRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+        adapted = adaptHappyHorseRequest(
+          upstreamApiKey,
+          { model: modelId, prompt, ...params },
+          selected.apiBaseUrl
+        );
       } else {
-        adapted = adaptVideoRequest(upstreamApiKey, { model: modelId, prompt, ...params });
+        adapted = adaptVideoRequest(
+          upstreamApiKey,
+          { model: modelId, prompt, ...params },
+          selected.apiBaseUrl
+        );
       }
     } catch (err: any) {
       recordFailure(selected.providerId, modelId, err.message);
@@ -622,9 +632,14 @@ router.get("/:id", async (req: Request, res: Response) => {
     // Update task based on result
     if (result.status === "succeeded") {
       const model = models.find((m) => m.id === task.model);
-      const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
-      const won = await completeTask(task.id, result.output, cost);
-      if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+      const output = { ...(result.output || {}), ...(result.usage ? { usage: result.usage } : {}) };
+      const cost = model
+        ? await estimateDiscountedAsyncCost(task.user_id, model, { ...(task.input || {}), usage: result.usage })
+        : 0;
+      const won = await completeTask(task.id, output, cost);
+      if (won && model) {
+        await billAsyncSuccess({ ...task, output }, model, cost, Date.now() - new Date(task.created_at).getTime());
+      }
     } else if (result.status === "failed") {
       const won = await failTask(task.id, result.error || "Task failed");
       if (won) {

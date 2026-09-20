@@ -384,7 +384,11 @@ function PlaygroundInner() {
     async function loadModels() {
       const res = await fetchAPI("/api/models");
       if (res.success) {
-        const supportedModels = res.data.filter((model: AIModel) => model.category !== "语音模型");
+        const supportedModels = res.data.filter(
+          (model: AIModel) =>
+            model.category !== "语音模型" &&
+            (!model.availability || model.availability === "available")
+        );
         setModels(supportedModels);
         setSelectedModel(pickDefaultPlaygroundModel(supportedModels, requestedModel));
       }

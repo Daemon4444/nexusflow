@@ -27,7 +27,14 @@ import { parseAndValidateOutboundUrl } from "./outbound-url-policy";
 import { logToSLS } from "./sls";
 
 export const DEFAULT_REGION = "cn-beijing";
+export const AZURE_AI_FOUNDRY_REGION = "eastus2";
 export const REGION_HEADER = "x-nf-region";
+
+function getDefaultProviderRegion(providerId: string): string {
+  if (providerId === "dashscope") return DEFAULT_REGION;
+  if (providerId === "azure-ai-foundry") return AZURE_AI_FOUNDRY_REGION;
+  return "global";
+}
 
 export interface ResolvedUpstream {
   providerId: string;
@@ -217,8 +224,8 @@ export async function resolveUpstream(
     }
   }
 
-  // 渠道配置缺失或全部不可用：显式要求非默认区域时不允许静默落回北京
-  if (requestedRegion && requestedRegion !== DEFAULT_REGION) {
+  const providerDefaultRegion = getDefaultProviderRegion(provider.id);
+  if (requestedRegion && requestedRegion !== providerDefaultRegion) {
     return {
       ok: false,
       status: 400,
@@ -241,7 +248,7 @@ export async function resolveUpstream(
   return finalizeResolvedUpstream({
       providerId: provider.id,
       channelId: null,
-      region: provider.id === "dashscope" ? DEFAULT_REGION : "global",
+      region: providerDefaultRegion,
       baseUrl,
       nativeBaseUrl: toNativeBaseUrl(baseUrl),
       anthropicCompatBaseUrl: toAnthropicCompatBaseUrl(baseUrl),
@@ -318,7 +325,8 @@ async function resolveManagedUpstream(
     });
   }
 
-  if (requestedRegion && requestedRegion !== DEFAULT_REGION && requestedRegion !== "global") {
+  const providerDefaultRegion = getDefaultProviderRegion(selected.providerId);
+  if (requestedRegion && requestedRegion !== providerDefaultRegion) {
     return {
       ok: false,
       status: 400,
@@ -331,7 +339,7 @@ async function resolveManagedUpstream(
   return finalizeResolvedUpstream({
       providerId: selected.providerId,
       channelId: null,
-      region: requestedRegion || (selected.providerId === "dashscope" ? DEFAULT_REGION : "global"),
+      region: requestedRegion || providerDefaultRegion,
       baseUrl,
       nativeBaseUrl: toNativeBaseUrl(baseUrl),
       anthropicCompatBaseUrl: toAnthropicCompatBaseUrl(baseUrl),

@@ -21,8 +21,9 @@ interface AIModel {
   name: string;
   provider: string;
   category: string;
-  promptPrice: number;
-  completionPrice: number;
+  promptPrice: number | null;
+  completionPrice: number | null;
+  pricingStatus?: "unpublished";
   pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   pricingTiers?: PricingTier[];
   tokenPricingTiers?: TokenPricingTier[];
@@ -205,6 +206,7 @@ export default function PricingPage({ initialModels, initialError = "" }: Pricin
                     || model.pricingType === "per-10k-characters";
                   const hasTiers = model.pricingTiers && model.pricingTiers.length > 0;
                   const hasTokenTiers = model.tokenPricingTiers && model.tokenPricingTiers.length > 0;
+                  const pricingPending = model.promptPrice == null || model.completionPrice == null;
                   return (
                   <Link
                     key={model.id}
@@ -234,7 +236,11 @@ export default function PricingPage({ initialModels, initialError = "" }: Pricin
                       alignItems: "flex-end",
                       gap: 3,
                     }}>
-                    {isMedia && hasTiers ? (
+                    {pricingPending ? (
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--warning, #d97706)" }}>
+                        价格待公布 · 尚未开放
+                      </span>
+                    ) : isMedia && hasTiers ? (
                       <span style={{
                         textAlign: "right",
                         fontSize: 13,

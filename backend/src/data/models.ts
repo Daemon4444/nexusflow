@@ -56,6 +56,23 @@ export interface AIModel {
   supported: string[];
 }
 
+export type AnnouncedAIModel = Omit<
+  AIModel,
+  | "promptPrice"
+  | "completionPrice"
+  | "cacheReadPrice"
+  | "cacheReadExplicitPrice"
+  | "thinkingCompletionPrice"
+  | "pricingTiers"
+  | "tokenPricingTiers"
+  | "alternatePricingModes"
+> & {
+  promptPrice: null;
+  completionPrice: null;
+  lifecycle: "announced";
+  pricingStatus: "unpublished";
+};
+
 // 未传 max_tokens 时的输出预留缺省值。不能回退到 maxOutput：大输出模型
 // （如 kimi-k3 的 1,048,576）会让单请求预占超过 Provider TPM 上限而被必然拒绝，
 // 同时把余额预占放大到实际用量的数百倍。
@@ -944,6 +961,7 @@ const staticModels: AIModel[] = [
     pricingType: "per-second",
     pricingTiers: [
       { label: "720P", price: 0.6 },
+      { label: "1080P", price: 1 },
     ],
     category: "视频生成",
     tags: ["视频生成", "文生视频", "多镜头", "720P", "长时长"],
@@ -962,6 +980,7 @@ const staticModels: AIModel[] = [
     pricingType: "per-second",
     pricingTiers: [
       { label: "720P", price: 0.6 },
+      { label: "1080P", price: 1 },
     ],
     category: "视频生成",
     tags: ["视频生成", "图生视频", "首帧驱动", "720P", "长时长"],
@@ -980,6 +999,7 @@ const staticModels: AIModel[] = [
     pricingType: "per-second",
     pricingTiers: [
       { label: "720P", price: 0.6 },
+      { label: "1080P", price: 1 },
     ],
     category: "视频生成",
     tags: ["视频生成", "参考生视频", "角色扮演", "多模态", "长时长"],
@@ -998,6 +1018,7 @@ const staticModels: AIModel[] = [
     pricingType: "per-second",
     pricingTiers: [
       { label: "720P", price: 0.6 },
+      { label: "1080P", price: 1 },
     ],
     category: "视频生成",
     tags: ["视频生成", "视频编辑", "AI编辑"],
@@ -1880,6 +1901,31 @@ const staticModels: AIModel[] = [
     supported: ["文本", "函数调用"]
   },
 ];
+
+const announcedModels: AnnouncedAIModel[] = [
+  {
+    id: "gpt-6-astra",
+    name: "GPT-6 Astra",
+    provider: "Azure AI Foundry",
+    description: "Azure AI Foundry GPT-6 Astra（2026-09-03）。支持文本与图像输入、推理、工具调用、结构化输出、Chat Completions 和 Responses API。Azure 官方价格公布并完成凭据验证前不可调用。",
+    contextLength: 1_050_000,
+    promptPrice: null,
+    completionPrice: null,
+    pricingType: "token",
+    category: "多模态模型",
+    tags: ["旗舰", "推理", "多模态", "工具调用", "百万上下文", "即将上线"],
+    isFeatured: false,
+    isNew: true,
+    maxOutput: 128_000,
+    supported: ["文本", "图像输入", "函数调用", "推理", "结构化输出"],
+    lifecycle: "announced",
+    pricingStatus: "unpublished",
+  },
+];
+
+export function getAnnouncedModels(): AnnouncedAIModel[] {
+  return announcedModels.map((model) => ({ ...model }));
+}
 
 /**
  * Live model catalog consumed across the app (billing + display).

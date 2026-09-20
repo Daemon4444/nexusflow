@@ -15,7 +15,7 @@ import {
   summarizeRouteHealth,
   unavailableAvailabilityPercentage,
 } from "../services/provider-monitor-semantics";
-import { ensureRoutingDefaults } from "../services/providers";
+import { ensureRoutingDefaults, isProviderModelCompatible } from "../services/providers";
 import { models as staticModels } from "../data/models";
 import {
   getProviderChannelConfig,
@@ -1195,6 +1195,15 @@ router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response)
   const { rpm_limit, tpm_limit, daily_limit, concurrent_limit, priority, weight, is_enabled } = req.body;
 
   const beforeCapacity = await getCapacity(providerId, modelId);
+  const willBeEnabled = is_enabled ?? beforeCapacity?.is_enabled ?? true;
+  if (willBeEnabled && !isProviderModelCompatible(providerId, modelId)) {
+    res.status(400).json({
+      success: false,
+      message: `供应商 '${providerId}' 不能承载模型 '${modelId}'`,
+      code: "provider_model_incompatible",
+    });
+    return;
+  }
   const capacity = await upsertCapacity(providerId, modelId, {
     rpm_limit,
     tpm_limit,

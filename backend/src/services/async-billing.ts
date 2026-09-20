@@ -15,6 +15,8 @@ type AsyncCostParams = {
   resolution?: string;
   audio?: boolean;
   audio_setting?: unknown;
+  video_url?: string;
+  usage?: Record<string, unknown>;
 };
 
 function normalizeResolution(params: AsyncCostParams): "360p" | "480p" | "540p" | "720p" | "1080p" | "4k" {
@@ -49,7 +51,7 @@ function billingDescription(task: AsyncTask, model: AIModel): { description: str
   };
 }
 
-function getVideoUnitPrice(modelId: string, params: AsyncCostParams): number {
+function getVideoUnitPrice(modelId: string, params: AsyncCostParams): number | undefined {
   const resolution = normalizeResolution(params);
   const audio = hasAudio(params);
 
@@ -69,7 +71,9 @@ function getVideoUnitPrice(modelId: string, params: AsyncCostParams): number {
   }
 
   if (modelId.startsWith("wan2.7-")) {
-    return 0.6;
+    if (resolution === "720p") return 0.6;
+    if (resolution === "1080p") return 1;
+    return undefined;
   }
 
   if (modelId === "wan3.0-video-prime") {
@@ -121,7 +125,31 @@ function getVideoUnitPrice(modelId: string, params: AsyncCostParams): number {
     return ({ "480p": 0.04, "540p": 0.05, "720p": 0.09, "1080p": 0.20 } as Record<string, number>)[resolution] ?? 0.09;
   }
 
-  return 0;
+  return undefined;
+}
+
+function getVideoBillableDuration(modelId: string, params: AsyncCostParams): number {
+  const usage = params.usage;
+  if (usage) {
+    const total = Number(usage.duration);
+    if (Number.isFinite(total) && total > 0) return total;
+    const input = Number(usage.input_video_duration);
+    const output = Number(usage.output_video_duration);
+    if (Number.isFinite(input) && input >= 0 && Number.isFinite(output) && output > 0) {
+      return input + output;
+    }
+    if (modelId === "wan2.7-videoedit" || (modelId === "wan2.7-r2v" && params.video_url)) {
+      throw new Error(`Missing billable video duration in usage for '${modelId}'`);
+    }
+  }
+
+  if (modelId === "wan2.7-videoedit") {
+    return (Math.max(2, Number(params.duration) || 10)) + 10;
+  }
+  if (modelId === "wan2.7-r2v" && params.video_url) {
+    return Math.max(1, Number(params.duration) || 5) + 5;
+  }
+  return Math.max(1, Number(params.duration) || 5);
 }
 
 export function estimateAsyncCost(model: AIModel, params: AsyncCostParams): number {
@@ -131,9 +159,11 @@ export function estimateAsyncCost(model: AIModel, params: AsyncCostParams): numb
   }
 
   if (model.category === "视频生成") {
-    const duration = Math.max(1, Number(params.duration) || 5);
-    const unitPrice = getVideoUnitPrice(model.id, params) || model.promptPrice;
-    return money(duration * unitPrice);
+    const unitPrice = getVideoUnitPrice(model.id, params);
+    if (unitPrice === undefined) {
+      throw new Error(`No price is configured for '${model.id}' at resolution '${normalizeResolution(params)}'`);
+    }
+    return money(getVideoBillableDuration(model.id, params) * unitPrice);
   }
 
   return 0;
@@ -150,6 +180,14 @@ export async function estimateDiscountedAsyncCost(
 export async function hasEnoughBalance(userId: string | null | undefined, amount: number): Promise<boolean> {
   if (!userId || amount <= 0) return true;
   return hasSufficientBalance(userId, amount);
+}
+
+function getProviderUnits(task: AsyncTask): number {
+  if (task.type !== "video") return Math.max(1, Number(task.input?.n) || 1);
+  return getVideoBillableDuration(task.model, {
+    ...(task.input || {}),
+    usage: task.output?.usage,
+  });
 }
 
 export async function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: number, latencyMs: number): Promise<void> {
@@ -176,9 +214,7 @@ export async function billAsyncSuccess(task: AsyncTask, model: AIModel, cost: nu
     cost,
     status: "success",
     latencyMs,
-    providerUnits: task.type === "video"
-      ? Math.max(1, Number(task.input?.duration) || 5)
-      : Math.max(1, Number(task.input?.n) || 1),
+    providerUnits: getProviderUnits(task),
     reservationId: task.billing_reservation_id,
   });
 }

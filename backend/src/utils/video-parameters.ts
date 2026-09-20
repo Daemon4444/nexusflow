@@ -50,13 +50,36 @@ export function normalizeDashScopeVideoSize(input: {
   return size;
 }
 
-export function normalizeDashScopeVideoResolution(resolution?: unknown, size?: unknown): "720P" | "1080P" {
-  if (resolution !== undefined && resolution !== null && String(resolution).trim()) {
-    const normalized = String(resolution).trim().toUpperCase();
-    if (normalized !== "720P" && normalized !== "1080P") {
-      throw new VideoParameterError("Wan image-to-video resolution must be 720P or 1080P.");
+export function normalizeDashScopeVideoResolution(
+  resolution?: unknown,
+  size?: unknown,
+  modelId?: string
+): "480P" | "720P" | "1080P" {
+  const requested = resolution !== undefined && resolution !== null && String(resolution).trim()
+    ? String(resolution).trim().toUpperCase()
+    : String(size || "").includes("1080")
+      ? "1080P"
+      : undefined;
+
+  if (modelId?.startsWith("wan3.0-video")) {
+    const normalized = requested || "480P";
+    if (normalized !== "480P") {
+      throw new VideoParameterError("Wan 3.0 video models currently support only 480P.");
     }
     return normalized;
   }
-  return String(size || "").includes("1080") ? "1080P" : "720P";
+
+  const normalized = requested || (modelId === "wan2.7-videoedit" ? "1080P" : "720P");
+  if (normalized !== "720P" && normalized !== "1080P") {
+    throw new VideoParameterError("Wan video resolution must be 720P or 1080P.");
+  }
+  return normalized;
+}
+
+export function requiresVideoInput(modelId: string): boolean {
+  return modelId === "wan2.7-videoedit" || modelId.endsWith("-video-edit");
+}
+
+export function requiresImageInput(modelId: string): boolean {
+  return modelId.includes("-i2v") || modelId.includes("-r2v");
 }

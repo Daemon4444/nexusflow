@@ -33,17 +33,24 @@ const RESPONSES_API_MODELS = new Set([
   "deepseek-v4-pro-0813",
   "deepseek-v4-flash",
   "deepseek-v4-flash-0731",
+  "gpt-6-astra",
 ]);
 
 export function supportsResponsesApi(modelId: string): boolean {
   return RESPONSES_API_MODELS.has(modelId);
 }
 
-export function getSupportedProtocols(model: AIModel): SupportedProtocol[] {
+export function getSupportedProtocols(
+  model: Pick<AIModel, "id" | "category">
+): SupportedProtocol[] {
   const modelType = detectModelType(model.category);
 
   if (model.id.startsWith("claude-")) {
     return ["anthropic/messages"];
+  }
+
+  if (model.id === "gpt-6-astra") {
+    return ["openai/chat-completions", "openai/responses"];
   }
 
   if (modelType === "chat") {

@@ -152,11 +152,12 @@ export function adaptImageRequest(
     return adaptBackgroundGenerationRequest(apiKey, body, sourceImage, base);
   }
 
-  // Check if it's wan2.6 series (uses new multimodal API)
-  const isWan26 = body.model.startsWith("wan2.6") || body.model.startsWith("wan2.5");
+  const usesMultimodalImageApi = body.model.startsWith("wan2.7")
+    || body.model.startsWith("wan2.6")
+    || body.model.startsWith("wan2.5");
 
-  if (isWan26) {
-    return adaptWan26ImageRequest(apiKey, { ...body, size: normalizedSize }, base);
+  if (usesMultimodalImageApi) {
+    return adaptMultimodalImageRequest(apiKey, body, sourceImage, base);
   }
   
   // Legacy wanx format
@@ -186,37 +187,31 @@ export function adaptImageRequest(
   };
 }
 
-/**
- * Wan2.6 series uses new multimodal generation API (synchronous)
- * Endpoint: /api/v1/services/aigc/multimodal-generation/generation
- */
-function adaptWan26ImageRequest(
+function adaptMultimodalImageRequest(
   apiKey: string,
   body: { model: string; prompt?: string; n?: number; size?: string; negative_prompt?: string; seed?: number },
+  sourceImage?: string,
   base: string = DASHSCOPE_BASE
 ): AdapterResult {
-  // wan2.6-t2i uses the model name directly (no mapping needed)
-  const dashscopeBody: any = {
-    model: body.model,
-    input: {
-      messages: [
-        {
-          role: "user",
-          content: [
-            { text: body.prompt || "" }
-          ]
-        }
-      ]
-    },
-    parameters: {
-      size: normalizeImageSize(body.size) || "1280*1280",
-      n: body.n || 1,
-      negative_prompt: body.negative_prompt || "",
-      prompt_extend: true,
-      watermark: false,
-      ...(body.seed !== undefined && body.seed !== null && { seed: body.seed }),
-    },
+  const isWan27 = body.model.startsWith("wan2.7");
+  const content = [
+    ...(sourceImage ? [{ image: sourceImage }] : []),
+    ...(body.prompt ? [{ text: body.prompt }] : []),
+  ];
+  if (content.length === 0) {
+    throw new Error(`${body.model} requires a prompt or image input`);
+  }
+
+  const parameters: Record<string, unknown> = {
+    size: isWan27 ? (body.size || "2K") : (normalizeImageSize(body.size) || "1280*1280"),
+    n: body.n || 1,
+    watermark: false,
+    ...(body.seed !== undefined && body.seed !== null ? { seed: body.seed } : {}),
   };
+  if (!isWan27) {
+    parameters.negative_prompt = body.negative_prompt || "";
+    parameters.prompt_extend = true;
+  }
 
   return {
     url: `${base}/api/v1/services/aigc/multimodal-generation/generation`,
@@ -225,8 +220,12 @@ function adaptWan26ImageRequest(
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: dashscopeBody,
-    isAsync: false,  // Synchronous call - returns result directly
+    body: {
+      model: body.model,
+      input: { messages: [{ role: "user", content }] },
+      parameters,
+    },
+    isAsync: false,
   };
 }
 
@@ -332,34 +331,59 @@ export function adaptVideoRequest(
     ratio?: string;
     duration?: number;
     img_url?: string;
+    img_end_url?: string;
     img_urls?: string[];
     video_url?: string;
+    video_urls?: string[];
+    audio_urls?: string[];
     prompt_extend?: boolean;
     seed?: number;
     watermark?: boolean;
     audio?: boolean;
     audio_url?: string;
+    audio_setting?: string;
     shot_type?: string;
-  }
+  },
+  nativeBase: string = DASHSCOPE_BASE
 ): AdapterResult {
   const isI2V = body.model.includes("i2v");
   const isR2V = body.model.includes("r2v");
+  const isWan30 = body.model.startsWith("wan3.0-video");
+  const isVideoEdit = body.model === "wan2.7-videoedit";
 
-  const input: any = {
-    prompt: body.prompt,
-  };
+  const input: any = { prompt: body.prompt };
   if (body.negative_prompt) input.negative_prompt = body.negative_prompt;
-  if (body.img_url && (isI2V || !isR2V)) input.img_url = body.img_url;
-  if (body.audio_url) input.audio_url = body.audio_url;
-  if (isR2V) {
-    if (body.img_urls && body.img_urls.length > 0) input.reference_urls = body.img_urls;
-    else if (body.img_url) input.reference_urls = [body.img_url];
-    if (body.video_url) input.reference_video_urls = [body.video_url];
+
+  if (isVideoEdit) {
+    if (!body.video_url) throw new Error(`${body.model} requires video_url`);
+    const references = body.img_urls || (body.img_url ? [body.img_url] : []);
+    if (references.length > 4) throw new Error(`${body.model} supports at most 4 reference images`);
+    input.media = [
+      { type: "video", url: body.video_url },
+      ...references.map((url) => ({ type: "reference_image", url })),
+    ];
+  } else if (isWan30) {
+    const media = [
+      ...(body.img_url ? [{ type: "first_frame", url: body.img_url }] : []),
+      ...(body.img_end_url ? [{ type: "last_frame", url: body.img_end_url }] : []),
+      ...(body.img_urls || []).map((url) => ({ type: "reference_image", url })),
+      ...(body.video_urls || []).map((url) => ({ type: "reference_video", url })),
+      ...(body.audio_urls || []).map((url) => ({ type: "reference_audio", url })),
+    ];
+    if (media.length > 0) input.media = media;
+  } else {
+    if (body.img_url && (isI2V || !isR2V)) input.img_url = body.img_url;
+    if (body.audio_url) input.audio_url = body.audio_url;
+    if (isR2V) {
+      if (body.img_urls && body.img_urls.length > 0) input.reference_urls = body.img_urls;
+      else if (body.img_url) input.reference_urls = [body.img_url];
+      if (body.video_url) input.reference_video_urls = [body.video_url];
+    }
   }
 
   const parameters: any = {};
-  if (isI2V) {
-    parameters.resolution = normalizeDashScopeVideoResolution(body.resolution, body.size);
+  if (isI2V || isWan30 || isVideoEdit) {
+    parameters.resolution = normalizeDashScopeVideoResolution(body.resolution, body.size, body.model);
   } else {
     parameters.size = normalizeDashScopeVideoSize({
       size: body.size,
@@ -367,28 +391,28 @@ export function adaptVideoRequest(
       ratio: body.ratio,
     });
   }
-  if (body.duration) parameters.duration = body.duration;
+  if (body.ratio && (isWan30 || isVideoEdit)) parameters.ratio = body.ratio;
+  if (body.duration !== undefined && body.duration !== null) parameters.duration = body.duration;
   if (body.prompt_extend !== undefined) parameters.prompt_extend = body.prompt_extend;
   if (body.seed !== undefined && body.seed !== null) parameters.seed = body.seed;
   if (body.watermark !== undefined) parameters.watermark = body.watermark;
   if (body.audio !== undefined) parameters.audio = body.audio;
+  if (body.audio_setting) parameters.audio_setting = body.audio_setting;
   if (body.shot_type) parameters.shot_type = body.shot_type;
 
-  const dashscopeBody = {
-    model: getDashScopeVideoModel(body.model),
-    input,
-    parameters,
-  };
-
   return {
-    url: `${DASHSCOPE_BASE}/api/v1/services/aigc/video-generation/video-synthesis`,
+    url: `${nativeBase.replace(/\/$/, "")}/api/v1/services/aigc/video-generation/video-synthesis`,
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "X-DashScope-Async": "enable",
     },
-    body: dashscopeBody,
+    body: {
+      model: getDashScopeVideoModel(body.model),
+      input,
+      parameters,
+    },
     isAsync: true,
   };
 }
@@ -428,65 +452,60 @@ export function adaptHappyHorseRequest(
     img_urls?: string[];
     video_url?: string;
     audio_setting?: string;
-  }
+  },
+  nativeBase: string = DASHSCOPE_BASE
 ): AdapterResult {
+  const match = /^happyhorse-(1\.[01])-(t2v|i2v|r2v|video-edit)$/.exec(body.model);
+  if (!match || (match[1] === "1.1" && match[2] === "video-edit")) {
+    throw new Error(`Unsupported HappyHorse model '${body.model}'`);
+  }
+  const mode = match[2];
   const input: any = {};
   const parameters: any = {};
 
-  // Common parameters - HappyHorse expects uppercase resolution format (720P/1080P)
   if (body.resolution) parameters.resolution = body.resolution.toUpperCase();
   if (body.duration) parameters.duration = body.duration;
   if (body.seed !== undefined && body.seed !== null) parameters.seed = body.seed;
   if (body.watermark !== undefined) parameters.watermark = body.watermark;
 
-  if (body.model === "happyhorse-1.0-t2v") {
-    // T2V: prompt + ratio
+  if (mode === "t2v") {
+    if (!body.prompt) throw new Error(`${body.model} requires prompt`);
     input.prompt = body.prompt;
     if (body.ratio) parameters.ratio = body.ratio;
-
-  } else if (body.model === "happyhorse-1.0-i2v") {
-    // I2V: prompt (optional) + first_frame image
+  } else if (mode === "i2v") {
+    if (!body.img_url) throw new Error(`${body.model} requires img_url`);
     if (body.prompt) input.prompt = body.prompt;
-    input.media = [
-      { type: "first_frame", url: body.img_url }
-    ];
-
-  } else if (body.model === "happyhorse-1.0-r2v") {
-    // R2V: prompt (required) + 1-9 reference_images
-    input.prompt = body.prompt;
+    input.media = [{ type: "first_frame", url: body.img_url }];
+  } else if (mode === "r2v") {
     const urls = body.img_urls || (body.img_url ? [body.img_url] : []);
+    if (!body.prompt) throw new Error(`${body.model} requires prompt`);
+    if (urls.length < 1 || urls.length > 9) {
+      throw new Error(`${body.model} requires 1 to 9 reference images`);
+    }
+    input.prompt = body.prompt;
     input.media = urls.map((url: string) => ({ type: "reference_image", url }));
     if (body.ratio) parameters.ratio = body.ratio;
-
-  } else if (body.model === "happyhorse-1.0-video-edit") {
-    // Video-Edit: prompt (required) + video + 0-5 reference_images
+  } else {
+    if (!body.video_url) throw new Error(`${body.model} requires video_url`);
+    const refUrls = body.img_urls || [];
+    if (refUrls.length > 5) throw new Error(`${body.model} supports at most 5 reference images`);
     input.prompt = body.prompt;
     input.media = [
-      { type: "video", url: body.video_url }
+      { type: "video", url: body.video_url },
+      ...refUrls.map((url) => ({ type: "reference_image", url })),
     ];
-    // Append reference images if provided
-    const refUrls = body.img_urls || [];
-    for (const url of refUrls) {
-      input.media.push({ type: "reference_image", url });
-    }
     if (body.audio_setting) parameters.audio_setting = body.audio_setting;
   }
 
-  const dashscopeBody = {
-    model: body.model,
-    input,
-    parameters,
-  };
-
   return {
-    url: `${DASHSCOPE_BASE}/api/v1/services/aigc/video-generation/video-synthesis`,
+    url: `${nativeBase.replace(/\/$/, "")}/api/v1/services/aigc/video-generation/video-synthesis`,
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "X-DashScope-Async": "enable",
     },
-    body: dashscopeBody,
+    body: { model: body.model, input, parameters },
     isAsync: true,
   };
 }

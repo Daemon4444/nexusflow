@@ -582,9 +582,16 @@ setting to each node's existing root-only backend environment during a
 low-traffic window; do not print or rewrite unrelated values:
 
 ```dotenv
-PROVIDER_OUTBOUND_HOST_ALLOWLIST=api.anthropic.com,api.himodels.ai,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com
+PROVIDER_OUTBOUND_HOST_ALLOWLIST=api.anthropic.com,api.himodels.ai,developerhelena-1129-resource.services.ai.azure.com,dashscope.aliyuncs.com,app-api.pixverse.ai,ark.cn-beijing.volces.com,token.genvia.ai,jawayid.com
 PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST=jawayid.com:3000
 ```
+
+The Azure hostname only permits the preconfigured HTTPS/443 endpoint; it does
+not enable `gpt-6-astra`. Keep the Azure Provider disabled and do not set
+`AZURE_AI_FOUNDRY_API_KEY` until the exposed credential has been revoked, a new
+credential has been injected through the root-owned `0600` environment on both
+nodes, official Azure prices have been recorded, and real Chat/Responses smoke
+calls plus ledger reconciliation pass.
 
 The production environments currently have no HTTP(S) proxy. Do not introduce
 one: startup, preflight, and PM2 verification reject proxy variables. The

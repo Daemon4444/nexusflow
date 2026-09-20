@@ -20,6 +20,13 @@ export const providers: ProviderConfig[] = [
     apiKeyEnv: "HIMODELS_API_KEY",
     models: ["claude-"],
   },
+  {
+    id: "azure-ai-foundry",
+    name: "Azure AI Foundry",
+    baseUrl: "https://developerhelena-1129-resource.services.ai.azure.com/openai/v1",
+    apiKeyEnv: "AZURE_AI_FOUNDRY_API_KEY",
+    models: ["gpt-6-astra"],
+  },
   // 阿里云百炼 (DashScope) - 统一入口
   // 支持通义千问、DeepSeek、GLM、Kimi、MiniMax、HappyHorse、PixVerse 等当前已接入模型
   {
@@ -65,6 +72,22 @@ export function findProvider(modelId: string): ProviderConfig | null {
   ) || null;
 }
 
+export function isProviderModelCompatible(providerId: string, modelId: string): boolean {
+  if (modelId.startsWith("claude-")) return providerId === "himodels";
+  if (modelId === "gpt-6-astra") return providerId === "azure-ai-foundry";
+  return true;
+}
+
+export function getProviderAuthHeaders(
+  providerId: string,
+  apiKey: string
+): Record<string, string> {
+  if (providerId === "azure-ai-foundry") {
+    return { "api-key": apiKey };
+  }
+  return { Authorization: `Bearer ${apiKey}` };
+}
+
 /**
  * Get API key for a provider
  */
@@ -77,6 +100,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
   const { models } = require("../data/models") as typeof import("../data/models");
   const dashscopeConfig = providers.find((provider) => provider.id === "dashscope")!;
   const himodelsConfig = providers.find((provider) => provider.id === "himodels")!;
+  const azureConfig = providers.find((provider) => provider.id === "azure-ai-foundry")!;
   const volcengineArkConfig = providers.find((provider) => provider.id === "volcengine-ark")!;
   const dashscope = await ensureProvider({
     id: dashscopeConfig.id,
@@ -98,6 +122,18 @@ export async function ensureRoutingDefaults(): Promise<void> {
     website: "https://himodels.ai/",
     api_base_url: himodelsConfig.baseUrl,
     api_key: getProviderApiKey(himodelsConfig),
+    contact_name: "平台运营",
+    contact_email: "ops@nexusflow.hk",
+    status: "disabled",
+  });
+  await ensureProvider({
+    id: azureConfig.id,
+    name: azureConfig.name,
+    slug: azureConfig.id,
+    description: "Azure OpenAI v1 渠道；官方价格与轮换凭据验证完成前保持停用。",
+    website: "https://azure.microsoft.com/products/ai-foundry/",
+    api_base_url: azureConfig.baseUrl,
+    api_key: "",
     contact_name: "平台运营",
     contact_email: "ops@nexusflow.hk",
     status: "disabled",

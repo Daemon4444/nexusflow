@@ -467,7 +467,7 @@ export default function ChatCompletionsApiPage() {
             ✓ 协议支持范围
           </div>
           <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.7 }}>
-            <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/chat/completions</code> 支持 NexusFlow 接入的全部模型 — 包含通义千问、GLM、DeepSeek、Kimi、MiniMax 等。
+            <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/chat/completions</code> 支持模型目录中明确声明该协议的可用模型。预告模型会展示计划支持的协议，但在状态变为可用前不能调用。
           </div>
         </div>
       </section>

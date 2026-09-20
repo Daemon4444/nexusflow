@@ -45,6 +45,8 @@ import { sendBillingReservationFailure } from "../utils/billing-response";
 import {
   normalizeDashScopeVideoResolution,
   normalizeDashScopeVideoSize,
+  requiresImageInput,
+  requiresVideoInput,
   VideoParameterError,
 } from "../utils/video-parameters";
 import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
@@ -245,7 +247,7 @@ export const handleGenerate = async (req: Request, res: Response) => {
     }
   }
 
-  if ((modelId.includes("-i2v") || modelId.includes("-r2v")) && !img_url && !img_urls?.length) {
+  if (requiresImageInput(modelId) && !img_url && !img_urls?.length) {
     res.status(400).json({
       success: false,
       message: `${modelId} 需要传入 img_url 或 img_urls`,
@@ -253,7 +255,7 @@ export const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
-  if (modelId === "happyhorse-1.0-video-edit" && !video_url) {
+  if (requiresVideoInput(modelId) && !video_url) {
     res.status(400).json({
       success: false,
       message: `${modelId} 需要传入 video_url`,
@@ -266,8 +268,8 @@ export const handleGenerate = async (req: Request, res: Response) => {
   const isPixVerse = modelId.startsWith("pixverse-");
   if (!isHappyHorse && !isSeedance && !isPixVerse) {
     try {
-      if (modelId.includes("-i2v")) {
-        normalizedResolution = normalizeDashScopeVideoResolution(resolution, size);
+      if (modelId.includes("-i2v") || modelId.startsWith("wan3.0-video") || modelId === "wan2.7-videoedit") {
+        normalizedResolution = normalizeDashScopeVideoResolution(resolution, size, modelId);
       } else {
         normalizedSize = normalizeDashScopeVideoSize({ size, resolution, ratio });
       }
@@ -461,7 +463,7 @@ export const handleGenerate = async (req: Request, res: Response) => {
         img_urls,
         video_url,
         audio_setting,
-      });
+      }, selected.apiBaseUrl);
     } else {
       adapted = adaptVideoRequest(apiKey, {
         model: modelId,
@@ -470,17 +472,21 @@ export const handleGenerate = async (req: Request, res: Response) => {
         size: normalizedSize,
         resolution: normalizedResolution,
         ratio,
-        duration: duration || 5,
-        img_url: modelId.includes("i2v") ? img_url : undefined,
-        img_urls: modelId.includes("r2v") ? (img_urls || (img_url ? [img_url] : undefined)) : undefined,
-        video_url: modelId.includes("r2v") ? video_url : undefined,
+        duration: modelId === "wan2.7-videoedit" ? duration : (duration || 5),
+        img_url,
+        img_end_url,
+        img_urls,
+        video_url,
+        video_urls,
+        audio_urls,
         prompt_extend: prompt_extend !== undefined ? prompt_extend : true,
         seed,
         watermark,
         audio,
         audio_url,
+        audio_setting,
         shot_type,
-      });
+      }, selected.apiBaseUrl);
     }
 
     const response = await safeProviderFetch(adapted.url, {
@@ -705,9 +711,14 @@ export const handleVideoStatus = async (req: Request, res: Response) => {
 
       if (result.status === "succeeded") {
         const model = models.find((m) => m.id === task.model);
-        const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
-        const won = await completeTask(task.id, result.output, cost);
-        if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
+        const output = { ...(result.output || {}), ...(result.usage ? { usage: result.usage } : {}) };
+        const cost = model
+          ? await estimateDiscountedAsyncCost(task.user_id, model, { ...(task.input || {}), usage: result.usage })
+          : 0;
+        const won = await completeTask(task.id, output, cost);
+        if (won && model) {
+          await billAsyncSuccess({ ...task, output }, model, cost, Date.now() - new Date(task.created_at).getTime());
+        }
       } else if (result.status === "failed") {
         const won = await failTask(task.id, result.error || "Task failed");
         if (won) await billAsyncError(

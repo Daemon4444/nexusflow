@@ -47,6 +47,7 @@ import {
   restorePublicModelAlias,
   rewriteUpstreamModelAliasText,
 } from "../utils/upstream-model-aliases";
+import { getProviderAuthHeaders } from "../services/providers";
 
 /** 记录 response 归属（POST 成功后调用）。失败不影响主流程，但会导致该 response 后续不可检索（fail-closed）。 */
 async function recordResponseOwnership(responseId: string | null | undefined, userId: string | null): Promise<void> {
@@ -150,7 +151,7 @@ async function proxyResponseControlRequest(params: {
 
     const response = await safeProviderFetch(params.url, {
       method: params.method,
-      headers: { Authorization: `Bearer ${params.upstream.apiKey}` },
+      headers: getProviderAuthHeaders(params.upstream.providerId, params.upstream.apiKey),
       signal: AbortSignal.timeout(30000),
     });
     let data: any;
@@ -424,22 +425,23 @@ router.post("/", async (req: Request, res: Response) => {
     }
     providerCapacityLease = capacity.lease;
 
-    // Build upstream request — pass through body directly, upstream is DashScope Responses API
     const upstreamUrl = `${upstream.baseUrl}/responses`;
     const upstreamHeaders: Record<string, string> = {
-      Authorization: `Bearer ${upstream.apiKey}`,
+      ...getProviderAuthHeaders(upstream.providerId, upstream.apiKey),
       "Content-Type": "application/json",
     };
-    // Forward session cache header if present
     const sessionCache = req.headers["x-dashscope-session-cache"];
-    if (sessionCache) {
+    if (sessionCache && upstream.providerId === "dashscope") {
       upstreamHeaders["x-dashscope-session-cache"] = String(sessionCache);
     }
 
     const response = await safeProviderFetch(upstreamUrl, {
       method: "POST",
       headers: upstreamHeaders,
-      body: JSON.stringify({ ...req.body, model: getUpstreamModelId(modelId) }),
+      body: JSON.stringify({
+        ...req.body,
+        model: getUpstreamModelId(modelId, upstream.providerId),
+      }),
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
     });
 

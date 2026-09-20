@@ -18,7 +18,9 @@ interface TokenPricingTier {
 
 interface AIModel {
   id: string; name: string; provider: string; description: string;
-  contextLength: number; promptPrice: number; completionPrice: number;
+  contextLength: number; promptPrice: number | null; completionPrice: number | null;
+  lifecycle?: "announced";
+  pricingStatus?: "unpublished";
   pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
   pricingTiers?: PricingTier[];
   tokenPricingTiers?: TokenPricingTier[];
@@ -242,7 +244,7 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
                       {model.isFeatured && <span className="tag tag-featured" style={{ fontSize: 10 }}>HOT</span>}
                       {isUnavailable && (
                         <span className="model-availability-badge" title={model.availabilityReason || "暂无可用渠道"}>
-                          暂不可用
+                          {model.lifecycle === "announced" ? "即将上线" : "暂不可用"}
                         </span>
                       )}
                     </div>
@@ -289,6 +291,13 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
                     const isMedia = model.pricingType === "per-second"
                       || model.pricingType === "per-image"
                       || model.pricingType === "per-10k-characters";
+                    if (model.promptPrice == null || model.completionPrice == null) {
+                      return [
+                        { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
+                        { label: "价格", value: "待公布", color: "var(--warning)" },
+                        { label: "状态", value: "尚未开放", color: "var(--text-tertiary)" },
+                      ];
+                    }
                     if (isMedia) {
                       const unit = model.pricingType === "per-second"
                         ? "/秒"

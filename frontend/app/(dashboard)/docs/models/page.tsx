@@ -4,6 +4,16 @@ import Link from "next/link";
 
 const modelCategories = [
   {
+    name: "GPT-6 Astra",
+    provider: "Azure AI Foundry",
+    desc: "East US 2 的 Azure OpenAI v1 接入已预置；支持 Chat Completions 与 Responses。官方价格和轮换凭据完成验证前不可调用。",
+    href: "/models/gpt-6-astra",
+    introHref: "/models/gpt-6-astra",
+    models: ["gpt-6-astra（即将上线）"],
+    color: "#2563eb",
+    tag: "即将上线",
+  },
+  {
     name: "Seedance 专题",
     provider: "火山方舟",
     desc: "火山方舟豆包 Seedance 系列旗舰视频生成模型。系列最厉害的 Seedance 2.0 支持多模态参考生视频、4K HDR 10bit、有声视频与首尾帧控制，业界顶尖水平",
@@ -96,6 +106,7 @@ const modelCategories = [
 ];
 
 const pricingTable = [
+  { model: "gpt-6-astra", ctx: "1.05M", input: "待公布", output: "待公布", category: "即将上线（不可调用）" },
   { model: "qwen3.8-max", ctx: "1M", input: "¥12", output: "¥36", category: "旗舰" },
   { model: "qwen3.8-flash", ctx: "1M", input: "¥0.8", output: "¥2.7", category: "极速多模态" },
   { model: "qwen3.7-max", ctx: "1M", input: "¥12", output: "¥36", category: "旗舰" },

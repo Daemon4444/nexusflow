@@ -1,6 +1,11 @@
 import type { AIModel } from "../data/models";
 import { detectModelType } from "../services/adapters";
 
+export type ModelMetadata = Pick<
+  AIModel,
+  "id" | "provider" | "description" | "category" | "tags" | "supported"
+>;
+
 export type ThinkingMode = "mixed" | "always" | "none" | "unknown";
 
 export interface ModelCapabilities {
@@ -206,11 +211,11 @@ function hasAny(value: string[], needles: string[]): boolean {
   return value.some((item) => needles.some((needle) => item.toLowerCase().includes(needle.toLowerCase())));
 }
 
-function isQwenChatModel(model: AIModel): boolean {
+function isQwenChatModel(model: ModelMetadata): boolean {
   return detectModelType(model.category) === "chat" && (model.id.startsWith("qwen") || model.provider === "通义千问");
 }
 
-function getThinkingMode(model: AIModel): { mode: ThinkingMode; defaultValue: boolean | null } {
+function getThinkingMode(model: ModelMetadata): { mode: ThinkingMode; defaultValue: boolean | null } {
   if (ALWAYS_THINKING_MODELS.has(model.id) || model.id.includes("-thinking")) {
     return { mode: "always", defaultValue: true };
   }
@@ -229,7 +234,7 @@ function getThinkingMode(model: AIModel): { mode: ThinkingMode; defaultValue: bo
   return { mode: "none", defaultValue: null };
 }
 
-export function getModelCapabilities(model: AIModel): ModelCapabilities {
+export function getModelCapabilities(model: ModelMetadata): ModelCapabilities {
   const modelType = detectModelType(model.category) as ModelCapabilities["model_type"];
   const text = [...model.supported, ...model.tags, model.description];
   const thinking = getThinkingMode(model);
@@ -283,7 +288,7 @@ export function getModelCapabilities(model: AIModel): ModelCapabilities {
   };
 }
 
-export function getAllowedChatParameters(model: AIModel): string[] {
+export function getAllowedChatParameters(model: ModelMetadata): string[] {
   const capabilities = getModelCapabilities(model);
   if (capabilities.model_type !== "chat") return [];
   if (model.id.startsWith("claude-")) {

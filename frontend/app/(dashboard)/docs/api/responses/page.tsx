@@ -287,13 +287,13 @@ export default function ResponsesApiPage() {
             ⚠ 协议限制
           </div>
           <div style={{ fontSize: 13, color: "#92400e", lineHeight: 1.7 }}>
-            Responses API <strong>仅支持通义千问系列</strong>。调用 GLM、DeepSeek、Kimi、MiniMax 等模型会返回 <code style={{ fontSize: 11 }}>Unsupported model</code> 错误，请改用 <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/chat/completions</code> 或 <code style={{ fontSize: 12, fontWeight: 700 }}>/v1/messages</code>。
+            Responses API 仅接受模型目录中明确声明 <code style={{ fontSize: 11 }}>openai/responses</code> 的可用模型；其他模型会在本地直接拒绝，请改用其详情页列出的协议。
           </div>
           <div style={{
             marginTop: 10, paddingTop: 10, borderTop: "1px dashed #fcd34d",
             fontSize: 13, color: "#92400e", lineHeight: 1.7,
           }}>
-            当前支持百炼官方白名单中的 Qwen 与 DeepSeek 模型，包括 <code style={{ fontSize: 11 }}>qwen3.8-max</code>、<code style={{ fontSize: 11 }}>qwen3.7-max</code>、<code style={{ fontSize: 11 }}>qwen3-max</code>、<code style={{ fontSize: 11 }}>qwen3.6-35b-a3b</code>、<code style={{ fontSize: 11 }}>qwen-plus</code>、<code style={{ fontSize: 11 }}>qwen-flash</code>、<code style={{ fontSize: 11 }}>qwen3-coder-plus</code>、<code style={{ fontSize: 11 }}>qwen3-coder-flash</code>、<code style={{ fontSize: 11 }}>deepseek-v4-pro</code>、<code style={{ fontSize: 11 }}>deepseek-v4-pro-0813</code>、<code style={{ fontSize: 11 }}>deepseek-v4-flash</code>、<code style={{ fontSize: 11 }}>deepseek-v4-flash-0731</code> 等；目录未声明支持的模型会在本地直接拒绝。
+            当前可调用范围包括百炼白名单中的 Qwen 与 DeepSeek 模型。<code style={{ fontSize: 11 }}>gpt-6-astra</code> 已预告支持 Responses API，但在 Azure 官方价格与安全凭据就绪前保持不可调用。
           </div>
         </div>
       </section>
@@ -485,12 +485,11 @@ export default function ResponsesApiPage() {
         <div style={{ padding: "14px 18px", borderRadius: 8, background: "#fffbeb", border: "1px solid #fcd34d", marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#92400e", marginBottom: 6 }}>协议限制</div>
           <p style={{ fontSize: 13, color: "#92400e", lineHeight: 1.7, margin: 0 }}>
-            Responses API <strong>仅支持通义千问系列</strong>。
-            调用 GLM、DeepSeek、Kimi、MiniMax 等模型会返回 <code style={{ fontSize: 12 }}>Unsupported model</code> 错误。请改用 <Link href="/docs/api/chat" style={{ color: "#92400e", textDecoration: "underline" }}>/v1/chat/completions</Link> 或 <Link href="/docs/api/anthropic" style={{ color: "#92400e", textDecoration: "underline" }}>/v1/messages</Link>。
+            仅模型详情页明确列出 Responses 的可用模型能够调用此端点。未声明支持时，请改用 <Link href="/docs/api/chat" style={{ color: "#92400e", textDecoration: "underline" }}>/v1/chat/completions</Link> 或 <Link href="/docs/api/anthropic" style={{ color: "#92400e", textDecoration: "underline" }}>/v1/messages</Link>。
           </p>
         </div>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>
-          当前 Responses API 严格跟随百炼官方白名单，支持相应 Qwen 模型及 deepseek-v4-pro、deepseek-v4-pro-0813、deepseek-v4-flash、deepseek-v4-flash-0731；目录未声明支持的模型会在本地直接拒绝。
+          当前可调用范围包括百炼白名单中的相应 Qwen 与 DeepSeek 模型。预告模型可以展示计划支持的协议，但在状态变为可用前不会进入运行时模型目录。
         </p>
       </section>
 

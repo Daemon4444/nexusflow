@@ -27,6 +27,7 @@ import {
   isChannelUsable,
 } from "../data/provider-channels";
 import { logToSLS } from "./sls";
+import { isProviderModelCompatible } from "./providers";
 
 export interface ProviderEndpoint {
   providerId: string;
@@ -448,6 +449,10 @@ export async function selectProviderDetailed(
       reject("disabled");
       continue;
     }
+    if (!isProviderModelCompatible(ep.provider_id, ep.model_id)) {
+      reject("provider_model_incompatible");
+      continue;
+    }
     let apiKey = "";
     try {
       apiKey = decryptProviderSecret(ep.api_key || "").trim();
@@ -634,6 +639,7 @@ export async function getModelAvailabilityMap(modelIds: string[]): Promise<Map<s
 
   const configuredByModel = new Set<string>();
   for (const route of routes) {
+    if (!isProviderModelCompatible(route.provider_id, route.model_id)) continue;
     let apiKey = "";
     try {
       apiKey = decryptProviderSecret(route.api_key || "").trim();

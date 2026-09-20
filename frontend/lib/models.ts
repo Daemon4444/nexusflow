@@ -6,8 +6,8 @@ export interface ModelSummary {
   description?: string;
   contextLength?: number;
   maxOutput?: number;
-  promptPrice?: number;
-  completionPrice?: number;
+  promptPrice?: number | null;
+  completionPrice?: number | null;
   alternatePricingModes?: Array<{
     id: string;
     label: string;
@@ -41,17 +41,20 @@ export function formatContextLength(contextLength?: number) {
 }
 
 export function formatModelPrice(model: ModelSummary) {
+  if (model.promptPrice == null || model.completionPrice == null) {
+    return "Pricing pending";
+  }
   if (model.pricingType === "per-second") {
-    return `from ¥${formatCompactPrice(model.promptPrice || 0)}/s`;
+    return `from ¥${formatCompactPrice(model.promptPrice)}/s`;
   }
   if (model.pricingType === "per-image") {
-    return `¥${formatCompactPrice(model.promptPrice || 0)}/image`;
+    return `¥${formatCompactPrice(model.promptPrice)}/image`;
   }
   if (model.pricingType === "per-10k-characters") {
-    return `¥${formatCompactPrice(model.promptPrice || 0)}/10k chars`;
+    return `¥${formatCompactPrice(model.promptPrice)}/10k chars`;
   }
-  const input = formatCompactPrice(model.promptPrice || 0);
-  const output = formatCompactPrice(model.completionPrice || 0);
+  const input = formatCompactPrice(model.promptPrice);
+  const output = formatCompactPrice(model.completionPrice);
   return `In ¥${input} · Out ¥${output}/M`;
 }
 

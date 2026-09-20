@@ -8,9 +8,9 @@
 ## 0. 平台背景速览（30 秒）
 
 - **架构**：`backend/`（Express 5 + Postgres/Redis，PM2 cluster×2）+ `frontend/`（Next.js，静态营销页+dashboard）。生产服务器 SSH 别名 `nexus`，应用在 `/root/distiny/nexusflow`，线上 https://nexusflow.hk。
-- **模型目录**：静态种子 `backend/src/data/models.ts`（`staticModels`）+ DB 覆盖层 `model_overrides` 表（admin「模型目录」tab 管理，10s 轮询全节点生效，空表=纯静态）。**计费与展示共用同一份 `models` 数组**。
-- **路由**：`backend/src/services/providers.ts` 按模型 ID **前缀** 路由到上游（dashscope / anthropic / volcengine-ark）。模型 ID 原样透传给上游。
-- **协议**：`/v1/chat/completions`（OpenAI）、`/v1/messages`（Anthropic，直通或转换桥）、`/v1/responses`（**实测仅通义千问系支持**）。协议宣告在 `backend/src/utils/model-protocols.ts`——**必须实测再宣告，不要想当然**。
+- **模型目录**：`backend/src/data/models.ts` 中的 `models` 是可调用、可计费目录；`announcedModels` 只用于公开预告，允许官方价格为 `null`，不得进入计费、容量预占或 `/v1/models`。`/api/models` 会合并两层目录，再叠加 `model_overrides` 与运行时可用性。
+- **路由**：`backend/src/services/providers.ts` 定义上游、认证和模型兼容性；`backend/src/utils/upstream-model-aliases.ts` 处理 Provider 维度的部署名映射。不要假设所有 Provider 都使用 Bearer 认证或模型 ID 原样透传。
+- **协议**：`/v1/chat/completions`（OpenAI）、`/v1/messages`（Anthropic，直通或转换桥）、`/v1/responses`。协议宣告在 `backend/src/utils/model-protocols.ts`——**必须实测再宣告，不要想当然**；预告模型可以披露计划支持的协议，但在激活前仍不可调用。
 - **前端 API 链路**：浏览器 → Next `/proxy/[...path]` 代理 → 后端。**验证必须走浏览器真实点击路径，curl 直连后端不算数**（代理层有自己的解码/编码行为）。
 
 ## 1. 上线前：核对官方模型卡
@@ -27,13 +27,17 @@
 
 | 文件 | 改什么 |
 |------|--------|
-| `backend/src/data/models.ts` | 新增 AIModel 条目。**必填**：id/name/provider/description/contextLength/promptPrice/completionPrice/category/tags/maxOutput/supported。**别漏**：`cacheReadPrice`（有缓存价必须显式配，否则回退默认 10%/20% 乘数会算错）、分层价 `tokenPricingTiers`（每层可带 cacheReadPrice）、omni 类加 `audioInputPrice/audioOutputPrice`、上游 anthropic 端点未接入则加 `anthropicPassThrough: false` |
+| `backend/src/data/models.ts` | 已有官方价格且准备开放时新增 `AIModel`；只有预告、价格未公布或凭据未就绪时新增 `AnnouncedAIModel`。预告价格保持 `null`，绝不能用 `0` 代替。正式模型**必填**：id/name/provider/description/contextLength/promptPrice/completionPrice/category/tags/maxOutput/supported。**别漏**：`cacheReadPrice`、分层价 `tokenPricingTiers`、omni 的 `audioInputPrice/audioOutputPrice`，以及需要转换桥时的 `anthropicPassThrough: false`。 |
 | `backend/src/utils/model-capabilities.ts` | 思考模式集合（MIXED_THINKING_DEFAULT_ON/OFF/ALWAYS）、PRESERVE_THINKING_MODELS、SEARCH_ENABLED_MODELS（非 qwen/deepseek/minimax 但支持联网搜索的）|
-| `backend/src/services/providers.ts` | 通常**不用改**（前缀匹配）。全新厂商前缀才需要加 |
-| `backend/src/utils/model-protocols.ts` | 通常不用改。但 `/v1/responses` 支持面收紧在这里；`anthropicPassThrough` 语义见 §4 |
+| `backend/src/services/providers.ts` | 新 Provider 要配置稳定 ID、base URL、密钥环境变量、认证头、兼容性约束和默认禁用状态；没有安全凭据时不得写入占位密钥。 |
+| `backend/src/services/upstream.ts` | 新 Provider 的区域、静态/受管路由解析和缺失配置行为。 |
+| `backend/src/utils/upstream-model-aliases.ts` | 公共模型 ID 与上游部署 ID 不同，或必须限定 Provider 时，在这里显式映射。 |
+| `backend/src/utils/model-protocols.ts` | 声明每个模型的真实协议支持面；`anthropicPassThrough` 语义见 §4。 |
+| `backend/src/services/outbound-url-policy.ts` | 新上游主机加入最小 allowlist，并继续执行 HTTPS、路径和公共 DNS 校验。 |
 
-- `ensureRoutingDefaults()` 启动时自动为新模型建 capacity 行，无需手动。
+- `ensureRoutingDefaults()` 只为可调用的 `models` 建 capacity；预告模型不得获得容量或进入运行时路由。
 - category 决定 model_type（chat/embedding/image/video/audio）→ 决定协议与计费路径，别写错。
+- Provider 密钥只能通过受控环境注入；泄露过的密钥必须先撤销、审计并轮换，不能用于测试或部署。
 
 ## 3. 前端 + 文档同步清单（「全面」的定义）
 
@@ -45,9 +49,12 @@
 | `frontend/app/(dashboard)/docs/context-cache/page.tsx` | 厂商缓存汇总行 |
 | `frontend/app/(dashboard)/docs/api/parameters/page.tsx` | preserve_thinking 等参数支持模型列表 |
 | `frontend/app/page.tsx` | 首页：主推大卡片（换主推时）、hero NEW pill/指标、`fallbackModelRows`、`fallbackCarouselModels`（**兜底价格照 models.ts 抄，别凭印象写**——踩过 Seedance 0.04/0.44 的坑） |
-| `frontend/lib/models.ts` | `getRecommendedModels` 的 preferredIds（置顶新旗舰、汰换旧的） |
-| `MODELS.md` | 厂商模型表 + 服务提供商汇总的数量行 + 协议矩阵 |
-| `wiki.md` | 思考模式分类表、preserve_thinking、显式缓存模型列表、大语言模型清单 |
+| `frontend/lib/models.ts` | `getRecommendedModels` 的 preferredIds（只推荐可用模型）；公开模型类型必须允许预告模型的价格为 `null`。 |
+| 模型列表、详情、Pricing、CostEstimate | `null` 显示为“待公布/尚未开放”，不得格式化为 ¥0 或参与估算。 |
+| Playground | 只加载 `availability=available` 的模型；深链到预告或禁用模型时回落到可用默认模型。 |
+| `MODELS.md` | 厂商模型表 + 服务提供商汇总数量 + 协议矩阵；分别统计可计费目录、预告目录和公开合计。 |
+| `WIKI.md` | 思考模式、缓存、模型清单，以及新 Provider 的认证、区域、路由和上线前置条件。 |
+| `docs/production-release-runbook.md` | 新 Provider 的生产 allowlist、密钥注入和激活前置条件。 |
 
 ## 4. 已知坑（每条都真实踩过）
 
@@ -106,25 +113,35 @@ ssh nexus "docker exec quadrant-postgres psql -U quadrant -d quadrant -c \"
 
 - [ ] 首页 → 点新模型入口 → 详情页完整渲染（价格/上下文/协议徽章正确）
 - [ ] 模型列表页 → 点卡片 → 详情页（编码 URL 路径）
-- [ ] `/api/models` 总数+新条目字段+capabilities 正确
-- [ ] docs 相关页、pricing 页正常
+- [ ] `/api/models` 总数+新条目字段+capabilities 正确；预告模型价格为 `null` 且状态不可用
+- [ ] `/v1/models` 和 Playground 不包含预告或禁用模型
+- [ ] docs 相关页、pricing 页正常，任何位置都没有把未公布价格显示为 ¥0
 
 ## 6. 部署 runbook
 
+生产发布必须严格执行 `docs/production-release-runbook.md`，不得用 `git pull + npm build + pm2 reload` 绕过不可变制品、备份恢复、迁移、双节点流量切换和回滚验证。
+
 ```bash
-# 本地：typecheck + build 全过再提交
-cd backend && npx tsc --noEmit && cd ../frontend && npx next build
-git add <明确列出文件，排除 WIKI.md> && git commit && git push origin main
-# 若 push 被拒：git update-index --skip-worktree WIKI.md && git rebase origin/main && git push
-# 生产：
-ssh nexus 'cd /root/distiny/nexusflow && git pull origin main \
-  && cd backend && npm run build && cd ../frontend && npm run build \
-  && pm2 reload quadrant-backend && pm2 reload quadrant-frontend && pm2 ls'
-# 然后执行 §5 验证清单
+# 本地：完整测试、构建、安全扫描和 diff 审核通过后，显式暂存文件并创建提交
+npm ci --legacy-peer-deps
+npm run build:backend
+npm run build:frontend
+
+# 生产：先创建并校验私有 Provider 成本 manifest，再执行只读 dry-run
+ssh nexus "cd /root/distiny/nexusflow && \
+  NEXUSFLOW_PROVIDER_COST_MANIFEST='$provider_cost_stage/manifest.json' \
+  bash scripts/deploy-all-production.sh --dry-run"
+
+# dry-run 为 Go 后，使用同一份已审核 manifest 执行正式发布
+ssh nexus "cd /root/distiny/nexusflow && \
+  NEXUSFLOW_PROVIDER_COST_MANIFEST='$provider_cost_stage/manifest.json' \
+  bash scripts/deploy-all-production.sh"
 ```
 
-- 服务器可能有未收编漂移（git status 先看一眼），冲突时优先保服务器侧计费逻辑。
-- admin 面板走 nginx Basic Auth；绕过测 UI：直连 19999 + localStorage 注入 admin 会话（详见团队记忆）。
+- 新 Provider 主机必须先加入两台节点的根权限环境 allowlist，并通过 dry-run 的 PM2、DNS、路径和代理变量检查。
+- 凭据必须是轮换后的未泄露密钥，以 root-owned `0600` 环境文件注入两台节点；不得写入 Git、shell 历史、日志或文档。
+- 官方价格未公布、凭据未就绪或 smoke test/账本核对未完成时，只发布预告目录，Provider 保持 disabled。
+- 任何 dry-run 失败都是 No-Go；不得替换流量 hook、伪造 drain 标记或手工调用单节点 activate。
 
 ## 7. 复盘纪律
 

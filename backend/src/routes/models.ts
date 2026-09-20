@@ -1,5 +1,12 @@
 import { Router, Request, Response } from "express";
-import { models, AIModel, resolveCachePricing, resolveCompletionPrice } from "../data/models";
+import {
+  models,
+  type AIModel,
+  type AnnouncedAIModel,
+  getAnnouncedModels,
+  resolveCachePricing,
+  resolveCompletionPrice,
+} from "../data/models";
 import { getApprovedModelsWithProvider } from "../data/providers";
 import { getSupportedProtocols } from "../utils/model-protocols";
 import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
@@ -7,8 +14,14 @@ import { getModelAvailabilityMap } from "../services/scheduler";
 
 const router = Router();
 
+type PublicCatalogModel = AIModel | AnnouncedAIModel;
+
+function isAnnouncedModel(model: PublicCatalogModel): model is AnnouncedAIModel {
+  return "lifecycle" in model && model.lifecycle === "announced";
+}
+
 // 合并静态模型和供应商模型
-async function getAllModels(): Promise<AIModel[]> {
+async function getAllModels(): Promise<PublicCatalogModel[]> {
   let providerModels: Awaited<ReturnType<typeof getApprovedModelsWithProvider>> = [];
   try {
     providerModels = await getApprovedModelsWithProvider();
@@ -60,7 +73,12 @@ async function getAllModels(): Promise<AIModel[]> {
       modelMap.set(model.id, model);
     }
   }
-  return Array.from(modelMap.values());
+  const announced = getAnnouncedModels();
+  const announcedIds = new Set(announced.map((model) => model.id));
+  return [
+    ...Array.from(modelMap.values()).filter((model) => !announcedIds.has(model.id)),
+    ...announced,
+  ];
 }
 
 /** 披露价按账本精度(6 位小数)取整，避免浮点尾差直接进 API 与页面。 */
@@ -151,9 +169,9 @@ router.get("/", async (req: Request, res: Response) => {
 
   // 排序
   if (sort === "price-asc") {
-    filtered.sort((a, b) => a.promptPrice - b.promptPrice);
+    filtered.sort((a, b) => (a.promptPrice ?? Number.POSITIVE_INFINITY) - (b.promptPrice ?? Number.POSITIVE_INFINITY));
   } else if (sort === "price-desc") {
-    filtered.sort((a, b) => b.promptPrice - a.promptPrice);
+    filtered.sort((a, b) => (b.promptPrice ?? Number.NEGATIVE_INFINITY) - (a.promptPrice ?? Number.NEGATIVE_INFINITY));
   } else if (sort === "context") {
     filtered.sort((a, b) => b.contextLength - a.contextLength);
   } else if (sort === "name") {
@@ -166,6 +184,20 @@ router.get("/", async (req: Request, res: Response) => {
     success: true,
     data: filtered.map((model) => {
       const capabilities = getModelCapabilities(model);
+      const supportedProtocols = getSupportedProtocols(model);
+      if (isAnnouncedModel(model)) {
+        return {
+          ...model,
+          cachePricing: null,
+          thinkingPricing: null,
+          supportedProtocols,
+          supported_protocols: supportedProtocols,
+          capabilities,
+          allowed_parameters: getAllowedChatParameters(model),
+          availability: "temporarily_unavailable",
+          availabilityReason: "pricing_unpublished",
+        };
+      }
       return {
         ...model,
         pricingType: model.pricingType,
@@ -173,8 +205,8 @@ router.get("/", async (req: Request, res: Response) => {
         tokenPricingTiers: model.tokenPricingTiers,
         cachePricing: buildCachePricing(model, capabilities.supports_context_caching, capabilities.supports_explicit_context_caching),
         thinkingPricing: buildThinkingPricing(model),
-        supportedProtocols: getSupportedProtocols(model),
-        supported_protocols: getSupportedProtocols(model),
+        supportedProtocols,
+        supported_protocols: supportedProtocols,
         capabilities,
         allowed_parameters: getAllowedChatParameters(model),
         availability: availability.get(model.id)?.status || "temporarily_unavailable",
@@ -199,6 +231,24 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
   const availability = (await getModelAvailabilityMap([model.id])).get(model.id);
   const capabilities = getModelCapabilities(model);
+  const supportedProtocols = getSupportedProtocols(model);
+  if (isAnnouncedModel(model)) {
+    res.json({
+      success: true,
+      data: {
+        ...model,
+        cachePricing: null,
+        thinkingPricing: null,
+        supportedProtocols,
+        supported_protocols: supportedProtocols,
+        capabilities,
+        allowed_parameters: getAllowedChatParameters(model),
+        availability: "temporarily_unavailable",
+        availabilityReason: "pricing_unpublished",
+      },
+    });
+    return;
+  }
   res.json({
     success: true,
     data: {
@@ -208,8 +258,8 @@ router.get("/:id", async (req: Request, res: Response) => {
       tokenPricingTiers: model.tokenPricingTiers,
       cachePricing: buildCachePricing(model, capabilities.supports_context_caching, capabilities.supports_explicit_context_caching),
       thinkingPricing: buildThinkingPricing(model),
-      supportedProtocols: getSupportedProtocols(model),
-      supported_protocols: getSupportedProtocols(model),
+      supportedProtocols,
+      supported_protocols: supportedProtocols,
       capabilities,
       allowed_parameters: getAllowedChatParameters(model),
       availability: availability?.status || "temporarily_unavailable",

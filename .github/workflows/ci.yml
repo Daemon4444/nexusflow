@@ -64,6 +64,10 @@ jobs:
       - run: npm --workspace backend run test:outbound-url-policy
       - run: npm --workspace backend run test:stream-reliability
       - run: npm --workspace backend run test:billing
+      - run: npm --workspace backend run test:model-catalog
+      - run: npm --workspace backend run test:official-pricing
+      - run: npm --workspace backend run test:media-contracts
+      - run: npm --workspace backend run test:azure-provider-contract
       - run: npm --workspace backend run test:payment-settlement
       - run: npm --workspace backend run db:migrate
         env:

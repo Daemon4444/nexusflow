@@ -13,6 +13,7 @@ import { isProductionRuntime } from "../utils/runtime-safety";
 export const DEFAULT_PROVIDER_OUTBOUND_HOSTS = [
   "api.anthropic.com",
   "api.himodels.ai",
+  "developerhelena-1129-resource.services.ai.azure.com",
   "dashscope.aliyuncs.com",
   "app-api.pixverse.ai",
   "ark.cn-beijing.volces.com",

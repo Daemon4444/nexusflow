@@ -5,8 +5,8 @@ import { formatCnyAuto } from "@/lib/money";
 
 interface ModelInfo {
   id: string;
-  promptPrice: number;
-  completionPrice: number;
+  promptPrice: number | null;
+  completionPrice: number | null;
   tokenPricingTiers?: Array<{
     label: string;
     maxTokens: number;
@@ -41,7 +41,12 @@ export default function CostEstimate({
   estimatedOutputTokens = 500
 }: CostEstimateProps) {
   const estimate = useMemo(() => {
-    if (!model || !inputText) return null;
+    if (
+      !model
+      || !inputText
+      || model.promptPrice == null
+      || model.completionPrice == null
+    ) return null;
 
     const inputTokens = estimateTokens(inputText);
     const totalTokens = inputTokens + estimatedOutputTokens;

@@ -69,7 +69,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 应用节点 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
-| 模型目录 | 95 个静态模型（2026-09-18 从 `backend/src/data/models.ts` 重算，含 18 个百炼新模型；Claude 上游快照版本为 20260820）；运行时数量以 `GET /api/models` 与数据库覆盖层为准 |
+| 模型目录 | 95 个可计费静态模型 + 1 个公告模型（2026-09-20 重算）；`gpt-6-astra` 仅在 `/api/models` 披露，价格与凭据验证完成前不进入计费运行时或 `/v1/models` |
 | 数据库迁移 | 仓库已提交到 `023_provider_list_price_fallback.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
@@ -211,15 +211,17 @@ Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720
 - Kimi K3 的 Messages 支持曾因上游差异走自建桥，切换逻辑由模型字段控制；`kimi-k3` 自 2026-08-09 起使用 Jaway K3 专线上游，OpenAI Chat 与 Anthropic Messages 均原生直通，非标准 HTTPS 端口必须同时命中主机和精确端点白名单。
 - 模型 ID 可能包含 `/`，例如 `MiniMax/MiniMax-M3`。前端、Next proxy 和 Express 路径必须保留编码，不能把 `%2F` 提前拆成路径段。
 - Responses 内置工具可能产生非 Token 上游费用。默认只允许本地 `function` 类型；其它类型必须通过 `RESPONSE_ALLOWED_TOOLS` 明确放行并先确认成本模型。
+- `gpt-6-astra` 已声明 OpenAI Chat Completions 与 Responses 契约，但属于公告模型：Azure AI Foundry Provider 固定 `eastus2`，使用 `/openai/v1` 和 `api-key` 认证，当前 disabled 且无可用 capacity。
 - 上游成本先使用可追溯的合同、发票、人工核验或私有折扣表价本；没有可适用价本时，使用请求结算时固化的官方原价。客户折后实付不能代替官方原价，估算请求和 Provider 不明请求仍然失败关闭。
 - `messagesRouter` 必须在通用 `/v1` router 之前挂载，避免被通用路由截获。
 
 ## 8. 模型目录与 Provider 路由
 
-运行时目录由两层组成：
+模型目录由三层组成：
 
-1. `backend/src/data/models.ts`：静态基础目录；
-2. PostgreSQL `model_overrides`：后台可编辑的覆盖/下架层。
+1. `backend/src/data/models.ts` 的 `staticModels`：可计费基础目录；
+2. PostgreSQL `model_overrides`：后台可编辑的覆盖/下架层；
+3. `announcedModels`：仅供 `/api/models` 展示的未开放模型，价格可为 `null`，不得进入计费、`/v1/models` 或默认 capacity。
 
 `refreshModels()` 会让 cluster 节点周期收敛。后台“模型目录”和“Provider 模型映射”是两套不同概念：
 
@@ -230,7 +232,7 @@ Provider 选择综合静态注册、数据库 Provider、`provider_capacity`、�
 
 Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移时同时拆分。当调用规模和多 Provider 复杂度足够大后，它将独立为 NexusFlow 核心平台能力，覆盖同模型多 Provider、动态权重/优先级、主备切换、客户/地区/价格/SLA 路由、容量租约、熔断/恢复/健康评分、手动锁定和成本质量最优选路。自动优化必须先满足模型兼容、客户 SLA、地域合规、容量和健康门禁，未知成本不得当作 0。每笔选路必须保存策略版本、候选集、中选理由、重试/熔断链、价本版本和人工干预，使决策可解释、可回放、可审计。
 
-`GET /api/models` 与 `GET /v1/models` 会返回模型渠道可用性。启用映射但缺少 Provider 凭据时，目录标记 `temporarily_unavailable`，收费接口在预占前返回 `provider_not_configured`；不得把空凭据请求发到上游后再暴露 401。该状态是平台级渠道状态，不替代用户级模型白名单或路由策略判断。
+`GET /api/models` 返回完整展示目录；`GET /v1/models` 只返回可计费运行时目录。公告模型固定标记 `lifecycle=announced`、`pricingStatus=unpublished`、`availability=temporarily_unavailable` 和 `availabilityReason=pricing_unpublished`。启用映射但缺少 Provider 凭据时，运行时目录标记 `temporarily_unavailable`，收费接口在预占前返回 `provider_not_configured`；不得把空凭据请求发到上游后再暴露 401。该状态是平台级渠道状态，不替代用户级模型白名单或路由策略判断。
 
 上线新模型必须完整阅读 `docs/MODEL_ONBOARDING.md`。至少覆盖：
 
@@ -277,6 +279,7 @@ QPM/TPM。旧 `rate_limit` 字段在 expand/rollback 窗口内仅保留旧版本
 - PostgreSQL 金额字段使用 NUMERIC；
 - 主账号可用资金 = 余额 + 信控；信控只能由管理员调整，消费优先扣余额再扣信控；
 - 展示金额不能替代账本精度；
+- 未发布价格必须保留为 `null`，不得转换成 0、免费或估算值；模型必须留在公告目录之外的计费边界；
 - Token 模型可能有输入长度分层价；
 - 缓存读、缓存写和普通输入价格不同；
 - 流式上游缺失 usage 时，只在确有输出内容时启用估算，并在遥测中标记 `estimated=true`；
@@ -370,7 +373,8 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 - `PROVIDER_SECRET_KEY` 是否配置必须在生产变更前检查；未配置时不能假设数据库中的 Provider Key 已加密；
 - PostgreSQL/Redis 只绑定本机，3001/19999 不允许公网直连；
 - 生产 Provider 出站必须配置
-  `PROVIDER_OUTBOUND_HOST_ALLOWLIST`；受管发布拒绝 HTTP(S)/ALL proxy 环境，
+  `PROVIDER_OUTBOUND_HOST_ALLOWLIST`；当前清单必须包含 Azure 资源主机
+  `developerhelena-1129-resource.services.ai.azure.com`，受管发布拒绝 HTTP(S)/ALL proxy 环境，
   Provider URL 仍需逐次执行 scheme、userinfo、端口、DNS 和公网地址校验；
 - Provider socket DNS lookup 必须同时遵守 Node/Undici 的单地址和
   `{ all: true }` 两种回调契约；`all=true` 必须返回全部已验证的公网地址数组，
@@ -437,7 +441,7 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 
 当前主推模型和推荐顺序会随运营调整，不能从历史对话推断。以 `frontend/app/page.tsx`、`frontend/lib/models.ts` 和线上页面为准。
 
-公共站与控制台共用 `Header`。登录入口携带经过站内校验的 `returnTo`；移动文档使用抽屉目录；模型与 Playground 必须遵循运行时可用性，不能推荐或提交暂不可用模型。定价与模型服务端取数统一通过 `BACKEND_URL`，避免非默认端口构建静默生成空目录。
+公共站与控制台共用 `Header`。登录入口携带经过站内校验的 `returnTo`；移动文档使用抽屉目录；模型与 Playground 必须遵循运行时可用性，不能推荐或提交暂不可用模型。公告模型显示“即将上线 / 价格待公布”，所有价格组件接受 `null` 且不得用 `|| 0` 转成免费。定价与模型服务端取数统一通过 `BACKEND_URL`，避免非默认端口构建静默生成空目录。
 
 ## 14. 本地开发、验证与 CI
 

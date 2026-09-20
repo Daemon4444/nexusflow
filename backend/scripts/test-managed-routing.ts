@@ -33,6 +33,7 @@ async function main(): Promise<void> {
   const { upsertRoutePolicy } = await import("../src/data/provider-operations");
   const { upsertProviderChannelConfig } = await import("../src/data/provider-channels");
   const { resolveUpstream } = await import("../src/services/upstream");
+  const { isProviderModelCompatible } = await import("../src/services/providers");
   const { getRedis } = await import("../src/services/redis");
 
   await ensureProvider({
@@ -212,8 +213,10 @@ async function main(): Promise<void> {
     api_key: "test-only-legacy-anthropic-secret",
     contact_name: "Test",
     contact_email: "routing-anthropic@example.invalid",
-    status: "disabled",
+    status: "enabled",
   });
+  assert.equal(isProviderModelCompatible("anthropic", "claude-haiku-4-5"), false);
+  assert.equal(isProviderModelCompatible("himodels", "claude-haiku-4-5"), true);
   await upsertCapacity("anthropic", "claude-haiku-4-5", {
     rpm_limit: 100,
     tpm_limit: 100_000,

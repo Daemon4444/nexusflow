@@ -12,6 +12,14 @@ const ADDITIONAL_RESPONSE_MODEL_ALIASES: Readonly<Record<string, readonly string
   "claude-haiku-4-5": ["claude-haiku-4-5-20251001"],
 });
 
+const PROVIDER_UPSTREAM_MODEL_ALIASES: Readonly<
+  Record<string, Readonly<Record<string, string>>>
+> = Object.freeze({
+  "azure-ai-foundry": Object.freeze({
+    "gpt-6-astra": "gpt-6-astra",
+  }),
+});
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -41,6 +49,10 @@ const RESPONSE_MODEL_ALIAS_PATTERNS = Object.freeze(
 );
 
 export function getUpstreamModelId(publicModelId: string, providerId?: string): string {
+  const providerAlias = providerId
+    ? PROVIDER_UPSTREAM_MODEL_ALIASES[providerId]?.[publicModelId]
+    : undefined;
+  if (providerAlias) return providerAlias;
   if (providerId !== undefined && providerId !== "himodels") return publicModelId;
   return UPSTREAM_MODEL_ALIASES[publicModelId] || publicModelId;
 }

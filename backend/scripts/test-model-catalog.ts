@@ -662,10 +662,14 @@ for (const [id, expected] of [
 ] as const) {
   const entry = models.find((model) => model.id === id);
   assert.ok(entry, `${id} 必须在目录中`);
+  const billableSeconds = id === "wan2.7-videoedit" ? 20 : 10;
   assert.equal(
-    estimateAsyncCost(entry, { duration: 10 }),
-    Math.round(expected * 10 * 100) / 100,
-    `${id} 每秒结算价必须为 ¥${expected}，且不得被旧前缀分支吞掉`
+    estimateAsyncCost(entry, {
+      duration: 10,
+      resolution: id.startsWith("wan3.0-") || id.startsWith("happyhorse-1.1-") ? "480P" : "720P",
+    }),
+    Math.round(expected * billableSeconds * 100) / 100,
+    `${id} 每秒结算价必须为 ¥${expected}，且输入视频模式必须包含输入时长预占`
   );
 }
 for (const [id, expected] of [["wan2.7-image", 0.2], ["wan2.7-image-pro", 0.5]] as const) {
