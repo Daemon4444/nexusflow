@@ -636,6 +636,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     stream,
     temperature,
     max_tokens,
+    max_completion_tokens,
     top_p,
     stop,
     frequency_penalty,
@@ -733,7 +734,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedChatTokens = estimateChatTokens(model, messages, max_tokens);
+  const requestedOutputTokens = max_completion_tokens ?? max_tokens;
+  const estimatedChatTokens = estimateChatTokens(model, messages, requestedOutputTokens);
 
   if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
     res.status(403).json({
@@ -784,7 +786,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const estimatedChatCost = await estimateChatMaxCost(apiKeyRecord.user_id, model, messages, max_tokens);
+  const estimatedChatCost = await estimateChatMaxCost(apiKeyRecord.user_id, model, messages, requestedOutputTokens);
   const chatReservationResult = await reserveBalanceWithReason(
     apiKeyRecord.user_id,
     estimatedChatCost,
@@ -816,6 +818,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       stream,
       temperature,
       max_tokens,
+      max_completion_tokens,
       top_p,
       stop,
       frequency_penalty,

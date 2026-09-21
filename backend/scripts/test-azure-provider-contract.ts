@@ -18,6 +18,7 @@ import { AZURE_AI_FOUNDRY_REGION } from "../src/services/upstream";
 import { getSupportedProtocols, supportsResponsesApi } from "../src/utils/model-protocols";
 import { getUpstreamModelId } from "../src/utils/upstream-model-aliases";
 import { getOpenAiPromptCacheUsage } from "../src/utils/cache-billing";
+import { buildUpstreamChatRequest } from "../src/utils/chat-request";
 
 const modelId = "gpt-6-astra";
 const provider = findProvider(modelId);
@@ -71,6 +72,13 @@ assert.equal(getOpenAiPromptCacheUsage({
     cache_creation_input_tokens: 99,
   },
 }).cacheCreationTokens, 40, "Azure cache_write_tokens must be authoritative without double counting");
+const chatRequest = buildUpstreamChatRequest(astra, {
+  model: modelId,
+  messages: [{ role: "user", content: "hello" }],
+  max_tokens: 512,
+});
+assert.equal(chatRequest.max_tokens, undefined);
+assert.equal(chatRequest.max_completion_tokens, 512);
 assert.deepEqual(getSupportedProtocols(astra), [
   "openai/chat-completions",
   "openai/responses",

@@ -346,6 +346,9 @@ export function getAllowedChatParameters(model: ModelMetadata): string[] {
   if (capabilities.supports_parallel_tool_calls) {
     params.push("parallel_tool_calls");
   }
+  if (model.id === "gpt-6-astra") {
+    params.push("max_completion_tokens");
+  }
 
   return params;
 }

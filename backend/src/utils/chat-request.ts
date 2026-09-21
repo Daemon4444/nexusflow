@@ -25,6 +25,7 @@ export function buildUpstreamChatRequest(model: AIModel, body: any, options: { f
   for (const key of [
     "temperature",
     "max_tokens",
+    "max_completion_tokens",
     "top_p",
     "stop",
     "frequency_penalty",
@@ -48,6 +49,14 @@ export function buildUpstreamChatRequest(model: AIModel, body: any, options: { f
   ]) {
     if (allowed.has(key) && body[key] !== undefined) {
       requestBody[key] = body[key];
+    }
+  }
+
+  if (model.id === "gpt-6-astra") {
+    const maxCompletionTokens = requestBody.max_completion_tokens ?? requestBody.max_tokens;
+    delete requestBody.max_tokens;
+    if (maxCompletionTokens !== undefined) {
+      requestBody.max_completion_tokens = maxCompletionTokens;
     }
   }
 
