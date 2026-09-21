@@ -295,6 +295,19 @@ export function getAllowedChatParameters(model: ModelMetadata): string[] {
   if (model.id.startsWith("claude-")) {
     return ["model", "messages", "max_tokens", "stream", "system"];
   }
+  if (model.id === "gpt-6-astra") {
+    return [
+      "model",
+      "messages",
+      "stream",
+      "stream_options",
+      "max_tokens",
+      "max_completion_tokens",
+      "tools",
+      "tool_choice",
+      "response_format",
+    ];
+  }
 
   const params = [
     "model",
@@ -345,9 +358,6 @@ export function getAllowedChatParameters(model: ModelMetadata): string[] {
   }
   if (capabilities.supports_parallel_tool_calls) {
     params.push("parallel_tool_calls");
-  }
-  if (model.id === "gpt-6-astra") {
-    params.push("max_completion_tokens");
   }
 
   return params;

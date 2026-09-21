@@ -16,6 +16,7 @@ import {
 } from "../src/services/outbound-url-policy";
 import { AZURE_AI_FOUNDRY_REGION } from "../src/services/upstream";
 import { getSupportedProtocols, supportsResponsesApi } from "../src/utils/model-protocols";
+import { getAllowedChatParameters } from "../src/utils/model-capabilities";
 import { getUpstreamModelId } from "../src/utils/upstream-model-aliases";
 import { getOpenAiPromptCacheUsage } from "../src/utils/cache-billing";
 import { buildUpstreamChatRequest } from "../src/utils/chat-request";
@@ -76,9 +77,24 @@ const chatRequest = buildUpstreamChatRequest(astra, {
   model: modelId,
   messages: [{ role: "user", content: "hello" }],
   max_tokens: 512,
+  temperature: 0.7,
+  top_p: 0.8,
 });
 assert.equal(chatRequest.max_tokens, undefined);
 assert.equal(chatRequest.max_completion_tokens, 512);
+assert.equal(chatRequest.temperature, undefined);
+assert.equal(chatRequest.top_p, undefined);
+assert.deepEqual(getAllowedChatParameters(astra), [
+  "model",
+  "messages",
+  "stream",
+  "stream_options",
+  "max_tokens",
+  "max_completion_tokens",
+  "tools",
+  "tool_choice",
+  "response_format",
+]);
 assert.deepEqual(getSupportedProtocols(astra), [
   "openai/chat-completions",
   "openai/responses",
