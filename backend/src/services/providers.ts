@@ -126,11 +126,11 @@ export async function ensureRoutingDefaults(): Promise<void> {
     contact_email: "ops@nexusflow.hk",
     status: "disabled",
   });
-  await ensureProvider({
+  const azure = await ensureProvider({
     id: azureConfig.id,
     name: azureConfig.name,
     slug: azureConfig.id,
-    description: "Azure OpenAI v1 渠道；官方价格与轮换凭据验证完成前保持停用。",
+    description: "Azure OpenAI v1 渠道，承载 GPT-6 Astra。",
     website: "https://azure.microsoft.com/products/ai-foundry/",
     api_base_url: azureConfig.baseUrl,
     api_key: "",
@@ -160,6 +160,8 @@ export async function ensureRoutingDefaults(): Promise<void> {
       routedProvider = jawayK3;
     } else if (model.id.startsWith("claude-")) {
       routedProvider = himodels;
+    } else if (model.id === "gpt-6-astra") {
+      routedProvider = azure;
     } else if (model.id.startsWith("seedance-")) {
       routedProvider = volcengineArk;
     } else {
@@ -167,14 +169,15 @@ export async function ensureRoutingDefaults(): Promise<void> {
     }
     if (await getCapacity(routedProvider.id, model.id)) continue;
     const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
+    const isAstra = model.id === "gpt-6-astra";
     await upsertCapacity(routedProvider.id, model.id, {
-      rpm_limit: 1000,
-      tpm_limit: isTaskModel ? 0 : 1000000,
-      daily_limit: 100000,
-      concurrent_limit: isTaskModel ? 10 : 0,
-      priority: 10,
+      rpm_limit: isAstra ? 2 : 1000,
+      tpm_limit: isAstra ? 1_200_000 : isTaskModel ? 0 : 1000000,
+      daily_limit: isAstra ? 100 : 100000,
+      concurrent_limit: isAstra ? 1 : isTaskModel ? 10 : 0,
+      priority: isAstra ? 100 : 10,
       weight: 100,
-      is_enabled: !model.id.startsWith("claude-"),
+      is_enabled: !model.id.startsWith("claude-") && !isAstra,
     });
   }
 }

@@ -1900,28 +1900,32 @@ const staticModels: AIModel[] = [
     maxOutput: 8192,
     supported: ["文本", "函数调用"]
   },
-];
-
-const announcedModels: AnnouncedAIModel[] = [
   {
     id: "gpt-6-astra",
     name: "GPT-6 Astra",
     provider: "Azure AI Foundry",
-    description: "Azure AI Foundry GPT-6 Astra（2026-09-03）。支持文本与图像输入、推理、工具调用、结构化输出、Chat Completions 和 Responses API。Azure 官方价格公布并完成凭据验证前不可调用。",
+    description: "Azure AI Foundry GPT-6 Astra，支持文本与图像输入、推理、工具调用、结构化输出、Chat Completions 和 Responses API。",
     contextLength: 1_050_000,
-    promptPrice: null,
-    completionPrice: null,
+    promptPrice: 68,
+    completionPrice: 340,
+    cacheReadPrice: 6.8,
+    cacheReadExplicitPrice: 6.8,
+    tokenPricingTiers: [
+      { label: "0<Token≤272K", maxTokens: 272_000, promptPrice: 68, completionPrice: 340, cacheReadPrice: 6.8, cacheReadExplicitPrice: 6.8 },
+      { label: "272K<Token≤1.05M", maxTokens: 1_050_000, promptPrice: 136, completionPrice: 510, cacheReadPrice: 13.6, cacheReadExplicitPrice: 13.6 },
+    ],
     pricingType: "token",
     category: "多模态模型",
-    tags: ["旗舰", "推理", "多模态", "工具调用", "百万上下文", "即将上线"],
+    tags: ["旗舰", "推理", "多模态", "工具调用", "百万上下文"],
     isFeatured: false,
     isNew: true,
     maxOutput: 128_000,
+    defaultOutputReservation: 16_384,
     supported: ["文本", "图像输入", "函数调用", "推理", "结构化输出"],
-    lifecycle: "announced",
-    pricingStatus: "unpublished",
   },
 ];
+
+const announcedModels: AnnouncedAIModel[] = [];
 
 export function getAnnouncedModels(): AnnouncedAIModel[] {
   return announcedModels.map((model) => ({ ...model }));

@@ -46,7 +46,8 @@
     "db:pg:migrate": "ts-node src/db/migrate.ts",
     "db:pg:copy": "ts-node src/db/copy-sqlite-to-pg.ts",
     "db:pg:verify": "ts-node src/db/verify-pg.ts",
-    "provider-cost:backfill": "ts-node src/cli/backfill-provider-costs.ts"
+    "provider-cost:backfill": "ts-node src/cli/backfill-provider-costs.ts",
+    "azure-astra:control": "ts-node src/cli/azure-astra-control.ts"
   },
   "keywords": [],
   "author": "",

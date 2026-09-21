@@ -69,7 +69,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 应用节点 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
-| 模型目录 | 95 个可计费静态模型 + 1 个公告模型（2026-09-20 重算）；`gpt-6-astra` 仅在 `/api/models` 披露，价格与凭据验证完成前不进入计费运行时或 `/v1/models` |
+| 模型目录 | 96 个可计费静态模型（2026-09-21 重算）；`gpt-6-astra` 通过 Azure AI Foundry 的 East US 2 deployment 提供 Chat Completions 与 Responses |
 | 数据库迁移 | 仓库已提交到 `023_provider_list_price_fallback.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
@@ -211,7 +211,7 @@ Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720
 - Kimi K3 的 Messages 支持曾因上游差异走自建桥，切换逻辑由模型字段控制；`kimi-k3` 自 2026-08-09 起使用 Jaway K3 专线上游，OpenAI Chat 与 Anthropic Messages 均原生直通，非标准 HTTPS 端口必须同时命中主机和精确端点白名单。
 - 模型 ID 可能包含 `/`，例如 `MiniMax/MiniMax-M3`。前端、Next proxy 和 Express 路径必须保留编码，不能把 `%2F` 提前拆成路径段。
 - Responses 内置工具可能产生非 Token 上游费用。默认只允许本地 `function` 类型；其它类型必须通过 `RESPONSE_ALLOWED_TOOLS` 明确放行并先确认成本模型。
-- `gpt-6-astra` 已声明 OpenAI Chat Completions 与 Responses 契约，但属于公告模型：Azure AI Foundry Provider 固定 `eastus2`，使用 `/openai/v1` 和 `api-key` 认证，当前 disabled 且无可用 capacity。
+- `gpt-6-astra` 通过 Azure AI Foundry Provider 固定 `eastus2`，使用 `/openai/v1` 和 `api-key` 认证；Provider 凭据加密存储，路由由保守 capacity 和共享 Redis 容量租约控制。
 - 上游成本先使用可追溯的合同、发票、人工核验或私有折扣表价本；没有可适用价本时，使用请求结算时固化的官方原价。客户折后实付不能代替官方原价，估算请求和 Provider 不明请求仍然失败关闭。
 - `messagesRouter` 必须在通用 `/v1` router 之前挂载，避免被通用路由截获。
 
@@ -228,7 +228,7 @@ Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720
 - 模型目录定义用户看到什么、价格、能力和协议；
 - Provider 映射定义某个模型能路由到哪些上游、容量、优先级和区域。
 
-Provider 选择综合静态注册、数据库 Provider、`provider_capacity`、渠道配置、健康、区域和用户策略。区域支持已预埋北京/新加坡/美国/法兰克福，但只有配置了对应渠道与区域 Key 才生效；不能因为代码存在就宣称海外区域已可用。
+Provider 选择综合静态注册、数据库 Provider、`provider_capacity`、渠道配置、健康、区域和用户策略。`gpt-6-astra` 只能命中 Azure AI Foundry 的受管路由；缺少数据库 capacity、加密凭据或共享 Redis 容量状态时失败关闭，不回退到静态环境变量。区域支持已预埋北京/新加坡/美国/法兰克福，但只有配置了对应渠道与区域 Key 才生效。
 
 Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移时同时拆分。当调用规模和多 Provider 复杂度足够大后，它将独立为 NexusFlow 核心平台能力，覆盖同模型多 Provider、动态权重/优先级、主备切换、客户/地区/价格/SLA 路由、容量租约、熔断/恢复/健康评分、手动锁定和成本质量最优选路。自动优化必须先满足模型兼容、客户 SLA、地域合规、容量和健康门禁，未知成本不得当作 0。每笔选路必须保存策略版本、候选集、中选理由、重试/熔断链、价本版本和人工干预，使决策可解释、可回放、可审计。
 

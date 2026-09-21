@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import { getAnnouncedModels, models } from "../src/data/models";
+import {
+  getAnnouncedModels,
+  getTokenPricingTier,
+  models,
+  resolveCachePricing,
+} from "../src/data/models";
 import {
   findProvider,
   getProviderAuthHeaders,
@@ -12,6 +17,7 @@ import {
 import { AZURE_AI_FOUNDRY_REGION } from "../src/services/upstream";
 import { getSupportedProtocols, supportsResponsesApi } from "../src/utils/model-protocols";
 import { getUpstreamModelId } from "../src/utils/upstream-model-aliases";
+import { getOpenAiPromptCacheUsage } from "../src/utils/cache-billing";
 
 const modelId = "gpt-6-astra";
 const provider = findProvider(modelId);
@@ -47,20 +53,27 @@ assert.equal(
 
 assert.equal(getUpstreamModelId(modelId, provider.id), modelId);
 assert.equal(supportsResponsesApi(modelId), true);
-const announced = getAnnouncedModels().find((model) => model.id === modelId);
-assert.ok(announced);
-assert.equal(announced.promptPrice, null);
-assert.equal(announced.completionPrice, null);
-assert.equal(announced.pricingStatus, "unpublished");
-assert.equal(announced.lifecycle, "announced");
-assert.deepEqual(getSupportedProtocols(announced), [
+assert.equal(getAnnouncedModels().some((model) => model.id === modelId), false);
+const astra = models.find((model) => model.id === modelId);
+assert.ok(astra);
+assert.equal(astra.promptPrice, 68);
+assert.equal(astra.completionPrice, 340);
+assert.equal(getTokenPricingTier(astra, 272_000)?.promptPrice, 68);
+assert.equal(getTokenPricingTier(astra, 272_001)?.promptPrice, 136);
+assert.equal(resolveCachePricing(astra, getTokenPricingTier(astra, 272_000)).implicitHit, 6.8);
+assert.equal(resolveCachePricing(astra, getTokenPricingTier(astra, 272_000)).explicitCreation, 85);
+assert.equal(resolveCachePricing(astra, getTokenPricingTier(astra, 272_001)).implicitHit, 13.6);
+assert.equal(resolveCachePricing(astra, getTokenPricingTier(astra, 272_001)).explicitCreation, 170);
+assert.equal(getOpenAiPromptCacheUsage({
+  prompt_tokens: 100,
+  prompt_tokens_details: {
+    cache_write_tokens: 40,
+    cache_creation_input_tokens: 99,
+  },
+}).cacheCreationTokens, 40, "Azure cache_write_tokens must be authoritative without double counting");
+assert.deepEqual(getSupportedProtocols(astra), [
   "openai/chat-completions",
   "openai/responses",
 ]);
-assert.equal(
-  models.some((model) => model.id === modelId),
-  false,
-  "unpriced Azure model must not enter billable runtime catalog"
-);
 
 console.log("azure-provider-contract-ok");

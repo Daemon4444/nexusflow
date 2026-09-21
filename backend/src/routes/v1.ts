@@ -109,6 +109,7 @@ function normalizeOpenAiStreamLine(line: string, logId: string, modelId: string)
         event.usage.prompt_tokens_details = {
           ...details,
           cached_tokens: Number(details.cached_tokens || 0),
+          cache_write_tokens: Number(details.cache_write_tokens || 0),
           cache_creation_input_tokens: Number(details.cache_creation_input_tokens || 0),
         };
         event.usage.completion_tokens_details = {

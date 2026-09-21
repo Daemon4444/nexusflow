@@ -162,6 +162,14 @@ export async function resolveUpstream(
   // provider_capacity yet. Once a managed route exists it is authoritative,
   // so disabled/unhealthy routes can never silently fall back to environment
   // variables and bypass the control plane.
+  if (modelId === "gpt-6-astra") {
+    return {
+      ok: false,
+      status: 503,
+      code: "provider_unavailable",
+      message: `No active provider route is currently available for model '${modelId}'.`,
+    };
+  }
   const provider = findProvider(modelId);
   if (!provider) {
     return {

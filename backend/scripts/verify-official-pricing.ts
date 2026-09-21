@@ -21,6 +21,14 @@ interface Ref {
 }
 
 const REF: Record<string, Ref> = {
+  "gpt-6-astra": {
+    ctx: 1_050_000,
+    maxOut: 128_000,
+    tiers: [
+      { max: 272_000, in: 68, out: 340, cache: 6.8, read: 6.8 },
+      { max: 1_050_000, in: 136, out: 510, cache: 13.6, read: 13.6 },
+    ],
+  },
   "claude-haiku-4-5": { ctx: 200000, maxOut: 64000, in: 6.8, out: 34, cache: 0.68, read: 0.68 },
   "claude-sonnet-4-6": { ctx: 1000000, maxOut: 64000, in: 20.4, out: 102, cache: 2.04, read: 2.04 },
   "claude-sonnet-5": { ctx: 1000000, maxOut: 128000, in: 13.6, out: 68, cache: 1.36, read: 1.36 },

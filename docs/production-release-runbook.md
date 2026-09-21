@@ -586,12 +586,12 @@ PROVIDER_OUTBOUND_HOST_ALLOWLIST=api.anthropic.com,api.himodels.ai,developerhele
 PROVIDER_OUTBOUND_ENDPOINT_ALLOWLIST=jawayid.com:3000
 ```
 
-The Azure hostname only permits the preconfigured HTTPS/443 endpoint; it does
-not enable `gpt-6-astra`. Keep the Azure Provider disabled and do not set
-`AZURE_AI_FOUNDRY_API_KEY` until the exposed credential has been revoked, a new
-credential has been injected through the root-owned `0600` environment on both
-nodes, official Azure prices have been recorded, and real Chat/Responses smoke
-calls plus ledger reconciliation pass.
+The Azure hostname only permits the preconfigured HTTPS/443 endpoint. Stage a
+rotated credential only through `/run/nexusflow-azure-key` with root:root `0600`
+permissions and `azure-astra-control`; the command verifies the deployment,
+encrypts the credential into the shared control-plane database, and deletes the
+staging file. Enable the Provider only after official prices, Chat/Responses
+smoke calls, and ledger reconciliation are ready.
 
 The production environments currently have no HTTP(S) proxy. Do not introduce
 one: startup, preflight, and PM2 verification reject proxy variables. The

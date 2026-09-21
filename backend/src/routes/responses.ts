@@ -756,13 +756,19 @@ async function billAndLog(
   const outputTokens = usage.output_tokens || 0;
   const totalTokens = usage.total_tokens || inputTokens + outputTokens;
   const cachedTokens = usage.input_tokens_details?.cached_tokens || 0;
+  const cacheWriteTokens = usage.input_tokens_details?.cache_write_tokens
+    ?? usage.input_tokens_details?.cache_creation_input_tokens
+    ?? 0;
 
   // Map Response API usage to OpenAI-style for billing calculation
   const billingUsage = {
     prompt_tokens: inputTokens,
     completion_tokens: outputTokens,
     total_tokens: totalTokens,
-    prompt_tokens_details: { cached_tokens: cachedTokens },
+    prompt_tokens_details: {
+      cached_tokens: cachedTokens,
+      cache_write_tokens: cacheWriteTokens,
+    },
     completion_tokens_details: {
       reasoning_tokens: usage.output_tokens_details?.reasoning_tokens
         ?? usage.completion_tokens_details?.reasoning_tokens

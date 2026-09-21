@@ -24,7 +24,7 @@
 
 NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
-- **95 个可计费静态模型 + 1 个公告模型（2026-09-20 校准）**：`GET /api/models` 默认披露 96 个条目；`gpt-6-astra` 在 Azure 官方价格和轮换凭据验证完成前不进入计费运行时，也不出现在 `/v1/models`
+- **96 个可计费静态模型（2026-09-21 校准）**：`gpt-6-astra` 通过 Azure AI Foundry East US 2 deployment 提供 Chat Completions 与 Responses，运行时数量以 API 与数据库覆盖层为准
 - **OpenAI 协议兼容**: 支持 OpenAI Chat Completions、Embeddings、Image Generations 协议
 - **多协议支持**: 同时支持 Anthropic Messages 和 OpenAI Responses API 协议
 - **统一计费**: 按 Token 或按生成数量计费，价格透明
@@ -38,14 +38,14 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 |------|----------|------|
 | 大语言模型 | 39 | 通用对话、文本生成 |
 | 推理模型 | 7 | 数学、逻辑、复杂推理 |
-| 多模态模型 | 12 | 视觉理解、图像输入；含 1 个公告模型 |
+| 多模态模型 | 12 | 视觉理解、图像输入 |
 | 编程模型 | 4 | 代码生成、代码补全 |
 | 专业模型 | 2 | 翻译、意图识别 |
 | 向量模型 | 2 | 文本嵌入、语义搜索 |
 | 语音模型 | 2 | 语音识别、语音合成 |
 | 图像生成 | 3 | 文生图、图像编辑 |
 | 视频生成 | 25 | 文生视频、图生视频、视频编辑 |
-| **总计** | **96** | 95 个可计费静态模型 + 1 个公告模型；运行时以 API 与数据库覆盖层为准 |
+| **总计** | **96** | 96 个可计费静态模型；运行时以 API 与数据库覆盖层为准 |
 
 ---
 
@@ -57,7 +57,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 |----------|--------------|----------|------|
 | DashScope (阿里云百炼) | `https://dashscope.aliyuncs.com/api/v1` | Qwen系列、DeepSeek、GLM、Kimi、MiniMax、万相视频、HappyHorse | **活跃** |
 | HiModels | 原生 Anthropic Messages 兼容端点 | 七个 Claude 公共 ID 对应的 `20260820` 固定快照 | **已验证同步与流式** |
-| Azure AI Foundry | `https://developerhelena-1129-resource.services.ai.azure.com/openai/v1` | `gpt-6-astra`，East US 2 | **停用；价格待公布** |
+| Azure AI Foundry | `https://developerhelena-1129-resource.services.ai.azure.com/openai/v1` | `gpt-6-astra`，East US 2 | **受管路由；保守容量** |
 | Jaway K3 专线 | `https://jawayid.com:3000/v1` | `kimi-k3`（OpenAI Chat + Anthropic Messages） | **活跃** |
 | PixVerse 官方 | `https://app-api.pixverse.ai/openapi/v2` | PixVerse V6 视频生成 | **活跃** |
 
@@ -82,15 +82,13 @@ DASHSCOPE_API_KEY=sk-your-dashscope-api-key
 PIXVERSE_API_KEY=sk-your-pixverse-api-key
 ```
 
-Claude 请求使用服务端管理的 HiModels Provider 配置；客户端只需 NexusFlow API Key，不需要 Anthropic 官方 API Key。Azure 预留环境变量为 `AZURE_AI_FOUNDRY_API_KEY`，上游认证头为 `api-key`；当前不得配置已暴露凭据，Provider 保持 disabled。
+Claude 请求使用服务端管理的 HiModels Provider 配置；客户端只需 NexusFlow API Key，不需要 Anthropic 官方 API Key。Azure 凭据通过 root-only 暂存文件验证后加密存入共享 Provider 控制面，上游认证头为 `api-key`。
 
-### GPT-6 Astra（公告）
+### GPT-6 Astra
 
-| 公共模型 ID | Azure deployment | 区域 | 上下文 | 最大输入 | 最大输出 | 协议 | 价格与状态 |
+| 公共模型 ID | Azure deployment | 区域 | 上下文 | 最大输入 | 最大输出 | 协议 | 标准价格（每百万 Token） |
 |---|---|---|---:|---:|---:|---|---|
-| `gpt-6-astra` | `gpt-6-astra` | `eastus2` | 1,050,000 | 922,000 | 128,000 | Chat Completions、Responses | Azure 官方价格待公布；不可调用 |
-
-该条目只存在于 `/api/models` 公告目录，`promptPrice`/`completionPrice` 为 `null`；它不进入计费数组、不出现在 `/v1/models`，也不会创建可用 capacity。官方价格、轮换密钥、真实请求与账本核对全部完成后，才能转为可售模型。
+| `gpt-6-astra` | `gpt-6-astra` | `eastus2` | 1,050,000 | 922,000 | 128,000 | Chat Completions、Responses | ≤272K：输入 ¥68 / 缓存读 ¥6.8 / 缓存写 ¥85 / 输出 ¥340；>272K：输入 ¥136 / 缓存读 ¥13.6 / 缓存写 ¥170 / 输出 ¥510 |
 
 ---
 
@@ -366,9 +364,7 @@ NexusFlow public API 当前开放 OpenAI Chat/Images/Embeddings、Anthropic Mess
 | Kimi 系列 | ✅ | ✅（`kimi-k3` 由上游原生 Messages 端点支持） | ❌ |
 | MiniMax 系列 | ✅ | ✅ | ❌ |
 | Claude 系列（HiModels 上游） | ❌ | ✅（原生 Messages 兼容） | ❌ |
-| GPT-6 Astra（Azure，公告） | ⏳ | ❌ | ⏳ |
-
-`gpt-6-astra` 的 ⏳ 表示协议契约已接入但模型尚不可调用，不表示已有生产容量。
+| GPT-6 Astra（Azure AI Foundry） | ✅ | ❌ | ✅ |
 
 对 GLM / DeepSeek / Kimi / MiniMax 调用 `/v1/responses`，或对 Claude 调用 `/v1/chat/completions`、`/v1/responses` 时，会返回 `Unsupported model` 错误。请使用该模型详情返回的 `supported_protocols`。
 
@@ -476,7 +472,7 @@ Authorization: Bearer YOUR_API_KEY
 | 月之暗面 | 6 | Kimi K3、Kimi K2 系列 |
 | MiniMax | 4 | M3、M2.7、M2.5、M2.1 |
 | Anthropic via HiModels | 7 | Claude Sonnet 5、Opus 5、Fable 5、Opus 4.8/4.7、Sonnet 4.6、Haiku 4.5 |
-| Azure AI Foundry | 1（公告） | GPT-6 Astra；未计入 95 个可计费模型 |
+| Azure AI Foundry | 1 | GPT-6 Astra |
 
 ---
 
@@ -489,7 +485,7 @@ Authorization: Bearer YOUR_API_KEY
                             │ DashScope (百炼)   │ ← Qwen/DeepSeek/GLM/Kimi/MiniMax/Wan/HappyHorse
                             │ HiModels           │ ← Claude（原生 Anthropic Messages 兼容）
                             │ PIXVERSE Official  │ ← PixVerse V6
-                            │ Azure AI Foundry   │ ← GPT-6 Astra（disabled）
+                            │ Azure AI Foundry   │ ← GPT-6 Astra（受管容量）
                             └────────────────────┘
 ```
 
@@ -498,7 +494,7 @@ Authorization: Bearer YOUR_API_KEY
 ## 更新日期
 
 文档更新时间: 2026-09-20（HiModels 上游快照版本：20260820）
-模型数据来源: `backend/src/data/models.ts`（95 个可计费静态条目 + 1 个公告条目）+ `/api/models` 公共目录 + 数据库覆盖层
+模型数据来源: `backend/src/data/models.ts`（96 个可计费静态条目）+ `/api/models` 公共目录 + 数据库覆盖层
 
 ---
 

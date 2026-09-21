@@ -166,6 +166,7 @@ const EXPLICIT_CONTEXT_CACHE_MODELS = new Set([
 ]);
 
 const IMPLICIT_CONTEXT_CACHE_MODELS = new Set([
+  "gpt-6-astra",
   "qwen3.8-max",
   "qwen3.8-flash",
   "qwen3.7-max",

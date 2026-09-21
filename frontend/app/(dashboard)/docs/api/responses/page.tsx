@@ -293,7 +293,7 @@ export default function ResponsesApiPage() {
             marginTop: 10, paddingTop: 10, borderTop: "1px dashed #fcd34d",
             fontSize: 13, color: "#92400e", lineHeight: 1.7,
           }}>
-            当前可调用范围包括百炼白名单中的 Qwen 与 DeepSeek 模型。<code style={{ fontSize: 11 }}>gpt-6-astra</code> 已预告支持 Responses API，但在 Azure 官方价格与安全凭据就绪前保持不可调用。
+            当前可调用范围包括百炼白名单中的 Qwen 与 DeepSeek 模型，以及 Azure AI Foundry 的 <code style={{ fontSize: 11 }}>gpt-6-astra</code>。
           </div>
         </div>
       </section>

@@ -5,6 +5,7 @@ import { applyUserModelDiscount } from "../data/user-discounts";
 /** Token usage shapes consumed by billing. All fields optional — upstreams omit some. */
 export interface OpenAiTokenDetails {
   cached_tokens?: number;
+  cache_write_tokens?: number;
   cache_creation_input_tokens?: number;
   audio_tokens?: number;
   reasoning_tokens?: number;
@@ -77,11 +78,14 @@ export function getOpenAiPromptCacheUsage(usage: OpenAiUsage | null | undefined)
   cacheCreationTokens: number;
 } {
   const details = usage?.prompt_tokens_details || {};
+  const cacheCreationTokens = details.cache_write_tokens !== undefined
+    ? toTokenCount(details.cache_write_tokens)
+    : toTokenCount(details.cache_creation_input_tokens);
   return {
     promptTokens: toTokenCount(usage?.prompt_tokens),
     completionTokens: toTokenCount(usage?.completion_tokens),
     cachedTokens: toTokenCount(details.cached_tokens),
-    cacheCreationTokens: toTokenCount(details.cache_creation_input_tokens),
+    cacheCreationTokens,
   };
 }
 
