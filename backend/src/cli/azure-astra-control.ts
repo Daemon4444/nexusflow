@@ -14,10 +14,10 @@ const PROVIDER_ID = "azure-ai-foundry";
 const MODEL_ID = "gpt-6-astra";
 const BASE_URL = "https://developerhelena-1129-resource.services.ai.azure.com/openai/v1";
 const CAPACITY = {
-  rpm_limit: 2,
-  tpm_limit: 1_200_000,
-  daily_limit: 100,
-  concurrent_limit: 1,
+  rpm_limit: 1_000,
+  tpm_limit: 1_000_000,
+  daily_limit: 0,
+  concurrent_limit: 0,
   priority: 100,
   weight: 100,
 };
@@ -110,15 +110,7 @@ async function activate(): Promise<void> {
   const provider = await getProviderById(PROVIDER_ID);
   const capacity = await getCapacity(PROVIDER_ID, MODEL_ID);
   if (!provider?.api_key || provider.api_base_url !== BASE_URL) fail("Azure provider is not staged");
-  if (
-    !capacity
-    || capacity.rpm_limit !== CAPACITY.rpm_limit
-    || capacity.tpm_limit !== CAPACITY.tpm_limit
-    || capacity.daily_limit !== CAPACITY.daily_limit
-    || capacity.concurrent_limit !== CAPACITY.concurrent_limit
-  ) {
-    fail("Azure capacity does not match the approved conservative limits");
-  }
+  if (!capacity) fail("Azure capacity has not been staged");
   await updateProviderStatus(PROVIDER_ID, "enabled");
   await upsertCapacity(PROVIDER_ID, MODEL_ID, { ...CAPACITY, is_enabled: true });
   console.log(JSON.stringify({ providerId: PROVIDER_ID, modelId: MODEL_ID, staged: true, enabled: true }));

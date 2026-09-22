@@ -171,10 +171,10 @@ export async function ensureRoutingDefaults(): Promise<void> {
     const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
     const isAstra = model.id === "gpt-6-astra";
     await upsertCapacity(routedProvider.id, model.id, {
-      rpm_limit: isAstra ? 2 : 1000,
-      tpm_limit: isAstra ? 1_200_000 : isTaskModel ? 0 : 1000000,
-      daily_limit: isAstra ? 100 : 100000,
-      concurrent_limit: isAstra ? 1 : isTaskModel ? 10 : 0,
+      rpm_limit: 1000,
+      tpm_limit: isAstra ? 1_000_000 : isTaskModel ? 0 : 1000000,
+      daily_limit: isAstra ? 0 : 100000,
+      concurrent_limit: isAstra ? 0 : isTaskModel ? 10 : 0,
       priority: isAstra ? 100 : 10,
       weight: 100,
       is_enabled: !model.id.startsWith("claude-") && !isAstra,

@@ -57,7 +57,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 |----------|--------------|----------|------|
 | DashScope (阿里云百炼) | `https://dashscope.aliyuncs.com/api/v1` | Qwen系列、DeepSeek、GLM、Kimi、MiniMax、万相视频、HappyHorse | **活跃** |
 | HiModels | 原生 Anthropic Messages 兼容端点 | 七个 Claude 公共 ID 对应的 `20260820` 固定快照 | **已验证同步与流式** |
-| Azure AI Foundry | `https://developerhelena-1129-resource.services.ai.azure.com/openai/v1` | `gpt-6-astra`，East US 2 | **受管路由；保守容量** |
+| Azure AI Foundry | `https://developerhelena-1129-resource.services.ai.azure.com/openai/v1` | `gpt-6-astra`，East US 2 | **受管路由；1000 RPM / 1M TPM** |
 | Jaway K3 专线 | `https://jawayid.com:3000/v1` | `kimi-k3`（OpenAI Chat + Anthropic Messages） | **活跃** |
 | PixVerse 官方 | `https://app-api.pixverse.ai/openapi/v2` | PixVerse V6 视频生成 | **活跃** |
 

@@ -211,7 +211,7 @@ Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720
 - Kimi K3 的 Messages 支持曾因上游差异走自建桥，切换逻辑由模型字段控制；`kimi-k3` 自 2026-08-09 起使用 Jaway K3 专线上游，OpenAI Chat 与 Anthropic Messages 均原生直通，非标准 HTTPS 端口必须同时命中主机和精确端点白名单。
 - 模型 ID 可能包含 `/`，例如 `MiniMax/MiniMax-M3`。前端、Next proxy 和 Express 路径必须保留编码，不能把 `%2F` 提前拆成路径段。
 - Responses 内置工具可能产生非 Token 上游费用。默认只允许本地 `function` 类型；其它类型必须通过 `RESPONSE_ALLOWED_TOOLS` 明确放行并先确认成本模型。
-- `gpt-6-astra` 通过 Azure AI Foundry Provider 固定 `eastus2`，使用 `/openai/v1` 和 `api-key` 认证；Provider 凭据加密存储，路由由保守 capacity 和共享 Redis 容量租约控制。
+- `gpt-6-astra` 通过 Azure AI Foundry Provider 固定 `eastus2`，使用 `/openai/v1` 和 `api-key` 认证；Provider 凭据加密存储，路由按上游响应头确认的 1000 RPM / 1M TPM 与共享 Redis 容量租约控制。
 - 上游成本先使用可追溯的合同、发票、人工核验或私有折扣表价本；没有可适用价本时，使用请求结算时固化的官方原价。客户折后实付不能代替官方原价，估算请求和 Provider 不明请求仍然失败关闭。
 - `messagesRouter` 必须在通用 `/v1` router 之前挂载，避免被通用路由截获。
 
