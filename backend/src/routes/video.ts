@@ -28,7 +28,7 @@ import {
 } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
 import { getProviderChannel } from "../data/provider-channels";
-import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
+import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost, settleAsyncCost } from "../services/async-billing";
 import { releaseReservation, reserveBalanceWithReason } from "../data/billing";
 import { isModelAllowed } from "../data/model-access";
 import { reserveAccountQpm } from "../services/account-rate-limiter";
@@ -311,13 +311,26 @@ export const handleGenerate = async (req: Request, res: Response) => {
   };
   const apiKey = selected.apiKey;
 
-  const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, {
-    duration,
-    quality,
-    resolution: normalizedResolution,
-    audio,
-    audio_setting,
-  });
+  let estimatedCost: number;
+  try {
+    estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, {
+      duration,
+      quality,
+      // t2v/r2v 归一化的结果落在 size 上而不是 resolution，漏传会让计费拿不到档位
+      size: normalizedSize,
+      resolution: normalizedResolution,
+      video_url,
+      audio,
+      audio_setting,
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error instanceof Error ? error.message : "无法为该请求定价",
+      code: "unsupported_video_parameters",
+    });
+    return;
+  }
   const reservationResult = await reserveBalanceWithReason(
     caller.userId,
     estimatedCost,
@@ -713,7 +726,7 @@ export const handleVideoStatus = async (req: Request, res: Response) => {
         const model = models.find((m) => m.id === task.model);
         const output = { ...(result.output || {}), ...(result.usage ? { usage: result.usage } : {}) };
         const cost = model
-          ? await estimateDiscountedAsyncCost(task.user_id, model, { ...(task.input || {}), usage: result.usage })
+          ? await settleAsyncCost(task.user_id, model, task.input || {}, result.usage)
           : 0;
         const won = await completeTask(task.id, output, cost);
         if (won && model) {

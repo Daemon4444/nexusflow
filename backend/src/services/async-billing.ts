@@ -3,6 +3,7 @@ import { AIModel } from "../data/models";
 import { AsyncTask } from "../data/tasks";
 import { logUsage } from "../data/usage";
 import { applyUserModelDiscount } from "../data/user-discounts";
+import { resolveVideoSizeTier } from "../utils/video-parameters";
 
 function money(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000;
@@ -13,6 +14,7 @@ type AsyncCostParams = {
   duration?: number;
   quality?: string;
   resolution?: string;
+  size?: string;
   audio?: boolean;
   audio_setting?: unknown;
   video_url?: string;
@@ -21,12 +23,19 @@ type AsyncCostParams = {
 
 function normalizeResolution(params: AsyncCostParams): "360p" | "480p" | "540p" | "720p" | "1080p" | "4k" {
   const raw = String(params.resolution || params.quality || "").toLowerCase();
-  if (raw.includes("4k") || raw.includes("2160")) return "4k";
-  if (raw.includes("1080")) return "1080p";
-  if (raw.includes("720")) return "720p";
-  if (raw.includes("540")) return "540p";
-  if (raw.includes("480")) return "480p";
-  if (raw.includes("360")) return "360p";
+  if (raw) {
+    if (raw.includes("4k") || raw.includes("2160")) return "4k";
+    if (raw.includes("1080")) return "1080p";
+    if (raw.includes("720")) return "720p";
+    if (raw.includes("540")) return "540p";
+    if (raw.includes("480")) return "480p";
+    if (raw.includes("360")) return "360p";
+  }
+  // t2v/r2v 归一化后只留下 size（parameters.size 才是下发给上游的字段）。不读它
+  // 会让「按 size 表达的 1080P」按 720P 结算，也会让只配了 720P/1080P 的模型
+  // （wan2.7 系列）在默认档上直接失去价格。
+  const sizeTier = resolveVideoSizeTier(params.size);
+  if (sizeTier) return sizeTier === "1080P" ? "1080p" : "720p";
   return "540p";
 }
 
@@ -138,9 +147,9 @@ function getVideoBillableDuration(modelId: string, params: AsyncCostParams): num
     if (Number.isFinite(input) && input >= 0 && Number.isFinite(output) && output > 0) {
       return input + output;
     }
-    if (modelId === "wan2.7-videoedit" || (modelId === "wan2.7-r2v" && params.video_url)) {
-      throw new Error(`Missing billable video duration in usage for '${modelId}'`);
-    }
+    // usage 缺时长时不能抛错：这里跑在任务轮询路径上，抛错会让 completeTask
+    // 永远不执行，任务卡在 pending 且预留余额不释放。下面的回退公式已经把
+    // 输入视频时长计入，直接落回退即可。
   }
 
   if (modelId === "wan2.7-videoedit") {
@@ -175,6 +184,38 @@ export async function estimateDiscountedAsyncCost(
   params: AsyncCostParams
 ): Promise<number> {
   return (await applyUserModelDiscount(userId, model.id, estimateAsyncCost(model, params))).finalAmount;
+}
+
+/**
+ * 任务轮询路径的结算取价。跑在 completeTask 之前，所以这里绝不能抛错：
+ * 抛错会让任务永远停在 pending，并且预留余额不会释放。优先用上游 usage 的
+ * 真实时长；取价失败就退回创建时那套参数（它在建单时已经成功过一次）；
+ * 都失败才记一条日志并按 0 结算，把任务放行给退款路径。
+ */
+export async function settleAsyncCost(
+  userId: string | null | undefined,
+  model: AIModel,
+  input: AsyncCostParams,
+  usage: Record<string, unknown> | undefined
+): Promise<number> {
+  try {
+    return await estimateDiscountedAsyncCost(userId, model, { ...input, usage });
+  } catch (withUsageError) {
+    try {
+      const fallback = await estimateDiscountedAsyncCost(userId, model, input);
+      console.warn(
+        `[async-billing] usage-based pricing failed for '${model.id}', fell back to request parameters:`,
+        withUsageError instanceof Error ? withUsageError.message : withUsageError
+      );
+      return fallback;
+    } catch (fallbackError) {
+      console.error(
+        `[async-billing] no price could be resolved for '${model.id}', settling at 0:`,
+        fallbackError instanceof Error ? fallbackError.message : fallbackError
+      );
+      return 0;
+    }
+  }
 }
 
 export async function hasEnoughBalance(userId: string | null | undefined, amount: number): Promise<boolean> {

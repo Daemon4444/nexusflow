@@ -45,7 +45,7 @@ import {
 } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
 import { getProviderChannel } from "../data/provider-channels";
-import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
+import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost, settleAsyncCost } from "../services/async-billing";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { BillingReservation, releaseReservation, reserveBalanceWithReason } from "../data/billing";
 import { sendBillingReservationFailure } from "../utils/billing-response";
@@ -237,7 +237,19 @@ router.post("/", async (req: Request, res: Response) => {
     }
   }
 
-  const estimatedCost = await estimateDiscountedAsyncCost(apiKeyRecord.user_id, model, params);
+  let estimatedCost: number;
+  try {
+    estimatedCost = await estimateDiscountedAsyncCost(apiKeyRecord.user_id, model, params);
+  } catch (error) {
+    res.status(400).json({
+      error: {
+        message: error instanceof Error ? error.message : "Unable to price this request",
+        type: "invalid_request_error",
+        code: "unsupported_video_parameters",
+      },
+    });
+    return;
+  }
   const resolvedUpstream = await resolveUpstream(modelId, {
     region: getRequestedRegion(req),
     userId: apiKeyRecord.user_id,
@@ -634,7 +646,7 @@ router.get("/:id", async (req: Request, res: Response) => {
       const model = models.find((m) => m.id === task.model);
       const output = { ...(result.output || {}), ...(result.usage ? { usage: result.usage } : {}) };
       const cost = model
-        ? await estimateDiscountedAsyncCost(task.user_id, model, { ...(task.input || {}), usage: result.usage })
+        ? await settleAsyncCost(task.user_id, model, task.input || {}, result.usage)
         : 0;
       const won = await completeTask(task.id, output, cost);
       if (won && model) {

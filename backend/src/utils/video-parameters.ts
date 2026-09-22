@@ -24,6 +24,19 @@ const ALLOWED_EXACT_SIZES = new Set(
   Object.values(DASH_SCOPE_VIDEO_SIZES).flatMap((ratios) => Object.values(ratios))
 );
 
+/** size 精确反查档位。960*960 / 1440*1440 不含 720/1080 字样，只能靠映射表。 */
+const SIZE_TO_RESOLUTION = new Map<string, "720P" | "1080P">(
+  Object.entries(DASH_SCOPE_VIDEO_SIZES).flatMap(([resolution, ratios]) =>
+    Object.values(ratios).map((size) => [size, resolution as "720P" | "1080P"] as const)
+  )
+);
+
+export function resolveVideoSizeTier(size?: unknown): "720P" | "1080P" | undefined {
+  if (size === undefined || size === null) return undefined;
+  const normalized = String(size).trim().toLowerCase().replace(/[x\u00d7]/g, "*");
+  return SIZE_TO_RESOLUTION.get(normalized);
+}
+
 export function normalizeDashScopeVideoSize(input: {
   size?: unknown;
   resolution?: unknown;
