@@ -29,13 +29,11 @@ const streamExample = `curl ${API_BASE}/v1/messages \\
   }'`;
 
 const models = [
-  { publicId: "claude-sonnet-5", snapshotId: "claude-sonnet-5-20260820", context: "1M", output: "128K", usd: "$2 / $10" },
-  { publicId: "claude-opus-5", snapshotId: "claude-opus-5-20260820", context: "1M", output: "128K", usd: "$5 / $25" },
-  { publicId: "claude-fable-5", snapshotId: "claude-fable-5-20260820", context: "1M", output: "128K", usd: "$10 / $50" },
-  { publicId: "claude-opus-4-8", snapshotId: "claude-opus-4-8-20260820", context: "1M", output: "128K", usd: "$5 / $25" },
-  { publicId: "claude-opus-4-7", snapshotId: "claude-opus-4-7-20260820", context: "1M", output: "128K", usd: "$5 / $25" },
-  { publicId: "claude-sonnet-4-6", snapshotId: "claude-sonnet-4-6-20260820", context: "1M", output: "64K", usd: "$3 / $15" },
-  { publicId: "claude-haiku-4-5", snapshotId: "claude-haiku-4-5-20260820", context: "200K", output: "64K", usd: "$1 / $5" },
+  { publicId: "claude-sonnet-5", snapshotId: "claude-sonnet-5-aws", context: "1M", output: "128K", usd: "$2 / $10" },
+  { publicId: "claude-opus-5", snapshotId: "claude-opus-5-aws", context: "1M", output: "128K", usd: "$5 / $25" },
+  { publicId: "claude-opus-4-8", snapshotId: "claude-opus-4-8-aws", context: "1M", output: "128K", usd: "$5 / $25" },
+  { publicId: "claude-sonnet-4-6", snapshotId: "claude-sonnet-4-6-aws", context: "1M", output: "64K", usd: "$3 / $15" },
+  { publicId: "claude-haiku-4-5", snapshotId: "claude-haiku-4-5-aws", context: "200K", output: "64K", usd: "$1 / $5" },
 ];
 
 export default function ClaudeDocsPage() {
@@ -61,7 +59,7 @@ export default function ClaudeDocsPage() {
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 780, margin: 0 }}>
           Claude 系列通过 HiModels 的原生 Anthropic Messages 兼容上游接入，而不是由 NexusFlow 直连 Anthropic 官方 API。
-          客户端始终提交不带日期后缀的稳定公共模型 ID；NexusFlow 将其映射到下表所列的 HiModels 固定快照。同步 <code>/v1/messages</code> 与 SSE 流式响应均已验证。
+          客户端始终提交稳定公共模型 ID；NexusFlow 将其映射到下表所列的 HiModels AWS 上游 ID。同步 <code>/v1/messages</code> 与 SSE 流式响应均已验证。
         </p>
       </div>
 
@@ -76,7 +74,7 @@ export default function ClaudeDocsPage() {
             ✓ 协议支持范围
           </div>
           <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.7 }}>
-            下列七个 Claude 公共 ID 均使用 HiModels 原生 Anthropic Messages 兼容路径；非流式响应与 Anthropic SSE 事件流均已验证。
+            下列五个 Claude 公共 ID 均使用 HiModels AWS 原生 Anthropic Messages 兼容路径；非流式响应与 Anthropic SSE 事件流均已验证。
             JSON 请求体兼容固定 <code>Content-Length</code>、HTTP/1.1 chunked，以及不携带 <code>Content-Length</code> 的 HTTP/2 客户端。
           </div>
         </div>

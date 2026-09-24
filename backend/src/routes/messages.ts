@@ -411,7 +411,13 @@ router.post("/", async (req: Request, res: Response) => {
 
       if (stream) {
         if (!response.ok) {
-          const errText = await response.text();
+          await response.text();
+          const authorizationFailure = response.status === 401 || response.status === 403;
+          const message = authorizationFailure
+            ? "Upstream provider authorization failed."
+            : response.status === 429
+              ? "Upstream provider rate limit exceeded."
+              : "Upstream provider rejected the request.";
           await logUpstreamFailure({
             logId,
             apiKeyId: apiKeyRecord.id,
@@ -423,16 +429,16 @@ router.post("/", async (req: Request, res: Response) => {
             protocol: "anthropic-messages",
             latencyMs: Date.now() - startTime,
             httpStatus: response.status,
-            errorReason: errText || "Upstream API error",
+            errorReason: `upstream_http_${response.status}`,
             reservationId: billingReservation.id,
             requestBody: req.body,
-            responseBody: errText || "Upstream API error",
+            responseBody: { status: response.status },
           });
           res.status(response.status).json({
             type: "error",
             error: {
-              type: "api_error",
-              message: errText,
+              type: authorizationFailure ? "authentication_error" : "api_error",
+              message,
             },
           });
           return;
@@ -576,6 +582,12 @@ router.post("/", async (req: Request, res: Response) => {
       const data: any = await response.json();
       restorePublicModelAlias(data, modelId);
       if (!response.ok) {
+        const authorizationFailure = response.status === 401 || response.status === 403;
+        const message = authorizationFailure
+          ? "Upstream provider authorization failed."
+          : response.status === 429
+            ? "Upstream provider rate limit exceeded."
+            : "Upstream provider rejected the request.";
         await logUpstreamFailure({
           logId,
           apiKeyId: apiKeyRecord.id,
@@ -587,12 +599,18 @@ router.post("/", async (req: Request, res: Response) => {
           protocol: "anthropic-messages",
           latencyMs: Date.now() - startTime,
           httpStatus: response.status,
-          errorReason: data?.error?.message || "Upstream API error",
+          errorReason: `upstream_http_${response.status}`,
           reservationId: billingReservation.id,
           requestBody: req.body,
-          responseBody: data,
+          responseBody: { status: response.status },
         });
-        res.status(response.status).json(data);
+        res.status(response.status).json({
+          type: "error",
+          error: {
+            type: authorizationFailure ? "authentication_error" : "api_error",
+            message,
+          },
+        });
         return;
       }
       billableResponseReceived = true;

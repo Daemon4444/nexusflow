@@ -24,7 +24,7 @@
 
 NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
-- **96 个可计费静态模型（2026-09-21 校准）**：`gpt-6-astra` 通过 Azure AI Foundry East US 2 deployment 提供 Chat Completions 与 Responses，运行时数量以 API 与数据库覆盖层为准
+- **94 个可计费静态模型（2026-09-24 校准）**：`gpt-6-astra` 通过 Azure AI Foundry East US 2 deployment 提供 Chat Completions 与 Responses，运行时数量以 API 与数据库覆盖层为准
 - **OpenAI 协议兼容**: 支持 OpenAI Chat Completions、Embeddings、Image Generations 协议
 - **多协议支持**: 同时支持 Anthropic Messages 和 OpenAI Responses API 协议
 - **统一计费**: 按 Token 或按生成数量计费，价格透明
@@ -36,7 +36,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
 | 分类 | 模型数量 | 说明 |
 |------|----------|------|
-| 大语言模型 | 39 | 通用对话、文本生成 |
+| 大语言模型 | 37 | 通用对话、文本生成 |
 | 推理模型 | 7 | 数学、逻辑、复杂推理 |
 | 多模态模型 | 12 | 视觉理解、图像输入 |
 | 编程模型 | 4 | 代码生成、代码补全 |
@@ -45,7 +45,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 | 语音模型 | 2 | 语音识别、语音合成 |
 | 图像生成 | 3 | 文生图、图像编辑 |
 | 视频生成 | 25 | 文生视频、图生视频、视频编辑 |
-| **总计** | **96** | 96 个可计费静态模型；运行时以 API 与数据库覆盖层为准 |
+| **总计** | **94** | 94 个可计费静态模型；运行时以 API 与数据库覆盖层为准 |
 
 ---
 
@@ -56,7 +56,7 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 | 渠道名称 | API 基础地址 | 主要服务 | 状态 |
 |----------|--------------|----------|------|
 | DashScope (阿里云百炼) | `https://dashscope.aliyuncs.com/api/v1` | Qwen系列、DeepSeek、GLM、Kimi、MiniMax、万相视频、HappyHorse | **活跃** |
-| HiModels | 原生 Anthropic Messages 兼容端点 | 七个 Claude 公共 ID 对应的 `20260820` 固定快照 | **已验证同步与流式** |
+| HiModels | 原生 Anthropic Messages 兼容端点 | 五个 Claude 公共 ID 对应的 `-aws` 上游模型 | **新凭据已验证；待双节点发布激活** |
 | Azure AI Foundry | `https://developerhelena-1129-resource.services.ai.azure.com/openai/v1` | `gpt-6-astra`，East US 2 | **受管路由；1000 RPM / 1M TPM** |
 | Jaway K3 专线 | `https://jawayid.com:3000/v1` | `kimi-k3`（OpenAI Chat + Anthropic Messages） | **活跃** |
 | PixVerse 官方 | `https://app-api.pixverse.ai/openapi/v2` | PixVerse V6 视频生成 | **活跃** |
@@ -98,13 +98,11 @@ Claude 请求使用服务端管理的 HiModels Provider 配置；客户端只需
 
 | NexusFlow 公共模型 ID | HiModels 上游快照 ID | 上下文窗口 | 最大输出 | 官方 USD 输入/输出 | NexusFlow 计费输入/输出 | 接口 |
 |---------|------|------------|----------|---------------------|--------------------------|------|
-| `claude-sonnet-5` | `claude-sonnet-5-20260820` | 1M | 128K | $2/M / $10/M | ¥13.6/M / ¥68/M | `/v1/messages` |
-| `claude-opus-5` | `claude-opus-5-20260820` | 1M | 128K | $5/M / $25/M | ¥34/M / ¥170/M | `/v1/messages` |
-| `claude-fable-5` | `claude-fable-5-20260820` | 1M | 128K | $10/M / $50/M | ¥68/M / ¥340/M | `/v1/messages` |
-| `claude-opus-4-8` | `claude-opus-4-8-20260820` | 1M | 128K | $5/M / $25/M | ¥34/M / ¥170/M | `/v1/messages` |
-| `claude-opus-4-7` | `claude-opus-4-7-20260820` | 1M | 128K | $5/M / $25/M | ¥34/M / ¥170/M | `/v1/messages` |
-| `claude-sonnet-4-6` | `claude-sonnet-4-6-20260820` | 1M | 64K | $3/M / $15/M | ¥20.4/M / ¥102/M | `/v1/messages` |
-| `claude-haiku-4-5` | `claude-haiku-4-5-20260820` | 200K | 64K | $1/M / $5/M | ¥6.8/M / ¥34/M | `/v1/messages` |
+| `claude-sonnet-5` | `claude-sonnet-5-aws` | 1M | 128K | $2/M / $10/M | ¥13.6/M / ¥68/M | `/v1/messages` |
+| `claude-opus-5` | `claude-opus-5-aws` | 1M | 128K | $5/M / $25/M | ¥34/M / ¥170/M | `/v1/messages` |
+| `claude-opus-4-8` | `claude-opus-4-8-aws` | 1M | 128K | $5/M / $25/M | ¥34/M / ¥170/M | `/v1/messages` |
+| `claude-sonnet-4-6` | `claude-sonnet-4-6-aws` | 1M | 64K | $3/M / $15/M | ¥20.4/M / ¥102/M | `/v1/messages` |
+| `claude-haiku-4-5` | `claude-haiku-4-5-aws` | 200K | 64K | $1/M / $5/M | ¥6.8/M / ¥34/M | `/v1/messages` |
 
 客户端使用不带日期后缀的稳定公共 ID；NexusFlow 将其映射到对应 HiModels 固定快照。HiModels 原生 Anthropic Messages 兼容路径的非流式与 SSE 流式调用均已验证，响应 usage 可包含缓存字段；这不代表全部型号都统一支持工具或缓存控制，相关可选能力以具体模型和渠道说明为准。
 
@@ -471,7 +469,7 @@ Authorization: Bearer YOUR_API_KEY
 | 智谱AI | 6 | GLM 4.7、GLM 5、GLM 5.1、GLM 5.2、GLM 5.3 |
 | 月之暗面 | 6 | Kimi K3、Kimi K2 系列 |
 | MiniMax | 4 | M3、M2.7、M2.5、M2.1 |
-| Anthropic via HiModels | 7 | Claude Sonnet 5、Opus 5、Fable 5、Opus 4.8/4.7、Sonnet 4.6、Haiku 4.5 |
+| Anthropic via HiModels | 5 | Claude Sonnet 5、Opus 5、Opus 4.8、Sonnet 4.6、Haiku 4.5 |
 | Azure AI Foundry | 1 | GPT-6 Astra |
 
 ---
@@ -493,8 +491,8 @@ Authorization: Bearer YOUR_API_KEY
 
 ## 更新日期
 
-文档更新时间: 2026-09-20（HiModels 上游快照版本：20260820）
-模型数据来源: `backend/src/data/models.ts`（96 个可计费静态条目）+ `/api/models` 公共目录 + 数据库覆盖层
+文档更新时间: 2026-09-24（HiModels AWS 上游模型已验证）
+模型数据来源: `backend/src/data/models.ts`（94 个可计费静态条目）+ `/api/models` 公共目录 + 数据库覆盖层
 
 ---
 

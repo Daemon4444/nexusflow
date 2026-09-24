@@ -5,6 +5,7 @@ process.env.USE_PG_MEM = "true";
 process.env.PROVIDER_SECRET_KEY =
   process.env.PROVIDER_SECRET_KEY || "test-only-provider-secret-key-000000000000000000000000";
 process.env.DASHSCOPE_API_KEY = "legacy-static-key";
+process.env.HIMODELS_API_KEY = "legacy-static-himodels-key";
 process.env.PROVIDER_OUTBOUND_HOST_ALLOWLIST = [
   "managed-primary.example.invalid",
   "managed-pinned.example.invalid",
@@ -217,6 +218,8 @@ async function main(): Promise<void> {
   });
   assert.equal(isProviderModelCompatible("anthropic", "claude-haiku-4-5"), false);
   assert.equal(isProviderModelCompatible("himodels", "claude-haiku-4-5"), true);
+  assert.equal(isProviderModelCompatible("himodels", "claude-opus-4-7"), false);
+  assert.equal(isProviderModelCompatible("himodels", "claude-fable-5"), false);
   await upsertCapacity("anthropic", "claude-haiku-4-5", {
     rpm_limit: 100,
     tpm_limit: 100_000,
@@ -234,6 +237,9 @@ async function main(): Promise<void> {
   const disabledHiModels = await resolveUpstream("claude-haiku-4-5");
   assert.equal(disabledHiModels.ok, false);
   if (!disabledHiModels.ok) assert.equal(disabledHiModels.code, "provider_unavailable");
+  const noStaticHiModelsFallback = await resolveUpstream("claude-sonnet-5");
+  assert.equal(noStaticHiModelsFallback.ok, false);
+  if (!noStaticHiModelsFallback.ok) assert.equal(noStaticHiModelsFallback.code, "provider_unavailable");
 
   // Models without any managed row retain the legacy fallback during rollout.
   const legacy = await resolveUpstream("qwen-plus");

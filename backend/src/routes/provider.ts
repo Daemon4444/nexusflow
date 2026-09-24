@@ -939,6 +939,10 @@ router.put(
   requireEndpointSecurityWhenChanged,
   async (req: Request, res: Response) => {
   const providerId = req.params.id as string;
+  if (providerId === "himodels") {
+    res.status(409).json({ success: false, message: "HiModels 只能通过 root 控制命令更新", code: "managed_provider_control_required" });
+    return;
+  }
   const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "渠道不存在" });
@@ -1011,6 +1015,10 @@ router.post(
   "/admin/providers/:id/enable",
   requireEndpointSecurityPermission,
   async (req: Request, res: Response) => {
+  if (req.params.id === "himodels") {
+    res.status(409).json({ success: false, message: "HiModels 只能通过 root 控制命令启用", code: "managed_provider_control_required" });
+    return;
+  }
   const success = await updateProviderStatus(req.params.id as string, "enabled");
   if (!success) {
     res.status(404).json({ success: false, message: "供应商不存在" });
@@ -1185,6 +1193,10 @@ router.get("/:providerId/capacity", async (req: Request, res: Response) => {
 router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
   const modelId = req.params.modelId as string;
+  if (providerId === "himodels") {
+    res.status(409).json({ success: false, message: "HiModels 容量只能通过 root 控制命令更新", code: "managed_provider_control_required" });
+    return;
+  }
 
   const provider = await getProviderById(providerId);
   if (!provider) {
@@ -1243,6 +1255,10 @@ router.put("/:providerId/capacity/:modelId", async (req: Request, res: Response)
 // DELETE /api/provider/:providerId/capacity/:modelId — 删除容量配置
 router.delete("/:providerId/capacity/:modelId", async (req: Request, res: Response) => {
   const providerId = req.params.providerId as string;
+  if (providerId === "himodels") {
+    res.status(409).json({ success: false, message: "HiModels 容量只能通过 root 控制命令更新", code: "managed_provider_control_required" });
+    return;
+  }
   const provider = await getProviderById(providerId);
   if (!provider) {
     res.status(404).json({ success: false, message: "供应商不存在" });

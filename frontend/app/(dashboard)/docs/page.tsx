@@ -45,7 +45,7 @@ const popularModels = [
   { name: "Seedance 1.5 Pro", provider: "火山方舟", desc: "样片模式 + adaptive 智能宽高比，性价比之选", tag: "最新" },
   { name: "HappyHorse 1.0", provider: "Alibaba", desc: "视频生成专题页与任务链路接入说明", tag: null },
   { name: "Qwen3.8 Max", provider: "阿里云", desc: "旗舰推理、视觉理解与长周期智能体任务", tag: "推荐" },
-  { name: "Claude Opus 4.7", provider: "Anthropic", desc: "顶级推理与代码能力，百万上下文", tag: null },
+  { name: "Claude Opus 4.8", provider: "Anthropic via HiModels", desc: "HiModels AWS 上游的高能力 Claude，百万上下文", tag: null },
 ];
 
 const apiEndpoints = [

@@ -570,7 +570,7 @@ export default function LandingPage() {
               padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 800,
               letterSpacing: "0.08em", background: "#c2410c", color: "#fff",
             }}>NEW</span>
-            Claude Sonnet 5 is live — 1M context · 128K output
+            GPT-6 Astra is live — 1.05M context · Azure AI Foundry
             <span aria-hidden style={{ fontWeight: 700 }}>→</span>
           </Link>
           <div className="nf-eyebrow">One API, every leading AI model</div>

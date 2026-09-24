@@ -3,7 +3,7 @@ import Link from "next/link";
 const claudeModels = [
   {
     id: "claude-sonnet-5",
-    snapshotId: "claude-sonnet-5-20260820",
+    snapshotId: "claude-sonnet-5-aws",
     name: "Claude Sonnet 5",
     desc: "NexusFlow 当前优先推荐的 Claude，适合生产级对话、复杂分析与长上下文工作流。",
     context: "1M",
@@ -13,7 +13,7 @@ const claudeModels = [
   },
   {
     id: "claude-opus-5",
-    snapshotId: "claude-opus-5-20260820",
+    snapshotId: "claude-opus-5-aws",
     name: "Claude Opus 5",
     desc: "高能力 Claude 5 型号，面向复杂分析与长程任务。",
     context: "1M",
@@ -22,18 +22,8 @@ const claudeModels = [
     cny: "¥34 / ¥170",
   },
   {
-    id: "claude-fable-5",
-    snapshotId: "claude-fable-5-20260820",
-    name: "Claude Fable 5",
-    desc: "Claude 5 系列高阶型号，适合对质量要求较高的长上下文任务。",
-    context: "1M",
-    output: "128K",
-    usd: "$10 / $50",
-    cny: "¥68 / ¥340",
-  },
-  {
     id: "claude-opus-4-8",
-    snapshotId: "claude-opus-4-8-20260820",
+    snapshotId: "claude-opus-4-8-aws",
     name: "Claude Opus 4.8",
     desc: "Opus 4 系列新快照对应的稳定公共入口。",
     context: "1M",
@@ -42,18 +32,8 @@ const claudeModels = [
     cny: "¥34 / ¥170",
   },
   {
-    id: "claude-opus-4-7",
-    snapshotId: "claude-opus-4-7-20260820",
-    name: "Claude Opus 4.7",
-    desc: "适合复杂推理与大型上下文任务。",
-    context: "1M",
-    output: "128K",
-    usd: "$5 / $25",
-    cny: "¥34 / ¥170",
-  },
-  {
     id: "claude-sonnet-4-6",
-    snapshotId: "claude-sonnet-4-6-20260820",
+    snapshotId: "claude-sonnet-4-6-aws",
     name: "Claude Sonnet 4.6",
     desc: "速度与智能均衡，适合代码和多轮对话。",
     context: "1M",
@@ -63,7 +43,7 @@ const claudeModels = [
   },
   {
     id: "claude-haiku-4-5",
-    snapshotId: "claude-haiku-4-5-20260820",
+    snapshotId: "claude-haiku-4-5-aws",
     name: "Claude Haiku 4.5",
     desc: "高速低成本 Claude，适合低延迟分类、抽取、批量处理和轻量对话。",
     context: "200K",
@@ -85,7 +65,7 @@ export default function ClaudeModelsPage() {
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 760, margin: 0 }}>
           Claude 模型通过 HiModels 原生 Anthropic Messages 兼容上游接入，不是 NexusFlow 直连 Anthropic 官方 API；客户无需另备 Anthropic 官方凭据。
-          调用时使用稳定公共 ID；日期快照仅用于说明上游映射。下方 USD 为官方公开输入/输出价格，人民币按 <code>1 USD≈¥6.8</code> 折算。
+          调用时使用稳定公共 ID；AWS 后缀仅用于说明 HiModels 上游映射。下方 USD 为官方公开输入/输出价格，人民币按 <code>1 USD≈¥6.8</code> 折算。
         </p>
       </div>
 

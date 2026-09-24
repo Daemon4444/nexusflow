@@ -1527,23 +1527,6 @@ const staticModels: AIModel[] = [
     supported: ["文本"]
   },
   {
-    id: "claude-opus-4-7",
-    name: "Claude Opus 4.7",
-    provider: "Anthropic",
-    description: "Claude Opus 系列通用模型，面向复杂推理和长上下文任务。官方价格为 $5 输入 / $25 输出每百万 Token；这里按 1 USD≈¥6.8 折算。",
-    contextLength: 1000000,
-    promptPrice: 34,
-    completionPrice: 170,
-    cacheReadPrice: 3.4,
-    anthropicPassThrough: true,
-    category: "大语言模型",
-    tags: ["Claude", "旗舰", "百万上下文"],
-    isFeatured: true,
-    isNew: true,
-    maxOutput: 128000,
-    supported: ["文本"]
-  },
-  {
     id: "claude-sonnet-5",
     name: "Claude Sonnet 5",
     provider: "Anthropic",
@@ -1591,22 +1574,6 @@ const staticModels: AIModel[] = [
     tags: ["Claude", "极速", "低成本"],
     isNew: true,
     maxOutput: 64000,
-    supported: ["文本"]
-  },
-  {
-    id: "claude-fable-5",
-    name: "Claude Fable 5",
-    provider: "Anthropic",
-    description: "Claude Fable 系列模型，面向高质量内容生成、复杂推理和长上下文任务。官方价格为 $10 输入 / $50 输出每百万 Token；这里按 1 USD≈¥6.8 折算。",
-    contextLength: 1000000,
-    promptPrice: 68,
-    completionPrice: 340,
-    cacheReadPrice: 6.8,
-    anthropicPassThrough: true,
-    category: "大语言模型",
-    tags: ["Claude", "高质量", "推理", "百万上下文"],
-    isNew: true,
-    maxOutput: 128000,
     supported: ["文本"]
   },
   // ========== 其他第三方模型 ==========

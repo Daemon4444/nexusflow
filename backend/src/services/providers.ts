@@ -12,13 +12,25 @@ export interface ProviderConfig {
   models: string[];  // Model ID prefixes or exact matches
 }
 
+export const HIMODELS_PUBLIC_MODEL_IDS: readonly string[] = Object.freeze([
+  "claude-haiku-4-5",
+  "claude-sonnet-4-6",
+  "claude-sonnet-5",
+  "claude-opus-4-8",
+  "claude-opus-5",
+]);
+
+export function isHiModelsPublicModel(modelId: string): boolean {
+  return HIMODELS_PUBLIC_MODEL_IDS.includes(modelId);
+}
+
 export const providers: ProviderConfig[] = [
   {
     id: "himodels",
     name: "HiModels",
     baseUrl: "https://api.himodels.ai/v1",
     apiKeyEnv: "HIMODELS_API_KEY",
-    models: ["claude-"],
+    models: [...HIMODELS_PUBLIC_MODEL_IDS],
   },
   {
     id: "azure-ai-foundry",
@@ -73,7 +85,7 @@ export function findProvider(modelId: string): ProviderConfig | null {
 }
 
 export function isProviderModelCompatible(providerId: string, modelId: string): boolean {
-  if (modelId.startsWith("claude-")) return providerId === "himodels";
+  if (modelId.startsWith("claude-")) return providerId === "himodels" && isHiModelsPublicModel(modelId);
   if (modelId === "gpt-6-astra") return providerId === "azure-ai-foundry";
   return true;
 }
@@ -121,7 +133,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
     description: "HiModels 原生 Anthropic Messages 兼容渠道，承载 Claude 系列模型。",
     website: "https://himodels.ai/",
     api_base_url: himodelsConfig.baseUrl,
-    api_key: getProviderApiKey(himodelsConfig),
+    api_key: "",
     contact_name: "平台运营",
     contact_email: "ops@nexusflow.hk",
     status: "disabled",
@@ -158,7 +170,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
     if (model.id === "kimi-k3") {
       if (!jawayK3) continue;
       routedProvider = jawayK3;
-    } else if (model.id.startsWith("claude-")) {
+    } else if (isHiModelsPublicModel(model.id)) {
       routedProvider = himodels;
     } else if (model.id === "gpt-6-astra") {
       routedProvider = azure;
@@ -177,7 +189,7 @@ export async function ensureRoutingDefaults(): Promise<void> {
       concurrent_limit: isAstra ? 0 : isTaskModel ? 10 : 0,
       priority: isAstra ? 100 : 10,
       weight: 100,
-      is_enabled: !model.id.startsWith("claude-") && !isAstra,
+      is_enabled: !isHiModelsPublicModel(model.id) && !isAstra,
     });
   }
 }

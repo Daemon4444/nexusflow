@@ -116,18 +116,16 @@ assert.match(
 
 // ========== HiModels Claude 原生 Messages 目录与别名 ==========
 const claudeExpectations = [
-  { id: "claude-haiku-4-5", upstream: "claude-haiku-4-5-20260820", context: 200_000, maxOutput: 64_000, input: 6.8, output: 34, cacheRead: 0.68 },
-  { id: "claude-sonnet-4-6", upstream: "claude-sonnet-4-6-20260820", context: 1_000_000, maxOutput: 64_000, input: 20.4, output: 102, cacheRead: 2.04 },
-  { id: "claude-sonnet-5", upstream: "claude-sonnet-5-20260820", context: 1_000_000, maxOutput: 128_000, input: 13.6, output: 68, cacheRead: 1.36 },
-  { id: "claude-opus-4-7", upstream: "claude-opus-4-7-20260820", context: 1_000_000, maxOutput: 128_000, input: 34, output: 170, cacheRead: 3.4 },
-  { id: "claude-opus-4-8", upstream: "claude-opus-4-8-20260820", context: 1_000_000, maxOutput: 128_000, input: 34, output: 170, cacheRead: 3.4 },
-  { id: "claude-opus-5", upstream: "claude-opus-5-20260820", context: 1_000_000, maxOutput: 128_000, input: 34, output: 170, cacheRead: 3.4 },
-  { id: "claude-fable-5", upstream: "claude-fable-5-20260820", context: 1_000_000, maxOutput: 128_000, input: 68, output: 340, cacheRead: 6.8 },
+  { id: "claude-haiku-4-5", upstream: "claude-haiku-4-5-aws", context: 200_000, maxOutput: 64_000, input: 6.8, output: 34, cacheRead: 0.68 },
+  { id: "claude-sonnet-4-6", upstream: "claude-sonnet-4-6-aws", context: 1_000_000, maxOutput: 64_000, input: 20.4, output: 102, cacheRead: 2.04 },
+  { id: "claude-sonnet-5", upstream: "claude-sonnet-5-aws", context: 1_000_000, maxOutput: 128_000, input: 13.6, output: 68, cacheRead: 1.36 },
+  { id: "claude-opus-4-8", upstream: "claude-opus-4-8-aws", context: 1_000_000, maxOutput: 128_000, input: 34, output: 170, cacheRead: 3.4 },
+  { id: "claude-opus-5", upstream: "claude-opus-5-aws", context: 1_000_000, maxOutput: 128_000, input: 34, output: 170, cacheRead: 3.4 },
 ] as const;
 assert.deepEqual(
   models.filter((model) => model.id.startsWith("claude-")).map((model) => model.id).sort(),
   claudeExpectations.map(({ id }) => id).sort(),
-  "Claude 目录必须只公开七个稳定无日期后缀 ID"
+  "Claude 目录必须只公开五个稳定无日期后缀 ID"
 );
 const hiModelsProvider = findProvider("claude-haiku-4-5");
 assert.ok(hiModelsProvider);
@@ -144,7 +142,7 @@ for (const expected of claudeExpectations) {
   assert.equal(claude.cacheReadPrice, expected.cacheRead);
   assert.equal(claude.anthropicPassThrough, true);
   assert.equal(findProvider(claude.id)?.id, "himodels");
-  assert.equal(getUpstreamModelId(claude.id), expected.upstream);
+  assert.equal(getUpstreamModelId(claude.id), claude.id);
   assert.equal(getUpstreamModelId(claude.id, "himodels"), expected.upstream);
   assert.equal(getUpstreamModelId(claude.id, "anthropic"), claude.id);
   assert.deepEqual(getSupportedProtocols(claude), ["anthropic/messages"]);
@@ -161,6 +159,10 @@ for (const expected of claudeExpectations) {
   assert.equal(claudeCapabilities.supports_context_caching, false);
   assert.equal(claudeCapabilities.supports_explicit_context_caching, false);
 }
+assert.equal(models.some((model) => model.id === "claude-opus-4-7"), false);
+assert.equal(models.some((model) => model.id === "claude-fable-5"), false);
+assert.equal(findProvider("claude-opus-4-7"), null);
+assert.equal(findProvider("claude-fable-5"), null);
 
 const haikuObject = restorePublicModelAlias({
   model: "claude-haiku-4-5-20251001",

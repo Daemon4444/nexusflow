@@ -593,6 +593,13 @@ encrypts the credential into the shared control-plane database, and deletes the
 staging file. Enable the Provider only after official prices, Chat/Responses
 smoke calls, and ledger reconciliation are ready.
 
+HiModels credentials follow the same fail-closed pattern. Only stage a rotated
+credential through `/run/nexusflow-himodels-key` with root:root `0600`
+permissions and `himodels-control`; the command encrypts it into the shared
+Provider database and deletes the staging file. `verify` checks all five `-aws`
+models with non-streaming and SSE Messages while routes remain disabled;
+`activate` re-verifies every model and enables all five routes atomically.
+
 The production environments currently have no HTTP(S) proxy. Do not introduce
 one: startup, preflight, and PM2 verification reject proxy variables. The
 allowlist change and nginx guard installation are explicit operations

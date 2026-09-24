@@ -69,7 +69,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 应用节点 | ALB 后双节点；主节点 SSH `nexus`，同 VPC 节点 `nexusflow-app-j`（`172.27.219.55`） |
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
-| 模型目录 | 96 个可计费静态模型（2026-09-21 重算）；`gpt-6-astra` 通过 Azure AI Foundry 的 East US 2 deployment 提供 Chat Completions 与 Responses |
+| 模型目录 | 94 个可计费静态模型（2026-09-24 重算）；含 5 个通过 HiModels AWS 上游提供的 Claude 稳定公共 ID |
 | 数据库迁移 | 仓库已提交到 `023_provider_list_price_fallback.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | npm audit（生产依赖）、计费预占测试、前后端 build |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
@@ -207,7 +207,7 @@ Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720
 必须牢记：
 
 - “接口兼容”不等于“所有模型支持所有协议”。协议支持由模型能力和真实上游行为决定。
-- 七个 Claude 公共 ID 保持无日期后缀：`claude-haiku-4-5`、`claude-sonnet-4-6`、`claude-sonnet-5`、`claude-opus-4-7`、`claude-opus-4-8`、`claude-opus-5`、`claude-fable-5`。它们通过 HiModels 原生 Anthropic Messages 兼容上游映射到对应的 `*-20260820` 固定快照，不是 NexusFlow 直连 Anthropic 官方 API；`/v1/messages` 非流式与 SSE 流式已验证，usage 可含缓存字段，但工具和缓存控制能力不得按全系列推断。
+- 五个 Claude 公共 ID 保持稳定无后缀：`claude-haiku-4-5`、`claude-sonnet-4-6`、`claude-sonnet-5`、`claude-opus-4-8`、`claude-opus-5`。它们通过 HiModels 原生 Anthropic Messages 兼容上游映射到对应的 `*-aws` 模型，不是 NexusFlow 直连 Anthropic 官方 API；凭据只能通过 root-only `himodels-control` 轮换，缺少数据库受管路由时失败关闭。
 - Kimi K3 的 Messages 支持曾因上游差异走自建桥，切换逻辑由模型字段控制；`kimi-k3` 自 2026-08-09 起使用 Jaway K3 专线上游，OpenAI Chat 与 Anthropic Messages 均原生直通，非标准 HTTPS 端口必须同时命中主机和精确端点白名单。
 - 模型 ID 可能包含 `/`，例如 `MiniMax/MiniMax-M3`。前端、Next proxy 和 Express 路径必须保留编码，不能把 `%2F` 提前拆成路径段。
 - Responses 内置工具可能产生非 Token 上游费用。默认只允许本地 `function` 类型；其它类型必须通过 `RESPONSE_ALLOWED_TOOLS` 明确放行并先确认成本模型。
