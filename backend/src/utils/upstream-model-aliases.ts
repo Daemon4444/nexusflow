@@ -6,14 +6,6 @@ const HIMODELS_UPSTREAM_MODEL_ALIASES: Readonly<Record<string, string>> = Object
   "claude-opus-5": "claude-opus-5-aws",
 });
 
-const LEGACY_RESPONSE_MODEL_ALIASES: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  "claude-haiku-4-5": ["claude-haiku-4-5-20260820", "claude-haiku-4-5-20251001"],
-  "claude-sonnet-4-6": ["claude-sonnet-4-6-20260820"],
-  "claude-sonnet-5": ["claude-sonnet-5-20260820"],
-  "claude-opus-4-8": ["claude-opus-4-8-20260820"],
-  "claude-opus-5": ["claude-opus-5-20260820"],
-});
-
 const PROVIDER_UPSTREAM_MODEL_ALIASES: Readonly<
   Record<string, Readonly<Record<string, string>>>
 > = Object.freeze({
@@ -23,33 +15,18 @@ const PROVIDER_UPSTREAM_MODEL_ALIASES: Readonly<
   }),
 });
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-const RESPONSE_MODEL_ALIASES = Object.freeze(
-  Object.fromEntries(
-    Object.entries(HIMODELS_UPSTREAM_MODEL_ALIASES).map(([publicModelId, upstreamModelId]) => [
-      publicModelId,
-      [upstreamModelId, ...(LEGACY_RESPONSE_MODEL_ALIASES[publicModelId] || [])],
-    ])
-  ) as Record<string, readonly string[]>
+// HiModels' AWS-backed upstream does not echo back the alias we send as the
+// `model` field; it returns its own opaque internal identifier (observed:
+// "MaaS_Cl_Haiku_4.5_20251016_PREM"-style strings). A fixed allowlist of
+// expected upstream strings is therefore unreliable and has already needed
+// patching more than once. For every model routed through HiModels we
+// instead force the client-visible `model` field back to the stable public
+// id unconditionally, rather than trying to recognize the upstream's value.
+const HIMODELS_PUBLIC_MODEL_ID_SET: ReadonlySet<string> = new Set(
+  Object.keys(HIMODELS_UPSTREAM_MODEL_ALIASES)
 );
 
-const RESPONSE_MODEL_ALIAS_SETS = Object.freeze(
-  Object.fromEntries(
-    Object.entries(RESPONSE_MODEL_ALIASES).map(([publicModelId, aliases]) => [publicModelId, new Set(aliases)])
-  ) as Record<string, ReadonlySet<string>>
-);
-
-const RESPONSE_MODEL_ALIAS_PATTERNS = Object.freeze(
-  Object.fromEntries(
-    Object.entries(RESPONSE_MODEL_ALIASES).map(([publicModelId, aliases]) => [
-      publicModelId,
-      aliases.map((alias) => new RegExp(`("model"\\s*:\\s*")${escapeRegExp(alias)}(")`, "g")),
-    ])
-  ) as Record<string, readonly RegExp[]>
-);
+const MODEL_FIELD_PATTERN = /("model"\s*:\s*")[^"]*(")/g;
 
 export function getUpstreamModelId(publicModelId: string, providerId?: string): string {
   if (!providerId) return publicModelId;
@@ -57,18 +34,23 @@ export function getUpstreamModelId(publicModelId: string, providerId?: string): 
 }
 
 export function restorePublicModelAlias<T>(value: T, publicModelId: string): T {
-  const responseAliases = RESPONSE_MODEL_ALIAS_SETS[publicModelId];
-  if (!responseAliases || !value || typeof value !== "object") return value;
-
-  const visit = (current: any): void => {
+  if (!HIMODELS_PUBLIC_MODEL_ID_SET.has(publicModelId) || !value || typeof value !== "object") {
+    return value;
+  }
+  // These five HiModels-routed ids never support tools (see
+  // model-capabilities), so a parsed response object never carries
+  // tool-call-argument JSON that could coincidentally contain its own
+  // unrelated "model" key; every literal `model` key in the object graph is
+  // therefore safe to force back to the public id unconditionally.
+  const visit = (current: unknown): void => {
     if (!current || typeof current !== "object") return;
     if (Array.isArray(current)) {
       current.forEach(visit);
       return;
     }
-    for (const [key, child] of Object.entries(current)) {
-      if (key === "model" && typeof child === "string" && responseAliases.has(child)) {
-        current[key] = publicModelId;
+    for (const [key, child] of Object.entries(current as Record<string, unknown>)) {
+      if (key === "model" && typeof child === "string") {
+        (current as Record<string, unknown>)[key] = publicModelId;
       } else {
         visit(child);
       }
@@ -79,10 +61,9 @@ export function restorePublicModelAlias<T>(value: T, publicModelId: string): T {
 }
 
 export function rewriteUpstreamModelAliasText(text: string, publicModelId: string): string {
-  const patterns = RESPONSE_MODEL_ALIAS_PATTERNS[publicModelId];
-  if (!patterns) return text;
-  return patterns.reduce(
-    (current, pattern) => current.replace(pattern, `$1${publicModelId}$2`),
-    text
-  );
+  if (!HIMODELS_PUBLIC_MODEL_ID_SET.has(publicModelId)) return text;
+  // Only the unescaped `"model":"..."` JSON-key position matches here; a
+  // literal quote inside an SSE text delta's own string content is escaped
+  // (\") by JSON encoding, so streamed assistant/tool text is never touched.
+  return text.replace(MODEL_FIELD_PATTERN, `$1${publicModelId}$2`);
 }
