@@ -12,8 +12,9 @@ SET status = 'disabled',
     updated_at = NOW()
 WHERE id = 'himodels';
 
-DELETE FROM provider_channel_configs
-WHERE provider_id = 'himodels';
+-- No provider_channel_configs row exists for 'himodels' (only pixverse and
+-- dashscope use multi-channel routing today); nothing to reset here. Do not
+-- DELETE here even if that changes: migrations must stay expand-compatible.
 
 UPDATE provider_models
 SET status = 'disabled',
