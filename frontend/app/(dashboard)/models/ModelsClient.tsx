@@ -124,7 +124,7 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
 
   function formatTokens(n: number) {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
-    if (n >= 1024) return `${Math.round(n / 1024)}K`;
+    if (n >= 1000) return `${Math.round(n / 1000)}K`;
     return n.toString();
   }
 

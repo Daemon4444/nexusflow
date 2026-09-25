@@ -177,7 +177,7 @@ export default function ClaudeDocsPage() {
           <code> cache_creation_input_tokens</code> 与 <code>cache_read_input_tokens</code> 等缓存统计字段。
         </p>
         <div style={{ padding: "14px 18px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-elevated)", fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>
-          缓存统计字段存在不代表七个模型都接受 <code>cache_control</code>，工具定义也不是全系列统一承诺。
+          缓存统计字段存在不代表五个模型都接受 <code>cache_control</code>，工具定义也不是全系列统一承诺。
           请按当前模型与 HiModels 渠道说明启用可选能力；NexusFlow 不把未验证能力作为所有 Claude 模型的通用保证。
         </div>
       </section>

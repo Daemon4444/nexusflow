@@ -559,7 +559,7 @@ export default function LandingPage() {
 
       <section className="nf-hero">
         <div className="nf-hero-copy">
-          <Link href="/models/claude-sonnet-5" style={{
+          <Link href="/models/gpt-6-astra" style={{
             display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 14,
             padding: "6px 14px", borderRadius: 999, textDecoration: "none",
             background: "linear-gradient(135deg, rgba(251,146,60,0.16), rgba(194,65,12,0.1))",
