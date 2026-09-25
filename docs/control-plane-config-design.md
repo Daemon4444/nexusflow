@@ -1,6 +1,6 @@
 # NexusFlow 配置化控制面：目标设计
 
-- 状态：**草案，待评审**。本文档不涉及任何上线动作。
+- 状态：**实现中**。实现见分支 `feat/config-control-plane`（Draft PR → `main`，未合并）；逐阶段说明、上线手册和所有假设在该 PR 描述里，执行规格见 `docs/specs/control-plane-implementation-spec.md`。本文档不涉及任何上线动作。
 - 日期：2026-09-25
 - 前置文档：2026-09-25 工程成熟度审查（Obsidian「nexusflow 工程成熟度审查 2026-09-25」）
 

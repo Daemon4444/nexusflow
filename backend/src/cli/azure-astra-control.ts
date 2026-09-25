@@ -10,6 +10,37 @@ import {
 } from "../data/providers";
 import { models } from "../data/models";
 import { safeProviderFetch } from "../services/outbound-url-policy";
+import { controlPlaneMode } from "../config/feature-flags";
+import { accountRouteOperations, proposeChange } from "../control-plane/cli-change";
+
+/**
+ * NF_CP_MODE≠legacy: routing state changes become a change request
+ * (published by an administrator); only the credential is written here.
+ */
+function controlPlaneManaged(): boolean {
+  return controlPlaneMode() !== "legacy";
+}
+
+async function proposeAstra(title: string, status: "active" | "disabled", reason: string): Promise<void> {
+  const record = await proposeChange({
+    title,
+    reason,
+    author: "cli:azure-astra-control",
+    source: "cli:azure-astra-control",
+    build: (content) => accountRouteOperations(content, PROVIDER_ID, status, [{
+      modelId: MODEL_ID,
+      upstreamModelId: MODEL_ID,
+      nativeProtocols: ["openai.chat", "openai.responses"],
+      limits: {
+        rpm: CAPACITY.rpm_limit, tpm: CAPACITY.tpm_limit, daily: CAPACITY.daily_limit,
+        concurrency: CAPACITY.concurrent_limit, priority: CAPACITY.priority, weight: CAPACITY.weight,
+      },
+    }], status === "active" ? "active" : "disabled"),
+  });
+  console.log(JSON.stringify(record
+    ? { providerId: PROVIDER_ID, modelId: MODEL_ID, changeRequest: record.id, status: record.status, next: "approve and publish in the admin console" }
+    : { providerId: PROVIDER_ID, modelId: MODEL_ID, changeRequest: null, note: "already in the requested state" }));
+}
 
 const PROVIDER_ID = "azure-ai-foundry";
 const MODEL_ID = "gpt-6-astra";
@@ -100,6 +131,11 @@ async function stage(keyPath: string): Promise<void> {
     api_key: key,
   });
   if (!updated) fail("Azure provider credential could not be stored");
+  if (controlPlaneManaged()) {
+    fs.unlinkSync(path.resolve(keyPath));
+    console.log(JSON.stringify({ providerId: PROVIDER_ID, modelId: MODEL_ID, staged: true, enabled: false, controlPlane: true }));
+    return;
+  }
   await upsertCapacity(PROVIDER_ID, MODEL_ID, { ...CAPACITY, is_enabled: false });
   await updateProviderStatus(PROVIDER_ID, "disabled", "Pending application release activation");
   fs.unlinkSync(path.resolve(keyPath));
@@ -111,6 +147,10 @@ async function activate(): Promise<void> {
   const provider = await getProviderById(PROVIDER_ID);
   const capacity = await getCapacity(PROVIDER_ID, MODEL_ID);
   if (!provider?.api_key || provider.api_base_url !== BASE_URL) fail("Azure provider is not staged");
+  if (controlPlaneManaged()) {
+    await proposeAstra("Azure: activate GPT-6 Astra", "active", "credential staged and verified");
+    return;
+  }
   if (!capacity) fail("Azure capacity has not been staged");
   await updateProviderStatus(PROVIDER_ID, "enabled");
   await upsertCapacity(PROVIDER_ID, MODEL_ID, { ...CAPACITY, is_enabled: true });
@@ -118,6 +158,10 @@ async function activate(): Promise<void> {
 }
 
 async function disable(): Promise<void> {
+  if (controlPlaneManaged()) {
+    await proposeAstra("Azure: disable GPT-6 Astra", "disabled", "Operator disabled Astra routing");
+    return;
+  }
   const capacity = await getCapacity(PROVIDER_ID, MODEL_ID);
   if (capacity) await upsertCapacity(PROVIDER_ID, MODEL_ID, { ...CAPACITY, is_enabled: false });
   await updateProviderStatus(PROVIDER_ID, "disabled", "Operator disabled Astra routing");

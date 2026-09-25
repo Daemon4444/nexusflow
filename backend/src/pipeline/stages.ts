@@ -730,3 +730,14 @@ export function anthropicPassThrough(upstream: ResolvedUpstream, model: AIModel)
     || model.anthropicPassThrough === true
     || (!!upstream.anthropicCompatBaseUrl && model.anthropicPassThrough !== false);
 }
+
+/**
+ * 404 message for an unknown model. Under NF_CP_MODE=enforce a retired
+ * model names its replacement (lifecycle deprecated → retired).
+ */
+export function modelNotFoundMessage(ctx: InferenceContext, modelId: string): string {
+  if (ctx.retiredReplacement) {
+    return `Model '${modelId}' has been retired. Use '${ctx.retiredReplacement}' instead.`;
+  }
+  return `Model '${modelId}' not found.`;
+}

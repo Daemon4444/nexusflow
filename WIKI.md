@@ -253,7 +253,7 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
 
 只通过 build 或只 curl 后端，不算“上线验证完成”。
 
-### 8.1 配置化控制面（实现中，见 `docs/control-plane-config-design.md`）
+### 8.1 配置化控制面（实现中：`feat/config-control-plane` Draft PR；设计见 `docs/control-plane-config-design.md`）
 
 目标是把模型、上游账号（含配额池）、路由、流量策略四类配置从代码迁到数据库（`cp_*`），经变更单发布、可回滚。
 在 `NF_CP_MODE` 等开关切到 `enforce` 之前，线上仍由上面的旧路径决定。已有的只读工具：
@@ -326,6 +326,25 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
 - 协议（D6）：`NF_PROTOCOL_MODE=enforce` 时模型只开放 cp `protocols`（每条 active 路由原生支持）里的对话协议，
   其他返回 400 `unsupported_protocol` 并列出可用协议；`/v1/messages` 的协议转换分支不再进入。
   `anthropic-openai-bridge.ts` 暂不删除，列入 contract 清单。
+
+后台与发布流程（P6）：
+
+- 后台「配置控制面」`/admin/config`（前端 `frontend/features/admin/config/`，后端 `backend/src/routes/admin-cp-config.ts`，
+  挂在 `admin-control-plane.ts` 的 `/api/admin/control-plane/config` 下）：模型、上游账号、配额池、路由、策略列表，
+  编辑一律生成变更单；变更单 diff、校验、真实探测、审批、发布、驳回；版本历史、任意两版对比、回滚；百炼差异报告；
+  探测结果。**没有直接改数据的接口**。读需要 `control_plane.read`，写需要新权限 `traffic.manage`（operator/admin
+  角色已包含）。所有写操作进后台审计。
+- 变更单（`control-plane/change-requests.ts`）：`draft → validated → approved → published`（任一未发布状态可驳回）。
+  校验与发布时都把操作叠加到**当时的当前版本**上重新校验（自动变基）；只有本次新引入的错误阻止发布，旧版本已有的
+  错误降为告警。另有生命周期闸门（新模型只能从 draft/preview 开始；active 不能直接 retired；deprecated 需
+  `deprecation_date`；preview 需白名单）、进入 preview/active 需 24 小时内通过的路由探测、与百炼快照比价（告警）。
+  `NF_CP_REQUIRE_SECOND_APPROVER=true` 时不能自己审批。发布/回滚后立即刷新本进程运行时，其他进程 5 秒内跟上。
+- `retired` 模型在 enforce 下返回 404 并提示 `replacement_model_id`。
+- 快照：`src/cli/control-plane-export.ts` 导出确定性 YAML（`config/snapshots/README.md`；`config/snapshots/example/`
+  是离线回填的样例）；`ops/cron/nexusflow-cp-export.cron` 是每日导出模板，只给人安装。
+- 两个 CLI：`himodels-control`、`azure-astra-control` 在 `NF_CP_MODE≠legacy` 时只写凭据，路由/账号状态变化生成
+  变更单（`control-plane/cli-change.ts`），不再直接写 `providers.status`/`provider_capacity`。
+- enforce 稳定后才能删除的旧代码/表/路径，见 `docs/control-plane-contract-checklist.md`。
 
 ## 9. 账号、权限与账本不变量
 

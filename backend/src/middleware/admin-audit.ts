@@ -133,9 +133,11 @@ export async function auditAdminWrite(
     const resourceId =
       context.resourceId !== undefined
         ? context.resourceId
-        : typeof req.params.id === "string"
+        // req.params can be undefined here once a mounted sub-router has
+        // finished (Express 5 restores the parent's params).
+        : typeof req.params?.id === "string"
           ? req.params.id
-          : typeof req.params.providerId === "string"
+          : typeof req.params?.providerId === "string"
             ? req.params.providerId
             : null;
 

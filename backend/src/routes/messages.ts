@@ -51,6 +51,7 @@ import {
   capacityHttpStatus,
   anthropicPassThrough,
   checkProtocol,
+  modelNotFoundMessage,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -217,7 +218,7 @@ router.post("/", async (req: Request, res: Response) => {
       type: "error",
       error: {
         type: "not_found_error",
-        message: `Model '${modelId}' not found.`,
+        message: modelNotFoundMessage(ctx, modelId),
       },
     });
     return;

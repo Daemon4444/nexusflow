@@ -19,6 +19,7 @@ export type AdminPermission =
   | "providers.read"
   | "providers.manage"
   | "traffic.read"
+  | "traffic.manage"
   | "support.read"
   | "support.manage"
   | "audit.read"
@@ -66,6 +67,7 @@ export const ALL_ADMIN_PERMISSIONS: AdminPermission[] = [
   "providers.read",
   "providers.manage",
   "traffic.read",
+  "traffic.manage",
   "support.read",
   "support.manage",
   "audit.read",
@@ -120,6 +122,8 @@ export const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
     "providers.read",
     "providers.manage",
     "traffic.read",
+    // Control-plane change requests (models, accounts, pools, routes, policies).
+    "traffic.manage",
     "audit.read",
     "releases.read",
     "releases.manage",

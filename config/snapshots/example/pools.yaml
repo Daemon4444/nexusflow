@@ -1,0 +1,729 @@
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:deepseek-r1"
+  name: "百炼 deepseek-r1"
+  rpm: 15000
+  source: "docs"
+  tpm: 1200000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:deepseek-v3"
+  name: "百炼 deepseek-v3"
+  rpm: 15000
+  source: "docs"
+  tpm: 1200000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:deepseek-v3.2"
+  name: "百炼 deepseek-v3.2"
+  rpm: 15000
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:deepseek-v4-flash"
+  name: "百炼 deepseek-v4-flash"
+  rpm: 15000
+  source: "docs"
+  tpm: 1200000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:deepseek-v4-flash-0731"
+  name: "百炼 deepseek-v4-flash-0731"
+  rpm: 15000
+  source: "docs"
+  tpm: 1200000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:deepseek-v4-pro"
+  name: "百炼 deepseek-v4-pro"
+  rpm: 15000
+  source: "docs"
+  tpm: 1200000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:deepseek-v4.1-flash"
+  name: "百炼 deepseek-v4.1-flash"
+  rpm: 15000
+  source: "docs"
+  tpm: 1200000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:glm-4.7"
+  name: "百炼 glm-4.7"
+  rpm: 500
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:glm-5"
+  name: "百炼 glm-5"
+  rpm: 500
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:glm-5.1"
+  name: "百炼 glm-5.1"
+  rpm: 500
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:glm-5.2"
+  name: "百炼 glm-5.2"
+  rpm: 500
+  source: "docs"
+  tpm: 2000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:glm-5.3"
+  name: "百炼 glm-5.3"
+  rpm: 15000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:happyhorse-1.0-i2v"
+  name: "百炼 happyhorse-1.0-i2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:happyhorse-1.0-r2v"
+  name: "百炼 happyhorse-1.0-r2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:happyhorse-1.0-t2v"
+  name: "百炼 happyhorse-1.0-t2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:happyhorse-1.0-video-edit"
+  name: "百炼 happyhorse-1.0-video-edit"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:happyhorse-1.1-i2v"
+  name: "百炼 happyhorse-1.1-i2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:happyhorse-1.1-r2v"
+  name: "百炼 happyhorse-1.1-r2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:happyhorse-1.1-t2v"
+  name: "百炼 happyhorse-1.1-t2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:kimi-k2-thinking"
+  name: "百炼 kimi-k2-thinking"
+  rpm: 500
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:kimi-k2.5"
+  name: "百炼 kimi-k2.5"
+  rpm: 500
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:kimi-k2.6"
+  name: "百炼 kimi-k2.6"
+  rpm: 500
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:kimi-k2.7-code"
+  name: "百炼 kimi-k2.7-code"
+  rpm: 500
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:MiniMax-M2.1"
+  name: "百炼 MiniMax-M2.1"
+  rpm: 500
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:MiniMax-M2.5"
+  name: "百炼 MiniMax-M2.5"
+  rpm: 500
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:MiniMax/MiniMax-M2.7"
+  name: "百炼 MiniMax/MiniMax-M2.7"
+  rpm: 500
+  source: "docs"
+  tpm: 20000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:MiniMax/MiniMax-M3"
+  name: "百炼 MiniMax/MiniMax-M3"
+  rpm: 500
+  source: "docs"
+  tpm: 20000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:pool-9b6ad2fabe118ae5"
+  name: "百炼共享池（kimi/kimi-k2.5、kimi/kimi-k2.6、kimi/kimi-k2.7-code、kimi/kimi-k2.7-code-highspeed、kimi/kimi-k3）"
+  rpm: 500
+  source: "docs"
+  tpm: 3000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen-flash"
+  name: "百炼 qwen-flash"
+  rpm: 30000
+  source: "docs"
+  tpm: 10000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen-long"
+  name: "百炼 qwen-long"
+  rpm: 1200
+  source: "docs"
+  tpm: 3000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen-math-plus"
+  name: "百炼 qwen-math-plus"
+  rpm: 1200
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen-mt-plus"
+  name: "百炼 qwen-mt-plus"
+  rpm: 60
+  source: "docs"
+  tpm: 25000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen-plus"
+  name: "百炼 qwen-plus"
+  rpm: 30000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen-turbo"
+  name: "百炼 qwen-turbo"
+  rpm: 1200
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen-vl-max"
+  name: "百炼 qwen-vl-max"
+  rpm: 1200
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen-vl-plus"
+  name: "百炼 qwen-vl-plus"
+  rpm: 1200
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3-235b-a22b"
+  name: "百炼 qwen3-235b-a22b"
+  rpm: 600
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3-32b"
+  name: "百炼 qwen3-32b"
+  rpm: 2400
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3-8b"
+  name: "百炼 qwen3-8b"
+  rpm: 600
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3-coder-flash"
+  name: "百炼 qwen3-coder-flash"
+  rpm: 5000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3-coder-plus"
+  name: "百炼 qwen3-coder-plus"
+  rpm: 5000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3-max"
+  name: "百炼 qwen3-max"
+  rpm: 30000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3-omni-flash"
+  name: "百炼 qwen3-omni-flash"
+  rpm: 60
+  source: "docs"
+  tpm: 100000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3-vl-flash"
+  name: "百炼 qwen3-vl-flash"
+  rpm: 3000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3-vl-plus"
+  name: "百炼 qwen3-vl-plus"
+  rpm: 3000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.5-flash"
+  name: "百炼 qwen3.5-flash"
+  rpm: 30000
+  source: "docs"
+  tpm: 10000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.5-omni-flash"
+  name: "百炼 qwen3.5-omni-flash"
+  rpm: 60
+  source: "docs"
+  tpm: 100000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.5-omni-plus"
+  name: "百炼 qwen3.5-omni-plus"
+  rpm: 60
+  source: "docs"
+  tpm: 100000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.5-plus"
+  name: "百炼 qwen3.5-plus"
+  rpm: 30000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.6-35b-a3b"
+  name: "百炼 qwen3.6-35b-a3b"
+  rpm: 600
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.6-flash"
+  name: "百炼 qwen3.6-flash"
+  rpm: 30000
+  source: "docs"
+  tpm: 10000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.6-max-preview"
+  name: "百炼 qwen3.6-max-preview"
+  rpm: 600
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.6-plus"
+  name: "百炼 qwen3.6-plus"
+  rpm: 30000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.7-flash"
+  name: "百炼 qwen3.7-flash"
+  rpm: 30000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.7-max"
+  name: "百炼 qwen3.7-max"
+  rpm: 30000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwen3.7-plus"
+  name: "百炼 qwen3.7-plus"
+  rpm: 30000
+  source: "docs"
+  tpm: 5000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:qwq-plus"
+  name: "百炼 qwq-plus"
+  rpm: 600
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:text-embedding-v3"
+  name: "百炼 text-embedding-v3"
+  rpm: 1800
+  source: "docs"
+  tpm: 1200000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:text-embedding-v4"
+  name: "百炼 text-embedding-v4"
+  rpm: 1800
+  source: "docs"
+  tpm: 1200000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 0
+  id: "bailian:tongyi-intent-detect-v3"
+  name: "百炼 tongyi-intent-detect-v3"
+  rpm: 1200
+  source: "docs"
+  tpm: 1000000
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.6-i2v"
+  name: "百炼 wan2.6-i2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.6-i2v-flash"
+  name: "百炼 wan2.6-i2v-flash"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.6-r2v"
+  name: "百炼 wan2.6-r2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.6-r2v-flash"
+  name: "百炼 wan2.6-r2v-flash"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.6-t2i"
+  name: "百炼 wan2.6-t2i"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.6-t2v"
+  name: "百炼 wan2.6-t2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.7-i2v"
+  name: "百炼 wan2.7-i2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.7-image"
+  name: "百炼 wan2.7-image"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.7-image-pro"
+  name: "百炼 wan2.7-image-pro"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.7-r2v"
+  name: "百炼 wan2.7-r2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.7-t2v"
+  name: "百炼 wan2.7-t2v"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan2.7-videoedit"
+  name: "百炼 wan2.7-videoedit"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan3.0-video"
+  name: "百炼 wan3.0-video"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 5
+  daily: 0
+  id: "bailian:wan3.0-video-prime"
+  name: "百炼 wan3.0-video-prime"
+  rpm: 0
+  source: "docs"
+  tpm: 0
+  verified_at: "2026-09-25T05:58:43.003Z"
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 100000
+  id: "legacy:dashscope:deepseek-v4-pro-0813"
+  name: "沿用旧限流 deepseek-v4-pro-0813"
+  rpm: 1000
+  source: "legacy_default"
+  tpm: 1000000
+  verified_at: null
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 100000
+  id: "legacy:dashscope:glm-5.2-fast-preview"
+  name: "沿用旧限流 glm-5.2-fast-preview"
+  rpm: 1000
+  source: "legacy_default"
+  tpm: 1000000
+  verified_at: null
+- account_id: "dashscope"
+  concurrency: 10
+  daily: 100000
+  id: "legacy:dashscope:pixverse-v6"
+  name: "沿用旧限流 pixverse-v6"
+  rpm: 1000
+  source: "legacy_default"
+  tpm: 0
+  verified_at: null
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 100000
+  id: "legacy:dashscope:qwen3-asr-flash"
+  name: "沿用旧限流 qwen3-asr-flash"
+  rpm: 1000
+  source: "legacy_default"
+  tpm: 1000000
+  verified_at: null
+- account_id: "dashscope"
+  concurrency: 10
+  daily: 100000
+  id: "legacy:dashscope:qwen3-tts-flash"
+  name: "沿用旧限流 qwen3-tts-flash"
+  rpm: 1000
+  source: "legacy_default"
+  tpm: 0
+  verified_at: null
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 100000
+  id: "legacy:dashscope:qwen3.8-flash"
+  name: "沿用旧限流 qwen3.8-flash"
+  rpm: 1000
+  source: "legacy_default"
+  tpm: 1000000
+  verified_at: null
+- account_id: "dashscope"
+  concurrency: 0
+  daily: 100000
+  id: "legacy:dashscope:qwen3.8-max"
+  name: "沿用旧限流 qwen3.8-max"
+  rpm: 1000
+  source: "legacy_default"
+  tpm: 1000000
+  verified_at: null

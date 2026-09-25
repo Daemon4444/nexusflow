@@ -13,6 +13,42 @@
 - **协议**：`/v1/chat/completions`（OpenAI）、`/v1/messages`（Anthropic，直通或转换桥）、`/v1/responses`。协议宣告在 `backend/src/utils/model-protocols.ts`——**必须实测再宣告，不要想当然**；预告模型可以披露计划支持的协议，但在激活前仍不可调用。
 - **前端 API 链路**：浏览器 → Next `/proxy/[...path]` 代理 → 后端。**验证必须走浏览器真实点击路径，curl 直连后端不算数**（代理层有自己的解码/编码行为）。
 
+## 0.5 控制面流程（`NF_CP_MODE=enforce` 起，这是唯一的上线路径）
+
+控制面切到 enforce 之后，**模型、上游账号/配额池、路由、流量策略都是数据**，改代码不再上线模型。上线/下线
+全部在后台「配置控制面」（`/admin/config`，需要 `traffic.manage`）用变更单完成，每一步都有审计、都是一个新版本、
+都能回滚。设计见 `docs/control-plane-config-design.md` §5，接口见 `backend/src/routes/admin-cp-config.ts`。
+
+1. **核对官方数据**（同下文 §1）。百炼模型先看最新的差异报告（后台「百炼差异报告」页，或
+   `npm --workspace backend run bailian:catalog-sync -- --offline ...` 产出的 `docs/upstream-sync/bailian-*.md`）：
+   价格、上下文、限流、是否属于共享配额池。
+2. **草稿**：新建变更单，新增 `model`（`lifecycle: "draft"`）和它的 `route`（账号、`upstream_model_id`、
+   `native_protocols`、限额；共享限流的挂到对应 `quota_pool_id`）。`capabilities` 用结构化字段填写，
+   展示用的中文能力串由系统生成，不要手写。
+3. **自动校验**：点「校验」。会检查 schema、引用、在售模型必须有活跃路由、**暴露的对话协议必须是每条活跃路由原生
+   支持的（D6，不做协议转换）**、价格阶梯、`billing_guarded` 参数、中转账号披露，并与最新百炼快照比价（低于官方
+   价会告警）。只有本次变更新引入的错误会阻止发布。
+4. **审批 → 发布**：默认允许自己审批；`NF_CP_REQUIRE_SECOND_APPROVER=true` 时必须另一位管理员。发布生成新版本，
+   所有节点 5 秒内生效。
+5. **真实探测**：新变更单把模型改为 `preview`（并填 `preview_user_ids`）后点「真实探测」：按声明的协议 × 能力
+   （文本、工具调用、图片输入、思考开/关）各发一个最小请求，结果进「探测结果」。**24 小时内没有通过的探测，
+   `preview`/`active` 变更单无法通过校验**。也可以在服务器上跑 `npm --workspace backend run control-plane:route-probe -- --model <id> --write`。
+6. **灰度**：`preview` 只对白名单用户可见、可调用；按 §5 的浏览器真实路径验证。
+7. **全量**：变更单把 `lifecycle` 改为 `active`。
+8. **下线**：先 `deprecated`（必须填 `deprecation_date`，建议填 `replacement_model_id`），到期后 `retired`：
+   请求返回 404 并提示替代模型。不能从 `active` 直接跳到 `retired`。
+9. **回滚**：「版本与回滚」里选任一旧版本 → 回滚（生成一个内容等于旧版本的新版本）。
+10. **快照**：每日 YAML 快照（`ops/cron/nexusflow-cp-export.cron`）会记录变化。
+
+仍然需要改代码的情况只有：新的**上游协议/适配器**（`backend/src/pipeline/adapters.ts` 的 `UPSTREAM_ADAPTERS`）、
+新的计费形态（例如搜索计费，届时才能放开 `billing_guarded` 参数）、以及新出站主机（`outbound-url-policy.ts`
+allowlist）。上游凭据仍写在 `providers` 表（加密），`himodels-control`/`azure-astra-control` 在控制面模式下只写
+凭据并生成变更单。
+
+> 下文 §1–§6 是 `NF_CP_MODE=legacy`（控制面上线前）的旧流程，以及两种模式都适用的核对、验证和前端/文档同步
+> 要求。旧流程中“改 `models.ts`/`model-capabilities.ts`/`providers.ts`”的步骤在 enforce 后作废，删除时间见
+> `docs/control-plane-contract-checklist.md`。
+
 ## 1. 上线前：核对官方模型卡
 
 数据源：阿里云百炼控制台模型详情页（JS 渲染，WebFetch 抓不到，用 `agent-browser`）。必须拿到：

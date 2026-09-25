@@ -535,3 +535,13 @@
     }
   }
 }
+
+.nf-admin-json-editor {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.nf-admin-issue-list {
+  margin: 0;
+  padding-left: 18px;
+}

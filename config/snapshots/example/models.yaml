@@ -1,0 +1,5895 @@
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "大语言模型"
+    description: "Claude Haiku 系列高速低成本模型，适合低延迟对话、分类、抽取和批量任务。官方价格为 $1 输入 / $5 输出每百万 Token；这里按 1 USD≈¥6.8 折算。"
+    is_new: true
+    name: "Claude Haiku 4.5"
+    provider_label: "Anthropic"
+    supported:
+      - "文本"
+    tags:
+      - "Claude"
+      - "极速"
+      - "低成本"
+  id: "claude-haiku-4-5"
+  legacy_flags:
+    anthropic_pass_through: true
+  lifecycle: "active"
+  limits:
+    context_length: 200000
+    max_output: 64000
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.68
+    completionPrice: 34
+    promptPrice: 6.8
+  protocols:
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "大语言模型"
+    description: "Claude Opus 系列高性能模型，适合复杂推理和长上下文工作流。官方价格为 $5 输入 / $25 输出每百万 Token；这里按 1 USD≈¥6.8 折算。"
+    is_new: true
+    name: "Claude Opus 4.8"
+    provider_label: "Anthropic"
+    supported:
+      - "文本"
+    tags:
+      - "Claude"
+      - "旗舰"
+      - "百万上下文"
+  id: "claude-opus-4-8"
+  legacy_flags:
+    anthropic_pass_through: true
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 128000
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 3.4
+    completionPrice: 170
+    promptPrice: 34
+  protocols:
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "大语言模型"
+    description: "Claude Opus 系列旗舰模型，面向复杂推理和长上下文任务。官方价格为 $5 输入 / $25 输出每百万 Token；这里按 1 USD≈¥6.8 折算。"
+    featured: true
+    is_new: true
+    name: "Claude Opus 5"
+    provider_label: "Anthropic"
+    supported:
+      - "文本"
+    tags:
+      - "Claude"
+      - "旗舰"
+      - "百万上下文"
+  id: "claude-opus-5"
+  legacy_flags:
+    anthropic_pass_through: true
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 128000
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 3.4
+    completionPrice: 170
+    promptPrice: 34
+  protocols:
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "大语言模型"
+    description: "Claude Sonnet 系列均衡模型，适合生产级对话、代码和长上下文工作流。官方价格为 $3 输入 / $15 输出每百万 Token；这里按 1 USD≈¥6.8 折算。"
+    featured: true
+    is_new: true
+    name: "Claude Sonnet 4.6"
+    provider_label: "Anthropic"
+    supported:
+      - "文本"
+    tags:
+      - "Claude"
+      - "均衡"
+      - "编程"
+      - "百万上下文"
+  id: "claude-sonnet-4-6"
+  legacy_flags:
+    anthropic_pass_through: true
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 64000
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 2.04
+    completionPrice: 102
+    promptPrice: 20.4
+  protocols:
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "大语言模型"
+    description: "Claude Sonnet 系列高性价比模型，适合生产级对话、代码和长上下文工作流。官方价格为 $2 输入 / $10 输出每百万 Token；这里按 1 USD≈¥6.8 折算。"
+    featured: true
+    is_new: true
+    name: "Claude Sonnet 5"
+    provider_label: "Anthropic"
+    supported:
+      - "文本"
+    tags:
+      - "Claude"
+      - "高性价比"
+      - "编程"
+      - "百万上下文"
+  id: "claude-sonnet-5"
+  legacy_flags:
+    anthropic_pass_through: true
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 128000
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 1.36
+    completionPrice: 68
+    promptPrice: 13.6
+  protocols:
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: null
+      default_on: true
+      mode: "always"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "推理模型"
+    description: "深度求索推理模型，在数学、编程和逻辑推理方面有卓越表现，展示完整思考过程。"
+    featured: true
+    name: "DeepSeek R1"
+    provider_label: "DeepSeek"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考链"
+      - "联网搜索"
+      - "上下文缓存"
+    tags:
+      - "推理"
+      - "数学"
+      - "编程"
+      - "思考链"
+  id: "deepseek-r1"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 16384
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.8
+    completionPrice: 16
+    promptPrice: 4
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: true
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "深度求索V3通用大模型，671B参数MoE架构，中英双语能力优异。"
+    name: "DeepSeek V3"
+    provider_label: "DeepSeek"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "联网搜索"
+      - "上下文缓存"
+    tags:
+      - "MoE"
+      - "中文优化"
+      - "编程"
+  id: "deepseek-v3"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 8192
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.4
+    completionPrice: 8
+    promptPrice: 2
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: true
+      seed: false
+      top_k: false
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: false
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "深度求索最新通用大模型，MoE架构，中英双语能力突出，编程能力强大。"
+    featured: true
+    is_new: true
+    name: "DeepSeek V3.2"
+    provider_label: "DeepSeek"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "上下文缓存"
+    tags:
+      - "MoE"
+      - "编程"
+      - "中文优化"
+  id: "deepseek-v3.2"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 0.2
+    cacheReadPrice: 0.4
+    completionPrice: 3
+    promptPrice: 2
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "高效轻量化 MoE 模型，总参 284B、激活 13B，原生支持百万超长上下文。推理速度快、延迟低、调用成本低，综合能力均衡，适合日常对话、内容创作、基础 RAG 与批量文案处理等高并发场景。"
+    featured: true
+    is_new: true
+    name: "DeepSeek V4 Flash"
+    provider_label: "DeepSeek"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "上下文缓存"
+    tags:
+      - "V4"
+      - "极速"
+      - "高并发"
+      - "混合思考"
+      - "性价比"
+  id: "deepseek-v4-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    default_output_reservation: 16384
+    max_output: 393216
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.2
+    completionPrice: 2
+    promptPrice: 1
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "DeepSeek V4 Flash 的 0731 固定快照。面向需要锁定模型行为和回归结果的生产任务；与稳定版并列公开，不参与稳定 ID 的隐式改写。"
+    is_new: true
+    name: "DeepSeek V4 Flash 0731"
+    provider_label: "DeepSeek"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "上下文缓存"
+    tags:
+      - "V4"
+      - "0731快照"
+      - "极速"
+      - "混合思考"
+      - "固定版本"
+  id: "deepseek-v4-flash-0731"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    default_output_reservation: 16384
+    max_output: 393216
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.2
+    completionPrice: 2
+    promptPrice: 1
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "推理模型"
+    description: "百炼接入的 DeepSeek V4 Pro 旗舰模型，面向复杂推理、代码生成和多步骤任务。"
+    featured: true
+    is_new: true
+    name: "DeepSeek V4 Pro"
+    provider_label: "DeepSeek"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "上下文缓存"
+    tags:
+      - "V4"
+      - "旗舰"
+      - "推理"
+      - "编程"
+  id: "deepseek-v4-pro"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 393216
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 1
+    completionPrice: 24
+    promptPrice: 12
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "推理模型"
+    description: "DeepSeek V4 Pro 的 0813 快照版本，面向复杂推理、代码生成和长周期智能体任务。NexusFlow 同步 API 按百炼即时推理价结算；百炼公布的闲时调度价暂未开放，仅作价格披露。"
+    featured: true
+    is_new: true
+    name: "DeepSeek V4 Pro 0813"
+    provider_label: "DeepSeek"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "上下文缓存"
+    tags:
+      - "V4"
+      - "0813快照"
+      - "旗舰"
+      - "推理"
+      - "编程"
+      - "混合思考"
+  id: "deepseek-v4-pro-0813"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    default_output_reservation: 16384
+    max_output: 393216
+  preview_user_ids: []
+  pricing:
+    alternatePricingModes:
+      - availability: "announced"
+        completionPrice: 13.5
+        id: "idle-scheduling"
+        label: "闲时调度"
+        note: "百炼已公布价格，但官方闲时调度功能尚未开放；NexusFlow 当前不接受该模式请求。"
+        promptPrice: 4.5
+    cacheReadPrice: 1.8
+    completionPrice: 27
+    promptPrice: 9
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "高效轻量化 MoE 模型，原生支持百万超长上下文，推理速度快、调用成本低。官方峰谷定价：忙时输入 2/输出 8，闲时输入 1/输出 4 元每百万 token；NexusFlow 沿用 V4 Flash 平价口径按闲时价结算。"
+    is_new: true
+    name: "DeepSeek V4.1 Flash"
+    provider_label: "DeepSeek"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "上下文缓存"
+    tags:
+      - "V4.1"
+      - "极速"
+      - "高并发"
+      - "混合思考"
+      - "百万上下文"
+  id: "deepseek-v4.1-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    default_output_reservation: 16384
+    max_output: 393216
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.2
+    completionPrice: 4
+    promptPrice: 1
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "智谱最新大模型GLM-4.7，综合能力提升显著，中文理解力强。"
+    is_new: true
+    name: "GLM 4.7"
+    provider_label: "智谱AI"
+    supported:
+      - "文本"
+      - "函数调用"
+    tags:
+      - "中文优化"
+      - "推理"
+      - "通用"
+  id: "glm-4.7"
+  lifecycle: "active"
+  limits:
+    context_length: 169984
+    max_output: 16384
+  preview_user_ids: []
+  pricing:
+    completionPrice: 14
+    promptPrice: 3
+    tokenPricingTiers:
+      - cacheReadPrice: 0.6
+        completionPrice: 14
+        label: "0<Token≤32K"
+        maxTokens: 32768
+        promptPrice: 3
+      - cacheReadPrice: 0.8
+        completionPrice: 16
+        label: "32K<Token≤166K"
+        maxTokens: 169984
+        promptPrice: 4
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "智谱AI GLM-5 旗舰大模型，综合能力全面提升，在推理、编程和长文本方面表现出色。"
+    featured: true
+    is_new: true
+    name: "GLM 5"
+    provider_label: "智谱AI"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "旗舰"
+      - "推理"
+      - "编程"
+      - "中文优化"
+  id: "glm-5"
+  lifecycle: "active"
+  limits:
+    context_length: 202752
+    max_output: 16384
+  preview_user_ids: []
+  pricing:
+    completionPrice: 18
+    promptPrice: 4
+    tokenPricingTiers:
+      - completionPrice: 18
+        label: "0<Token≤32K"
+        maxTokens: 32768
+        promptPrice: 4
+      - completionPrice: 22
+        label: "32K<Token≤198K"
+        maxTokens: 202752
+        promptPrice: 6
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "智谱AI GLM-5.1 增强版旗舰模型，在 GLM-5 基础上进一步优化，复杂推理和代码生成能力更强。"
+    featured: true
+    is_new: true
+    name: "GLM 5.1"
+    provider_label: "智谱AI"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "上下文缓存"
+    tags:
+      - "旗舰"
+      - "推理"
+      - "编程"
+      - "增强"
+  id: "glm-5.1"
+  lifecycle: "active"
+  limits:
+    context_length: 202745
+    max_output: 131072
+  preview_user_ids: []
+  pricing:
+    completionPrice: 24
+    promptPrice: 6
+    tokenPricingTiers:
+      - cacheReadExplicitPrice: 0.6
+        cacheReadPrice: 1.2
+        completionPrice: 24
+        label: "0<Token≤32K"
+        maxTokens: 32768
+        promptPrice: 6
+      - cacheReadExplicitPrice: 0.8
+        cacheReadPrice: 1.6
+        completionPrice: 28
+        label: "32K<Token≤198K"
+        maxTokens: 202752
+        promptPrice: 8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: true
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "智谱AI GLM-5.2 面向长程任务（Long Horizon Task）的新一代开源旗舰模型，支持 1M 无损超长上下文。具备卓越的编程与工程能力，可自主完成任务拆解、架构设计、前后端开发、联调测试到多端部署的完整链路，适用于复杂工程、长程交互、代码生成与企业应用场景。"
+    featured: true
+    is_new: true
+    name: "GLM 5.2"
+    provider_label: "智谱AI"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "结构化输出"
+      - "前缀续写"
+      - "批量推理"
+      - "上下文缓存"
+    tags:
+      - "旗舰"
+      - "长上下文"
+      - "百万上下文"
+      - "编程"
+      - "思考模式"
+      - "开源"
+  id: "glm-5.2"
+  lifecycle: "active"
+  limits:
+    context_length: 1048576
+    max_output: 131072
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 2
+    completionPrice: 28
+    promptPrice: 8
+    tokenPricingTiers:
+      - cacheReadPrice: 2
+        completionPrice: 28
+        label: "0<Token≤1M"
+        maxTokens: 1048576
+        promptPrice: 8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: true
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "智谱AI GLM-5.2 的高速版本，支持 1M 超长上下文，模型能力对齐 GLM-5.2 标准版，具备逻辑推理、长文本理解与代码生成能力。通过推理加速优化，输出 TPS 可达标准版的 1.5~2 倍，适用于实时对话、Agent 多轮调用、流式代码生成等对输出速度敏感的场景。"
+    is_new: true
+    name: "GLM 5.2 Fast Preview"
+    provider_label: "智谱AI"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "结构化输出"
+      - "前缀续写"
+      - "批量推理"
+      - "上下文缓存"
+    tags:
+      - "高速"
+      - "长上下文"
+      - "百万上下文"
+      - "编程"
+      - "思考模式"
+  id: "glm-5.2-fast-preview"
+  lifecycle: "active"
+  limits:
+    context_length: 1048576
+    max_output: 131072
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 4
+    completionPrice: 56
+    promptPrice: 16
+    tokenPricingTiers:
+      - cacheReadPrice: 4
+        completionPrice: 56
+        label: "0<Token≤1M"
+        maxTokens: 1048576
+        promptPrice: 16
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: true
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "智谱AI GLM-5.3 新一代旗舰模型，支持 1M 无损超长上下文，提供三档深度思考调节，编程与复杂推理能力进一步增强，适用于长程智能体任务、复杂工程与企业级应用场景。"
+    featured: true
+    is_new: true
+    name: "GLM 5.3"
+    provider_label: "智谱AI"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "结构化输出"
+      - "前缀续写"
+      - "批量推理"
+      - "上下文缓存"
+    tags:
+      - "旗舰"
+      - "长上下文"
+      - "百万上下文"
+      - "编程"
+      - "深度思考"
+      - "智能体"
+  id: "glm-5.3"
+  lifecycle: "active"
+  limits:
+    context_length: 1048576
+    max_output: 131072
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 2
+    completionPrice: 28
+    promptPrice: 8
+    tokenPricingTiers:
+      - cacheReadPrice: 2
+        completionPrice: 28
+        label: "0<Token≤1M"
+        maxTokens: 1048576
+        promptPrice: 8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: true
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "Azure AI Foundry GPT-6 Astra，支持文本与图像输入、推理、工具调用、结构化输出、Chat Completions 和 Responses API。"
+    featured: false
+    is_new: true
+    name: "GPT-6 Astra"
+    provider_label: "Azure AI Foundry"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "函数调用"
+      - "推理"
+      - "结构化输出"
+    tags:
+      - "旗舰"
+      - "推理"
+      - "多模态"
+      - "工具调用"
+      - "百万上下文"
+  id: "gpt-6-astra"
+  lifecycle: "active"
+  limits:
+    context_length: 1050000
+    default_output_reservation: 16384
+    max_output: 128000
+  param_overrides:
+    rewrite:
+      max_tokens: "max_completion_tokens"
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 6.8
+    cacheReadPrice: 6.8
+    completionPrice: 340
+    pricingType: "token"
+    promptPrice: 68
+    tokenPricingTiers:
+      - cacheReadExplicitPrice: 6.8
+        cacheReadPrice: 6.8
+        completionPrice: 340
+        label: "0<Token≤272K"
+        maxTokens: 272000
+        promptPrice: 68
+      - cacheReadExplicitPrice: 13.6
+        cacheReadPrice: 13.6
+        completionPrice: 510
+        label: "272K<Token≤1.05M"
+        maxTokens: 1050000
+        promptPrice: 136
+  protocols:
+    - "openai.chat"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "以输入图片作为首帧生成连贯视频，支持720P/1080P，3-15秒时长。画面连贯性和运动一致性出色。默认带音频直出。"
+    featured: true
+    is_new: true
+    name: "HappyHorse 1.0 图生视频"
+    provider_label: "阿里巴巴 (Alibaba)"
+    supported:
+      - "图生视频"
+    tags:
+      - "视频生成"
+      - "图生视频"
+      - "首帧驱动"
+      - "高质量"
+      - "音频"
+  id: "happyhorse-1.0-i2v"
+  lifecycle: "active"
+  limits:
+    context_length: 2500
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.9
+      - label: "1080P"
+        price: 1.6
+    pricingType: "per-second"
+    promptPrice: 0.9
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "支持1-9张参考图片输入，可将图中人物/物体/场景融合生成视频。支持720P/1080P，3-15秒，多种宽高比。默认带音频直出。"
+    is_new: true
+    name: "HappyHorse 1.0 参考生视频"
+    provider_label: "阿里巴巴 (Alibaba)"
+    supported:
+      - "参考生视频"
+    tags:
+      - "视频生成"
+      - "参考生视频"
+      - "多图输入"
+      - "高质量"
+      - "音频"
+  id: "happyhorse-1.0-r2v"
+  lifecycle: "active"
+  limits:
+    context_length: 2500
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.9
+      - label: "1080P"
+        price: 1.6
+    pricingType: "per-second"
+    promptPrice: 0.9
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "阿里巴巴2026年最新AI视频生成模型，榜单排名第一。文本生成高质量视频，支持720P/1080P，3-15秒时长，多种宽高比。默认带音频直出。"
+    featured: true
+    is_new: true
+    name: "HappyHorse 1.0 文生视频"
+    provider_label: "阿里巴巴 (Alibaba)"
+    supported:
+      - "文生视频"
+    tags:
+      - "视频生成"
+      - "文生视频"
+      - "高质量"
+      - "榜单第一"
+      - "音频"
+  id: "happyhorse-1.0-t2v"
+  lifecycle: "active"
+  limits:
+    context_length: 2500
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.9
+      - label: "1080P"
+        price: 1.6
+    pricingType: "per-second"
+    promptPrice: 0.9
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "基于输入视频进行AI编辑，支持0-5张参考图片辅助编辑。输入视频3-60秒（超15秒截断），支持720P/1080P，可保留原始音频。"
+    is_new: true
+    name: "HappyHorse 1.0 视频编辑"
+    provider_label: "阿里巴巴 (Alibaba)"
+    supported:
+      - "视频编辑"
+    tags:
+      - "视频生成"
+      - "视频编辑"
+      - "AI编辑"
+      - "音频保留"
+  id: "happyhorse-1.0-video-edit"
+  lifecycle: "active"
+  limits:
+    context_length: 2500
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.9
+      - label: "1080P"
+        price: 1.6
+    pricingType: "per-second"
+    promptPrice: 0.9
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "HappyHorse 1.1 图生视频模型，以输入图片作为首帧生成连贯视频，480P 分辨率最长 10 秒，画面连贯性进一步提升。"
+    is_new: true
+    name: "HappyHorse 1.1 图生视频"
+    provider_label: "阿里巴巴 (Alibaba)"
+    supported:
+      - "图生视频"
+    tags:
+      - "视频生成"
+      - "图生视频"
+      - "首帧驱动"
+      - "480P"
+  id: "happyhorse-1.1-i2v"
+  lifecycle: "active"
+  limits:
+    context_length: 2500
+    max_output: 10
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.45
+    pricingType: "per-second"
+    promptPrice: 0.45
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "HappyHorse 1.1 参考生视频模型，支持多张参考图片输入，将图中人物/物体/场景融合生成视频，480P 分辨率最长 10 秒。"
+    is_new: true
+    name: "HappyHorse 1.1 参考生视频"
+    provider_label: "阿里巴巴 (Alibaba)"
+    supported:
+      - "参考生视频"
+    tags:
+      - "视频生成"
+      - "参考生视频"
+      - "多图输入"
+      - "480P"
+  id: "happyhorse-1.1-r2v"
+  lifecycle: "active"
+  limits:
+    context_length: 2500
+    max_output: 10
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.45
+    pricingType: "per-second"
+    promptPrice: 0.45
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "阿里巴巴 HappyHorse 1.1 代视频生成模型，文本生成高质量视频，480P 分辨率最长 10 秒，画面质量与指令遵循进一步提升。"
+    is_new: true
+    name: "HappyHorse 1.1 文生视频"
+    provider_label: "阿里巴巴 (Alibaba)"
+    supported:
+      - "文生视频"
+    tags:
+      - "视频生成"
+      - "文生视频"
+      - "480P"
+      - "高质量"
+  id: "happyhorse-1.1-t2v"
+  lifecycle: "active"
+  limits:
+    context_length: 2500
+    max_output: 10
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.45
+    pricingType: "per-second"
+    promptPrice: 0.45
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: true
+    thinking:
+      budget: false
+      control: null
+      default_on: true
+      mode: "always"
+      preserve: false
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "推理模型"
+    description: "月之暗面 Agentic 思考模型，专为长程智能体任务设计，在深度推理、工具调用规划与复杂问题求解方面表现出色。"
+    is_new: true
+    name: "Kimi K2 Thinking"
+    provider_label: "月之暗面"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考链"
+      - "结构化输出"
+    tags:
+      - "推理"
+      - "智能体"
+      - "思考链"
+      - "编程"
+  id: "kimi-k2-thinking"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 98304
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 0.4
+    cacheReadPrice: 0.8
+    completionPrice: 16
+    promptPrice: 4
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: "enable_thinking"
+      default_on: false
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "月之暗面Kimi K2.5模型，擅长长文本理解和多轮对话，中文能力出色。"
+    name: "Kimi K2.5"
+    provider_label: "月之暗面"
+    supported:
+      - "文本"
+      - "函数调用"
+    tags:
+      - "长文本"
+      - "多轮对话"
+      - "中文优化"
+  id: "kimi-k2.5"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 98304
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 0.4
+    cacheReadPrice: 0.8
+    completionPrice: 21
+    promptPrice: 4
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: "enable_thinking"
+      default_on: false
+      mode: "mixed"
+      preserve: true
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "月之暗面 Kimi K2.6 最新旗舰模型，长文本理解和创意写作能力大幅提升，支持更长上下文窗口。"
+    featured: true
+    is_new: true
+    name: "Kimi K2.6"
+    provider_label: "月之暗面"
+    supported:
+      - "文本"
+      - "函数调用"
+    tags:
+      - "旗舰"
+      - "长文本"
+      - "创意写作"
+      - "中文优化"
+  id: "kimi-k2.6"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 98304
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 0.65
+    cacheReadPrice: 1.3
+    completionPrice: 27
+    promptPrice: 6.5
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: true
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: true
+    thinking:
+      budget: false
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: true
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "编程模型"
+    description: "月之暗面 Kimi K2.7 编程模型，支持文本、图片与视频输入，长程编程与智能体工具调用能力出色，适合代码生成、仓库级重构与自动化工程任务。"
+    is_new: true
+    name: "Kimi K2.7 Code"
+    provider_label: "月之暗面"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "视频输入"
+      - "函数调用"
+      - "思考模式"
+      - "结构化输出"
+    tags:
+      - "编程"
+      - "长程智能体"
+      - "视觉理解"
+      - "视频输入"
+      - "思考模式"
+  id: "kimi-k2.7-code"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 98304
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 0.65
+    cacheReadPrice: 1.3
+    completionPrice: 27
+    promptPrice: 6.5
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: true
+    structured_output: true
+    thinking:
+      budget: false
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: true
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "Kimi 迄今能力最强的旗舰模型，拥有 2.8 万亿参数，基于 KDA 混合线性注意力机制（Kimi Delta Attention）和注意力残差（Attention Residuals）技术构建，原生支持视觉理解，并拥有 100 万 token 上下文窗口。全球首个开源的 3 万亿级别模型，面向长程编程、知识工作和推理等前沿智能场景而设计。"
+    featured: true
+    is_new: true
+    name: "Kimi K3"
+    provider_label: "月之暗面"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "结构化输出"
+      - "前缀续写"
+      - "批量推理"
+      - "上下文缓存"
+    tags:
+      - "旗舰"
+      - "推理"
+      - "长程编程"
+      - "视觉理解"
+      - "思考模式"
+      - "百万上下文"
+      - "开源"
+  id: "kimi-k3"
+  legacy_flags:
+    anthropic_pass_through: true
+  lifecycle: "active"
+  limits:
+    context_length: 1048576
+    max_output: 1048576
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 2
+    completionPrice: 100
+    promptPrice: 20
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: true
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: true
+    thinking:
+      budget: false
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: true
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "编程模型"
+    description: "Kimi K2.7 Code 的高速版本，模型能力对齐标准版，通过推理加速显著提升输出速度，适合 IDE 实时代码补全与高并发智能体调用场景。上游模型 id 为 kimi/kimi-k2.7-code-highspeed。"
+    is_new: true
+    name: "Kimi K2.7 Code 高速版"
+    provider_label: "月之暗面"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "视频输入"
+      - "函数调用"
+      - "思考模式"
+      - "结构化输出"
+    tags:
+      - "编程"
+      - "高速"
+      - "智能体"
+      - "思考模式"
+  id: "kimi/kimi-k2.7-code-highspeed"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 98304
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 1.3
+    cacheReadPrice: 2.6
+    completionPrice: 54
+    promptPrice: 13
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: true
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: true
+      mode: "always"
+      preserve: false
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "MiniMax M2.1模型，在创意写作和多轮对话方面表现突出。"
+    name: "MiniMax M2.1"
+    provider_label: "MiniMax"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考链"
+      - "联网搜索"
+    tags:
+      - "创意写作"
+      - "对话"
+      - "通用"
+      - "思考链"
+  id: "MiniMax-M2.1"
+  lifecycle: "active"
+  limits:
+    context_length: 204800
+    max_output: 32768
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.42
+    completionPrice: 8.4
+    promptPrice: 2.1
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: true
+      mode: "always"
+      preserve: false
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "MiniMax M2.5 增强版，推理和编程能力提升，多轮对话更加稳定。"
+    is_new: true
+    name: "MiniMax M2.5"
+    provider_label: "MiniMax"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考链"
+    tags:
+      - "推理"
+      - "编程"
+      - "对话"
+      - "思考链"
+  id: "MiniMax-M2.5"
+  lifecycle: "active"
+  limits:
+    context_length: 196608
+    max_output: 32768
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.42
+    completionPrice: 8.4
+    promptPrice: 2.1
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: true
+      mode: "always"
+      preserve: false
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "推理模型"
+    description: "MiniMax M2.7 新一代思考模型，推理与编程能力进一步提升，多轮对话与智能体工具调用更加稳定。仅支持思考模式输出。"
+    is_new: true
+    name: "MiniMax M2.7"
+    provider_label: "MiniMax"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考链"
+    tags:
+      - "推理"
+      - "编程"
+      - "思考链"
+      - "智能体"
+  id: "MiniMax/MiniMax-M2.7"
+  legacy_bridged_protocols:
+    - "anthropic.messages"
+  legacy_flags:
+    anthropic_pass_through: false
+  lifecycle: "active"
+  limits:
+    context_length: 196608
+    max_output: 32768
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.42
+    completionPrice: 8.4
+    promptPrice: 2.1
+  protocols:
+    - "openai.chat"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: true
+    thinking:
+      budget: false
+      control: "thinking_object"
+      default_on: null
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: false
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "MiniMax M3 凭借业界领先的 Coding 与 Agentic 能力、100万超长上下文窗口以及原生多模态特性，可出色胜任企业级长文档理解、高质量内容生成、代码编写、Bug修复及原生应用构建等任务。强大的 Agentic 能力端到端贯通工作流，原生多模态带来流畅自然的图文混合交互体验。"
+    featured: true
+    is_new: true
+    name: "MiniMax M3"
+    provider_label: "MiniMax"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "函数调用"
+      - "思考模式"
+      - "结构化输出"
+      - "前缀续写"
+      - "批量推理"
+      - "上下文缓存"
+    tags:
+      - "旗舰"
+      - "编程"
+      - "智能体"
+      - "视觉理解"
+      - "思考模式"
+      - "百万上下文"
+  id: "MiniMax/MiniMax-M3"
+  legacy_bridged_protocols:
+    - "anthropic.messages"
+  legacy_flags:
+    anthropic_pass_through: false
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 524288
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.84
+    completionPrice: 16.8
+    promptPrice: 4.2
+  protocols:
+    - "openai.chat"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "PixVerse最新旗舰视频生成模型，支持文生视频、图生视频，画面质量和运动一致性大幅提升。支持1-15秒时长，360p/540p/720p/1080p多种分辨率，多种宽高比。"
+    featured: true
+    is_new: true
+    name: "PixVerse V6"
+    provider_label: "拍我AI (PixVerse)"
+    supported:
+      - "文生视频"
+      - "图生视频"
+    tags:
+      - "视频生成"
+      - "文生视频"
+      - "图生视频"
+      - "旗舰"
+      - "V6"
+  id: "pixverse-v6"
+  lifecycle: "active"
+  limits:
+    context_length: 500
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "360P 有声"
+        price: 0.21
+      - label: "540P 有声"
+        price: 0.27
+      - label: "720P 有声"
+        price: 0.36
+      - label: "1080P 有声"
+        price: 0.68
+      - label: "360P 无声"
+        price: 0.15
+      - label: "540P 无声"
+        price: 0.21
+      - label: "720P 无声"
+        price: 0.27
+      - label: "1080P 无声"
+        price: 0.53
+    pricingType: "per-second"
+    promptPrice: 0.15
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: false
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问极速通用模型，百万级上下文窗口，响应速度极快，成本极低，适合大规模高并发应用场景。支持函数调用和思考模式。"
+    is_new: true
+    name: "Qwen Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "极速"
+      - "低成本"
+      - "百万上下文"
+      - "通用"
+      - "思考模式"
+  id: "qwen-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 32768
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 0.015
+    cacheReadPrice: 0.03
+    completionPrice: 1.5
+    promptPrice: 0.15
+    tokenPricingTiers:
+      - cacheReadExplicitPrice: 0.015
+        cacheReadPrice: 0.03
+        completionPrice: 1.5
+        label: "0<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 0.15
+      - cacheReadExplicitPrice: 0.06
+        cacheReadPrice: 0.12
+        completionPrice: 6
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 0.6
+      - cacheReadExplicitPrice: 0.12
+        cacheReadPrice: 0.24
+        completionPrice: 12
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 1.2
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "大语言模型"
+    description: "通义千问长文本模型，支持超长上下文，适合文档分析和长文本理解。上下文窗口高达1000万token。"
+    name: "Qwen Long"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+    tags:
+      - "超长上下文"
+      - "文档分析"
+  id: "qwen-long"
+  lifecycle: "active"
+  limits:
+    context_length: 10000000
+    max_output: 8192
+  preview_user_ids: []
+  pricing:
+    completionPrice: 2
+    promptPrice: 0.5
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "推理模型"
+    description: "通义千问数学专用模型，擅长各类数学问题求解、证明和计算，支持LaTeX格式输出。"
+    is_new: true
+    name: "Qwen Math Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "数学求解"
+    tags:
+      - "数学"
+      - "推理"
+      - "求解"
+      - "LaTeX"
+  id: "qwen-math-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 4096
+    max_output: 3072
+  preview_user_ids: []
+  pricing:
+    completionPrice: 12
+    promptPrice: 4
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "专业模型"
+    description: "通义千问旗舰级翻译大模型，支持92个语种互译，翻译质量优异，适合专业翻译场景。"
+    is_new: true
+    name: "Qwen MT Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "翻译"
+    tags:
+      - "翻译"
+      - "92语种"
+      - "专业"
+  id: "qwen-mt-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 16384
+    max_output: 8192
+  preview_user_ids: []
+  pricing:
+    completionPrice: 5.4
+    promptPrice: 1.8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: false
+      control: "enable_thinking"
+      default_on: false
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问增强版，效果和速度的经典平衡点，适合大规模应用场景。"
+    featured: true
+    name: "Qwen Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+    tags:
+      - "高性价比"
+      - "均衡"
+      - "通用"
+  id: "qwen-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 32768
+  preview_user_ids: []
+  pricing:
+    completionPrice: 2
+    promptPrice: 0.8
+    tokenPricingTiers:
+      - cacheReadExplicitPrice: 0.08
+        cacheReadPrice: 0.16
+        completionPrice: 2
+        label: "0<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 0.8
+        thinkingCompletionPrice: 8
+      - cacheReadExplicitPrice: 0.24
+        cacheReadPrice: 0.48
+        completionPrice: 20
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 2.4
+        thinkingCompletionPrice: 24
+      - cacheReadExplicitPrice: 0.48
+        cacheReadPrice: 0.96
+        completionPrice: 48
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 4.8
+        thinkingCompletionPrice: 64
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: false
+      control: "enable_thinking"
+      default_on: false
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问高速版，响应极快，成本最低，适合对延迟敏感的应用场景。"
+    name: "Qwen Turbo"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "快速"
+      - "低成本"
+      - "通用"
+  id: "qwen-turbo"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 16384
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.06
+    completionPrice: 0.6
+    promptPrice: 0.3
+    thinkingCompletionPrice: 3
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: true
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "多模态模型"
+    description: "通义千问视觉旗舰模型，支持图像理解、图文对话、文档OCR等多模态任务。"
+    featured: true
+    name: "Qwen VL Max"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "视频输入"
+    tags:
+      - "视觉"
+      - "多模态"
+      - "OCR"
+      - "图文理解"
+  id: "qwen-vl-max"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 8192
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.32
+    completionPrice: 4
+    promptPrice: 1.6
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: true
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "多模态模型"
+    description: "通义千问视觉增强版，平衡性能与成本的多模态模型。"
+    name: "Qwen VL Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "视频输入"
+    tags:
+      - "视觉"
+      - "多模态"
+      - "高性价比"
+  id: "qwen-vl-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 8192
+  preview_user_ids: []
+  pricing:
+    cacheReadPrice: 0.16
+    completionPrice: 2
+    promptPrice: 0.8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "Qwen3开源旗舰，2350亿参数MoE架构（激活220亿），支持思考与非思考模式动态切换。"
+    is_new: true
+    name: "Qwen3 235B-A22B"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "开源"
+      - "MoE"
+      - "推理"
+      - "思考模式"
+  id: "qwen3-235b-a22b"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 16384
+  preview_user_ids: []
+  pricing:
+    completionPrice: 8
+    promptPrice: 2
+    thinkingCompletionPrice: 20
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "Qwen3开源320亿参数密集模型，在中等规模模型中表现优异。"
+    name: "Qwen3 32B"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+    tags:
+      - "开源"
+      - "推理"
+      - "编程"
+  id: "qwen3-32b"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 8192
+  preview_user_ids: []
+  pricing:
+    completionPrice: 8
+    promptPrice: 2
+    thinkingCompletionPrice: 20
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "Qwen3 开源 80 亿参数轻量模型，适合边缘部署和低成本推理场景。"
+    is_new: true
+    name: "Qwen3 8B"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+    tags:
+      - "开源"
+      - "轻量"
+      - "高性价比"
+  id: "qwen3-8b"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 8192
+  preview_user_ids: []
+  pricing:
+    completionPrice: 2
+    promptPrice: 0.5
+    thinkingCompletionPrice: 5
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "语音模型"
+    description: "Qwen3代语音识别模型，支持11种语言自动检测及转录，支持字级时间戳、情感识别、歌唱识别和说话人分离。实时与非实时双模式。"
+    is_new: true
+    name: "Qwen3 ASR Flash"
+    provider_label: "通义千问"
+    supported:
+      - "语音转文本"
+    tags:
+      - "语音识别"
+      - "ASR"
+      - "多语言"
+      - "实时"
+  id: "qwen3-asr-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 0
+    max_output: 0
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "华北2（北京）"
+        price: 0.00022
+    pricingType: "per-second"
+    promptPrice: 0.00022
+  protocols:
+    - "openai.audio.transcriptions"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: null
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "编程模型"
+    description: "通义千问3代编程闪电版，快速代码补全和生成，适合IDE集成场景。"
+    is_new: true
+    name: "Qwen3 Coder Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "代码生成"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "编程"
+      - "极速"
+      - "高性价比"
+      - "思考模式"
+  id: "qwen3-coder-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    completionPrice: 4
+    promptPrice: 1
+    tokenPricingTiers:
+      - completionPrice: 4
+        label: "0<Token≤32K"
+        maxTokens: 32768
+        promptPrice: 1
+      - completionPrice: 6
+        label: "32K<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 1.5
+      - completionPrice: 10
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 2.5
+      - completionPrice: 25
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 5
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: null
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "编程模型"
+    description: "通义千问3代卓越代码模型，擅长工具调用和环境交互，代码生成、补全、Debug和重构能力出色。百万级上下文。"
+    featured: true
+    is_new: true
+    name: "Qwen3 Coder Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "代码生成"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "编程"
+      - "代码生成"
+      - "工具调用"
+      - "百万上下文"
+      - "思考模式"
+  id: "qwen3-coder-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    completionPrice: 16
+    promptPrice: 4
+    tokenPricingTiers:
+      - completionPrice: 16
+        label: "0<Token≤32K"
+        maxTokens: 32768
+        promptPrice: 4
+      - completionPrice: 24
+        label: "32K<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 6
+      - completionPrice: 40
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 10
+      - completionPrice: 200
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 20
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: false
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问3代最强旗舰模型，支持思考模式切换，在复杂推理、代码生成、数学等方面表现卓越。262K上下文窗口。"
+    featured: true
+    is_new: true
+    name: "Qwen3 Max"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "旗舰"
+      - "推理"
+      - "编程"
+      - "思考模式"
+  id: "qwen3-max"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    completionPrice: 10
+    promptPrice: 2.5
+    tokenPricingTiers:
+      - completionPrice: 10
+        label: "0<Token≤32K"
+        maxTokens: 32768
+        promptPrice: 2.5
+      - completionPrice: 16
+        label: "32K<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 4
+      - completionPrice: 28
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 7
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: true
+      file: false
+      image: true
+      text: true
+      video: true
+    output:
+      audio: true
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: null
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "通义千问3代全能模型，支持文本、图片、音频、视频输入与文本+语音输出。支持思考模式（思考模式下仅文本输出）。适合短视频分析与成本敏感场景。"
+    is_new: false
+    name: "Qwen3 Omni Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "音频输入"
+      - "音频输出"
+      - "视频输入"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "全能"
+      - "多模态"
+      - "音频输入"
+      - "音频输出"
+      - "视频输入"
+      - "思考模式"
+  id: "qwen3-omni-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 65536
+    max_output: 16384
+  preview_user_ids: []
+  pricing:
+    audioInputPrice: 15.8
+    audioOutputPrice: 62.6
+    completionPrice: 6.9
+    promptPrice: 1.8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "语音模型"
+    description: "Qwen3代非实时语音合成模型，通过 OpenAI 兼容 HTTP 接口调用，按输入字符计费；华北2（北京）目录价为每万字符 0.8 元。"
+    is_new: true
+    name: "Qwen3 TTS Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本转语音"
+    tags:
+      - "语音合成"
+      - "TTS"
+      - "非实时"
+      - "多语言"
+  id: "qwen3-tts-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 0
+    max_output: 0
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "华北2（北京）"
+        price: 0.8
+    pricingType: "per-10k-characters"
+    promptPrice: 0.8
+  protocols:
+    - "openai.audio.speech"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: true
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: null
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "Qwen3代视觉闪电版，快速图像理解，适合实时场景。"
+    name: "Qwen3 VL Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "视频输入"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "视觉"
+      - "极速"
+      - "高性价比"
+      - "思考模式"
+  id: "qwen3-vl-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 32768
+  preview_user_ids: []
+  pricing:
+    completionPrice: 1.5
+    promptPrice: 0.15
+    tokenPricingTiers:
+      - completionPrice: 1.5
+        label: "0<Token≤32K"
+        maxTokens: 32768
+        promptPrice: 0.15
+      - completionPrice: 3
+        label: "32K<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 0.3
+      - completionPrice: 6
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 0.6
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: true
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: null
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "Qwen3代视觉语言模型，图像理解能力大幅提升，支持高分辨率图像输入。262K上下文窗口。"
+    is_new: true
+    name: "Qwen3 VL Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "视频输入"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "视觉"
+      - "多模态"
+      - "高分辨率"
+      - "思考模式"
+  id: "qwen3-vl-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 32768
+  preview_user_ids: []
+  pricing:
+    completionPrice: 10
+    promptPrice: 1
+    tokenPricingTiers:
+      - completionPrice: 10
+        label: "0<Token≤32K"
+        maxTokens: 32768
+        promptPrice: 1
+      - completionPrice: 15
+        label: "32K<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 1.5
+      - completionPrice: 30
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 3
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问3.5代闪电版，适合简单任务，速度快、成本低。支持百万级上下文窗口和上下文缓存。"
+    is_new: true
+    name: "Qwen3.5 Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "极速"
+      - "低成本"
+      - "百万上下文"
+  id: "qwen3.5-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    completionPrice: 2
+    promptPrice: 0.2
+    tokenPricingTiers:
+      - completionPrice: 2
+        label: "0<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 0.2
+      - completionPrice: 8
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 0.8
+      - completionPrice: 12
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 1.2
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: true
+      file: false
+      image: true
+      text: true
+      video: true
+    output:
+      audio: true
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "通义千问3.5代轻量全模态模型，支持文本、图片、音频、视频任意组合输入与文本+语音输出。3小时音频/1小时视频输入，113种输入语言，55种音色，支持联网搜索。高性价比之选。"
+    featured: true
+    is_new: true
+    name: "Qwen3.5 Omni Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "音频输入"
+      - "音频输出"
+      - "视频输入"
+      - "函数调用"
+      - "联网搜索"
+    tags:
+      - "高性价比"
+      - "全能"
+      - "多模态"
+      - "音频输入"
+      - "音频输出"
+      - "视频输入"
+      - "联网搜索"
+  id: "qwen3.5-omni-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    audioInputPrice: 18
+    audioOutputPrice: 72
+    completionPrice: 13.3
+    promptPrice: 2.2
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: true
+      file: false
+      image: true
+      text: true
+      video: true
+    output:
+      audio: true
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "通义千问3.5代旗舰全模态模型，支持文本、图片、音频、视频任意组合输入，可输出文本与语音。3小时音频/1小时视频输入，113种输入语言，55种音色，支持联网搜索和声音复刻。"
+    featured: true
+    is_new: true
+    name: "Qwen3.5 Omni Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "音频输入"
+      - "音频输出"
+      - "视频输入"
+      - "函数调用"
+      - "联网搜索"
+    tags:
+      - "旗舰"
+      - "全能"
+      - "多模态"
+      - "音频输入"
+      - "音频输出"
+      - "视频输入"
+      - "联网搜索"
+  id: "qwen3.5-omni-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    audioInputPrice: 53
+    audioOutputPrice: 213
+    completionPrice: 40
+    promptPrice: 7
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问3.5代增强版，效果、速度、成本最佳平衡。支持百万级上下文窗口，适合大规模应用场景。"
+    featured: true
+    is_new: true
+    name: "Qwen3.5 Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "高性价比"
+      - "均衡"
+      - "百万上下文"
+  id: "qwen3.5-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    completionPrice: 4.8
+    promptPrice: 0.8
+    tokenPricingTiers:
+      - completionPrice: 4.8
+        label: "0<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 0.8
+      - completionPrice: 12
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 2
+      - completionPrice: 24
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 4
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "Qwen3.6开源MoE模型，350亿总参数仅激活30亿，在智能体编程、STEM和推理任务上表现优异，Apache 2.0开源。支持思考模式切换。"
+    is_new: true
+    name: "Qwen3.6 35B-A3B"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "开源"
+      - "MoE"
+      - "轻量"
+      - "编程"
+      - "思考模式"
+  id: "qwen3.6-35b-a3b"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    completionPrice: 10.8
+    promptPrice: 1.8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问3.6代闪电版，适合简单任务，速度快、成本低。支持百万级上下文窗口和上下文缓存。"
+    is_new: true
+    name: "Qwen3.6 Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "极速"
+      - "低成本"
+      - "百万上下文"
+  id: "qwen3.6-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    completionPrice: 7.2
+    promptPrice: 1.2
+    tokenPricingTiers:
+      - completionPrice: 7.2
+        label: "0<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 1.2
+      - completionPrice: 28.8
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 4.8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: true
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问3.6代最强预览模型，面向复杂推理、代码生成和多步骤工具任务，适合需要更强思考能力的场景。"
+    featured: true
+    is_new: true
+    name: "Qwen3.6 Max Preview"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+    tags:
+      - "旗舰"
+      - "推理"
+      - "预览版"
+  id: "qwen3.6-max-preview"
+  lifecycle: "active"
+  limits:
+    context_length: 262144
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    completionPrice: 54
+    promptPrice: 9
+    tokenPricingTiers:
+      - completionPrice: 54
+        label: "0<Token≤128K"
+        maxTokens: 131072
+        promptPrice: 9
+      - completionPrice: 90
+        label: "128K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 15
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: true
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问3.6代均衡旗舰模型，支持百万级上下文、函数调用和内置工具，适合大型代码库与通用生产场景。"
+    featured: true
+    is_new: true
+    name: "Qwen3.6 Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "内置工具"
+      - "思考模式"
+    tags:
+      - "高性价比"
+      - "均衡"
+      - "百万上下文"
+  id: "qwen3.6-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 65536
+  preview_user_ids: []
+  pricing:
+    completionPrice: 12
+    promptPrice: 2
+    tokenPricingTiers:
+      - completionPrice: 12
+        label: "0<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 2
+      - completionPrice: 48
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: true
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "Qwen3.7原生视觉语言系列Flash模型，相较3.6-Flash全面提升多模态理解与Agent执行能力。万物识别能力更强，真实世界感知与空间智能进一步提升，Search Agent、CI Agent等多模态Agent场景能力显著升级，多模态Coding能力优化。百万级上下文，支持上下文缓存。"
+    is_new: true
+    name: "Qwen3.7 Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "结构化输出"
+      - "前缀续写"
+      - "批量推理"
+      - "上下文缓存"
+    tags:
+      - "极速"
+      - "低成本"
+      - "多模态"
+      - "视觉理解"
+      - "思考模式"
+      - "百万上下文"
+  id: "qwen3.7-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 131072
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0.8
+    promptPrice: 0.2
+    tokenPricingTiers:
+      - cacheReadExplicitPrice: 0.02
+        cacheReadPrice: 0.04
+        completionPrice: 0.8
+        label: "0<Token≤32K"
+        maxTokens: 32768
+        promptPrice: 0.2
+      - cacheReadExplicitPrice: 0.06
+        cacheReadPrice: 0.12
+        completionPrice: 2.4
+        label: "32K<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 0.6
+      - cacheReadExplicitPrice: 0.12
+        cacheReadPrice: 0.24
+        completionPrice: 4.8
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 1.2
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: true
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问3.7代旗舰模型，面向智能体时代，编程、办公、长周期自主执行能力全面提升。支持思考模式切换、函数调用和联网搜索。百万级上下文。"
+    featured: true
+    is_new: true
+    name: "Qwen3.7 Max"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+    tags:
+      - "旗舰"
+      - "推理"
+      - "编程"
+      - "思考模式"
+      - "智能体"
+  id: "qwen3.7-max"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 131072
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 1.2
+    cacheReadPrice: 2.4
+    completionPrice: 36
+    promptPrice: 12
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: true
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: true
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "Qwen3.7系列高性价比Plus模型，在强大文本能力基础上全面升级视觉-语言能力，保持编码、工具使用和生产力工作流的完整智能体能力。支持多模态交互混合智能体：感知真实世界场景、读取屏幕并操作GUI、基于视觉参考生成代码、端到端导航移动应用。功能等同于快照 qwen3.7-plus-2026-05-26。"
+    featured: true
+    is_new: true
+    name: "Qwen3.7 Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "结构化输出"
+    tags:
+      - "高性价比"
+      - "多模态"
+      - "智能体"
+      - "视觉理解"
+      - "思考模式"
+      - "百万上下文"
+  id: "qwen3.7-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 131072
+  preview_user_ids: []
+  pricing:
+    completionPrice: 8
+    promptPrice: 2
+    tokenPricingTiers:
+      - cacheReadExplicitPrice: 0.2
+        cacheReadPrice: 0.4
+        completionPrice: 8
+        label: "0<Token≤256K"
+        maxTokens: 262144
+        promptPrice: 2
+      - cacheReadExplicitPrice: 0.6
+        cacheReadPrice: 1.2
+        completionPrice: 24
+        label: "256K<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 6
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: true
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "多模态模型"
+    description: "Qwen3.8 代多模态 Flash 模型，兼具强大的理解与生成能力和出色的响应速度。原生支持百万级上下文窗口，可一次性处理超长文档、代码仓库和复杂对话。编程辅助、智能体协作、图文理解场景表现突出，支持自动修复代码、操作桌面应用、分析图表与长视频。"
+    featured: true
+    is_new: true
+    name: "Qwen3.8 Flash"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "函数调用"
+      - "思考模式"
+      - "结构化输出"
+      - "批量推理"
+      - "上下文缓存"
+    tags:
+      - "极速"
+      - "低成本"
+      - "多模态"
+      - "视觉理解"
+      - "思考模式"
+      - "编程"
+      - "百万上下文"
+  id: "qwen3.8-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 131072
+  preview_user_ids: []
+  pricing:
+    completionPrice: 2.7
+    promptPrice: 0.8
+    tokenPricingTiers:
+      - cacheReadExplicitPrice: 0.08
+        cacheReadPrice: 0.16
+        completionPrice: 2.7
+        label: "0<Token≤1M"
+        maxTokens: 1000000
+        promptPrice: 0.8
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: true
+      implicit: true
+    input:
+      audio: false
+      file: false
+      image: true
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: true
+    thinking:
+      budget: true
+      control: "enable_thinking"
+      default_on: true
+      mode: "mixed"
+      preserve: true
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "大语言模型"
+    description: "通义千问3.8代旗舰模型，2.4万亿参数MoE，编程与办公能力全面跃升，可自主编程十数天交付完整项目。胜任法律、金融、设计等数百种专业任务，一次对话端到端交付生产级成果。原生视觉理解贯穿规划、执行与验证全流程，支持超长文档与长视频的深度语义解析。长程任务中自主规划与闭环迭代，持续进化。百万级上下文。"
+    featured: true
+    is_new: true
+    name: "Qwen3.8 Max"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "图像输入"
+      - "函数调用"
+      - "思考模式"
+      - "联网搜索"
+      - "结构化输出"
+      - "前缀续写"
+      - "批量推理"
+      - "上下文缓存"
+    tags:
+      - "旗舰"
+      - "推理"
+      - "编程"
+      - "视觉理解"
+      - "思考模式"
+      - "智能体"
+      - "百万上下文"
+  id: "qwen3.8-max"
+  lifecycle: "active"
+  limits:
+    context_length: 1000000
+    max_output: 131072
+  preview_user_ids: []
+  pricing:
+    cacheReadExplicitPrice: 1
+    cacheReadPrice: 1.5
+    completionPrice: 36
+    promptPrice: 12
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+    - "openai.responses"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: true
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: true
+      mode: "always"
+      preserve: false
+    tools:
+      parallel: true
+      supported: true
+  display:
+    category: "推理模型"
+    description: "通义千问推理模型，基于Qwen2.5训练，擅长数学、逻辑推理和复杂问题分析，展示完整思考链路。"
+    featured: true
+    name: "QwQ Plus"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "函数调用"
+      - "思考链"
+      - "联网搜索"
+    tags:
+      - "推理"
+      - "数学"
+      - "逻辑"
+      - "思考链"
+  id: "qwq-plus"
+  lifecycle: "active"
+  limits:
+    context_length: 131072
+    max_output: 8192
+  preview_user_ids: []
+  pricing:
+    completionPrice: 4
+    promptPrice: 1.6
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "Seedance 1.0 Pro 标准版本，1080P 默认输出。支持文生视频、图生视频（首帧/首尾帧），时长 2-12 秒。画面质量稳定，适合标准生产场景与批量生成。"
+    is_new: true
+    name: "豆包 Seedance 1.0 Pro"
+    provider_label: "火山方舟 (Volcengine)"
+    supported:
+      - "文生视频"
+      - "图生视频(首帧/首尾帧)"
+    tags:
+      - "视频生成"
+      - "标准"
+      - "1080P"
+      - "首尾帧"
+      - "Seedance"
+  id: "seedance-1.0-pro"
+  lifecycle: "active"
+  limits:
+    context_length: 2000
+    max_output: 12
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.14
+      - label: "720P"
+        price: 0.32
+      - label: "1080P"
+        price: 0.73
+    pricingType: "per-second"
+    promptPrice: 0.32
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "Seedance 1.0 Pro Fast 版本，1080P 默认输出，生成速度极快。支持文生视频和图生视频（首帧），时长 2-12 秒，适合快速迭代和原型验证场景。"
+    is_new: true
+    name: "豆包 Seedance 1.0 Pro Fast"
+    provider_label: "火山方舟 (Volcengine)"
+    supported:
+      - "文生视频"
+      - "图生视频(首帧)"
+    tags:
+      - "视频生成"
+      - "快速"
+      - "1080P"
+      - "Seedance"
+  id: "seedance-1.0-pro-fast"
+  lifecycle: "active"
+  limits:
+    context_length: 2000
+    max_output: 12
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.04
+      - label: "720P"
+        price: 0.09
+      - label: "1080P"
+        price: 0.2
+    pricingType: "per-second"
+    promptPrice: 0.09
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "Seedance 1.5 Pro 版本，支持样片模式（draft）快速验证创意、adaptive 智能宽高比、有声视频自动生成，4-12 秒时长。性价比之选，适合创意探索和批量生成。"
+    is_new: true
+    name: "豆包 Seedance 1.5 Pro"
+    provider_label: "火山方舟 (Volcengine)"
+    supported:
+      - "文生视频"
+      - "图生视频(首帧/首尾帧)"
+      - "样片模式"
+      - "有声视频"
+    tags:
+      - "视频生成"
+      - "样片模式"
+      - "adaptive"
+      - "有声视频"
+      - "Seedance"
+  id: "seedance-1.5-pro"
+  lifecycle: "active"
+  limits:
+    context_length: 3000
+    max_output: 12
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P 无声"
+        price: 0.17
+      - label: "720P 有声"
+        price: 0.35
+      - label: "1080P 无声"
+        price: 0.39
+      - label: "1080P 有声"
+        price: 0.78
+    pricingType: "per-second"
+    promptPrice: 0.35
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "火山引擎最新一代旗舰视频生成模型，业界顶尖水平。支持多模态参考生视频（0-9 图+0-3 视频+0-3 音频）、4K HDR 10bit 输出、有声视频自动生成、首尾帧图生视频、文生视频。时长 4-15 秒，4K/1080P/720P/480P 多分辨率，21:9/16:9/4:3/1:1/3:4/9:16 多比例。Seedance 系列最厉害的模型。"
+    featured: true
+    is_new: true
+    name: "豆包 Seedance 2.0 旗舰版"
+    provider_label: "火山方舟 (Volcengine)"
+    supported:
+      - "文生视频"
+      - "图生视频(首帧/首尾帧)"
+      - "多模态参考生视频"
+      - "有声视频"
+      - "4K HDR 10bit"
+    tags:
+      - "视频生成"
+      - "旗舰"
+      - "4K HDR"
+      - "多模态参考"
+      - "有声视频"
+      - "Seedance"
+      - "首尾帧"
+  id: "seedance-2.0"
+  lifecycle: "active"
+  limits:
+    context_length: 4000
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.44
+      - label: "720P"
+        price: 0.99
+      - label: "1080P"
+        price: 2.48
+      - label: "4K HDR"
+        price: 5.05
+    pricingType: "per-second"
+    promptPrice: 0.99
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "Seedance 2.0 系列的快速版本，与 2.0 同代画质但生成速度更快、性价比更高。支持 720P/480P，时长 4-15 秒，适合对延迟敏感的批量场景。多模态参考生视频、有声视频全能力继承。"
+    is_new: true
+    name: "豆包 Seedance 2.0 Fast"
+    provider_label: "火山方舟 (Volcengine)"
+    supported:
+      - "文生视频"
+      - "图生视频(首帧)"
+      - "多模态参考生视频"
+      - "有声视频"
+    tags:
+      - "视频生成"
+      - "快速"
+      - "性价比"
+      - "有声视频"
+      - "Seedance"
+  id: "seedance-2.0-fast"
+  lifecycle: "active"
+  limits:
+    context_length: 4000
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.36
+      - label: "720P"
+        price: 0.8
+    pricingType: "per-second"
+    promptPrice: 0.8
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "Seedance 2.0 系列的轻量版本，体积更小、速度最快、价格最低。支持 720P/480P（不支持 1080P/4K），时长 4-15 秒。继承 2.0 系列多模态参考生视频与有声视频能力，适合大规模批量调用与成本敏感场景。"
+    is_new: true
+    name: "豆包 Seedance 2.0 Mini"
+    provider_label: "火山方舟 (Volcengine)"
+    supported:
+      - "文生视频"
+      - "图生视频(首帧)"
+      - "多模态参考生视频"
+      - "有声视频"
+    tags:
+      - "视频生成"
+      - "轻量"
+      - "最低价"
+      - "有声视频"
+      - "Seedance"
+  id: "seedance-2.0-mini"
+  lifecycle: "active"
+  limits:
+    context_length: 4000
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.22
+      - label: "720P"
+        price: 0.5
+    pricingType: "per-second"
+    promptPrice: 0.5
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "向量模型"
+    description: "通义千问最新文本向量模型，将文本转换为高维向量表示，适用于语义搜索、聚类、推荐等场景。"
+    is_new: true
+    name: "Text Embedding V3"
+    provider_label: "通义千问"
+    supported:
+      - "文本到向量"
+    tags:
+      - "向量"
+      - "嵌入"
+      - "语义搜索"
+  id: "text-embedding-v3"
+  lifecycle: "active"
+  limits:
+    context_length: 8192
+    max_output: 1
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    promptPrice: 0.5
+  protocols:
+    - "openai.embeddings"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "向量模型"
+    description: "通义千问最新文本向量模型，支持 100+ 语种和多种编程语言，向量维度可选 2048、1536、1024、768、512、256、128、64，适用于语义检索、聚类、推荐和 RAG。"
+    featured: true
+    is_new: true
+    name: "Text Embedding V4"
+    provider_label: "通义千问"
+    supported:
+      - "文本到向量"
+    tags:
+      - "向量"
+      - "嵌入"
+      - "语义搜索"
+      - "RAG"
+  id: "text-embedding-v4"
+  lifecycle: "active"
+  limits:
+    context_length: 8192
+    max_output: 1
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    promptPrice: 0.5
+  protocols:
+    - "openai.embeddings"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: true
+      video: false
+    output:
+      audio: false
+      text: true
+    sampling:
+      logprobs: true
+      repetition_penalty: true
+      seed: true
+      top_k: true
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "专业模型"
+    description: "通义千问意图理解模型，可在百毫秒级时间内快速、准确地解析用户意图，适用于客服路由、智能对话分流和指令解析等场景。"
+    is_new: true
+    name: "通义意图识别 V3"
+    provider_label: "通义千问"
+    supported:
+      - "文本"
+      - "意图分类"
+    tags:
+      - "意图识别"
+      - "快速"
+      - "客服路由"
+      - "分类"
+  id: "tongyi-intent-detect-v3"
+  lifecycle: "active"
+  limits:
+    context_length: 8192
+    max_output: 1024
+  preview_user_ids: []
+  pricing:
+    completionPrice: 1
+    promptPrice: 0.4
+  protocols:
+    - "openai.chat"
+    - "anthropic.messages"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "图像驱动视频生成模型，以输入图像作为首帧生成连贯视频。支持多镜头叙事、自动配音、720P/1080P分辨率，时长2-15秒。画面连贯性和运动一致性出色。"
+    featured: true
+    is_new: true
+    name: "万相 2.6 图生视频"
+    provider_label: "通义千问"
+    supported:
+      - "图生视频"
+      - "多镜头叙事"
+      - "自动配音"
+    tags:
+      - "视频生成"
+      - "图生视频"
+      - "首帧驱动"
+      - "多镜头"
+      - "配音"
+  id: "wan2.6-i2v"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.6
+      - label: "1080P"
+        price: 1
+    pricingType: "per-second"
+    promptPrice: 0.6
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "图生视频快速版，支持有声/无声视频生成。生成速度更快，适合对延迟敏感的场景。支持720P/1080P，时长2-15秒。"
+    is_new: true
+    name: "万相 2.6 图生视频 Flash"
+    provider_label: "通义千问"
+    supported:
+      - "图生视频"
+      - "快速生成"
+    tags:
+      - "视频生成"
+      - "图生视频"
+      - "快速"
+      - "Flash"
+  id: "wan2.6-i2v-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P 有声"
+        price: 0.3
+      - label: "1080P 有声"
+        price: 0.5
+      - label: "720P 无声"
+        price: 0.15
+      - label: "1080P 无声"
+        price: 0.25
+    pricingType: "per-second"
+    promptPrice: 0.15
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "多模态输入视频生成模型，支持文本/图像/视频作为参考。可将人物或物体作为主角，生成单角色表演或多角色互动视频。时长2-10秒，支持智能分镜。"
+    is_new: true
+    name: "万相 2.6 参考生视频"
+    provider_label: "通义千问"
+    supported:
+      - "参考生视频"
+      - "角色扮演"
+      - "多角色互动"
+    tags:
+      - "视频生成"
+      - "参考生视频"
+      - "角色扮演"
+      - "多模态"
+  id: "wan2.6-r2v"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 10
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.6
+      - label: "1080P"
+        price: 1
+    pricingType: "per-second"
+    promptPrice: 0.6
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "参考生视频快速版，支持有声/无声输出。生成速度更快，适合快速迭代场景。支持720P/1080P分辨率。"
+    is_new: true
+    name: "万相 2.6 参考生视频 Flash"
+    provider_label: "通义千问"
+    supported:
+      - "参考生视频"
+      - "快速生成"
+    tags:
+      - "视频生成"
+      - "参考生视频"
+      - "快速"
+      - "Flash"
+  id: "wan2.6-r2v-flash"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 10
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P 有声"
+        price: 0.3
+      - label: "1080P 有声"
+        price: 0.5
+      - label: "720P 无声"
+        price: 0.15
+      - label: "1080P 无声"
+        price: 0.25
+    pricingType: "per-second"
+    promptPrice: 0.15
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "图像生成"
+    description: "最新一代文生图旗舰模型，支持图文混排输出和图像编辑。可处理复杂指令、渲染中英文本，生成高清写实图片。支持多种分辨率和宽高比。"
+    featured: true
+    is_new: true
+    name: "万相 2.6 文生图"
+    provider_label: "通义千问"
+    supported:
+      - "文本到图像"
+      - "图文混排"
+      - "图像编辑"
+    tags:
+      - "图像生成"
+      - "文生图"
+      - "图文混排"
+      - "高清写实"
+      - "文字渲染"
+  id: "wan2.6-t2i"
+  lifecycle: "active"
+  limits:
+    context_length: 4000
+    max_output: 4
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "标准"
+        price: 0.2
+    pricingType: "per-image"
+    promptPrice: 0.2
+  protocols:
+    - "openai.images"
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "最新一代文生视频旗舰模型，支持多镜头叙事和智能分镜。可生成2-15秒1080P高清视频，支持prompt改写。生成耗时约1-5分钟。"
+    featured: true
+    is_new: true
+    name: "万相 2.6 文生视频"
+    provider_label: "通义千问"
+    supported:
+      - "文生视频"
+      - "多镜头叙事"
+    tags:
+      - "视频生成"
+      - "文生视频"
+      - "多镜头"
+      - "1080P"
+  id: "wan2.6-t2v"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 15
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.6
+      - label: "1080P"
+        price: 1
+    pricingType: "per-second"
+    promptPrice: 0.6
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "万相 2.7 代图生视频模型，以输入图像作为首帧生成连贯视频，画面稳定性与运动自然度进一步提升，支持最长 50 秒 720P 输出。"
+    is_new: true
+    name: "万相 2.7 图生视频"
+    provider_label: "通义千问"
+    supported:
+      - "图生视频"
+      - "多镜头叙事"
+    tags:
+      - "视频生成"
+      - "图生视频"
+      - "首帧驱动"
+      - "720P"
+      - "长时长"
+  id: "wan2.7-i2v"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 50
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.6
+      - label: "1080P"
+        price: 1
+    pricingType: "per-second"
+    promptPrice: 0.6
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "图像生成"
+    description: "万相 2.7 代文生图模型，图像质量与指令遵循能力进一步提升，支持中英文文本渲染与多种分辨率、宽高比输出。"
+    is_new: true
+    name: "万相 2.7 文生图"
+    provider_label: "通义千问"
+    supported:
+      - "文本到图像"
+      - "图文混排"
+    tags:
+      - "图像生成"
+      - "文生图"
+      - "高清写实"
+      - "文字渲染"
+  id: "wan2.7-image"
+  lifecycle: "active"
+  limits:
+    context_length: 4000
+    max_output: 4
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "标准"
+        price: 0.2
+    pricingType: "per-image"
+    promptPrice: 0.2
+  protocols:
+    - "openai.images"
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "图像生成"
+    description: "万相 2.7 代文生图旗舰版本，画面细节、复杂指令理解与图文混排质量更强，适合高质量创意与商业设计场景。"
+    is_new: true
+    name: "万相 2.7 文生图 Pro"
+    provider_label: "通义千问"
+    supported:
+      - "文本到图像"
+      - "图文混排"
+    tags:
+      - "图像生成"
+      - "文生图"
+      - "旗舰"
+      - "图文混排"
+  id: "wan2.7-image-pro"
+  lifecycle: "active"
+  limits:
+    context_length: 4000
+    max_output: 4
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "标准"
+        price: 0.5
+    pricingType: "per-image"
+    promptPrice: 0.5
+  protocols:
+    - "openai.images"
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "万相 2.7 代参考生视频模型，支持文本/图像/视频多模态参考输入，可将人物或物体作为主角生成长达 50 秒的表演视频。"
+    is_new: true
+    name: "万相 2.7 参考生视频"
+    provider_label: "通义千问"
+    supported:
+      - "参考生视频"
+      - "角色扮演"
+      - "多角色互动"
+    tags:
+      - "视频生成"
+      - "参考生视频"
+      - "角色扮演"
+      - "多模态"
+      - "长时长"
+  id: "wan2.7-r2v"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 50
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.6
+      - label: "1080P"
+        price: 1
+    pricingType: "per-second"
+    promptPrice: 0.6
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "万相 2.7 代文生视频模型，画面质量、运动一致性与指令遵循显著提升，支持最长 50 秒 720P 视频生成与多镜头叙事。"
+    is_new: true
+    name: "万相 2.7 文生视频"
+    provider_label: "通义千问"
+    supported:
+      - "文生视频"
+      - "多镜头叙事"
+    tags:
+      - "视频生成"
+      - "文生视频"
+      - "多镜头"
+      - "720P"
+      - "长时长"
+  id: "wan2.7-t2v"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 50
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.6
+      - label: "1080P"
+        price: 1
+    pricingType: "per-second"
+    promptPrice: 0.6
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "万相 2.7 代视频编辑模型，基于输入视频进行 AI 编辑与风格变换，支持参考图片辅助，编辑质量与一致性显著提升。"
+    is_new: true
+    name: "万相 2.7 视频编辑"
+    provider_label: "通义千问"
+    supported:
+      - "视频编辑"
+    tags:
+      - "视频生成"
+      - "视频编辑"
+      - "AI编辑"
+  id: "wan2.7-videoedit"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 50
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "720P"
+        price: 0.6
+      - label: "1080P"
+        price: 1
+    pricingType: "per-second"
+    promptPrice: 0.6
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "万相 3.0 代视频生成模型，支持文生/图生视频，480P 分辨率最长 30 秒。目录价 0.3 元/秒（官方限时 7 折活动价 0.21 元/秒，成本按目录原价结算）。"
+    is_new: true
+    name: "万相 3.0 视频生成"
+    provider_label: "通义千问"
+    supported:
+      - "文生视频"
+      - "图生视频"
+    tags:
+      - "视频生成"
+      - "新一代"
+      - "480P"
+      - "高性价比"
+  id: "wan3.0-video"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 30
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.3
+    pricingType: "per-second"
+    promptPrice: 0.3
+  protocols:
+    - "nexusflow.tasks"
+- capabilities:
+    caching:
+      explicit: false
+      implicit: false
+    input:
+      audio: false
+      file: false
+      image: false
+      text: false
+      video: false
+    output:
+      audio: false
+      text: false
+    sampling:
+      logprobs: false
+      repetition_penalty: false
+      seed: false
+      top_k: false
+    search: false
+    structured_output: false
+    thinking:
+      budget: false
+      control: null
+      default_on: null
+      mode: "none"
+      preserve: false
+    tools:
+      parallel: false
+      supported: false
+  display:
+    category: "视频生成"
+    description: "万相 3.0 代旗舰视频生成模型，画面质量与运动表现领先，支持文生/图生视频，480P 分辨率最长 30 秒。"
+    is_new: true
+    name: "万相 3.0 视频生成 Prime"
+    provider_label: "通义千问"
+    supported:
+      - "文生视频"
+      - "图生视频"
+    tags:
+      - "视频生成"
+      - "旗舰"
+      - "480P"
+      - "新一代"
+  id: "wan3.0-video-prime"
+  lifecycle: "active"
+  limits:
+    context_length: 1500
+    max_output: 30
+  preview_user_ids: []
+  pricing:
+    completionPrice: 0
+    pricingTiers:
+      - label: "480P"
+        price: 0.45
+    pricingType: "per-second"
+    promptPrice: 0.45
+  protocols:
+    - "nexusflow.tasks"

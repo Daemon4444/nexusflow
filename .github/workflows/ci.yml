@@ -207,6 +207,7 @@ jobs:
       - run: npm --workspace backend run test:control-plane-config
       - run: npm --workspace backend run test:traffic
       - run: npm --workspace backend run test:params-protocols
+      - run: npm --workspace backend run test:cp-change-requests
       - name: Verify complete, idempotent and checksummed migration ledger
         run: node scripts/test-migration-ledger.mjs
         env:
