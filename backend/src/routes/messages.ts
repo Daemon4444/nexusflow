@@ -7,6 +7,7 @@
  * (native Anthropic API, or DashScope /apps/anthropic/v1/messages).
  */
 
+import { protocolMode } from "../config/feature-flags";
 import { Router, Request, Response } from "express";
 import {
   getReservedOutputTokens,
@@ -48,6 +49,8 @@ import {
   selectRoute,
   capacityErrorType,
   capacityHttpStatus,
+  anthropicPassThrough,
+  checkProtocol,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -232,6 +235,15 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
+  const protocolFailure = checkProtocol(ctx, "anthropic.messages");
+  if (protocolFailure) {
+    res.status(protocolFailure.status).json({
+      type: "error",
+      error: { type: "invalid_request_error", message: protocolFailure.message, code: "unsupported_protocol" },
+    });
+    return;
+  }
+
   // 与 /v1/chat/completions 口径一致：匿名 key（无归属用户）不允许使用公开推理端点
   if (!apiKeyRecord.user_id) {
     res.status(403).json({
@@ -257,6 +269,19 @@ router.post("/", async (req: Request, res: Response) => {
   }
   const upstream = ctx.requireUpstream();
   const upstreamApiKey = upstream.apiKey;
+
+  // D6: with NF_PROTOCOL_MODE=enforce the conversion bridge is never entered.
+  if (protocolMode() === "enforce" && !anthropicPassThrough(upstream, model)) {
+    res.status(400).json({
+      type: "error",
+      error: {
+        type: "invalid_request_error",
+        message: `Model '${modelId}' is not available natively on the Anthropic Messages protocol for this route. Use /v1/chat/completions.`,
+        code: "unsupported_protocol",
+      },
+    });
+    return;
+  }
 
   const reservedMessageTokens = apiKeyRecord.user_id ? estimateMessageTokens(model, req.body) : 0;
 
@@ -340,9 +365,7 @@ router.post("/", async (req: Request, res: Response) => {
 
   // anthropicPassThrough 可由后台「模型目录」按模型覆盖：false = 上游 anthropic
   // 兼容端点未接入该模型，走平台内协议转换（anthropic-openai-bridge）
-  const usePassThrough = upstream.providerId === "anthropic"
-    || model.anthropicPassThrough === true
-    || (upstream.anthropicCompatBaseUrl && model.anthropicPassThrough !== false);
+  const usePassThrough = anthropicPassThrough(upstream, model);
 
   if (usePassThrough) {
     const passThroughBase = upstream.anthropicCompatBaseUrl || upstream.baseUrl;
