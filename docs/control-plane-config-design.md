@@ -24,9 +24,10 @@
 | # | 决策 | 在本设计中的落地方式 |
 |---|---|---|
 | D1 | **超限处理：对话类立即拒绝，视频/异步任务进队列** | 对话：先在同一模型的其他可用路由里选一条（这一步不增加延迟）；都满了就立即返回 **429**，带 `Retry-After`，不再返回 503。异步任务：进入 `queued` 状态，等有容量时再提交给上游，并设置队列长度上限和最长等待时间，超时就让任务失败并释放预扣的费用 |
-| D2 | **参数处理与上游保持一致**（2026-09-25 修订：取代"平台自己维护白名单，表外一律 400"） | 上游接受的参数原样转发；上游拒绝的，由上游返回 400，平台原样转给客户；上游忽略的，客户也就被忽略，和直接调上游完全一样。平台只在两种情况下自己返回 400（统一错误码 `unsupported_parameter`）：①会改变费用或资源、而平台目前算不准的参数；②走协议转换的线路上无法转换的参数
+| D2 | **参数处理与上游保持一致**（2026-09-25 修订：取代"平台自己维护白名单，表外一律 400"） | 上游接受的参数原样转发；上游拒绝的，由上游返回 400，平台原样转给客户；上游忽略的，客户也就被忽略，和直接调上游完全一样。平台只在一种情况下自己返回 400（统一错误码 `unsupported_parameter`）：会改变费用或资源、而平台目前算不准的参数（D6 之后没有协议转换）
 | D3 | **配置放数据库，后台编辑，定期导出快照进仓库** | 所有变更都走"变更单 → 校验 → 发布"，每次发布生成一个配置版本；回滚就是重新发布旧版本；每天导出 YAML 快照提交到仓库，用于对比差异和灾备 |
 | D4 | **接受第三方中转，但把它当一等公民管理** | 上游账号上有这些字段：`is_relay`、`relay_operator`、`data_path`、`quota_source`、`contract_ref`；中转账号必须指定联系人；数据结构不预设"只有官方直连" |
+| D6 | **不做对话协议转换，和上游保持一致**（2026-09-25） | 一个模型对外开放哪些对话协议（OpenAI Chat、Anthropic Messages、OpenAI Responses），完全由它所走线路的上游**原生支持且经过实测**的协议决定；平台不在协议之间做转换。删除 `anthropic-openai-bridge.ts` 和 `messages.ts` 里的转换分支，以及 `anthropicPassThrough` 字段。影响（近 30 天生产数据）：只有 `MiniMax/MiniMax-M3`（55 次，2 个用户）和 `MiniMax-M2.7`（1 次）走过转换，GPT-6 Astra 的 Anthropic 协议没有流量。切换前要通知这 2 个用户改用 OpenAI 协议。**图片、视频、语音的统一接口不在此列**：这些上游没有公共协议，统一接口本身就是产品，所以保留；对外要说明它是 NexusFlow 自己定义的接口，并按模型做契约测试 |
 | D5 | 谁有权改（**待确认，先按默认方案**） | 复用现有的后台权限：改价格和上下线需要 `catalog.manage`，改上游和路由需要 `providers.manage`，改限流需要新权限 `traffic.manage`。变更单保留"审批"这一步，**现在允许提交人自己审批**；将来可以通过一个开关改成"必须由另一个人审批"，不用改代码 |
 
 **为什么不维护白名单**：平台自己的白名单会让平台成为参数的第二个裁判，而且必然和上游漂移。审查里就发现 `deepseek-v4.1-flash` 页面写着支持搜索，`enable_search` 却被静默丢弃。和上游保持一致以后，"`user`/`metadata` 要不要例外"这类问题也就不存在了。
@@ -54,7 +55,7 @@ pricing:                        # 与 models.ts 现有结构一一对应，迁�
   token_tiers: [...]
   media_tiers: [...]
   source_url, verified_at       # 官方价格出处和核对时间
-protocols: [openai.chat, anthropic.messages, openai.responses, ...]   # 本平台对外开放的协议
+protocols: [openai.chat, anthropic.messages, openai.responses, ...]   # 对外开放的协议，必须是它所有 active 路由上游原生支持、且探测通过的协议的交集（D6）
 capabilities:                   # 结构化字段，取代"从描述文字里找关键词"
   input:  { text, image, video, audio, file }
   output: { text, audio }
@@ -95,7 +96,7 @@ owner, contract_ref, contact
 model_id: claude-sonnet-5
 account_id: himodels-main
 upstream_model_id: claude-sonnet-5-aws     # 别名表并入这里
-protocol_mode: passthrough | bridge        # 取代 anthropicPassThrough
+native_protocols: [openai.chat, anthropic.messages]   # 这条线路的上游原生支持、并经过探测验证的协议；取代 anthropicPassThrough（D6 之后不再有 bridge）
 priority: 100
 weight: 100
 quota:                                     # 可选，路由级的额外上限；实际上限取它和账号配额中更小的那个
@@ -138,7 +139,7 @@ circuit:
 ### 3.2 发布前的校验（没通过就不能发布）
 
 1. 状态为 `active` 或 `preview` 的模型，至少要有一条 `active` 路由，而且它所属的上游账号也是 `active`。这样就不会再出现"目录里有，却调不了"。
-2. 路由的 `model_id` 必须存在，`account_id` 必须存在；路由选用的适配器必须支持该模型声明的所有协议。
+2. 路由的 `model_id` 必须存在，`account_id` 必须存在；模型对外开放的每个协议，都必须在它所有 active 路由的 `native_protocols` 里（D6：不做转换）。
 3. 价格不能是负数；阶梯价按上限单调递增，最后一档要覆盖整个上下文长度。
 4. 模型要放行 `billing_guarded` 里的某个参数（比如 `enable_search`），前提是它的计费配置能对这项功能正确预扣和结算。
 5. 中转账号必须填写 `relay_operator` 和 `data_path`。
@@ -173,7 +174,7 @@ circuit:
 
 **默认行为是透传**：把客户的参数原样发给上游，由上游决定接受、忽略还是报错，平台把上游的结果原样转给客户。
 
-平台只维护两份**按类别**的拦截清单，不按模型逐个维护：
+平台只维护一份**按类别**的拦截清单，不按模型逐个维护（D6 之后没有协议转换，所以也不存在"转换不了的参数"）：
 
 ```yaml
 param_policy:
@@ -181,9 +182,6 @@ param_policy:
   #    例如：一次返回多份结果（影响输出 token 的预扣）、上游单独收费的联网搜索或插件、
   #    会让上游读取外部文件或资源的参数。等计费和预扣能覆盖它们，就从清单里移除。
   billing_guarded: [n, enable_search, search_options, plugins, ...]
-  # ② 协议转换路线（route.protocol_mode = bridge）上，按转换器声明的映射表转换；
-  #    映射表里没有的参数，由平台返回 400。
-  bridge: "按转换器声明的映射表执行"
   # 平台必须改写的参数，属于协议适配，不代表放不放行
   rewrite:
     gpt-6-astra: { max_tokens: max_completion_tokens }
