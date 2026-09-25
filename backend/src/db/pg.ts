@@ -9,6 +9,7 @@
 
 import pg from "pg";
 import dotenv from "dotenv";
+import { resolvePgPassword } from "./pg-password";
 
 dotenv.config();
 
@@ -19,7 +20,6 @@ const poolConfig = {
   host: process.env.PG_HOST || "localhost",
   port: parseInt(process.env.PG_PORT || "5432"),
   user: process.env.PG_USER || "quadrant",
-  password: process.env.PG_PASSWORD || "quadrant_dev_password",
   database: process.env.PG_DATABASE || "quadrant",
   max: 20, // 最大连接数
   idleTimeoutMillis: 30000,
@@ -31,7 +31,7 @@ let pool: pg.Pool | null = null;
 
 export function getPool(): pg.Pool {
   if (!pool) {
-    pool = new Pool(poolConfig);
+    pool = new Pool({ ...poolConfig, password: resolvePgPassword() });
 
     pool.on("connect", () => {
       console.log("[PostgreSQL] 新连接建立");

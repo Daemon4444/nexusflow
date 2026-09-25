@@ -9,6 +9,7 @@ import {
   upsertCapacity,
 } from "../data/providers";
 import { models } from "../data/models";
+import { safeProviderFetch } from "../services/outbound-url-policy";
 
 const PROVIDER_ID = "azure-ai-foundry";
 const MODEL_ID = "gpt-6-astra";
@@ -75,7 +76,7 @@ function readPrivateKey(keyPath: string): string {
 }
 
 async function verifyAzureKey(key: string): Promise<void> {
-  const response = await fetch(`${BASE_URL}/models`, {
+  const response = await safeProviderFetch(`${BASE_URL}/models`, {
     headers: { "api-key": key, accept: "application/json" },
     signal: AbortSignal.timeout(15_000),
   });

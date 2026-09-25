@@ -1,7 +1,7 @@
 import { db } from "../db/client";
 import { logToSLS } from "../services/sls";
 import { randomUUID } from "crypto";
-import { recordFailure, recordSuccess } from "../services/scheduler";
+import { classifyHealthOutcome, recordFailure, recordSuccess } from "../services/scheduler";
 import {
   applyRetailListPriceFallback,
   providerCostStorageFields,
@@ -228,9 +228,11 @@ export async function logUsage(params: {
     try {
       // A partially delivered/estimated response may still be billable, while
       // an upstream interruption must count as a provider-health failure.
-      if (params.status === "success" && !params.errorCode && !params.errorReason) {
+      // Caller errors (upstream 4xx other than auth/timeout/429) are ignored.
+      const outcome = classifyHealthOutcome(params);
+      if (outcome === "success") {
         await recordSuccess(params.providerId, params.model, params.latencyMs);
-      } else {
+      } else if (outcome === "failure") {
         const failure = String(params.errorCode || params.errorReason || params.status || "upstream_error").slice(0, 500);
         await recordFailure(params.providerId, params.model, failure);
       }
@@ -324,7 +326,7 @@ export async function getDaily(userId?: string) {
     `SELECT
       to_char(timezone('Asia/Shanghai', created_at), 'MM-DD') as date,
       COUNT(*)::int as requests,
-      COALESCE(SUM(total_tokens), 0)::float8 as tokens,
+      COALESCE(SUM(total_tokens), 0)::double precision as tokens,
       ROUND(COALESCE(SUM(cost), 0)::numeric, 2)::float as cost
     FROM usage_logs
     WHERE created_at >= NOW() - INTERVAL '7 days'
@@ -341,7 +343,7 @@ export async function getByModel(userId?: string) {
     `SELECT
       model,
       COUNT(*)::int as requests,
-      COALESCE(SUM(total_tokens), 0)::float8 as tokens,
+      COALESCE(SUM(total_tokens), 0)::double precision as tokens,
       ROUND(COALESCE(SUM(cost), 0)::numeric, 6)::float as cost
     FROM usage_logs
     ${clause}
@@ -452,7 +454,7 @@ export async function getUsageSummary(userId: string) {
   const row = await db.queryOne<any>(
     `SELECT
       COUNT(*)::int as "totalRequests",
-      COALESCE(SUM(total_tokens), 0)::float8 as "totalTokens",
+      COALESCE(SUM(total_tokens), 0)::double precision as "totalTokens",
       COALESCE(SUM(cost), 0) as "totalCost",
       COALESCE(AVG(CASE WHEN latency_ms > 0 THEN latency_ms END), 0) as "avgLatencyMs",
       ROUND((SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END)::numeric / GREATEST(COUNT(*), 1)) * 100, 1) as "successRate"

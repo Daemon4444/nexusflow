@@ -1,6 +1,7 @@
 import pg from "pg";
 import dotenv from "dotenv";
 import { getMemoryPgAdapter } from "./memory";
+import { resolvePgPassword } from "./pg-password";
 
 dotenv.config({ quiet: true });
 
@@ -22,7 +23,7 @@ function getPool(): pg.Pool {
       host: process.env.PG_HOST || "127.0.0.1",
       port: Number(process.env.PG_PORT || 5432),
       user: process.env.PG_USER || "quadrant",
-      password: process.env.PG_PASSWORD || "quadrant_dev_password",
+      password: resolvePgPassword(),
       database: process.env.PG_DATABASE || "quadrant",
       max: Number(process.env.PG_POOL_MAX || 20),
       idleTimeoutMillis: 30_000,

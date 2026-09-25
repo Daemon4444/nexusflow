@@ -170,6 +170,19 @@ const haikuObject = restorePublicModelAlias({
 }, "claude-haiku-4-5");
 assert.equal(haikuObject.model, "claude-haiku-4-5");
 assert.equal(haikuObject.nested.model, "claude-haiku-4-5");
+const toolUseResponse = restorePublicModelAlias({
+  model: "claude-opus-5-aws",
+  content: [
+    { type: "text", text: "calling tool" },
+    { type: "tool_use", id: "toolu_1", name: "pick", input: { model: "gpt-4o", nested: { model: "x" } } },
+  ],
+}, "claude-opus-5");
+assert.equal(toolUseResponse.model, "claude-opus-5");
+assert.deepEqual(
+  (toolUseResponse.content[1] as any).input,
+  { model: "gpt-4o", nested: { model: "x" } },
+  "tool_use arguments are customer data and must never be rewritten"
+);
 assert.equal(
   rewriteUpstreamModelAliasText(
     'event: message_start\ndata: {"message":{"model": "claude-haiku-4-5-20251001"}}',

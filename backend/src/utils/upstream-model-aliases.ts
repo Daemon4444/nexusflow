@@ -26,6 +26,10 @@ const HIMODELS_PUBLIC_MODEL_ID_SET: ReadonlySet<string> = new Set(
   Object.keys(HIMODELS_UPSTREAM_MODEL_ALIASES)
 );
 
+// Keys whose values are tool-call arguments (Anthropic tool_use.input,
+// OpenAI/Responses function arguments); their contents belong to the caller.
+const TOOL_ARGUMENT_KEYS: ReadonlySet<string> = new Set(["input", "arguments"]);
+
 const MODEL_FIELD_PATTERN = /("model"\s*:\s*")[^"]*(")/g;
 
 export function getUpstreamModelId(publicModelId: string, providerId?: string): string {
@@ -37,11 +41,11 @@ export function restorePublicModelAlias<T>(value: T, publicModelId: string): T {
   if (!HIMODELS_PUBLIC_MODEL_ID_SET.has(publicModelId) || !value || typeof value !== "object") {
     return value;
   }
-  // These five HiModels-routed ids never support tools (see
-  // model-capabilities), so a parsed response object never carries
-  // tool-call-argument JSON that could coincidentally contain its own
-  // unrelated "model" key; every literal `model` key in the object graph is
-  // therefore safe to force back to the public id unconditionally.
+  // Claude models accept tools through the native Messages pass-through, so a
+  // parsed response can carry tool-call arguments whose own "model" key is
+  // customer data. Rewrite every protocol-level `model` field (top level,
+  // message_start.message, Responses objects) but never descend into tool
+  // arguments.
   const visit = (current: unknown): void => {
     if (!current || typeof current !== "object") return;
     if (Array.isArray(current)) {
@@ -49,6 +53,7 @@ export function restorePublicModelAlias<T>(value: T, publicModelId: string): T {
       return;
     }
     for (const [key, child] of Object.entries(current as Record<string, unknown>)) {
+      if (TOOL_ARGUMENT_KEYS.has(key)) continue;
       if (key === "model" && typeof child === "string") {
         (current as Record<string, unknown>)[key] = publicModelId;
       } else {

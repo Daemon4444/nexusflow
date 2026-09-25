@@ -6,7 +6,7 @@ import { getProviderById } from "../data/providers";
 import { encryptProviderSecret } from "../utils/provider-secrets";
 import { getUpstreamModelId } from "../utils/upstream-model-aliases";
 import { HIMODELS_PUBLIC_MODEL_IDS } from "../services/providers";
-import { assertProviderEndpointForStorage } from "../services/outbound-url-policy";
+import { assertProviderEndpointForStorage, safeProviderFetch } from "../services/outbound-url-policy";
 
 const PROVIDER_ID = "himodels";
 const BASE_URL = "https://api.himodels.ai/v1";
@@ -90,7 +90,7 @@ async function verifyModel(key: string, publicModelId: string): Promise<void> {
     "anthropic-version": "2023-06-01",
     "content-type": "application/json",
   };
-  const response = await fetch(`${BASE_URL}/messages`, {
+  const response = await safeProviderFetch(`${BASE_URL}/messages`, {
     method: "POST",
     headers,
     body: JSON.stringify(baseBody),
@@ -102,7 +102,7 @@ async function verifyModel(key: string, publicModelId: string): Promise<void> {
     fail(`${publicModelId}: non-streaming usage is incomplete`);
   }
 
-  const streamResponse = await fetch(`${BASE_URL}/messages`, {
+  const streamResponse = await safeProviderFetch(`${BASE_URL}/messages`, {
     method: "POST",
     headers,
     body: JSON.stringify({ ...baseBody, stream: true }),
