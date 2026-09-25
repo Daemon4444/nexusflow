@@ -130,6 +130,7 @@ jobs:
       - run: npm --workspace backend run test:audio-pricing
       - run: npm --workspace backend run test:task-poll-control
       - run: npm --workspace backend run test:inference-characterization
+      - run: npm --workspace backend run test:pipeline-stages
       - name: Migrate the CI database
         run: npm --workspace backend run db:migrate
         env:

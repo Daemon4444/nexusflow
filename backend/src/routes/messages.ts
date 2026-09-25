@@ -8,29 +8,18 @@
  */
 
 import { Router, Request, Response } from "express";
-import { randomUUID } from "crypto";
-import { getReservedOutputTokens, models, getTokenPricingTier, resolveCachePricing, resolveCompletionPrice } from "../data/models";
-import { validateApiKey } from "../data/apikeys";
+import {
+  getReservedOutputTokens,
+  getTokenPricingTier,
+  resolveCachePricing,
+  resolveCompletionPrice,
+} from "../data/models";
 import { logUpstreamFailure, logUsage } from "../data/usage";
-import { BillingReservationFailureReason, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
+import { BillingReservationFailureReason, settleReservation } from "../data/billing";
 import { applyUserModelDiscount, calculateDiscountedTokenCost } from "../data/user-discounts";
-import { checkConsumerLimitsAsync } from "../services/rate-limiter";
 import { setRateLimitHeaders } from "../utils/rate-limit-headers";
-import {
-  reconcileAccountTpm,
-  reserveAccountQpm,
-  reserveAccountTpm,
-} from "../services/account-rate-limiter";
-import { isModelAllowed } from "../data/model-access";
 import { detectModelType } from "../services/adapters";
-import { getRequestedRegion, resolveUpstream } from "../services/upstream";
-import { safeProviderFetch } from "../services/outbound-url-policy";
 import { buildApiDescription, isExplicitCacheRequested, type AnthropicUsage } from "../utils/cache-billing";
-import {
-  acquireProviderCapacity,
-  releaseProviderCapacity,
-  type ProviderRequestCapacityLease,
-} from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import {
   anthropicToOpenAiPayload,
@@ -45,21 +34,26 @@ import {
   restorePublicModelAlias,
   rewriteUpstreamModelAliasText,
 } from "../utils/upstream-model-aliases";
+import { InferenceContext } from "../pipeline/context";
+import { roughTokenCount } from "../pipeline/estimates";
+import {
+  anthropicToken,
+  authenticateApiKey,
+  checkConsumer,
+  checkModelAccess,
+  invokeUpstream,
+  reconcileTokens,
+  release,
+  reserveBilling,
+  reserveProviderCapacity,
+  reserveQpm,
+  reserveTpm,
+  resolveModel,
+  selectRoute,
+} from "../pipeline/stages";
 
 const router = Router();
 
-const UPSTREAM_TIMEOUT = 600000; // 10分钟
-
-/** Extract API key from x-api-key header or Authorization Bearer */
-function extractAnthropicToken(req: Request): string | null {
-  const xApiKey = req.headers["x-api-key"];
-  if (typeof xApiKey === "string" && xApiKey.trim()) return xApiKey.trim();
-
-  const auth = req.headers.authorization;
-  if (auth && auth.startsWith("Bearer ")) return auth.slice(7).trim();
-
-  return null;
-}
 
 
 /** Parse SSE events from upstream streaming response（SSE 规范里 data: 后的空格可选） */
@@ -73,14 +67,6 @@ function parseSseEvent(line: string): any | null {
   } catch {
     return null;
   }
-}
-
-function roughTokenCount(value: unknown): number {
-  if (value === undefined || value === null) return 0;
-  if (typeof value === "string") return Math.ceil(value.length / 2);
-  if (Array.isArray(value)) return value.reduce((sum, item) => sum + roughTokenCount(item), 0);
-  if (typeof value === "object") return Math.ceil(JSON.stringify(value).length / 2);
-  return Math.ceil(String(value).length / 2);
 }
 
 async function estimateMessageMaxCost(userId: string | null | undefined, model: any, body: any): Promise<number> {
@@ -194,8 +180,8 @@ function getAnthropicBeta(req: Request): string | undefined {
 
 // POST /v1/messages — Anthropic Messages compatible
 router.post("/", async (req: Request, res: Response) => {
-  const token = extractAnthropicToken(req);
-  const apiKeyRecord = token ? await validateApiKey(token) : null;
+  const ctx = new InferenceContext("v1.messages", req, res);
+  const apiKeyRecord = (await authenticateApiKey(ctx, anthropicToken(req))) ? ctx.requireCaller().apiKey! : null;
   if (!apiKeyRecord) {
     res.status(401).json({
       type: "error",
@@ -224,7 +210,7 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const model = models.find((m) => m.id === modelId);
+  const model = resolveModel(ctx, modelId) ? ctx.requireModel() : null;
   if (!model) {
     res.status(404).json({
       type: "error",
@@ -260,28 +246,25 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const resolvedUpstream = await resolveUpstream(modelId, {
-    region: getRequestedRegion(req),
-    userId: apiKeyRecord.user_id,
-  });
-  if (!resolvedUpstream.ok) {
-    res.status(resolvedUpstream.status).json({
+  const routeFailure = await selectRoute(ctx);
+  if (routeFailure) {
+    res.status(routeFailure.status).json({
       type: "error",
       error: {
-        type: resolvedUpstream.status >= 500 ? "api_error" : resolvedUpstream.status === 404 ? "not_found_error" : "invalid_request_error",
-        message: resolvedUpstream.message,
+        type: routeFailure.status >= 500 ? "api_error" : routeFailure.status === 404 ? "not_found_error" : "invalid_request_error",
+        message: routeFailure.message,
       },
     });
     return;
   }
-  const upstream = resolvedUpstream.upstream;
+  const upstream = ctx.requireUpstream();
   const upstreamApiKey = upstream.apiKey;
 
   const reservedMessageTokens = apiKeyRecord.user_id ? estimateMessageTokens(model, req.body) : 0;
 
   // Per-model rate limit
   if (apiKeyRecord.user_id) {
-    if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
+    if (!checkModelAccess(ctx)) {
       res.status(403).json({
         type: "error",
         error: {
@@ -291,99 +274,71 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
-    const rpmCheck = await reserveAccountQpm({
-      userId: apiKeyRecord.user_id,
-      parentUserId: apiKeyRecord.parent_user_id,
-      modelId,
-    });
-    if (!rpmCheck.allowed) {
-      setRateLimitHeaders(res, { scope: "account_model_qpm", limit: rpmCheck.limit, remaining: 0, resetMs: rpmCheck.resetMs, rejected: true });
+    const qpmFailure = await reserveQpm(ctx);
+    if (qpmFailure) {
+      setRateLimitHeaders(res, { scope: "account_model_qpm", limit: qpmFailure.limit, remaining: 0, resetMs: qpmFailure.resetMs, rejected: true });
       res.status(429).json({
         type: "error",
         error: {
           type: "rate_limit_error",
-          message: `Model-level QPM limit exceeded (${rpmCheck.limit}/min) for '${modelId}'.`,
+          message: `Model-level QPM limit exceeded (${qpmFailure.limit}/min) for '${modelId}'.`,
         },
       });
       return;
     }
-    const tpmCheck = await reserveAccountTpm({
-      userId: apiKeyRecord.user_id,
-      parentUserId: apiKeyRecord.parent_user_id,
-      modelId,
-      estimatedTokens: reservedMessageTokens,
-    });
-    if (!tpmCheck.allowed) {
-      setRateLimitHeaders(res, { scope: "account_model_tpm", limit: tpmCheck.limit, remaining: tpmCheck.remaining ?? 0, rejected: true });
+    const tpmFailure = await reserveTpm(ctx, reservedMessageTokens);
+    if (tpmFailure) {
+      setRateLimitHeaders(res, { scope: "account_model_tpm", limit: tpmFailure.limit, remaining: tpmFailure.remaining ?? 0, rejected: true });
       res.status(429).json({
         type: "error",
         error: {
           type: "rate_limit_error",
-          message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmCheck.remaining || 0} tokens.`,
+          message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmFailure.remaining || 0} tokens.`,
         },
       });
       return;
     }
   }
 
-  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit_override);
-  if (!rateCheck.allowed) {
-    setRateLimitHeaders(res, { ...rateCheck, rejected: true });
+  const consumerFailure = await checkConsumer(ctx);
+  if (consumerFailure) {
+    setRateLimitHeaders(res, { ...consumerFailure.check, rejected: true });
     res.status(429).json({
       type: "error",
       error: {
         type: "rate_limit_error",
-        message: rateCheck.reason,
+        message: consumerFailure.check.reason,
       },
     });
     return;
   }
 
   const estimatedCost = await estimateMessageMaxCost(apiKeyRecord.user_id, model, req.body);
-  const billingReservationResult = await reserveBalanceWithReason(
-    apiKeyRecord.user_id,
-    estimatedCost,
-    `messages:${randomUUID()}`
-  );
-  if (!billingReservationResult.reservation) {
-    rejectBillingReservation(res, billingReservationResult.reason);
+  const billingFailure = await reserveBilling(ctx, estimatedCost, "messages");
+  if (billingFailure) {
+    rejectBillingReservation(res, billingFailure);
     return;
   }
-  const billingReservation = billingReservationResult.reservation;
+  const billingReservation = ctx.billingReservation!;
 
   const startTime = Date.now();
-  const logId = randomUUID();
-  // 预占 TPM 归还：正常路径按实际 usage 归还，异常/上游错误路径由 finally 兜底释放，且仅一次。
-  let tokensReconciled = false;
-  let billableResponseReceived = false;
-  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
-  let actualProviderTokens = 0;
+  const logId = ctx.logId;
+  // 预占 TPM 归还：正常路径按实际 usage 归还，异常/上游错误路径由 release 兜底释放，且仅一次。
   const reconcileOnce = async (actualTokens: number) => {
-    if (tokensReconciled) return;
-    tokensReconciled = true;
-    if (apiKeyRecord.user_id) {
-      try {
-        await reconcileAccountTpm({
-          userId: apiKeyRecord.user_id,
-          parentUserId: apiKeyRecord.parent_user_id,
-          modelId,
-          reservedTokens: reservedMessageTokens,
-          actualTokens,
-        });
-      } catch { /* 归还失败仅影响 60s 窗口 */ }
-    }
+    try {
+      await reconcileTokens(ctx, actualTokens);
+    } catch { /* 归还失败仅影响 60s 窗口 */ }
   };
 
   try {
-  const capacity = await acquireProviderCapacity(upstream, modelId, reservedMessageTokens);
-  if (!capacity.ok) {
+  const capacityFailure = await reserveProviderCapacity(ctx, reservedMessageTokens);
+  if (capacityFailure) {
     res.status(503).json({
       type: "error",
-      error: { type: "api_error", message: capacity.message },
+      error: { type: "api_error", message: capacityFailure.message },
     });
     return;
   }
-  providerCapacityLease = capacity.lease;
 
   // anthropicPassThrough 可由后台「模型目录」按模型覆盖：false = 上游 anthropic
   // 兼容端点未接入该模型，走平台内协议转换（anthropic-openai-bridge）
@@ -402,11 +357,11 @@ router.post("/", async (req: Request, res: Response) => {
       const beta = getAnthropicBeta(req);
       if (beta) headers["anthropic-beta"] = beta;
 
-      const response = await safeProviderFetch(`${passThroughBase}/messages`, {
-        method: "POST",
+      const response = await invokeUpstream(ctx, {
+        url: `${passThroughBase}/messages`,
+        auth: false,
         headers,
-        body: JSON.stringify({ ...req.body, model: getUpstreamModelId(modelId, upstream.providerId) }),
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
+        body: { ...req.body, model: getUpstreamModelId(modelId, upstream.providerId) },
       });
 
       if (stream) {
@@ -443,7 +398,7 @@ router.post("/", async (req: Request, res: Response) => {
           });
           return;
         }
-        billableResponseReceived = true;
+        ctx.billableResponseReceived = true;
 
         res.setHeader("Content-Type", "text/event-stream");
         res.setHeader("Cache-Control", "no-cache");
@@ -566,7 +521,7 @@ router.post("/", async (req: Request, res: Response) => {
           requestBody: req.body,
           responseBody: fullResponse,
         });
-        actualProviderTokens = totalTokens;
+        ctx.actualProviderTokens = totalTokens;
         await reconcileOnce(totalTokens);
 
         await settleReservation(
@@ -613,7 +568,7 @@ router.post("/", async (req: Request, res: Response) => {
         });
         return;
       }
-      billableResponseReceived = true;
+      ctx.billableResponseReceived = true;
 
       const usage = data.usage || {};
       const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false, explicitCache, thinkingOutput: hasThinkingOutput(data) });
@@ -645,7 +600,7 @@ router.post("/", async (req: Request, res: Response) => {
         requestBody: req.body,
         responseBody: data,
       });
-      actualProviderTokens = totalTokens;
+      ctx.actualProviderTokens = totalTokens;
       await reconcileOnce(totalTokens);
 
       await settleReservation(
@@ -656,7 +611,7 @@ router.post("/", async (req: Request, res: Response) => {
         billing.discountAmount,
       );
 
-      if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+      if (ctx.consumerRemaining != null) res.setHeader("X-RateLimit-Remaining", ctx.consumerRemaining.toString());
       if (data && typeof data === "object") data.id = `msg_${logId}`;
       res.json(data);
       return;
@@ -703,14 +658,14 @@ router.post("/", async (req: Request, res: Response) => {
   // 把 Anthropic 请求转成 OpenAI 格式打 compatible-mode，响应再转回 Anthropic 格式
   try {
     const payload = anthropicToOpenAiPayload(req.body);
-    const response = await safeProviderFetch(`${upstream.baseUrl}/chat/completions`, {
-      method: "POST",
+    const response = await invokeUpstream(ctx, {
+      path: "/chat/completions",
+      auth: false,
       headers: {
         "Authorization": `Bearer ${upstreamApiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
+      body: payload,
     });
 
     if (stream) {
@@ -744,7 +699,7 @@ router.post("/", async (req: Request, res: Response) => {
         });
         return;
       }
-      billableResponseReceived = true;
+      ctx.billableResponseReceived = true;
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
@@ -837,7 +792,7 @@ router.post("/", async (req: Request, res: Response) => {
         requestBody: req.body,
         responseBody: rawUpstream,
       });
-      actualProviderTokens = totalTokens;
+      ctx.actualProviderTokens = totalTokens;
       await reconcileOnce(totalTokens);
       await settleReservation(
         billingReservation.id,
@@ -877,7 +832,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
-    billableResponseReceived = true;
+    ctx.billableResponseReceived = true;
 
     const anthropicResponse = openAiResponseToAnthropic(data, `msg_${logId}`, modelId);
     const usage = anthropicResponse.usage || openAiUsageToAnthropic(data?.usage);
@@ -910,7 +865,7 @@ router.post("/", async (req: Request, res: Response) => {
       requestBody: req.body,
       responseBody: anthropicResponse,
     });
-    actualProviderTokens = totalTokens;
+    ctx.actualProviderTokens = totalTokens;
     await reconcileOnce(totalTokens);
     await settleReservation(
       billingReservation.id,
@@ -920,7 +875,7 @@ router.post("/", async (req: Request, res: Response) => {
       billing.discountAmount,
     );
 
-    if (rateCheck.remaining != null) res.setHeader("X-RateLimit-Remaining", rateCheck.remaining.toString());
+    if (ctx.consumerRemaining != null) res.setHeader("X-RateLimit-Remaining", ctx.consumerRemaining.toString());
     res.json(anthropicResponse);
     return;
   } catch (err: any) {
@@ -961,9 +916,7 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   } finally {
-    if (!billableResponseReceived) await releaseReservation(billingReservation.id);
-    await reconcileOnce(0);
-    await releaseProviderCapacity(providerCapacityLease, actualProviderTokens);
+    await release(ctx);
   }
 });
 

@@ -159,6 +159,14 @@ API Key 鉴权
   → 归还 TPM 预占与 Provider 并发
 ```
 
+9 个推理入口（`v1`、`messages`、`responses`、`image`、`video`、`audio`、`tasks`、`playground`、`upload`）
+共用 `backend/src/pipeline/` 的阶段：`authenticate → resolveModel → checkModelAccess → reserveUserQuota →
+selectRoute → reserveProviderCapacity → reserveBilling → invokeUpstream → settle → logUsage → release`（`release`
+在 `finally` 中执行，负责释放未结算预占、归还 TPM 和 Provider 租约）。各入口仍按原有顺序调用阶段、按原有协议格式
+返回错误；`test:inference-characterization` 以黄金结果锁定每个入口的上游请求、响应、usage_logs、预占/结算和熔断
+计数。上游协议由 `pipeline/adapters.ts` 的显式 adapter（`openai-compat`、`anthropic`、`dashscope-native`、
+`ark-video`、`azure-openai`、`pixverse`）决定，不再用 URL 子串判断。
+
 关键代码：
 
 - `/v1/chat/completions`、models、embeddings、images：`backend/src/routes/v1.ts`

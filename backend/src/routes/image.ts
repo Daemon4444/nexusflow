@@ -9,10 +9,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { randomUUID } from "crypto";
 import { models } from "../data/models";
-import { validateApiKey } from "../data/apikeys";
-import { validateSession } from "../data/users";
 import { 
   createTask, 
   getTaskById, 
@@ -23,76 +20,28 @@ import {
 } from "../data/tasks";
 import { adaptImageRequest, pollDashScopeTask } from "../services/adapters";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost } from "../services/async-billing";
-import { releaseReservation, reserveBalanceWithReason } from "../data/billing";
-import { isModelAllowed } from "../data/model-access";
-import { reserveAccountQpm } from "../services/account-rate-limiter";
+import { releaseReservation } from "../data/billing";
 import { sendBillingReservationFailure } from "../utils/billing-response";
-import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
-import { safeProviderFetch } from "../services/outbound-url-policy";
+import { upstreamErrorBody } from "../services/upstream";
 import { getProviderById } from "../data/providers";
 import { getProviderChannel } from "../data/provider-channels";
-import {
-  acquireProviderCapacity,
-  releaseProviderCapacity,
-  type ProviderRequestCapacityLease,
-} from "../services/scheduler";
 import { pollTaskWithControl } from "../services/task-poll-control";
+import { InferenceContext } from "../pipeline/context";
+import {
+  authenticateApiKeyOrSession,
+  bearerToken,
+  canAccessTask,
+  checkModelAccess,
+  invokeUpstream,
+  release,
+  reserveBilling,
+  reserveProviderCapacity,
+  reserveQpm,
+  resolveModel,
+  selectRoute,
+} from "../pipeline/stages";
 
 const router = Router();
-
-type Caller = {
-  userId: string | null;
-  apiKeyId: string | null;
-  parentUserId: string | null;
-  allowedModels: string | null;
-  errorIdentity: { id: string | null; user_id: string | null } | null;
-};
-
-function extractToken(req: Request): string | null {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Bearer ")) return null;
-  return auth.slice(7).trim();
-}
-
-async function authenticateCaller(req: Request): Promise<Caller | null> {
-  const token = extractToken(req);
-  if (!token) return null;
-
-  const apiKeyRecord = await validateApiKey(token);
-  if (apiKeyRecord) {
-    return {
-      userId: apiKeyRecord.user_id,
-      apiKeyId: apiKeyRecord.id,
-      parentUserId: apiKeyRecord.parent_user_id,
-      allowedModels: apiKeyRecord.allowed_models,
-      errorIdentity: apiKeyRecord,
-    };
-  }
-
-  const session = await validateSession(token);
-  if (session) {
-    return {
-      userId: session.id,
-      apiKeyId: null,
-      parentUserId: session.parent_user_id,
-      allowedModels: session.allowed_models,
-      errorIdentity: { id: null, user_id: session.id },
-    };
-  }
-
-  return null;
-}
-
-async function canAccessTask(req: Request, taskUserId: string | null, taskApiKeyId: string | null): Promise<boolean> {
-  const token = extractToken(req);
-  if (!token) return false;
-  const apiKeyRecord = await validateApiKey(token);
-  if (apiKeyRecord) {
-    return (!!taskApiKeyId && apiKeyRecord.id === taskApiKeyId) || (!!taskUserId && apiKeyRecord.user_id === taskUserId);
-  }
-  const session = await validateSession(token);
-  return !!session && !!taskUserId && session.id === taskUserId;
-}
 
 // POST /api/image/generate - Submit image generation task
 router.post("/generate", async (req: Request, res: Response) => {
@@ -120,13 +69,14 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
-  const caller = await authenticateCaller(req);
-  if (!caller) {
+  const ctx = new InferenceContext("image.generate", req, res);
+  if (!(await authenticateApiKeyOrSession(ctx, bearerToken(req)))) {
     res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
     return;
   }
+  const caller = ctx.requireCaller();
 
-  const model = models.find((m) => m.id === modelId);
+  const model = resolveModel(ctx, modelId) ? ctx.requireModel() : null;
   if (!model || model.category !== "图像生成") {
     res.status(404).json({ success: false, message: "图像生成模型不存在" });
     return;
@@ -138,35 +88,26 @@ router.post("/generate", async (req: Request, res: Response) => {
     return;
   }
 
-  if (!isModelAllowed(caller.parentUserId, caller.allowedModels, modelId)) {
+  if (!checkModelAccess(ctx)) {
     res.status(403).json({ success: false, message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。` });
     return;
   }
 
-  if (caller.userId) {
-    const rpmCheck = await reserveAccountQpm({
-      userId: caller.userId,
-      parentUserId: caller.parentUserId,
-      modelId,
-    });
-    if (!rpmCheck.allowed) {
-      res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${rpmCheck.limit}/min` });
-      return;
-    }
+  const qpmFailure = await reserveQpm(ctx);
+  if (qpmFailure) {
+    res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${qpmFailure.limit}/min` });
+    return;
   }
 
-  const resolvedUpstream = await resolveUpstream(modelId, {
-    region: getRequestedRegion(req),
-    userId: caller.userId,
-  });
-  if (!resolvedUpstream.ok) {
-    res.status(resolvedUpstream.status).json({
+  const routeFailure = await selectRoute(ctx);
+  if (routeFailure) {
+    res.status(routeFailure.status).json({
       success: false,
-      ...upstreamErrorBody(resolvedUpstream),
+      ...upstreamErrorBody(routeFailure),
     });
     return;
   }
-  const upstream = resolvedUpstream.upstream;
+  const upstream = ctx.requireUpstream();
 
   const requiresPrompt =
     modelId !== "wanx-style-repaint" &&
@@ -198,33 +139,26 @@ router.post("/generate", async (req: Request, res: Response) => {
   }
 
   const estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, { n });
-  const reservationResult = await reserveBalanceWithReason(
-    caller.userId,
-    estimatedCost,
-    `image:${randomUUID()}`,
-    30 * 24 * 60 * 60
-  );
-  if (!reservationResult.reservation) {
-    sendBillingReservationFailure(res, reservationResult.reason, "api");
+  const billingFailure = await reserveBilling(ctx, estimatedCost, "image", 30 * 24 * 60 * 60);
+  if (billingFailure) {
+    sendBillingReservationFailure(res, billingFailure, "api");
     return;
   }
-  const reservation = reservationResult.reservation;
-  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
+  const reservation = ctx.billingReservation!;
 
   // Create internal task record
   let task;
   try {
-    const capacity = await acquireProviderCapacity(upstream, modelId, 0);
-    if (!capacity.ok) {
+    const capacityFailure = await reserveProviderCapacity(ctx, 0);
+    if (capacityFailure) {
       await releaseReservation(reservation.id, "provider_capacity_unavailable");
       res.status(503).json({
         success: false,
-        message: capacity.message,
-        code: capacity.code,
+        message: capacityFailure.message,
+        code: capacityFailure.code,
       });
       return;
     }
-    providerCapacityLease = capacity.lease;
 
     task = await createTask({
       userId: caller.userId,
@@ -253,8 +187,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     });
   } catch (error) {
     await releaseReservation(reservation.id);
-    await releaseProviderCapacity(providerCapacityLease, 0);
-    providerCapacityLease = null;
+    await release(ctx, { releaseReservation: false });
     throw error;
   }
 
@@ -277,10 +210,13 @@ router.post("/generate", async (req: Request, res: Response) => {
       ref_prompt_weight,
     }, { nativeBase: upstream.nativeBaseUrl });
 
-    const response = await safeProviderFetch(adapted.url, {
+    const response = await invokeUpstream(ctx, {
+      url: adapted.url,
       method: adapted.method,
       headers: adapted.headers,
-      body: JSON.stringify(adapted.body),
+      auth: false,
+      body: adapted.body,
+      timeoutMs: null,
     });
 
     const data: any = await response.json();
@@ -353,7 +289,7 @@ router.post("/generate", async (req: Request, res: Response) => {
       message: `请求失败: ${err.message}`,
     });
   } finally {
-    await releaseProviderCapacity(providerCapacityLease, 0);
+    await release(ctx, { releaseReservation: false });
   }
 });
 
@@ -361,7 +297,8 @@ router.post("/generate", async (req: Request, res: Response) => {
 router.get("/status/:taskId", async (req: Request, res: Response) => {
   const taskId = req.params.taskId as string;
 
-  const caller = await authenticateCaller(req);
+  const ctx = new InferenceContext("image.status", req, res);
+  const caller = (await authenticateApiKeyOrSession(ctx, bearerToken(req))) ? ctx.requireCaller() : null;
   if (!caller) {
     res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
     return;

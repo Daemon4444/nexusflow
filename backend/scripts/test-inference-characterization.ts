@@ -352,6 +352,11 @@ const scenarios: Scenario[] = [
   // ---- v1 /embeddings
   { name: "v1.embeddings.success", requests: (ctx) => [{ path: "/v1/embeddings", headers: bearer(ctx), body: { model: "text-embedding-v4", input: "hello" } }], upstream: [{ status: 200, json: { object: "list", data: [{ object: "embedding", index: 0, embedding: [0.1, 0.2] }], model: "text-embedding-v4", usage: { prompt_tokens: 3, total_tokens: 3 } } }] },
   { name: "v1.embeddings.upstream_500", requests: (ctx) => [{ path: "/v1/embeddings", headers: bearer(ctx), body: { model: "text-embedding-v4", input: "hello" } }], upstream: [upstreamError(500, "internal")] },
+  // ---- /v1/images/generations
+  { name: "v1.images.sync_success", requests: (ctx) => [{ path: "/v1/images/generations", headers: bearer(ctx), body: { model: "wan2.7-image", prompt: "a cat", n: 1 } }], upstream: [
+    { status: 200, json: { request_id: "up-req", output: { choices: [{ finish_reason: "stop", message: { role: "assistant", content: [{ image: "https://dashscope-result.oss-cn-beijing.aliyuncs.com/i.png" }] } }] }, usage: { image_count: 1 } } },
+  ] },
+  { name: "v1.images.upstream_400", requests: (ctx) => [{ path: "/v1/images/generations", headers: bearer(ctx), body: { model: "wan2.7-image", prompt: "a cat" } }], upstream: [{ status: 400, json: { code: "InvalidParameter", message: "bad" } }] },
   // ---- /v1/messages
   { name: "messages.passthrough.non_stream.success", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey, "anthropic-version": "2023-06-01" }, body: messagesBody(CHAT) }], upstream: [{ status: 200, json: anthropicMessage(CHAT) }] },
   { name: "messages.passthrough.stream.success", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT, { stream: true }) }], upstream: [{ status: 200, sse: anthropicSse(CHAT) }] },
@@ -379,12 +384,29 @@ const scenarios: Scenario[] = [
   // ---- /v1/videos
   { name: "video.generate.success", requests: (ctx) => [{ path: "/v1/videos/generations", headers: bearer(ctx), body: { model: "wan2.7-t2v", prompt: "a cat", duration: 5, size: "1280*720" } }], upstream: [{ status: 200, json: { request_id: "up-req", output: { task_id: "up-video-1", task_status: "PENDING" } } }] },
   { name: "video.generate.upstream_400", requests: (ctx) => [{ path: "/v1/videos/generations", headers: bearer(ctx), body: { model: "wan2.7-t2v", prompt: "a cat", duration: 5, size: "1280*720" } }], upstream: [{ status: 400, json: { code: "InvalidParameter", message: "bad" } }] },
+  { name: "video.status.poll_succeeded", requests: (ctx) => [
+    { path: "/v1/videos/generations", headers: bearer(ctx), body: { model: "wan2.7-t2v", prompt: "a cat", duration: 5, size: "1280*720" } },
+    { method: "GET", path: "/api/video/status/{task}", headers: bearer(ctx) },
+  ], upstream: [
+    { status: 200, json: { request_id: "up-req", output: { task_id: "up-video-2", task_status: "PENDING" } } },
+    { status: 200, json: { request_id: "up-poll", output: { task_id: "up-video-2", task_status: "SUCCEEDED", video_url: "https://dashscope-result.oss-cn-beijing.aliyuncs.com/v.mp4" }, usage: { duration: 5, video_count: 1 } } },
+  ] },
+  { name: "video.seedance.generate.ark", requests: (ctx) => [{ path: "/v1/videos/generations", headers: bearer(ctx), body: { model: "seedance-2.0-fast", prompt: "a cat", duration: 5, resolution: "720p", ratio: "16:9" } }], upstream: [{ status: 200, json: { id: "cgt-ark-1" } }] },
   // ---- /v1/audio
   { name: "audio.speech.success", requests: (ctx) => [{ path: "/v1/audio/speech", headers: bearer(ctx), body: { model: "qwen3-tts-flash", input: "你好", voice: "Cherry" } }], upstream: [{ status: 200, json: { request_id: "up", output: { audio: { url: "https://dashscope-result.oss-cn-beijing.aliyuncs.com/a.wav", id: "a" }, finish_reason: "stop" }, usage: { characters: 2 } } }, { status: 200, text: "RIFFfakewav", headers: { "content-type": "audio/wav" } }] },
   { name: "audio.speech.upstream_500", requests: (ctx) => [{ path: "/v1/audio/speech", headers: bearer(ctx), body: { model: "qwen3-tts-flash", input: "你好", voice: "Cherry" } }], upstream: [{ status: 500, json: { code: "InternalError", message: "boom" } }] },
+  { name: "audio.transcriptions.success", requests: (ctx) => [{ path: "/v1/audio/transcriptions", headers: bearer(ctx), body: { model: "qwen3-asr-flash", file_url: "https://example.com/a.wav" } }], upstream: [{ status: 200, json: { output: { choices: [{ message: { content: [{ text: "你好" }] } }] }, usage: { seconds: 3, input_tokens: 30, output_tokens: 2 } } }] },
+  { name: "audio.transcriptions.upstream_400", requests: (ctx) => [{ path: "/v1/audio/transcriptions", headers: bearer(ctx), body: { model: "qwen3-asr-flash", file_url: "https://example.com/a.wav" } }], upstream: [{ status: 400, json: { code: "InvalidParameter", message: "bad audio" } }] },
   // ---- /v1/tasks
   { name: "tasks.create.success", requests: (ctx) => [{ path: "/v1/tasks", headers: bearer(ctx), body: { model: "wan2.7-t2v", input: { prompt: "a cat" }, parameters: { duration: 5, size: "1280*720" } } }], upstream: [{ status: 200, json: { request_id: "up-req", output: { task_id: "up-task-2", task_status: "PENDING" } } }] },
   { name: "tasks.create.upstream_500", requests: (ctx) => [{ path: "/v1/tasks", headers: bearer(ctx), body: { model: "wan2.7-t2v", input: { prompt: "a cat" }, parameters: { duration: 5, size: "1280*720" } } }], upstream: [{ status: 500, json: { code: "InternalError", message: "boom" } }] },
+  { name: "tasks.poll.succeeded", requests: (ctx) => [
+    { path: "/v1/tasks", headers: bearer(ctx), body: { model: "wan2.7-t2v", input: { prompt: "a cat" }, parameters: { duration: 5, size: "1280*720" } } },
+    { method: "GET", path: "/v1/tasks/{task}", headers: bearer(ctx) },
+  ], upstream: [
+    { status: 200, json: { request_id: "up-req", output: { task_id: "up-task-3", task_status: "PENDING" } } },
+    { status: 200, json: { request_id: "up-poll", output: { task_id: "up-task-3", task_status: "SUCCEEDED", video_url: "https://dashscope-result.oss-cn-beijing.aliyuncs.com/t.mp4" }, usage: { duration: 5, video_count: 1 } } },
+  ] },
   { name: "tasks.list.success", requests: (ctx) => [{ method: "GET", path: "/v1/tasks", headers: bearer(ctx) }], upstream: [] },
   // ---- /api/playground
   { name: "playground.non_stream.success", requests: (ctx) => [{ path: "/api/playground/chat/completions", headers: { authorization: `Bearer ${ctx.caller.sessionToken}` }, body: chatBody() }], upstream: [{ status: 200, json: chatCompletion(CHAT) }] },
@@ -407,8 +429,12 @@ async function runScenario(scenario: Scenario) {
   // the order in which failure scenarios ran.
   await db.execute("DELETE FROM provider_health");
   const responses = [];
+  let lastTaskId = "";
   for (const request of scenario.requests(ctx)) {
-    responses.push(await send(request));
+    const response = await send({ ...request, path: request.path.replace("{task}", encodeURIComponent(lastTaskId)) });
+    responses.push(response);
+    const body = response.body as any;
+    lastTaskId = String(body?.id || body?.data?.task_id || body?.output?.task_id || lastTaskId);
     // Let fire-and-forget accounting finish before the next request.
     await new Promise((resolve) => setTimeout(resolve, 60));
   }

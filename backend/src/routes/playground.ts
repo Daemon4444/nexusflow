@@ -1,60 +1,32 @@
 import { Router, Request, Response } from "express";
-import { randomUUID } from "crypto";
-import { getReservedOutputTokens, models } from "../data/models";
-import { validateSession } from "../data/users";
 import { logUpstreamFailure, logUsage } from "../data/usage";
-import { releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
-import { calculateDiscountedTokenCost } from "../data/user-discounts";
-import { isModelAllowed } from "../data/model-access";
+import { settleReservation } from "../data/billing";
 import { detectModelType } from "../services/adapters";
-import { getRequestedRegion, resolveUpstream } from "../services/upstream";
-import { safeProviderFetch } from "../services/outbound-url-policy";
-import {
-  reconcileAccountTpm,
-  reserveAccountQpm,
-  reserveAccountTpm,
-} from "../services/account-rate-limiter";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
 import { restorePublicModelAlias, rewriteUpstreamModelAliasText } from "../utils/upstream-model-aliases";
 import { calculateOpenAiCacheAwareCost } from "../utils/cache-billing";
 import { sendBillingReservationFailure } from "../utils/billing-response";
+import { InferenceContext } from "../pipeline/context";
+import { estimateChatMaxCost, estimateChatTokens } from "../pipeline/estimates";
 import {
-  acquireProviderCapacity,
-  releaseProviderCapacity,
-  type ProviderRequestCapacityLease,
-} from "../services/scheduler";
+  authenticateSession,
+  bearerToken,
+  checkModelAccess,
+  invokeUpstream,
+  reconcileTokens,
+  release,
+  reserveBilling,
+  reserveProviderCapacity,
+  reserveQpm,
+  reserveTpm,
+  resolveModel,
+  selectRoute,
+} from "../pipeline/stages";
 
 const router = Router();
-const UPSTREAM_TIMEOUT = 600000; // 10分钟
-
-function extractToken(req: Request): string | null {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Bearer ")) return null;
-  return auth.slice(7).trim();
-}
 
 function openAiError(res: Response, status: number, message: string, code: string, type = "invalid_request_error"): void {
   res.status(status).json({ error: { message, type, code } });
-}
-
-function roughTokenCount(value: unknown): number {
-  if (value === undefined || value === null) return 0;
-  if (typeof value === "string") return Math.ceil(value.length / 2);
-  if (Array.isArray(value)) return value.reduce((sum, item) => sum + roughTokenCount(item), 0);
-  if (typeof value === "object") return Math.ceil(JSON.stringify(value).length / 2);
-  return Math.ceil(String(value).length / 2);
-}
-
-async function estimateChatMaxCost(userId: string, model: any, messages: unknown[], maxTokens?: number): Promise<number> {
-  const promptTokens = Math.max(1, roughTokenCount(messages));
-  const completionTokens = getReservedOutputTokens(model, maxTokens);
-  return (await calculateDiscountedTokenCost(userId, model, promptTokens, completionTokens)).finalAmount;
-}
-
-function estimateChatTokens(model: any, messages: unknown[], maxTokens?: number): number {
-  const promptTokens = Math.max(1, roughTokenCount(messages));
-  const completionTokens = getReservedOutputTokens(model, maxTokens);
-  return promptTokens + completionTokens;
 }
 
 function parseSseUsage(payload: string): { prompt_tokens: number; completion_tokens: number; total_tokens: number; prompt_tokens_details?: { cached_tokens?: number; cache_creation_input_tokens?: number } } {
@@ -72,12 +44,13 @@ function parseSseUsage(payload: string): { prompt_tokens: number; completion_tok
 }
 
 router.post("/chat/completions", async (req: Request, res: Response) => {
-  const token = extractToken(req);
-  const session = token ? await validateSession(token) : null;
-  if (!session) {
+  const ctx = new InferenceContext("playground.chat", req, res);
+  if (!(await authenticateSession(ctx, bearerToken(req)))) {
     openAiError(res, 401, "请先登录后再使用 Playground。", "invalid_session");
     return;
   }
+  const caller = ctx.requireCaller();
+  const sessionUserId = caller.userId!;
 
   const {
     model: modelId,
@@ -112,7 +85,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  const model = models.find((item) => item.id === modelId);
+  const model = resolveModel(ctx, modelId) ? ctx.requireModel() : null;
   if (!model) {
     openAiError(res, 404, `Model '${modelId}' not found.`, "model_not_found");
     return;
@@ -123,72 +96,56 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
-  if (!isModelAllowed(session.parent_user_id, session.allowed_models, modelId)) {
+  if (!checkModelAccess(ctx)) {
     openAiError(res, 403, `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`, "model_not_allowed");
     return;
   }
 
-  const resolvedUpstream = await resolveUpstream(modelId, {
-    region: getRequestedRegion(req),
-    userId: session.id,
-  });
-  if (!resolvedUpstream.ok) {
+  const routeFailure = await selectRoute(ctx);
+  if (routeFailure) {
     openAiError(
       res,
-      resolvedUpstream.status,
-      resolvedUpstream.message,
-      resolvedUpstream.code,
-      resolvedUpstream.status >= 500 ? "server_error" : "invalid_request_error"
+      routeFailure.status,
+      routeFailure.message,
+      routeFailure.code,
+      routeFailure.status >= 500 ? "server_error" : "invalid_request_error"
     );
     return;
   }
-  const upstream = resolvedUpstream.upstream;
+  const upstream = ctx.requireUpstream();
   const upstreamApiKey = upstream.apiKey;
 
-  const rpmCheck = await reserveAccountQpm({
-    userId: session.id,
-    parentUserId: session.parent_user_id,
-    modelId,
-  });
-  if (!rpmCheck.allowed) {
+  const qpmFailure = await reserveQpm(ctx);
+  if (qpmFailure) {
     openAiError(
       res,
       429,
-      `Model-level rate limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`,
+      `Model-level rate limit exceeded: ${qpmFailure.limit} requests/min for '${modelId}'.`,
       "rate_limit_exceeded",
       "rate_limit_error"
     );
     return;
   }
   const estimatedTokens = estimateChatTokens(model, messages, max_tokens);
-  const tpmCheck = await reserveAccountTpm({
-    userId: session.id,
-    parentUserId: session.parent_user_id,
-    modelId,
-    estimatedTokens,
-  });
-  if (!tpmCheck.allowed) {
+  const tpmFailure = await reserveTpm(ctx, estimatedTokens);
+  if (tpmFailure) {
     openAiError(
       res,
       429,
-      `Model-level TPM limit exceeded: ${tpmCheck.limit} tokens/min for '${modelId}'. Remaining: ${tpmCheck.remaining || 0} tokens.`,
+      `Model-level TPM limit exceeded: ${tpmFailure.limit} tokens/min for '${modelId}'. Remaining: ${tpmFailure.remaining || 0} tokens.`,
       "rate_limit_exceeded",
       "rate_limit_error"
     );
     return;
   }
 
-  const estimatedChatCost = await estimateChatMaxCost(session.id, model, messages, max_tokens);
-  const billingReservationResult = await reserveBalanceWithReason(
-    session.id,
-    estimatedChatCost,
-    `playground:${randomUUID()}`
-  );
-  if (!billingReservationResult.reservation) {
-    sendBillingReservationFailure(res, billingReservationResult.reason);
+  const estimatedChatCost = await estimateChatMaxCost(sessionUserId, model, messages, max_tokens);
+  const billingFailure = await reserveBilling(ctx, estimatedChatCost, "playground");
+  if (billingFailure) {
+    sendBillingReservationFailure(res, billingFailure);
     return;
   }
-  const billingReservation = billingReservationResult.reservation;
+  const billingReservation = ctx.billingReservation!;
 
   const requestBody = buildUpstreamChatRequest(
     model,
@@ -222,28 +179,24 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   );
 
   const startTime = Date.now();
-  const refId = `playground:${session.id}`;
-  let tokensReconciled = false;
-  let billableResponseReceived = false;
-  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
-  let actualProviderTokens = 0;
 
   try {
-    const capacity = await acquireProviderCapacity(upstream, modelId, estimatedTokens);
-    if (!capacity.ok) {
-      openAiError(res, 503, capacity.message, capacity.code, "server_error");
+    const capacityFailure = await reserveProviderCapacity(ctx, estimatedTokens);
+    if (capacityFailure) {
+      openAiError(res, 503, capacityFailure.message, capacityFailure.code, "server_error");
       return;
     }
-    providerCapacityLease = capacity.lease;
 
-    const response = await safeProviderFetch(`${upstream.baseUrl}/chat/completions`, {
-      method: "POST",
+    // Playground always uses Bearer auth (historic behaviour, even for
+    // providers whose API key header differs).
+    const response = await invokeUpstream(ctx, {
+      path: "/chat/completions",
+      auth: false,
       headers: {
         Authorization: `Bearer ${upstreamApiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
+      body: requestBody,
     });
 
     if (stream) {
@@ -251,7 +204,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         const errText = await response.text();
         await logUpstreamFailure({
           apiKeyId: null,
-          userId: session.id,
+          userId: sessionUserId,
           model: modelId,
           providerId: upstream.providerId,
           channelId: upstream.channelId,
@@ -265,12 +218,12 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         openAiError(res, response.status, errText || "Upstream API error", "upstream_error", "upstream_error");
         return;
       }
-      billableResponseReceived = true;
+      ctx.billableResponseReceived = true;
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-RateLimit-Remaining", String(rpmCheck.remaining ?? 0));
+      res.setHeader("X-RateLimit-Remaining", String(ctx.qpmRemaining ?? 0));
 
       let fullResponse = "";
       let ttftMs = 0;
@@ -317,7 +270,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       const playgroundCached = usage.prompt_tokens_details?.cached_tokens || 0;
       const playgroundCreation = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
       // 与 /v1/chat 实扣同一函数：分层价 + per-model/档位 cacheReadPrice + omni 分模态
-      const billing = await calculateOpenAiCacheAwareCost({ userId: session.id, model, usage, explicitCache: false });
+      const billing = await calculateOpenAiCacheAwareCost({ userId: sessionUserId, model, usage, explicitCache: false });
       const totalCost = billing.finalAmount;
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = usage.completion_tokens > 1 ? streamDuration / (usage.completion_tokens - 1) : 0;
@@ -328,7 +281,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         channelId: upstream.channelId,
         protocol: "playground-openai-chat",
         apiKeyId: null,
-        userId: session.id,
+        userId: sessionUserId,
         model: modelId,
         promptTokens: usage.prompt_tokens || 0,
         completionTokens: usage.completion_tokens || 0,
@@ -348,15 +301,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         providerInputIncludesCache: true,
         reservationId: billingReservation.id,
       });
-      actualProviderTokens = usage.total_tokens || 0;
-      await reconcileAccountTpm({
-        userId: session.id,
-        parentUserId: session.parent_user_id,
-        modelId,
-        reservedTokens: estimatedTokens,
-        actualTokens: usage.total_tokens || 0,
-      });
-      tokensReconciled = true;
+      ctx.actualProviderTokens = usage.total_tokens || 0;
+      await reconcileTokens(ctx, usage.total_tokens || 0);
       await settleReservation(
         billingReservation.id,
         totalCost,
@@ -372,7 +318,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     if (!response.ok) {
       await logUpstreamFailure({
         apiKeyId: null,
-        userId: session.id,
+        userId: sessionUserId,
         model: modelId,
         providerId: upstream.providerId,
         channelId: upstream.channelId,
@@ -392,13 +338,13 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       );
       return;
     }
-    billableResponseReceived = true;
+    ctx.billableResponseReceived = true;
 
     const usage = data.usage || {};
     const playgroundCachedNS = usage.prompt_tokens_details?.cached_tokens || 0;
     const playgroundCreationNS = usage.prompt_tokens_details?.cache_creation_input_tokens || 0;
     // 与 /v1/chat 实扣同一函数：分层价 + per-model/档位 cacheReadPrice + omni 分模态
-    const billing = await calculateOpenAiCacheAwareCost({ userId: session.id, model, usage, explicitCache: false });
+    const billing = await calculateOpenAiCacheAwareCost({ userId: sessionUserId, model, usage, explicitCache: false });
     const totalCost = billing.finalAmount;
 
     await logUsage({
@@ -407,7 +353,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       channelId: upstream.channelId,
       protocol: "playground-openai-chat",
       apiKeyId: null,
-      userId: session.id,
+      userId: sessionUserId,
       model: modelId,
       promptTokens: usage.prompt_tokens || 0,
       completionTokens: usage.completion_tokens || 0,
@@ -425,15 +371,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       providerInputIncludesCache: true,
       reservationId: billingReservation.id,
     });
-    actualProviderTokens = usage.total_tokens || 0;
-    await reconcileAccountTpm({
-      userId: session.id,
-      parentUserId: session.parent_user_id,
-      modelId,
-      reservedTokens: estimatedTokens,
-      actualTokens: usage.total_tokens || 0,
-    });
-    tokensReconciled = true;
+    ctx.actualProviderTokens = usage.total_tokens || 0;
+    await reconcileTokens(ctx, usage.total_tokens || 0);
     await settleReservation(
       billingReservation.id,
       totalCost,
@@ -442,7 +381,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       billing.discountAmount,
     );
 
-    res.setHeader("X-RateLimit-Remaining", String(rpmCheck.remaining ?? 0));
+    res.setHeader("X-RateLimit-Remaining", String(ctx.qpmRemaining ?? 0));
     res.json(data);
   } catch (err: any) {
     await logUsage({
@@ -451,7 +390,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       channelId: upstream.channelId,
       protocol: "playground-openai-chat",
       apiKeyId: null,
-      userId: session.id,
+      userId: sessionUserId,
       model: modelId,
       promptTokens: 0,
       completionTokens: 0,
@@ -469,19 +408,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       openAiError(res, 500, `Upstream request failed: ${err.message}`, "upstream_error", "server_error");
     }
   } finally {
-    if (!billableResponseReceived) await releaseReservation(billingReservation.id);
-    if (!tokensReconciled) {
-      try {
-        await reconcileAccountTpm({
-          userId: session.id,
-          parentUserId: session.parent_user_id,
-          modelId,
-          reservedTokens: estimatedTokens,
-          actualTokens: 0,
-        });
-      } catch { /* only affects the current 60-second window */ }
-    }
-    await releaseProviderCapacity(providerCapacityLease, actualProviderTokens);
+    await release(ctx);
   }
 });
 

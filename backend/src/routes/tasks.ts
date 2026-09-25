@@ -8,18 +8,16 @@
  */
 
 import { Router, Request, Response } from "express";
-import { randomUUID } from "crypto";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
-import { 
-  createTask, 
-  getTaskById, 
-  setUpstreamTaskId, 
-  completeTask, 
+import {
+  createTask,
+  getTaskById,
+  setUpstreamTaskId,
+  completeTask,
   failTask,
   updateTaskStatus,
   getTasksByUser,
-  getRecentTasks
 } from "../data/tasks";
 import {
   detectModelType,
@@ -32,22 +30,12 @@ import {
   pollPixVerseTask,
   pollVolcEngineTask,
 } from "../services/adapters";
-import { checkConsumerLimitsAsync } from "../services/rate-limiter";
 import { setRateLimitHeaders } from "../utils/rate-limit-headers";
-import { reserveAccountQpm } from "../services/account-rate-limiter";
-import { isModelAllowed } from "../data/model-access";
-import {
-  acquireProviderCapacity,
-  releaseProviderCapacity,
-  recordSuccess,
-  recordFailure,
-  type ProviderRequestCapacityLease,
-} from "../services/scheduler";
+import { recordSuccess, recordFailure } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
 import { getProviderChannel } from "../data/provider-channels";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost, settleAsyncCost } from "../services/async-billing";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
-import { BillingReservation, releaseReservation, reserveBalanceWithReason } from "../data/billing";
 import { sendBillingReservationFailure } from "../utils/billing-response";
 import {
   normalizeDashScopeVideoResolution,
@@ -56,9 +44,25 @@ import {
   requiresVideoInput,
   VideoParameterError,
 } from "../utils/video-parameters";
-import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
-import { safeProviderFetch } from "../services/outbound-url-policy";
+import { upstreamErrorBody } from "../services/upstream";
 import { pollTaskWithControl } from "../services/task-poll-control";
+import { InferenceContext } from "../pipeline/context";
+import { taskProtocolFor } from "../pipeline/adapters";
+import {
+  adapterForUpstream,
+  authenticateApiKey,
+  bearerToken,
+  checkConsumer,
+  checkModelAccess,
+  findModel,
+  invokeUpstream,
+  release,
+  reserveBilling,
+  reserveProviderCapacity,
+  reserveQpm,
+  resolveModel,
+  selectRoute,
+} from "../pipeline/stages";
 
 const router = Router();
 
@@ -66,34 +70,28 @@ function getApiKey(): string {
   return process.env.DASHSCOPE_API_KEY || "";
 }
 
-/** Extract Bearer token from Authorization header */
-function extractToken(req: Request): string | null {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Bearer ")) return null;
-  return auth.slice(7).trim();
-}
-
 // POST /v1/tasks - Submit a new async task
 router.post("/", async (req: Request, res: Response) => {
+  const ctx = new InferenceContext("v1.tasks.create", req, res);
   // Auth
-  const token = extractToken(req);
+  const token = bearerToken(req);
   if (!token) {
     res.status(401).json({
       error: { message: "Missing API key", type: "invalid_request_error", code: "missing_api_key" },
     });
     return;
   }
-
-  const apiKeyRecord = await validateApiKey(token);
-  if (!apiKeyRecord) {
+  if (!(await authenticateApiKey(ctx, token))) {
     res.status(401).json({
       error: { message: "Invalid API key", type: "invalid_request_error", code: "invalid_api_key" },
     });
     return;
   }
+  const caller = ctx.requireCaller();
+  const apiKeyRecord = caller.apiKey!;
 
   // 匿名 key（无归属用户）不允许创建任务：会绕过余额与白名单（与 /v1/chat 口径一致）
-  if (!apiKeyRecord.user_id) {
+  if (!caller.userId) {
     res.status(403).json({
       error: { message: "This API key is not associated with a user account.", type: "invalid_request_error", code: "anonymous_key_not_allowed" },
     });
@@ -101,11 +99,11 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // Rate limit check
-  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit_override);
-  if (!rateCheck.allowed) {
-    setRateLimitHeaders(res, { ...rateCheck, rejected: true });
+  const consumerFailure = await checkConsumer(ctx);
+  if (consumerFailure) {
+    setRateLimitHeaders(res, { ...consumerFailure.check, rejected: true });
     res.status(429).json({
-      error: { message: rateCheck.reason, type: "rate_limit_error", code: "rate_limit_exceeded" },
+      error: { message: consumerFailure.check.reason, type: "rate_limit_error", code: "rate_limit_exceeded" },
     });
     return;
   }
@@ -120,40 +118,34 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // Find model
-  const model = models.find((m) => m.id === modelId);
-  if (!model) {
+  if (!resolveModel(ctx, modelId)) {
     res.status(404).json({
       error: { message: `Model '${modelId}' not found`, type: "invalid_request_error", code: "model_not_found" },
     });
     return;
   }
+  const model = ctx.requireModel();
 
-  if (apiKeyRecord.user_id) {
-    if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
-      res.status(403).json({
-        error: {
-          message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`,
-          type: "invalid_request_error",
-          code: "model_not_allowed",
-        },
-      });
-      return;
-    }
-    const rpmCheck = await reserveAccountQpm({
-      userId: apiKeyRecord.user_id,
-      parentUserId: apiKeyRecord.parent_user_id,
-      modelId,
+  if (!checkModelAccess(ctx)) {
+    res.status(403).json({
+      error: {
+        message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`,
+        type: "invalid_request_error",
+        code: "model_not_allowed",
+      },
     });
-    if (!rpmCheck.allowed) {
-      res.status(429).json({
-        error: {
-          message: `Model-level QPM limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`,
-          type: "rate_limit_error",
-          code: "rate_limit_exceeded",
-        },
-      });
-      return;
-    }
+    return;
+  }
+  const qpmFailure = await reserveQpm(ctx);
+  if (qpmFailure) {
+    res.status(429).json({
+      error: {
+        message: `Model-level QPM limit exceeded: ${qpmFailure.limit} requests/min for '${modelId}'.`,
+        type: "rate_limit_error",
+        code: "rate_limit_exceeded",
+      },
+    });
+    return;
   }
 
   const modelType = detectModelType(model.category);
@@ -239,7 +231,7 @@ router.post("/", async (req: Request, res: Response) => {
 
   let estimatedCost: number;
   try {
-    estimatedCost = await estimateDiscountedAsyncCost(apiKeyRecord.user_id, model, params);
+    estimatedCost = await estimateDiscountedAsyncCost(caller.userId, model, params);
   } catch (error) {
     res.status(400).json({
       error: {
@@ -250,114 +242,88 @@ router.post("/", async (req: Request, res: Response) => {
     });
     return;
   }
-  const resolvedUpstream = await resolveUpstream(modelId, {
-    region: getRequestedRegion(req),
-    userId: apiKeyRecord.user_id,
-  });
-  if (!resolvedUpstream.ok) {
-    res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
+  const routeFailure = await selectRoute(ctx);
+  if (routeFailure) {
+    res.status(routeFailure.status).json({ error: upstreamErrorBody(routeFailure) });
     return;
   }
-  const selected = {
-    providerId: resolvedUpstream.upstream.providerId,
-    apiKey: resolvedUpstream.upstream.apiKey,
-    apiBaseUrl: resolvedUpstream.upstream.nativeBaseUrl,
-    channelId: resolvedUpstream.upstream.channelId,
-    region: resolvedUpstream.upstream.region,
-    managed: resolvedUpstream.upstream.managed,
-    rpm: resolvedUpstream.upstream.rpm,
-    tpm: resolvedUpstream.upstream.tpm,
-    dailyLimit: resolvedUpstream.upstream.dailyLimit,
-    concurrentLimit: resolvedUpstream.upstream.concurrentLimit,
-  };
-  const upstreamApiKey = selected.apiKey;
-  const provider = selected.providerId;
-  let billingReservation: BillingReservation | null = null;
+  const upstream = ctx.requireUpstream();
+  const nativeBaseUrl = upstream.nativeBaseUrl;
+  const upstreamApiKey = upstream.apiKey;
   if (estimatedCost > 0) {
-    const billingReservationResult = await reserveBalanceWithReason(
-      apiKeyRecord.user_id,
-      estimatedCost,
-      `task:${randomUUID()}`,
-      30 * 24 * 60 * 60
-    );
-    if (!billingReservationResult.reservation) {
-      sendBillingReservationFailure(res, billingReservationResult.reason);
+    const billingFailure = await reserveBilling(ctx, estimatedCost, "task", 30 * 24 * 60 * 60);
+    if (billingFailure) {
+      sendBillingReservationFailure(res, billingFailure);
       return;
     }
-    billingReservation = billingReservationResult.reservation;
   }
 
-  let keepReservationForPolling = false;
-  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
-
   try {
-    const capacity = await acquireProviderCapacity(selected, modelId, 0);
-    if (!capacity.ok) {
+    const capacityFailure = await reserveProviderCapacity(ctx, 0);
+    if (capacityFailure) {
       res.status(503).json({
         error: {
-          message: capacity.message,
+          message: capacityFailure.message,
           type: "server_error",
-          code: capacity.code,
+          code: capacityFailure.code,
         },
       });
       return;
     }
-    providerCapacityLease = capacity.lease;
 
     // Create task record
     const task = await createTask({
-      userId: apiKeyRecord.user_id,
-      apiKeyId: apiKeyRecord.id,
+      userId: caller.userId,
+      apiKeyId: caller.apiKeyId,
       type: modelType as "image" | "video",
       model: modelId,
-      provider,
+      provider: upstream.providerId,
       input: {
         prompt,
         ...params,
         _route: {
-          channelId: selected.channelId,
-          region: selected.region,
-          nativeBaseUrl: selected.apiBaseUrl,
-          managed: selected.managed,
-          rpm: selected.rpm,
-          tpm: selected.tpm,
-          dailyLimit: selected.dailyLimit,
-          concurrentLimit: selected.concurrentLimit,
+          channelId: upstream.channelId,
+          region: upstream.region,
+          nativeBaseUrl,
+          managed: upstream.managed,
+          rpm: upstream.rpm,
+          tpm: upstream.tpm,
+          dailyLimit: upstream.dailyLimit,
+          concurrentLimit: upstream.concurrentLimit,
         },
       },
-      billingReservationId: billingReservation?.id,
+      billingReservationId: ctx.billingReservation?.id,
     });
 
-    // Build upstream request
-    const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
-    const isVolcEngine = selected.apiBaseUrl.includes("volces.com") || selected.apiBaseUrl.includes("genvia.ai");
+    // Build upstream request: the protocol follows the upstream adapter.
+    const taskProtocol = taskProtocolFor(ctx.adapter!);
     let adapted;
     try {
       if (modelType === "image") {
         adapted = adaptImageRequest(
           upstreamApiKey,
           { model: modelId, prompt, ...params },
-          { nativeBase: selected.apiBaseUrl }
+          { nativeBase: nativeBaseUrl }
         );
-      } else if (isPixVerseOfficial) {
-        adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, selected.apiBaseUrl);
+      } else if (taskProtocol === "pixverse") {
+        adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, nativeBaseUrl);
       } else if (modelId.startsWith("seedance-")) {
-        adapted = adaptSeedanceRequest(upstreamApiKey, { model: modelId, prompt, ...params }, selected.apiBaseUrl);
+        adapted = adaptSeedanceRequest(upstreamApiKey, { model: modelId, prompt, ...params }, nativeBaseUrl);
       } else if (modelId.startsWith("happyhorse-")) {
         adapted = adaptHappyHorseRequest(
           upstreamApiKey,
           { model: modelId, prompt, ...params },
-          selected.apiBaseUrl
+          nativeBaseUrl
         );
       } else {
         adapted = adaptVideoRequest(
           upstreamApiKey,
           { model: modelId, prompt, ...params },
-          selected.apiBaseUrl
+          nativeBaseUrl
         );
       }
     } catch (err: any) {
-      recordFailure(selected.providerId, modelId, err.message);
+      recordFailure(upstream.providerId, modelId, err.message);
       await failTask(task.id, `Adapter error: ${err.message}`);
       await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime(), task.billing_reservation_id);
       res.status(err instanceof VideoParameterError ? 400 : 500).json({
@@ -373,19 +339,22 @@ router.post("/", async (req: Request, res: Response) => {
     // Submit to upstream
     const submitStart = Date.now();
     try {
-      const response = await safeProviderFetch(adapted.url, {
+      const response = await invokeUpstream(ctx, {
+        url: adapted.url,
         method: adapted.method,
         headers: adapted.headers,
-        body: JSON.stringify(adapted.body),
+        auth: false,
+        body: adapted.body,
+        timeoutMs: null,
       });
 
       const data: any = await response.json();
 
       // Volcengine Ark error format: { error: { message, code, ... } }
-      const volcEngineError = isVolcEngine && data.error;
+      const volcEngineError = taskProtocol === "volcengine" && data.error;
       if (!response.ok || data.code || (data.ErrCode !== undefined && data.ErrCode !== 0) || volcEngineError) {
         const errorMsg = data.message || data.error?.message || data.ErrMsg || `HTTP ${response.status}`;
-        recordFailure(selected.providerId, modelId, errorMsg);
+        recordFailure(upstream.providerId, modelId, errorMsg);
         await failTask(task.id, errorMsg);
         await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime(), task.billing_reservation_id);
         res.status(response.ok ? 400 : response.status).json({
@@ -394,7 +363,7 @@ router.post("/", async (req: Request, res: Response) => {
         return;
       }
 
-      recordSuccess(selected.providerId, modelId, Date.now() - submitStart);
+      recordSuccess(upstream.providerId, modelId, Date.now() - submitStart);
 
       // Extract task ID from response
       let upstreamTaskId: string | undefined;
@@ -409,9 +378,9 @@ router.post("/", async (req: Request, res: Response) => {
         if (imageUrls.length > 0) {
           // Upstream has delivered a billable result. Keep the hold if database
           // settlement fails so a retry/reconciler can finish it safely.
-          keepReservationForPolling = true;
+          ctx.billableResponseReceived = true;
           const output = { type: "image", image_url: imageUrls[0], images: imageUrls };
-          const model = models.find((m) => m.id === modelId);
+          const model = findModel(modelId);
           const cost = model ? await estimateDiscountedAsyncCost(task.user_id, model, task.input || {}) : 0;
           const won = await completeTask(task.id, output, cost);
           if (won && model) await billAsyncSuccess(task, model, cost, Date.now() - new Date(task.created_at).getTime());
@@ -441,13 +410,13 @@ router.post("/", async (req: Request, res: Response) => {
         upstreamTaskId = String(data.Resp.task_id);
       }
       // Volcengine Ark format: { id: "cgt-..." } (direct Ark) or { id: "task_..." } (genvia relay)
-      if (isVolcEngine && data.id && typeof data.id === "string") {
+      if (taskProtocol === "volcengine" && data.id && typeof data.id === "string") {
         upstreamTaskId = data.id;
       }
 
       if (upstreamTaskId) {
         await setUpstreamTaskId(task.id, upstreamTaskId);
-        keepReservationForPolling = true;
+        ctx.billableResponseReceived = true;
       } else {
         // Unexpected response format
         await failTask(task.id, "No task_id in upstream response");
@@ -469,7 +438,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
 
     } catch (err: any) {
-      recordFailure(selected.providerId, modelId, err.message);
+      recordFailure(upstream.providerId, modelId, err.message);
       const won = await failTask(task.id, `Request failed: ${sanitizeUpstreamError(err)}`);
       if (won) {
         await billAsyncError(apiKeyRecord, modelId, Date.now() - new Date(task.created_at).getTime(), task.billing_reservation_id);
@@ -479,16 +448,13 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
   } finally {
-    if (billingReservation && !keepReservationForPolling) {
-      await releaseReservation(billingReservation.id, "task_submission_not_running");
-    }
-    await releaseProviderCapacity(providerCapacityLease, 0);
+    await release(ctx, { releaseReason: "task_submission_not_running" });
   }
 });
 
 // GET /v1/tasks/:id - Get task status
 router.get("/:id", async (req: Request, res: Response) => {
-  const token = extractToken(req);
+  const token = bearerToken(req);
   if (!token) {
     res.status(401).json({
       error: { message: "Missing API key", type: "invalid_request_error", code: "missing_api_key" },
@@ -592,8 +558,11 @@ router.get("/:id", async (req: Request, res: Response) => {
         task.input?._route?.nativeBaseUrl || providerRecord.api_base_url
       );
       pixVerseBaseUrl = resolvedPollBaseUrl;
-      isPixVerseOfficial = resolvedPollBaseUrl.includes("pixverse.ai");
-      isVolcEngine = resolvedPollBaseUrl.includes("volces.com") || resolvedPollBaseUrl.includes("genvia.ai");
+      const pollProtocol = taskProtocolFor(
+        (await adapterForUpstream(providerRecord.id, taskChannelId || null, resolvedPollBaseUrl)).adapter
+      );
+      isPixVerseOfficial = pollProtocol === "pixverse";
+      isVolcEngine = pollProtocol === "volcengine";
     }
 
     const controlledPoll = await pollTaskWithControl({
@@ -693,7 +662,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 // GET /v1/tasks - List tasks (requires auth)
 router.get("/", async (req: Request, res: Response) => {
-  const token = extractToken(req);
+  const token = bearerToken(req);
   const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
 
   if (!token) {

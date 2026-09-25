@@ -4,8 +4,6 @@ import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
-import { validateSession } from "../data/users";
-import { validateApiKey } from "../data/apikeys";
 import { checkRPMFailClosed } from "../services/rate-limiter";
 import { getUploadObject, isOssUploadEnabled } from "../services/oss";
 import { isProductionRuntime } from "../utils/runtime-safety";
@@ -16,6 +14,8 @@ import {
 } from "../services/upload-quota";
 import { persistUploadObject } from "../services/upload-lifecycle";
 import { registerUploadObject } from "../data/upload-objects";
+import { InferenceContext } from "../pipeline/context";
+import { authenticateApiKey, authenticateSession, bearerToken } from "../pipeline/stages";
 
 const router = Router();
 
@@ -90,17 +90,18 @@ const upload = multer({
 });
 
 async function requireUploadAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith("Bearer ")) {
+  const token = bearerToken(req);
+  if (token === null) {
     res.status(401).json({ success: false, message: "上传需要登录或 API Key" });
     return;
   }
 
-  const token = auth.slice(7).trim();
-  const session = await validateSession(token);
-  const apiKey = session ? null : await validateApiKey(token);
-  const identity = session?.id || apiKey?.user_id || apiKey?.id;
-  if (identity) {
+  // Uploads accept a dashboard session first, then an API key.
+  const ctx = new InferenceContext("upload", req, res);
+  const authenticated = (await authenticateSession(ctx, token)) || (await authenticateApiKey(ctx, token));
+  const caller = authenticated ? ctx.requireCaller() : null;
+  const identity = caller ? caller.userId || caller.apiKeyId : null;
+  if (caller && identity) {
     const rate = await checkRPMFailClosed(`upload:${identity}`, UPLOAD_RPM);
     if (!rate.available) {
       res.status(503).json({ success: false, message: "上传限流服务暂不可用" });
@@ -112,8 +113,8 @@ async function requireUploadAuth(req: Request, res: Response, next: NextFunction
     }
     const uploadReq = req as AuthorizedUploadRequest;
     uploadReq.uploadIdentity = `user:${identity}`;
-    uploadReq.uploadUserId = session?.id || apiKey?.user_id || null;
-    uploadReq.uploadApiKeyId = apiKey?.id || null;
+    uploadReq.uploadUserId = caller.userId || null;
+    uploadReq.uploadApiKeyId = caller.apiKeyId || null;
 
     const rawLength = req.headers["content-length"];
     const transferEncoding = req.headers["transfer-encoding"];
