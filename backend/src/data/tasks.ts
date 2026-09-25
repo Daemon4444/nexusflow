@@ -116,7 +116,10 @@ export async function completeTask(taskId: string, output: any, cost: number = 0
 export async function failTask(taskId: string, errorMessage: string): Promise<boolean> {
   const now = new Date().toISOString();
   const changed = await db.execute(
-    "UPDATE async_tasks SET status = 'failed', error_message = ?, updated_at = ?, completed_at = ? WHERE id = ? AND status NOT IN ('succeeded', 'failed')",
+    // Equivalent to `status NOT IN ('succeeded', 'failed')` (status is NOT
+    // NULL); spelled out because pg-mem intermittently crashes on NOT IN over
+    // an indexed column.
+    "UPDATE async_tasks SET status = 'failed', error_message = ?, updated_at = ?, completed_at = ? WHERE id = ? AND status <> 'succeeded' AND status <> 'failed'",
     [errorMessage, now, now, taskId]
   );
   return changed > 0;

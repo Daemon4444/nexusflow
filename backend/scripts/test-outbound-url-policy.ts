@@ -14,6 +14,7 @@ import {
   UPSTREAM_CATALOG_HOSTS,
   safeNotifierFetch,
   safeUpstreamCatalogFetch,
+  setOutboundTestTransport,
 } from "../src/services/outbound-url-policy";
 import {
   createProvider,
@@ -358,6 +359,17 @@ async function main(): Promise<void> {
   await assertBlockedAsync(() => safeUpstreamCatalogFetch("https://169.254.169.254/latest"), /./);
   await assertBlockedAsync(() => safeNotifierFetch("https://www.feishu.cn/flow/api/trigger-webhook/x"), /not allowlisted/);
   await assertBlockedAsync(() => safeNotifierFetch("https://open.feishu.cn:8443/open-apis"), /port/);
+
+  // The characterization-test transport can never be installed in production.
+  {
+    const saved = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      assert.throws(() => setOutboundTestTransport(async () => new Response("")), OutboundUrlPolicyError);
+    } finally {
+      process.env.NODE_ENV = saved;
+    }
+  }
 
   // Static regression gate: provider-origin HTTP must go through the common
   // safe wrapper; no raw global fetch call may reappear elsewhere.

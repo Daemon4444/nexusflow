@@ -54,7 +54,8 @@
     "test:control-plane-consistency": "ts-node scripts/test-control-plane-consistency.ts",
     "test:bailian-catalog": "ts-node scripts/test-bailian-catalog.ts",
     "control-plane:consistency": "ts-node src/cli/control-plane-consistency.ts",
-    "bailian:catalog-sync": "ts-node src/cli/bailian-catalog-sync.ts"
+    "bailian:catalog-sync": "ts-node src/cli/bailian-catalog-sync.ts",
+    "test:inference-characterization": "ts-node scripts/test-inference-characterization-isolated.ts"
   },
   "keywords": [],
   "author": "",
