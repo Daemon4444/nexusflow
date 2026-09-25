@@ -205,6 +205,7 @@ jobs:
       - run: npm --workspace backend run test:control-plane-consistency
       - run: npm --workspace backend run test:bailian-catalog
       - run: npm --workspace backend run test:control-plane-config
+      - run: npm --workspace backend run test:traffic
       - name: Verify complete, idempotent and checksummed migration ledger
         run: node scripts/test-migration-ledger.mjs
         env:

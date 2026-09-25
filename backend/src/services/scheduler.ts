@@ -1,4 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
+import { trafficMode } from "../config/feature-flags";
+import { controlPlaneRuntime } from "../control-plane/runtime";
+import { circuitCounts, effectivePolicy, type EffectivePolicy } from "../traffic/policy";
+import { releaseScopes } from "../traffic/reservation";
 import { db } from "../db/client";
 import {
   decrementProviderConcurrencyAsync,
@@ -76,6 +80,8 @@ export interface ProviderRequestCapacityLease {
   modelId: string;
   managed: boolean;
   leaseId: string | null;
+  /** NF_TRAFFIC_MODE=enforce: multi-scope lease (route, pool, fair share). */
+  traffic?: { leaseId: string; scopes: string[] };
 }
 
 export type ProviderCapacityAcquireResult =
@@ -114,6 +120,22 @@ const FAILURE_THRESHOLD_DOWN = readPositiveIntEnv("PROVIDER_HEALTH_DOWN_THRESHOL
 // another failure refreshes last_failure_at and restarts the cooldown.
 const DOWN_COOLDOWN_MS = readPositiveIntEnv("PROVIDER_HEALTH_DOWN_COOLDOWN_MS", 60_000);
 
+/**
+ * Circuit parameters. NF_TRAFFIC_MODE=enforce with a loaded control-plane
+ * version reads the global traffic policy; otherwise (and as fallback) the
+ * environment values above apply.
+ */
+export function circuitParams(): { threshold: number; cooldownMs: number; policy: EffectivePolicy | null } {
+  if (trafficMode() === "enforce") {
+    const snapshot = controlPlaneRuntime.get();
+    if (snapshot) {
+      const policy = effectivePolicy(snapshot);
+      return { threshold: policy.circuit.threshold, cooldownMs: policy.circuit.cooldownS * 1000, policy };
+    }
+  }
+  return { threshold: FAILURE_THRESHOLD_DOWN, cooldownMs: DOWN_COOLDOWN_MS, policy: null };
+}
+
 export type HealthOutcome = "success" | "failure" | "ignore";
 
 /**
@@ -136,6 +158,10 @@ export function classifyHealthOutcome(params: {
     const match = text.match(/\bupstream_(?:http_)?(\d{3})\b/);
     if (match) httpStatus = Number(match[1]);
   }
+  const policy = circuitParams().policy;
+  if (policy) {
+    return circuitCounts(policy, httpStatus) ? "failure" : "ignore";
+  }
   if (httpStatus >= 400 && httpStatus < 500 && ![401, 403, 408, 429].includes(httpStatus)) {
     return "ignore";
   }
@@ -149,7 +175,7 @@ export function isRouteQuarantined(
   if (health?.status !== "down") return false;
   const lastFailure = health.lastFailureAt ? Date.parse(health.lastFailureAt) : NaN;
   if (!Number.isFinite(lastFailure)) return false;
-  return now - lastFailure < DOWN_COOLDOWN_MS;
+  return now - lastFailure < circuitParams().cooldownMs;
 }
 const CAPACITY_RESERVATION_RETRY_DELAYS_MS = [0, 50, 150, 350, 750] as const;
 const concurrentRequests = new Map<string, number>();
@@ -225,7 +251,7 @@ export async function recordFailure(providerId: string, modelId: string, error: 
        last_error = excluded.last_error,
        updated_at = excluded.updated_at
      WHERE provider_health.updated_at IS NULL OR provider_health.updated_at <= excluded.updated_at`,
-    [uuidv4(), providerId, modelId, "degraded", 1, null, now, error, 0, now, FAILURE_THRESHOLD_DOWN]
+    [uuidv4(), providerId, modelId, "degraded", 1, null, now, error, 0, now, circuitParams().threshold]
   );
 }
 
@@ -347,6 +373,15 @@ export async function releaseProviderCapacity(
   actualTokens = 0
 ): Promise<void> {
   if (!lease) return;
+  if (lease.traffic) {
+    try {
+      await releaseScopes({ scopes: lease.traffic.scopes, leaseId: lease.traffic.leaseId, actualTokens });
+    } catch (error) {
+      // Leases carry a bounded TTL; never fall back to per-process state.
+      console.error("[scheduler] traffic lease release failed:", error instanceof Error ? error.message : String(error));
+    }
+    return;
+  }
   const key = `${lease.providerId}:${lease.modelId}`;
   concurrentRequests.set(key, Math.max(0, (concurrentRequests.get(key) || 0) - 1));
 

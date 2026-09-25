@@ -1,5 +1,8 @@
 import { v4 as uuid } from "uuid";
 import { db } from "../db/client";
+import { trafficMode } from "../config/feature-flags";
+import { controlPlaneRuntime } from "../control-plane/runtime";
+import { effectivePolicy } from "../traffic/policy";
 import { getAllUsers } from "./users";
 import { getUsageSummary } from "./usage";
 import {
@@ -13,6 +16,20 @@ import {
 
 const DEFAULT_QPM = 30000;
 const DEFAULT_TPM = 5000000;
+
+/**
+ * System default per-user limits. NF_TRAFFIC_MODE=enforce reads them from
+ * the traffic policy (global, overridden by user:<id>); otherwise the code
+ * defaults above — the effective production values; the table column
+ * defaults 60/100000 only apply to rows inserted without values.
+ */
+function systemDefaults(userId?: string): { qpm: number; tpm: number } {
+  if (trafficMode() === "enforce") {
+    const snapshot = controlPlaneRuntime.get();
+    if (snapshot) return effectivePolicy(snapshot, { userId }).userDefault;
+  }
+  return { qpm: DEFAULT_QPM, tpm: DEFAULT_TPM };
+}
 
 export interface UserRateLimit {
   id: string;
@@ -43,7 +60,8 @@ export async function getEffectiveRateLimit(userId: string, model: string): Prom
   const wildcard = await db.queryOne<UserRateLimit>("SELECT * FROM user_rate_limits WHERE user_id = ? AND model = '*'", [userId]);
   if (wildcard) return { qpm: wildcard.qpm, tpm: wildcard.tpm, source: "user_default" };
 
-  return { qpm: DEFAULT_QPM, tpm: DEFAULT_TPM, source: "default" };
+  const defaults = systemDefaults(userId);
+  return { qpm: defaults.qpm, tpm: defaults.tpm, source: "default" };
 }
 
 export async function getUserLimitsOverview(userId: string) {
@@ -53,11 +71,12 @@ export async function getUserLimitsOverview(userId: string) {
     getRateLimitRequests(userId, undefined, { limit: 100 }),
     getRateLimitRequestCounts(userId),
   ]);
+  const defaults = systemDefaults(userId);
   return {
-    defaultQpm: wildcard?.qpm ?? DEFAULT_QPM,
-    defaultTpm: wildcard?.tpm ?? DEFAULT_TPM,
-    systemDefaultQpm: DEFAULT_QPM,
-    systemDefaultTpm: DEFAULT_TPM,
+    defaultQpm: wildcard?.qpm ?? defaults.qpm,
+    defaultTpm: wildcard?.tpm ?? defaults.tpm,
+    systemDefaultQpm: defaults.qpm,
+    systemDefaultTpm: defaults.tpm,
     hasUserDefault: !!wildcard,
     customLimits: customs,
     requests,
@@ -87,8 +106,8 @@ export async function getAdminUserLimitSummaries() {
       creditBalance: user.credit_balance,
       created_at: user.created_at,
       updated_at: user.updated_at,
-      defaultQpm: wildcard?.qpm ?? DEFAULT_QPM,
-      defaultTpm: wildcard?.tpm ?? DEFAULT_TPM,
+      defaultQpm: wildcard?.qpm ?? systemDefaults(user.id).qpm,
+      defaultTpm: wildcard?.tpm ?? systemDefaults(user.id).tpm,
       customLimits: customs,
       customLimitCount: customs.length,
       pendingRequestCount: requests.filter((item) => item.status === "pending").length,

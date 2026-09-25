@@ -21,11 +21,6 @@ import {
 } from "../data/tasks";
 import {
   detectModelType,
-  adaptImageRequest,
-  adaptVideoRequest,
-  adaptHappyHorseRequest,
-  adaptPixVerseRequest,
-  adaptSeedanceRequest,
   pollDashScopeTask,
   pollPixVerseTask,
   pollVolcEngineTask,
@@ -48,6 +43,9 @@ import { upstreamErrorBody } from "../services/upstream";
 import { pollTaskWithControl } from "../services/task-poll-control";
 import { InferenceContext } from "../pipeline/context";
 import { taskProtocolFor } from "../pipeline/adapters";
+import { adaptAsync, type AsyncAdapterCall } from "../traffic/async-submit";
+import { enqueueAsyncTask, queuePosition } from "../traffic/queue";
+import { asyncPolicy } from "../traffic/engine";
 import {
   adapterForUpstream,
   authenticateApiKey,
@@ -62,6 +60,8 @@ import {
   reserveQpm,
   resolveModel,
   selectRoute,
+  capacityErrorType,
+  capacityHttpStatus,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -258,13 +258,55 @@ router.post("/", async (req: Request, res: Response) => {
     }
   }
 
+  // Upstream call, described as data so a queued task can be submitted later.
+  const taskProtocol = taskProtocolFor(ctx.adapter!);
+  const call: AsyncAdapterCall = modelType === "image"
+    ? { kind: "image", args: { model: modelId, prompt, ...params } }
+    : taskProtocol === "pixverse"
+      ? { kind: "pixverse", args: { model: modelId, prompt, ...params } }
+      : modelId.startsWith("seedance-")
+        ? { kind: "seedance", args: { model: modelId, prompt, ...params } }
+        : modelId.startsWith("happyhorse-")
+          ? { kind: "happyhorse", args: { model: modelId, prompt, ...params } }
+          : { kind: "video", args: { model: modelId, prompt, ...params } };
+
   try {
-    const capacityFailure = await reserveProviderCapacity(ctx, 0);
+    const capacityFailure = await reserveProviderCapacity(ctx, 0, { overflow: modelType === "video" ? "queue" : "failover" });
+    if (capacityFailure?.code === "capacity_exhausted" && capacityFailure.queue && caller.userId) {
+      // NF_TRAFFIC_MODE=enforce: video tasks wait in the queue (D1).
+      const queued = await enqueueAsyncTask({
+        userId: caller.userId,
+        apiKeyId: caller.apiKeyId,
+        modelId,
+        providerId: upstream.providerId,
+        input: { prompt, ...params },
+        call,
+        billingReservationId: ctx.billingReservation?.id ?? null,
+        policy: asyncPolicy(modelId, caller.userId),
+      });
+      if (queued.ok) {
+        ctx.billableResponseReceived = true; // the queued task owns the hold now
+        res.status(202).json({
+          id: queued.task.id,
+          object: "task",
+          status: "queued",
+          queue_position: queued.position,
+          model: modelId,
+          type: modelType,
+          created_at: queued.task.created_at,
+        });
+        return;
+      }
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
+        error: { message: queued.message, type: "rate_limit_error", code: queued.reason },
+      });
+      return;
+    }
     if (capacityFailure) {
-      res.status(503).json({
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
         error: {
           message: capacityFailure.message,
-          type: "server_error",
+          type: capacityErrorType(capacityFailure, "server_error"),
           code: capacityFailure.code,
         },
       });
@@ -296,32 +338,9 @@ router.post("/", async (req: Request, res: Response) => {
     });
 
     // Build upstream request: the protocol follows the upstream adapter.
-    const taskProtocol = taskProtocolFor(ctx.adapter!);
     let adapted;
     try {
-      if (modelType === "image") {
-        adapted = adaptImageRequest(
-          upstreamApiKey,
-          { model: modelId, prompt, ...params },
-          { nativeBase: nativeBaseUrl }
-        );
-      } else if (taskProtocol === "pixverse") {
-        adapted = adaptPixVerseRequest(upstreamApiKey, { model: modelId, prompt, ...params }, nativeBaseUrl);
-      } else if (modelId.startsWith("seedance-")) {
-        adapted = adaptSeedanceRequest(upstreamApiKey, { model: modelId, prompt, ...params }, nativeBaseUrl);
-      } else if (modelId.startsWith("happyhorse-")) {
-        adapted = adaptHappyHorseRequest(
-          upstreamApiKey,
-          { model: modelId, prompt, ...params },
-          nativeBaseUrl
-        );
-      } else {
-        adapted = adaptVideoRequest(
-          upstreamApiKey,
-          { model: modelId, prompt, ...params },
-          nativeBaseUrl
-        );
-      }
+      adapted = adaptAsync(call, upstreamApiKey, nativeBaseUrl);
     } catch (err: any) {
       recordFailure(upstream.providerId, modelId, err.message);
       await failTask(task.id, `Adapter error: ${err.message}`);
@@ -507,6 +526,20 @@ router.get("/:id", async (req: Request, res: Response) => {
       error: task.error_message,
       created_at: task.created_at,
       completed_at: task.completed_at,
+    });
+    return;
+  }
+
+  if (task.status === "queued") {
+    res.json({
+      id: task.id,
+      object: "task",
+      status: "queued",
+      queue_position: (await queuePosition(task)) ?? 1,
+      model: task.model,
+      type: task.type,
+      progress: 0,
+      created_at: task.created_at,
     });
     return;
   }

@@ -49,6 +49,8 @@ import {
   reserveTpm,
   resolveModel,
   selectRoute,
+  capacityErrorType,
+  capacityHttpStatus,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -400,8 +402,8 @@ router.post("/images/generations", async (req: Request, res: Response) => {
   try {
     const capacityFailure = await reserveProviderCapacity(ctx, 0);
     if (capacityFailure) {
-      res.status(503).json({
-        error: { message: capacityFailure.message, type: "server_error", code: capacityFailure.code },
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
+        error: { message: capacityFailure.message, type: capacityErrorType(capacityFailure, "server_error"), code: capacityFailure.code },
       });
       return;
     }
@@ -800,8 +802,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   try {
     const capacityFailure = await reserveProviderCapacity(ctx, estimatedChatTokens);
     if (capacityFailure) {
-      res.status(503).json({
-        error: { message: capacityFailure.message, type: "server_error", code: capacityFailure.code },
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
+        error: { message: capacityFailure.message, type: capacityErrorType(capacityFailure, "server_error"), code: capacityFailure.code },
       });
       return;
     }
@@ -1441,8 +1443,8 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   try {
     const capacityFailure = await reserveProviderCapacity(ctx, estimatedEmbeddingTokens);
     if (capacityFailure) {
-      res.status(503).json({
-        error: { message: capacityFailure.message, type: "server_error", code: capacityFailure.code },
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
+        error: { message: capacityFailure.message, type: capacityErrorType(capacityFailure, "server_error"), code: capacityFailure.code },
       });
       return;
     }

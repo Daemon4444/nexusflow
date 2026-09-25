@@ -12,3 +12,4 @@ dist/
 data.db
 backend/uploads/
 backups/
+dump.rdb
