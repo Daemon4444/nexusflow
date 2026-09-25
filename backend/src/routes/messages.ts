@@ -29,11 +29,7 @@ import {
 } from "../utils/anthropic-openai-bridge";
 import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
 import { getBillingFailurePayload } from "../utils/billing-response";
-import {
-  getUpstreamModelId,
-  restorePublicModelAlias,
-  rewriteUpstreamModelAliasText,
-} from "../utils/upstream-model-aliases";
+import { restorePublicModelAlias, rewriteUpstreamModelAliasText } from "../utils/upstream-model-aliases";
 import { InferenceContext } from "../pipeline/context";
 import { roughTokenCount } from "../pipeline/estimates";
 import {
@@ -361,7 +357,7 @@ router.post("/", async (req: Request, res: Response) => {
         url: `${passThroughBase}/messages`,
         auth: false,
         headers,
-        body: { ...req.body, model: getUpstreamModelId(modelId, upstream.providerId) },
+        body: { ...req.body, model: upstream.upstreamModelId },
       });
 
       if (stream) {

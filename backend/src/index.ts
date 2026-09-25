@@ -23,6 +23,8 @@ const HOST = resolveBackendBindHost();
 import { cleanExpiredSessions } from "./data/users";
 import { seedApiKeysIfNeeded } from "./data/apikeys";
 import { refreshModels, startModelRefreshLoop } from "./data/model-overrides";
+import { controlPlaneMode } from "./config/feature-flags";
+import { controlPlaneRuntime } from "./control-plane/runtime";
 import { ensureRoutingDefaults } from "./services/providers";
 import { startUploadCleanupLoop } from "./services/upload-lifecycle";
 
@@ -59,6 +61,16 @@ async function start() {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn(`[Quadrant API] 路由默认配置初始化跳过: ${message}`);
+  }
+
+  // Control plane (NF_CP_MODE shadow/enforce): load the published version
+  // before serving; the catalog is rebuilt whenever a new version loads.
+  if (controlPlaneMode() !== "legacy") {
+    controlPlaneRuntime.onLoaded(() => void refreshModels());
+    await controlPlaneRuntime.refresh();
+    controlPlaneRuntime.start();
+    const loaded = controlPlaneRuntime.get();
+    console.log(`[Quadrant API] 控制面模式 ${controlPlaneMode()}，已加载版本 ${loaded ? loaded.version : "无（回退旧逻辑）"}`);
   }
 
   // Load DB model overrides on top of the static catalog (no-op when table empty),

@@ -12,6 +12,8 @@
  *    so a malformed row can never inject NaN prices or crash billing.
  */
 
+import { controlPlaneMode } from "../config/feature-flags";
+import { controlPlaneRuntime, listedCatalog } from "../control-plane/runtime";
 import { db } from "../db/client";
 import { AIModel, TokenPricingTier, models, getStaticModels } from "./models";
 
@@ -291,6 +293,18 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null;
  */
 export async function refreshModels(): Promise<{ total: number; overrides: number } | null> {
   try {
+    if (controlPlaneMode() === "enforce") {
+      // NF_CP_MODE=enforce: the published control-plane version is the
+      // catalog; model_overrides are only read in legacy/shadow.
+      const snapshot = controlPlaneRuntime.get();
+      if (snapshot) {
+        const listed = listedCatalog(snapshot);
+        if (listed.length === 0) return null; // never wipe the catalog
+        models.length = 0;
+        models.push(...listed);
+        return { total: listed.length, overrides: 0 };
+      }
+    }
     const overrides = await listOverrides();
     const effective = computeEffectiveModels(overrides);
     if (effective.length === 0) return null; // never wipe the catalog

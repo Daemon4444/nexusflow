@@ -37,6 +37,10 @@ import { getProviderAuthHeaders } from "../services/providers";
 import { getProviderChannel } from "../data/provider-channels";
 import { logToSLS } from "../services/sls";
 import { resolveUpstreamAdapter } from "./adapters";
+import { controlPlaneMode } from "../config/feature-flags";
+import { runShadow } from "../services/shadow";
+import { controlPlaneRuntime, isModelServable } from "../control-plane/runtime";
+import { diffModel, diffRoute } from "../control-plane/shadow-compare";
 import type { InferenceContext, PipelineCaller } from "./context";
 
 export const UPSTREAM_TIMEOUT_MS = 600_000;
@@ -134,7 +138,34 @@ export function findModel(modelId: string): AIModel | undefined {
 
 export function resolveModel(ctx: InferenceContext, modelId: string): boolean {
   ctx.modelId = modelId;
+  const mode = controlPlaneMode();
+  const snapshot = mode === "legacy" ? null : controlPlaneRuntime.get();
+  if (mode === "enforce" && snapshot) {
+    // NF_CP_MODE=enforce: the published version decides, including the
+    // preview allowlist and retired models (with their replacement hint).
+    const cp = snapshot.models.get(modelId);
+    const servable = !!cp && isModelServable(cp, ctx.caller?.userId ?? null);
+    ctx.model = servable ? snapshot.aiModels.get(modelId) || null : null;
+    ctx.retiredReplacement = cp?.lifecycle === "retired" ? cp.replacement_model_id ?? null : null;
+    return !!ctx.model;
+  }
   ctx.model = findModel(modelId) || null;
+  if (mode === "shadow" && snapshot) {
+    const legacy = ctx.model;
+    const userId = ctx.caller?.userId ?? null;
+    const diffs = (() => {
+      try {
+        return diffModel(modelId, legacy, snapshot, userId).map((diff) => ({ route: ctx.route, version: snapshot.version, ...diff }));
+      } catch {
+        return null; // reported by runShadow below
+      }
+    })();
+    void runShadow("cp_resolve_model", () => {
+      if (!diffs) throw new Error("cp_resolve_model comparison failed");
+      return diffs.filter((diff) => diff.kind !== "pricing");
+    });
+    void runShadow("cp_pricing", () => (diffs || []).filter((diff) => diff.kind === "pricing"));
+  }
   return !!ctx.model;
 }
 
@@ -221,6 +252,16 @@ export async function selectRoute(
     region: getRequestedRegion(ctx.req),
     userId: caller.userId,
   });
+  const mode = controlPlaneMode();
+  const snapshot = mode === "shadow" ? controlPlaneRuntime.get() : null;
+  if (snapshot) {
+    const decision = result.ok
+      ? { ok: true, providerId: result.upstream.providerId, upstreamModelId: result.upstream.upstreamModelId }
+      : { ok: false, code: result.code };
+    void runShadow("cp_select_route", () =>
+      diffRoute(ctx.modelId, decision, snapshot).map((diff) => ({ route: ctx.route, version: snapshot.version, ...diff }))
+    );
+  }
   if (!result.ok) return result;
   ctx.upstream = result.upstream;
   ctx.adapter = (await adapterForUpstream(

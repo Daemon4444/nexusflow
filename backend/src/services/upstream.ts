@@ -19,11 +19,17 @@ import {
 } from "../data/provider-channels";
 import {
   getManagedRouteCount,
+  selectFromRouteRows,
   selectProviderDetailed,
   type ProviderEndpoint,
   type ProviderSelectionResult,
+  type RouteRow,
 } from "./scheduler";
+import { db } from "../db/client";
+import { controlPlaneMode } from "../config/feature-flags";
+import { controlPlaneRuntime, type LoadedControlPlane } from "../control-plane/runtime";
 import { parseAndValidateOutboundUrl } from "./outbound-url-policy";
+import { getUpstreamModelId } from "../utils/upstream-model-aliases";
 import { logToSLS } from "./sls";
 
 export const DEFAULT_REGION = "cn-beijing";
@@ -38,6 +44,8 @@ function getDefaultProviderRegion(providerId: string): string {
 
 export interface ResolvedUpstream {
   providerId: string;
+  /** Model ID sent upstream (alias table, or cp_routes.upstream_model_id). */
+  upstreamModelId: string;
   /** 命中的渠道 ID；null 表示走静态环境变量回退路径 */
   channelId: string | null;
   region: string;
@@ -77,7 +85,10 @@ function toAnthropicCompatBaseUrl(baseUrl: string): string | undefined {
   return baseUrl.replace(/\/compatible-mode\/v1\/?$/, "/apps/anthropic/v1");
 }
 
-function finalizeResolvedUpstream(upstream: ResolvedUpstream): ResolveUpstreamResult {
+function finalizeResolvedUpstream(
+  modelId: string,
+  upstream: Omit<ResolvedUpstream, "upstreamModelId"> & { upstreamModelId?: string }
+): ResolveUpstreamResult {
   try {
     parseAndValidateOutboundUrl(upstream.baseUrl, { kind: "provider" });
   } catch {
@@ -88,74 +99,156 @@ function finalizeResolvedUpstream(upstream: ResolvedUpstream): ResolveUpstreamRe
       message: "The configured provider endpoint is not permitted by outbound security policy.",
     };
   }
-  return { ok: true, upstream };
+  return {
+    ok: true,
+    upstream: { ...upstream, upstreamModelId: upstream.upstreamModelId ?? getUpstreamModelId(modelId, upstream.providerId) },
+  };
+}
+
+/**
+ * Managed selection with bounded retries while Redis capacity state is
+ * transiently unreadable. Shared by the legacy and control-plane paths.
+ */
+async function selectManaged(
+  modelId: string,
+  select: () => Promise<ProviderSelectionResult>
+): Promise<{ ok: true; endpoint: ProviderEndpoint } | Extract<ResolveUpstreamResult, { ok: false }>> {
+  let selection: ProviderSelectionResult | null = null;
+  let selectionAttempts = 0;
+  let firstTransientFilters: Record<string, number> | null = null;
+  for (const delayMs of CAPACITY_STATE_RETRY_DELAYS_MS) {
+    if (delayMs > 0) await wait(delayMs);
+    selectionAttempts++;
+    selection = await select();
+    if (
+      !selection.ok &&
+      selection.reason === "capacity_state_unavailable" &&
+      !firstTransientFilters
+    ) {
+      firstTransientFilters = selection.filters;
+    }
+    if (selection.ok || selection.reason !== "capacity_state_unavailable") break;
+  }
+  if (selection?.ok && selectionAttempts > 1) {
+    logToSLS({
+      status: "warning",
+      model: modelId,
+      errorCode: "provider_capacity_state_recovered",
+      errorReason: "managed_provider_selection_recovered_after_retry",
+      attempts: selectionAttempts,
+      routeFilters: firstTransientFilters || {},
+    });
+  }
+  if (!selection || !selection.ok) {
+    const reason = selection?.reason || "route_filtered";
+    logToSLS({
+      status: "rejected",
+      model: modelId,
+      errorCode: reason,
+      errorReason: "managed_provider_selection_failed",
+      routeFilters: selection?.filters || {},
+    });
+    if (reason === "capacity_state_unavailable") {
+      return {
+        ok: false,
+        status: 503,
+        code: "provider_capacity_store_unavailable",
+        message: "Managed provider capacity cannot be verified right now.",
+      };
+    }
+    if (reason === "capacity_exhausted") {
+      return {
+        ok: false,
+        status: 503,
+        code: "provider_capacity_exhausted",
+        message: "Managed provider capacity is temporarily exhausted.",
+      };
+    }
+    return {
+      ok: false,
+      status: 503,
+      code: "provider_unavailable",
+      message: `No active provider route is currently available for model '${modelId}'.`,
+    };
+  }
+  return { ok: true, endpoint: selection.endpoint };
 }
 
 export async function resolveUpstream(
   modelId: string,
   options: { region?: string; userId?: string | null } = {}
 ): Promise<ResolveUpstreamResult> {
+  if (controlPlaneMode() === "enforce") {
+    const snapshot = controlPlaneRuntime.get();
+    if (snapshot) return resolveUpstreamFromControlPlane(modelId, snapshot, options);
+    // Enforce requested but no version loaded yet: serve from the legacy
+    // sources rather than failing every request, and say so loudly.
+    logToSLS({ status: "warning", model: modelId, errorCode: "control_plane_not_loaded", errorReason: "enforce_fell_back_to_legacy" });
+  }
+  return resolveUpstreamLegacy(modelId, options);
+}
+
+/** NF_CP_MODE=enforce: candidate routes come from the published version. */
+export async function resolveUpstreamFromControlPlane(
+  modelId: string,
+  snapshot: LoadedControlPlane,
+  options: { region?: string; userId?: string | null } = {}
+): Promise<ResolveUpstreamResult> {
+  const candidates = (snapshot.routesByModel.get(modelId) || []).filter((route) => {
+    const account = snapshot.accounts.get(route.account_id);
+    return route.status === "active" && account?.status === "active";
+  });
+  if (candidates.length === 0) {
+    return {
+      ok: false,
+      status: 503,
+      code: "provider_unavailable",
+      message: `No active provider route is currently available for model '${modelId}'.`,
+    };
+  }
+  const rows: RouteRow[] = [];
+  const upstreamIds = new Map<string, string>();
+  for (const route of candidates) {
+    const account = snapshot.accounts.get(route.account_id)!;
+    const providerId = account.legacy_provider_id || account.id;
+    // Credentials stay in the providers table (encrypted); see secret_ref.
+    // The raw ciphertext is passed on: the selector decrypts it exactly as
+    // for legacy rows.
+    const provider = await db.queryOne<{ name: string; api_base_url: string; api_key: string | null }>(
+      "SELECT name, api_base_url, api_key FROM providers WHERE id = ?",
+      [providerId]
+    );
+    if (!provider) continue;
+    upstreamIds.set(providerId, route.upstream_model_id);
+    rows.push({
+      provider_id: providerId,
+      provider_name: provider.name,
+      api_base_url: account.base_url || provider.api_base_url,
+      api_key: provider.api_key || null,
+      model_id: modelId,
+      rpm: route.rpm,
+      tpm: route.tpm,
+      daily_limit: route.daily,
+      concurrent_limit: route.concurrency,
+      weight: route.weight,
+      priority: route.priority,
+      is_enabled: true,
+    });
+  }
+  const selected = await selectManaged(modelId, () => selectFromRouteRows(modelId, rows, { userId: options.userId }));
+  if (!selected.ok) return selected;
+  return resolveManagedUpstream(modelId, selected.endpoint, options.region, upstreamIds.get(selected.endpoint.providerId));
+}
+
+async function resolveUpstreamLegacy(
+  modelId: string,
+  options: { region?: string; userId?: string | null } = {}
+): Promise<ResolveUpstreamResult> {
   const managedRouteCount = await getManagedRouteCount(modelId);
   if (managedRouteCount > 0) {
-    let selection: ProviderSelectionResult | null = null;
-    let selectionAttempts = 0;
-    let firstTransientFilters: Record<string, number> | null = null;
-    for (const delayMs of CAPACITY_STATE_RETRY_DELAYS_MS) {
-      if (delayMs > 0) await wait(delayMs);
-      selectionAttempts++;
-      selection = await selectProviderDetailed(modelId, { userId: options.userId });
-      if (
-        !selection.ok &&
-        selection.reason === "capacity_state_unavailable" &&
-        !firstTransientFilters
-      ) {
-        firstTransientFilters = selection.filters;
-      }
-      if (selection.ok || selection.reason !== "capacity_state_unavailable") break;
-    }
-    if (selection?.ok && selectionAttempts > 1) {
-      logToSLS({
-        status: "warning",
-        model: modelId,
-        errorCode: "provider_capacity_state_recovered",
-        errorReason: "managed_provider_selection_recovered_after_retry",
-        attempts: selectionAttempts,
-        routeFilters: firstTransientFilters || {},
-      });
-    }
-    if (!selection || !selection.ok) {
-      const reason = selection?.reason || "route_filtered";
-      logToSLS({
-        status: "rejected",
-        model: modelId,
-        errorCode: reason,
-        errorReason: "managed_provider_selection_failed",
-        routeFilters: selection?.filters || {},
-      });
-      if (reason === "capacity_state_unavailable") {
-        return {
-          ok: false,
-          status: 503,
-          code: "provider_capacity_store_unavailable",
-          message: "Managed provider capacity cannot be verified right now.",
-        };
-      }
-      if (reason === "capacity_exhausted") {
-        return {
-          ok: false,
-          status: 503,
-          code: "provider_capacity_exhausted",
-          message: "Managed provider capacity is temporarily exhausted.",
-        };
-      }
-      return {
-        ok: false,
-        status: 503,
-        code: "provider_unavailable",
-        message: `No active provider route is currently available for model '${modelId}'.`,
-      };
-    }
-    return resolveManagedUpstream(modelId, selection.endpoint, options.region);
+    const selected = await selectManaged(modelId, () => selectProviderDetailed(modelId, { userId: options.userId }));
+    if (!selected.ok) return selected;
+    return resolveManagedUpstream(modelId, selected.endpoint, options.region);
   }
 
   // Backward-compatible fallback for installations that have not bootstrapped
@@ -215,7 +308,7 @@ export async function resolveUpstream(
       });
       const [channelId, channel] = candidates[0];
       const baseUrl = resolveChannelBaseUrl(channel).replace(/\/$/, "");
-      return finalizeResolvedUpstream({
+      return finalizeResolvedUpstream(modelId, {
           providerId: provider.id,
           channelId,
           region: channel.region || DEFAULT_REGION,
@@ -253,7 +346,7 @@ export async function resolveUpstream(
   }
 
   const baseUrl = provider.baseUrl.replace(/\/$/, "");
-  return finalizeResolvedUpstream({
+  return finalizeResolvedUpstream(modelId, {
       providerId: provider.id,
       channelId: null,
       region: providerDefaultRegion,
@@ -272,7 +365,8 @@ export async function resolveUpstream(
 async function resolveManagedUpstream(
   modelId: string,
   selected: ProviderEndpoint,
-  requestedRegionRaw?: string
+  requestedRegionRaw?: string,
+  upstreamModelId?: string
 ): Promise<ResolveUpstreamResult> {
   const requestedRegion = requestedRegionRaw?.trim() || undefined;
   const config = await getProviderChannelConfig(selected.providerId);
@@ -317,8 +411,9 @@ async function resolveManagedUpstream(
 
     const [channelId, channel] = selectedChannel;
     const baseUrl = resolveChannelBaseUrl(channel).replace(/\/$/, "");
-    return finalizeResolvedUpstream({
+    return finalizeResolvedUpstream(modelId, {
         providerId: selected.providerId,
+        upstreamModelId,
         channelId,
         region: channel.region || DEFAULT_REGION,
         baseUrl,
@@ -344,8 +439,9 @@ async function resolveManagedUpstream(
   }
 
   const baseUrl = selected.apiBaseUrl.replace(/\/$/, "");
-  return finalizeResolvedUpstream({
+  return finalizeResolvedUpstream(modelId, {
       providerId: selected.providerId,
+      upstreamModelId,
       channelId: null,
       region: requestedRegion || providerDefaultRegion,
       baseUrl,

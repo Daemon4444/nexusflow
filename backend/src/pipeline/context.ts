@@ -32,6 +32,8 @@ export class InferenceContext {
   caller: PipelineCaller | null = null;
   modelId = "";
   model: AIModel | null = null;
+  /** NF_CP_MODE=enforce: replacement of a retired model, for the 404 hint. */
+  retiredReplacement: string | null = null;
   upstream: ResolvedUpstream | null = null;
   adapter: UpstreamAdapter | null = null;
 
