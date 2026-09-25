@@ -1,0 +1,26 @@
+- circuit:
+    cooldown_s: 60
+    count_http:
+      - "5xx"
+      - "401"
+      - "403"
+      - "408"
+      - "429"
+    half_open_probes: 1
+    threshold: 10
+  fair_share:
+    max_share_per_user: 0.3
+  id: "policy-global"
+  overflow:
+    async:
+      behavior: "queue"
+      max_queue_depth: 200
+      max_queued_per_user: 10
+      max_wait_s: 1800
+    chat:
+      behavior: "failover_then_reject"
+      retry_after_s: 5
+  scope: "global"
+  user_default:
+    qpm: 30000
+    tpm: 5000000

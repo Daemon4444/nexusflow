@@ -61,7 +61,9 @@
     "control-plane:backfill": "ts-node src/cli/control-plane-backfill.ts",
     "test:traffic": "ts-node scripts/test-traffic-isolated.ts",
     "test:params-protocols": "ts-node scripts/test-params-protocols-isolated.ts",
-    "control-plane:route-probe": "ts-node src/cli/route-probe.ts"
+    "control-plane:route-probe": "ts-node src/cli/route-probe.ts",
+    "control-plane:export": "ts-node src/cli/control-plane-export.ts",
+    "test:cp-change-requests": "USE_PG_MEM=true ts-node scripts/test-cp-change-requests.ts"
   },
   "keywords": [],
   "author": "",

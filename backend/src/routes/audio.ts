@@ -44,6 +44,7 @@ import {
   useApiKeyCaller,
   capacityErrorType,
   capacityHttpStatus,
+  modelNotFoundMessage,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -214,7 +215,7 @@ router.post("/speech", async (req: Request, res: Response) => {
 
     if (!resolveModel(ctx, modelId)) {
       res.status(404).json({
-        error: { message: `Model '${modelId}' not found.`, type: "invalid_request_error", code: "model_not_found" },
+        error: { message: modelNotFoundMessage(ctx, modelId), type: "invalid_request_error", code: "model_not_found" },
       });
       return;
     }
@@ -496,7 +497,7 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     // 3. Find model
     if (!resolveModel(ctx, modelId)) {
       res.status(404).json({
-        error: { message: `Model '${modelId}' not found.`, type: "invalid_request_error", code: "model_not_found" },
+        error: { message: modelNotFoundMessage(ctx, modelId), type: "invalid_request_error", code: "model_not_found" },
       });
       return;
     }

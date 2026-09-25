@@ -38,6 +38,7 @@ import {
 import { sanitizeError } from "../utils/sanitize-error";
 import { getStaticModels, models } from "../data/models";
 import { listOverrides, refreshModels } from "../data/model-overrides";
+import cpConfigRouter from "./admin-cp-config";
 
 const router = Router();
 
@@ -174,6 +175,10 @@ function projectTrafficDetail(req: Request, data: any) {
 // permission guards so authenticated-but-forbidden attempts get a failure
 // event once requirePermission resolves the actor.
 router.use("/control-plane", auditAdminWrite);
+
+// Configuration control plane (models, accounts, pools, routes, policies):
+// change requests, versions, rollback. No direct edit endpoints.
+router.use("/control-plane/config", cpConfigRouter);
 
 router.get("/session", route(async (req, res) => {
   const authorized = await authorizeAdminRequest(req, res);

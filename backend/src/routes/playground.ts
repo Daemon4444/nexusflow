@@ -23,6 +23,7 @@ import {
   selectRoute,
   capacityErrorType,
   capacityHttpStatus,
+  modelNotFoundMessage,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -89,7 +90,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
 
   const model = resolveModel(ctx, modelId) ? ctx.requireModel() : null;
   if (!model) {
-    openAiError(res, 404, `Model '${modelId}' not found.`, "model_not_found");
+    openAiError(res, 404, modelNotFoundMessage(ctx, modelId), "model_not_found");
     return;
   }
 

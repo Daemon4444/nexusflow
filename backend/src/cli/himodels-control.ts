@@ -7,6 +7,40 @@ import { encryptProviderSecret } from "../utils/provider-secrets";
 import { getUpstreamModelId } from "../utils/upstream-model-aliases";
 import { HIMODELS_PUBLIC_MODEL_IDS } from "../services/providers";
 import { assertProviderEndpointForStorage, safeProviderFetch } from "../services/outbound-url-policy";
+import { controlPlaneMode } from "../config/feature-flags";
+import { accountRouteOperations, proposeChange } from "../control-plane/cli-change";
+
+/**
+ * NF_CP_MODE≠legacy: routing state changes become a change request
+ * (published by an administrator); only the credential is written here.
+ */
+function controlPlaneManaged(): boolean {
+  return controlPlaneMode() !== "legacy";
+}
+
+async function proposeHiModels(title: string, status: "active" | "disabled", reason: string): Promise<void> {
+  const record = await proposeChange({
+    title,
+    reason,
+    author: "cli:himodels-control",
+    source: "cli:himodels-control",
+    build: (content) => accountRouteOperations(
+      content,
+      PROVIDER_ID,
+      status,
+      HIMODELS_PUBLIC_MODEL_IDS.map((modelId) => ({
+        modelId,
+        upstreamModelId: getUpstreamModelId(modelId, PROVIDER_ID),
+        nativeProtocols: ["anthropic.messages"],
+        limits: { rpm: CAPACITY.rpm, tpm: CAPACITY.tpm, daily: CAPACITY.daily, concurrency: CAPACITY.concurrency, priority: CAPACITY.priority, weight: CAPACITY.weight },
+      })),
+      status === "active" ? "active" : "disabled"
+    ),
+  });
+  console.log(JSON.stringify(record
+    ? { providerId: PROVIDER_ID, changeRequest: record.id, status: record.status, next: "approve and publish in the admin console" }
+    : { providerId: PROVIDER_ID, changeRequest: null, note: "already in the requested state" }));
+}
 
 const PROVIDER_ID = "himodels";
 const BASE_URL = "https://api.himodels.ai/v1";
@@ -118,6 +152,10 @@ async function verifyKey(key: string): Promise<void> {
 }
 
 async function disableRoutes(reason: string): Promise<void> {
+  if (controlPlaneManaged()) {
+    await proposeHiModels("HiModels: disable Claude routes", "disabled", reason);
+    return;
+  }
   await db.transaction(async (tx) => {
     await tx.execute(
       "UPDATE provider_capacity SET is_enabled = FALSE, updated_at = NOW() WHERE provider_id = ? AND model_id LIKE 'claude-%'",
@@ -134,6 +172,17 @@ async function stage(keyPath: string): Promise<void> {
   const key = readPrivateKey(keyPath);
   await assertProviderEndpointForStorage(BASE_URL);
   const encryptedKey = encryptProviderSecret(key);
+  if (controlPlaneManaged()) {
+    // Credential only; routes stay as published (disabled until activate).
+    const changed = await db.execute(
+      "UPDATE providers SET name = 'HiModels', api_base_url = ?, api_key = ?, updated_at = NOW() WHERE id = ?",
+      [BASE_URL, encryptedKey, PROVIDER_ID]
+    );
+    if (changed !== 1) fail("HiModels provider has not been initialized");
+    fs.unlinkSync(path.resolve(keyPath));
+    console.log(JSON.stringify({ providerId: PROVIDER_ID, staged: true, verified: false, enabled: false, controlPlane: true }));
+    return;
+  }
   await db.transaction(async (tx) => {
     const provider = await tx.queryOne<{ id: string }>("SELECT id FROM providers WHERE id = ? FOR UPDATE", [PROVIDER_ID]);
     if (!provider) fail("HiModels provider has not been initialized");
@@ -198,6 +247,10 @@ async function activate(): Promise<void> {
   } catch (error) {
     await disableRoutes("AWS model activation verification failed");
     throw error;
+  }
+  if (controlPlaneManaged()) {
+    await proposeHiModels("HiModels: activate Claude routes (verified)", "active", "AWS model verification passed");
+    return;
   }
   await db.transaction(async (tx) => {
     await tx.execute(

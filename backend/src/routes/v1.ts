@@ -58,6 +58,7 @@ import {
   checkGuardedParams,
   prepareChatParams,
   checkProtocol,
+  modelNotFoundMessage,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -315,7 +316,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
   if (!model) {
     res.status(404).json({
       error: {
-        message: `Model '${modelId}' not found.`,
+        message: modelNotFoundMessage(ctx, modelId),
         type: "invalid_request_error",
         code: "model_not_found",
       },
@@ -667,7 +668,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   if (!model) {
     res.status(404).json({
       error: {
-        message: `Model '${modelId}' not found.`,
+        message: modelNotFoundMessage(ctx, modelId),
         type: "invalid_request_error",
         code: "model_not_found",
       },
@@ -1386,7 +1387,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
   if (!model) {
     res.status(404).json({
       error: {
-        message: `Model '${modelId}' not found.`,
+        message: modelNotFoundMessage(ctx, modelId),
         type: "invalid_request_error",
         code: "model_not_found",
       },

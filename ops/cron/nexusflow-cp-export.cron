@@ -1,0 +1,19 @@
+# NexusFlow daily control-plane YAML snapshot (D3).
+#
+# Template only; install manually on the main application node once
+# NF_CP_MODE is no longer legacy (see docs/control-plane-contract-checklist.md
+# and the go-live runbook in the control-plane PR):
+#
+#   install -o root -g root -m 0644 ops/cron/nexusflow-cp-export.cron \
+#     /etc/cron.d/nexusflow-cp-export
+#
+# The export is read-only on the database and deterministic: an unchanged
+# configuration rewrites nothing. Snapshots land outside the release tree
+# and are committed to a local git repository so each day's change is a diff.
+# Database credentials come from the backend .env (loaded by db/client).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+
+# 04:10 host time, after the 03:30 database backup.
+10 4 * * * root mkdir -p /var/log/nexusflow /var/lib/nexusflow/cp-snapshots && cd /root/distiny/nexusflow/backend && npx ts-node --transpile-only src/cli/control-plane-export.ts --out /var/lib/nexusflow/cp-snapshots >> /var/log/nexusflow/cp-export.log 2>&1 && cd /var/lib/nexusflow/cp-snapshots && (git rev-parse --git-dir >/dev/null 2>&1 || git init -q) && git add -A && (git diff --cached --quiet || git -c user.name=nexusflow-cron -c user.email=ops@nexusflow.hk commit -q -m "control-plane snapshot $(date +\%F)") >> /var/log/nexusflow/cp-export.log 2>&1

@@ -14,6 +14,9 @@ import { BILLING_GUARDED_NAMES, guardedParamBillingSupported } from "./params";
 
 export type ValidationCheck =
   | "display_capabilities"
+  | "lifecycle"
+  | "probe"
+  | "price_snapshot"
   | "schema"
   | "unique_ids"
   | "model_has_active_route"
