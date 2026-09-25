@@ -367,12 +367,16 @@ export function assertRedirectBlocked(
 async function safeOutboundFetch(
   rawUrl: string | URL,
   init: RequestInit = {},
-  kind: OutboundUrlKind
+  kind: OutboundUrlKind,
+  fixedAllowlist?: ReadonlySet<string>
 ): Promise<Response> {
   const url = await assertSafeOutboundUrl(rawUrl, {
-    kind,
+    // A fixed-purpose allowlist uses the strict provider rules (hostname only,
+    // exact allowlist match) independent of the provider environment list.
+    kind: fixedAllowlist ? "provider" : kind,
     usage: "runtime-request",
     resolveDns: true,
+    allowlist: fixedAllowlist,
   });
   const response = await undiciFetch(url, {
     ...(init as any),
@@ -401,4 +405,33 @@ export function safeExternalResourceFetch(
   init: RequestInit = {}
 ): Promise<Response> {
   return safeOutboundFetch(rawUrl, init, "external-resource");
+}
+
+/**
+ * Hosts the Bailian upstream-catalog sync may read: public documentation pages
+ * and the DashScope model listing. Nothing else, regardless of environment.
+ */
+export const UPSTREAM_CATALOG_HOSTS: ReadonlySet<string> = new Set([
+  "help.aliyun.com",
+  "dashscope.aliyuncs.com",
+]);
+
+export function safeUpstreamCatalogFetch(
+  rawUrl: string | URL,
+  init: RequestInit = {}
+): Promise<Response> {
+  return safeOutboundFetch(rawUrl, init, "external-resource", UPSTREAM_CATALOG_HOSTS);
+}
+
+/**
+ * Hosts the operator notifier may call: the Feishu open platform only (tenant
+ * token + direct message APIs). Group webhooks are deliberately unsupported.
+ */
+export const NOTIFIER_HOSTS: ReadonlySet<string> = new Set(["open.feishu.cn"]);
+
+export function safeNotifierFetch(
+  rawUrl: string | URL,
+  init: RequestInit = {}
+): Promise<Response> {
+  return safeOutboundFetch(rawUrl, init, "external-resource", NOTIFIER_HOSTS);
 }

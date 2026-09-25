@@ -415,6 +415,18 @@ numbers are authoritative only from the actual files in
 writing or documenting a new migration—do not infer production application
 state from filenames.
 
+### Migration checksums
+
+`scripts/migrate-with-lock.mjs` is the only migration runner; the backend
+`npm run db:migrate` forwards to it. Since `029_schema_migration_checksums.sql`
+the ledger stores the SHA-256 of every applied file. On its first run after 029
+the runner backfills NULL checksums from the current files; afterwards any
+applied migration whose file content differs from its recorded checksum fails
+both `--check-only` (dry-run) and apply. Fix such a failure by restoring the
+original file and adding a new migration, never by editing the ledger.
+`002_money_numeric.sql` is the only historic contract migration exempt from the
+expand gate, so a new empty database (CI, disaster recovery) can still be built.
+
 ### Daily RDS backup remediation
 
 `scripts/daily-db-backup.sh` is the repository replacement for the broken
@@ -431,7 +443,74 @@ timer has been changed. The old 20-byte-producing task remains an operations
 No-Go until this replacement is installed, observed producing a valid RDS dump,
 and included in an isolated restore drill.
 
+### Daily backup cron installation (operator task, not automated)
+
+The repository ships the schedule as `ops/cron/nexusflow-db-backup.cron`. It
+pins `PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`
+(cron's default PATH could not find the backup toolchain, which is how the
+20-byte dumps happened) and appends all output to
+`/var/log/nexusflow/db-backup.log`. It also runs
+`scripts/check-backup-freshness.sh` every morning, which exits non-zero when
+the newest `*.dump.age` is missing, older than 26 hours, or smaller than
+64 KiB.
+
+Install on the main node only, after removing the old container-era entry:
+
+```bash
+crontab -l | grep -n 'pg_backup.sh'          # identify the legacy entry
+crontab -e                                    # delete only that line
+install -d -o root -g root -m 0700 /var/log/nexusflow
+install -o root -g root -m 0644 \
+  /root/distiny/nexusflow/ops/cron/nexusflow-db-backup.cron \
+  /etc/cron.d/nexusflow-db-backup
+# Verify once by hand, then after the next 03:30 run:
+/root/distiny/nexusflow/scripts/check-backup-freshness.sh
+tail -n 50 /var/log/nexusflow/db-backup.log
+```
+
+To alert, point `NEXUSFLOW_BACKUP_NOTIFY_COMMAND` (in the cron file) at an
+executable that forwards `<severity> <reason>` to the backend notifier
+(`backend/src/services/notifier.ts`; Feishu direct-message delivery is off by
+default). Never use a group webhook.
+
 ## 5. Dry-run
+
+### CI gate
+
+Before any release action (dry-run or real), `deploy-all-production.sh` runs
+`scripts/check-release-ci.sh --sha <target>`. It reads
+`repos/Daemon4444/nexusflow/commits/<sha>/check-runs` with `gh api` (or `curl`
+with `GITHUB_TOKEN` when `gh` is absent) and requires every GitHub Actions
+check run of the `ci` workflow to have concluded `success`. A failed, still
+running or missing CI result is a No-Go. When CI itself is unavailable and a
+release is approved anyway, pass an explicit reason:
+
+```bash
+bash scripts/deploy-all-production.sh --override-ci "GitHub Actions outage; hotfix approved by <name>"
+```
+
+The reason (8–300 characters) is logged and appended to the release telemetry
+`started` event message. `--verify-only` does not consult CI.
+
+### Provider-cost release contract
+
+The expected price-book ID and tier/model/full/partial counts now come from
+the private manifest itself. A manifest may carry:
+
+```json
+"expected": {
+  "priceBookId": "pb-<first 24 hex of source.sha256>",
+  "models": 10, "tiers": 13, "fullTiers": 7, "partialTiers": 6,
+  "contentSha256": "<sha256 of the canonical JSON of every other field>"
+}
+```
+
+`provider-cost-release.mjs expected` rejects the block unless the content hash,
+the price-book derivation and every count match the rows, and the backend
+import CLI performs the same check. The block does not change the price-book
+identity (`manifestSha256` excludes it). A manifest without the block falls
+back to the historic `pb-19cfc14c11f74a74ac7438c5` 13/10/7/6 contract and the
+release log prints a warning.
 
 The price book is private release input. From a trusted operator machine,
 create an unpredictable root-only staging directory on the main node and

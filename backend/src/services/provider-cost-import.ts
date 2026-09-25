@@ -37,6 +37,17 @@ export const providerCostManifestSchema = z.object({
     sha256: z.string().regex(SHA256),
   }).strict(),
   rows: z.array(manifestRowSchema).min(1).max(1_000),
+  // Optional self-describing release contract (P0 2026-09-25). It is not part
+  // of the price book identity: manifestSha256 excludes it, and
+  // validateExpectedBlock requires it to agree with the rows it describes.
+  expected: z.object({
+    priceBookId: z.string().regex(/^pb-[0-9a-f]{24}$/),
+    models: z.number().int().positive(),
+    tiers: z.number().int().positive(),
+    fullTiers: z.number().int().nonnegative(),
+    partialTiers: z.number().int().nonnegative(),
+    contentSha256: z.string().regex(SHA256),
+  }).strict().optional(),
 }).strict();
 
 export type ProviderCostManifest = z.infer<typeof providerCostManifestSchema>;
@@ -76,8 +87,36 @@ function canonicalJson(value: unknown): string {
   return `{${entries.join(",")}}`;
 }
 
+function manifestContent(manifest: ProviderCostManifest): Omit<ProviderCostManifest, "expected"> {
+  const { expected: _expected, ...content } = manifest;
+  return content;
+}
+
 export function manifestSha256(manifest: ProviderCostManifest): string {
-  return createHash("sha256").update(canonicalJson(manifest)).digest("hex");
+  return createHash("sha256").update(canonicalJson(manifestContent(manifest))).digest("hex");
+}
+
+/** Rejects an `expected` block that does not describe this exact manifest. */
+export function validateExpectedBlock(manifest: ProviderCostManifest): void {
+  const expected = manifest.expected;
+  if (!expected) return;
+  if (expected.contentSha256 !== manifestSha256(manifest)) {
+    throw new Error("expected.contentSha256 does not match the manifest content");
+  }
+  if (expected.priceBookId !== priceBookIdForManifest(manifest)) {
+    throw new Error("expected.priceBookId does not derive from source.sha256");
+  }
+  const computed = {
+    tiers: manifest.rows.length,
+    models: new Set(manifest.rows.map((row) => row.modelId)).size,
+    fullTiers: manifest.rows.filter((row) => row.decision === "ELIGIBLE_FULL").length,
+    partialTiers: manifest.rows.filter((row) => row.decision === "ELIGIBLE_PARTIAL").length,
+  };
+  for (const key of Object.keys(computed) as Array<keyof typeof computed>) {
+    if (expected[key] !== computed[key]) {
+      throw new Error(`expected.${key} does not match the manifest rows`);
+    }
+  }
 }
 
 export function priceBookIdForManifest(manifest: ProviderCostManifest): string {
@@ -168,6 +207,7 @@ function normalizeManifest(input: unknown): ProviderCostManifest {
     throw new Error("price-book effective window has already ended");
   }
   validateTierTopology(manifest.rows);
+  validateExpectedBlock(manifest);
 
   const knownModels = new Set(catalogModels.map((model) => model.id));
   for (const row of manifest.rows) {

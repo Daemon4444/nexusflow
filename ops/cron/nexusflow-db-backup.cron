@@ -1,0 +1,21 @@
+# NexusFlow daily encrypted RDS backup + freshness alarm.
+#
+# Install manually on the main application node only (see
+# docs/production-release-runbook.md "Daily backup cron installation"):
+#
+#   install -o root -g root -m 0644 ops/cron/nexusflow-db-backup.cron \
+#     /etc/cron.d/nexusflow-db-backup
+#
+# cron runs with a minimal environment. The explicit PATH below is required:
+# the 2026-07 regression was a cron job that could not find docker/age/node and
+# silently produced 20-byte files. Output is appended to a root-only log so a
+# failure leaves evidence.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+
+# 03:30 Asia/Shanghai host time: encrypted dump + offsite full-restore gate.
+30 3 * * * root mkdir -p /var/log/nexusflow && /root/distiny/nexusflow/scripts/daily-db-backup.sh >> /var/log/nexusflow/db-backup.log 2>&1
+
+# 09:10: alarm if the newest verified encrypted dump is older than 26 hours.
+10 9 * * * root /root/distiny/nexusflow/scripts/check-backup-freshness.sh >> /var/log/nexusflow/db-backup.log 2>&1

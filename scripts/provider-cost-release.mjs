@@ -1,11 +1,23 @@
 #!/usr/bin/env node
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const PRICE_BOOK_ID = "pb-19cfc14c11f74a74ac7438c5";
+// Legacy defaults used only when a manifest predates the self-describing
+// `expected` block (P0, 2026-09-25). New manifests carry their own contract.
+const LEGACY_PRICE_BOOK_ID = "pb-19cfc14c11f74a74ac7438c5";
+const LEGACY_EXPECTED = Object.freeze({
+  priceBookId: LEGACY_PRICE_BOOK_ID,
+  tiers: 13,
+  models: 10,
+  fullTiers: 7,
+  partialTiers: 6,
+});
+const PRICE_BOOK_ID_PATTERN = /^pb-[0-9a-f]{24}$/;
+let PRICE_BOOK_ID = LEGACY_PRICE_BOOK_ID;
 const MAX_MANIFEST_BYTES = 1_000_000;
 const STAGING_DIRECTORY = /^nexusflow-provider-cost\.[A-Za-z0-9]{6,32}$/;
 
@@ -29,6 +41,7 @@ function parseArguments(argv) {
   }
   if (![
     "preflight",
+    "expected",
     "activate",
     "deactivate",
     "verify-active",
@@ -38,7 +51,7 @@ function parseArguments(argv) {
     fail("unknown provider-cost release command");
   }
   const allowed = new Set(
-    command === "preflight" || command === "cleanup-manifest"
+    command === "preflight" || command === "cleanup-manifest" || command === "expected"
       ? ["manifest"]
       : command === "activate"
         ? [
@@ -59,6 +72,10 @@ function parseArguments(argv) {
             ]
           : ["release-dir", "backend-env"]
   );
+  // Every database-touching command may name the reviewed price book.
+  if (!["preflight", "cleanup-manifest", "expected"].includes(command)) {
+    allowed.add("price-book-id");
+  }
   if (Object.keys(options).some((name) => !allowed.has(name))) {
     fail("unsupported provider-cost release option");
   }
@@ -405,8 +422,98 @@ function cleanupManifest(manifestPath) {
   }
 }
 
+// Must match canonicalJson in backend/src/services/provider-cost-import.ts.
+function canonicalJson(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  const entries = Object.entries(value)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`);
+  return `{${entries.join(",")}}`;
+}
+
+// Returns the release contract of a private manifest. A manifest with an
+// `expected` block must be internally consistent: its contentSha256 must be
+// the canonical hash of every other field (so an edited row or count cannot
+// pass), its price book ID must derive from source.sha256, and the declared
+// counts must equal the counts computed from its rows. A manifest without the
+// block falls back to the historic hard-coded contract with a warning.
+export function deriveExpected(manifestValue) {
+  if (!manifestValue || typeof manifestValue !== "object" || Array.isArray(manifestValue)) {
+    fail("provider-cost manifest is not a JSON object");
+  }
+  const { expected, ...content } = manifestValue;
+  if (expected === undefined) {
+    return { ...LEGACY_EXPECTED, source: "legacy_default" };
+  }
+  if (!expected || typeof expected !== "object" || Array.isArray(expected)) {
+    fail("provider-cost manifest expected block is invalid");
+  }
+  const allowedKeys = ["priceBookId", "models", "tiers", "fullTiers", "partialTiers", "contentSha256"];
+  if (Object.keys(expected).some((key) => !allowedKeys.includes(key))) {
+    fail("provider-cost manifest expected block has unknown fields");
+  }
+  const contentSha256 = crypto.createHash("sha256").update(canonicalJson(content)).digest("hex");
+  if (expected.contentSha256 !== contentSha256) {
+    fail("provider-cost manifest expected block does not match the manifest content hash");
+  }
+  const sourceSha = content?.source?.sha256;
+  if (typeof sourceSha !== "string" || !/^[0-9a-f]{64}$/.test(sourceSha)) {
+    fail("provider-cost manifest source hash is invalid");
+  }
+  if (expected.priceBookId !== `pb-${sourceSha.slice(0, 24)}`) {
+    fail("provider-cost manifest expected price book does not derive from its source hash");
+  }
+  const rows = Array.isArray(content.rows) ? content.rows : [];
+  const computed = {
+    tiers: rows.length,
+    models: new Set(rows.map((row) => row?.modelId)).size,
+    fullTiers: rows.filter((row) => row?.decision === "ELIGIBLE_FULL").length,
+    partialTiers: rows.filter((row) => row?.decision === "ELIGIBLE_PARTIAL").length,
+  };
+  for (const key of Object.keys(computed)) {
+    if (!Number.isSafeInteger(expected[key]) || expected[key] !== computed[key]) {
+      fail(`provider-cost manifest expected ${key} does not match its rows`);
+    }
+  }
+  if (computed.tiers <= 0 || computed.fullTiers + computed.partialTiers !== computed.tiers) {
+    fail("provider-cost manifest rows have an invalid coverage classification");
+  }
+  return { priceBookId: expected.priceBookId, ...computed, source: "manifest" };
+}
+
+function readExpected(manifestPath) {
+  const { manifest } = validatePrivateManifest(manifestPath);
+  let value;
+  try {
+    value = JSON.parse(fs.readFileSync(manifest, "utf8"));
+  } catch {
+    fail("provider-cost manifest is not valid JSON");
+  }
+  const expected = deriveExpected(value);
+  if (expected.source === "legacy_default") {
+    console.error(
+      "[provider-cost-release] WARNING: manifest has no expected block; using the legacy hard-coded release contract"
+    );
+  }
+  return expected;
+}
+
 function main() {
   const { command, options } = parseArguments(process.argv.slice(2));
+  if (options["price-book-id"] !== undefined) {
+    if (!PRICE_BOOK_ID_PATTERN.test(options["price-book-id"])) {
+      fail("--price-book-id must look like pb-<24 hex>");
+    }
+    PRICE_BOOK_ID = options["price-book-id"];
+  }
+  if (command === "expected") {
+    const expected = readExpected(options.manifest);
+    process.stdout.write(
+      [expected.priceBookId, expected.tiers, expected.models, expected.fullTiers, expected.partialTiers, expected.source].join(" ")
+    );
+    return;
+  }
   if (command === "preflight") {
     validatePrivateManifest(options.manifest);
     return;
@@ -450,13 +557,17 @@ function main() {
   }
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(
-    `[provider-cost-release] ${
-      error instanceof Error ? error.message : "unknown release gate failure"
-    }`
-  );
-  process.exitCode = 1;
+const invokedDirectly = process.argv[1]
+  && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
+if (invokedDirectly) {
+  try {
+    main();
+  } catch (error) {
+    console.error(
+      `[provider-cost-release] ${
+        error instanceof Error ? error.message : "unknown release gate failure"
+      }`
+    );
+    process.exitCode = 1;
+  }
 }

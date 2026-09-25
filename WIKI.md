@@ -70,8 +70,8 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
 | 模型目录 | 94 个可计费静态模型（2026-09-24 重算）；含 5 个通过 HiModels AWS 上游提供的 Claude 稳定公共 ID |
-| 数据库迁移 | 仓库已提交到 `023_provider_list_price_fallback.sql`，其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
-| CI | npm audit（生产依赖）、计费预占测试、前后端 build |
+| 数据库迁移 | 仓库已提交到 `029_schema_migration_checksums.sql`（`024`/`025` 为并行分支预留），其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
+| CI | 5 个并行 job：`security`、`billing-routing`、`control-plane`（含真实 PostgreSQL 迁移账本与 checksum 校验）、`release-scripts`、`frontend`；发布脚本要求目标 SHA 的全部 job 成功 |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
 
 常用只读检查：
@@ -332,6 +332,9 @@ QPM/TPM。旧 `rate_limit` 字段在 expand/rollback 窗口内仅保留旧版本
 022_usage_retail_pricing_evidence.sql
 023_provider_list_price_fallback.sql
 026_api_key_rate_limit_overrides.sql
+027_disable_legacy_anthropic_claude_routes.sql
+028_reset_himodels_for_aws_aliases.sql
+029_schema_migration_checksums.sql
 ```
 
 历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。
@@ -342,6 +345,12 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 登记。新增 migration 前必须检查实际目录
 和团队分配，禁止复用编号。
 生产是否已应用以 `schema_migrations` 为准，不能从仓库文件列表推断。
+
+迁移只有一个 runner：`scripts/migrate-with-lock.mjs`（后端 `npm run db:migrate` 与
+`backend/src/db/migrate.ts` 都转发给它）。它持 advisory lock、拒绝待执行的 contract SQL
+（仅历史的 `002_money_numeric.sql` 豁免，以便新库完整重建），并自 `029` 起为每个已应用文件
+记录 SHA-256：checksum 为空时按当前文件回填，不一致时 `--check-only` 与正式执行都直接失败。
+已应用的迁移不得修改，只能新增迁移。
 
 ## 11. 安全与隐私基线
 
@@ -411,6 +420,10 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
   全量恢复和核心 schema 检查；每日 04:30 拉取任务已安装。2026-07-29 的正式发布
   备份与手工备份均已通过主机/异地哈希一致性及完整恢复验证。
 
+每日备份的 cron 模板在 `ops/cron/nexusflow-db-backup.cron`（显式 `PATH`，输出追加到
+`/var/log/nexusflow/db-backup.log`），`scripts/check-backup-freshness.sh` 在最新 `*.dump.age` 超过 26 小时、
+缺失或过小时非零退出。两者只在仓库中准备，需由人按 runbook 安装。
+
 备份“文件存在”不等于可恢复。重大 schema/计费变更后应定期执行认证解密、PostgreSQL
 16 隔离库完整恢复和业务一致性演练；演练记录不得包含私钥、数据库口令或客户数据。
 
@@ -469,7 +482,16 @@ npm run build:frontend
 npm audit --omit=dev --audit-level=high
 ```
 
-现有 CI 会执行上述生产依赖审计、计费预占测试和双端构建。它还不是完整测试体系：路由契约、真实数据库迁移、浏览器 E2E 和真实上游回归仍需按改动风险人工/专项执行。
+CI（`.github/workflows/ci.yml`）拆成 5 个并行 job，互不阻塞：`security`（生产依赖审计与鉴权/出站/上传等安全测试）、
+`billing-routing`（计费、目录、路由、容量）、`control-plane`（后台控制面、配置化控制面测试、真实 PostgreSQL
+迁移账本与 checksum）、`release-scripts`（发布脚本语法/shellcheck 与发布原语测试）、`frontend`（lint 与双端 build）。
+新增 `backend/scripts/test-*.ts` 时同时加到 `package.json` 和对应 job。它仍不是完整测试体系：浏览器 E2E 和真实上游回归仍需按改动风险人工/专项执行。
+
+配置化控制面的灰度开关统一在 `backend/src/config/feature-flags.ts`，默认全部是旧行为：
+`NF_CP_MODE`、`NF_TRAFFIC_MODE`、`NF_PARAM_MODE`（`legacy|shadow|enforce`）、`NF_PROTOCOL_MODE`（`legacy|enforce`）、
+`NF_CP_REQUIRE_SECOND_APPROVER`（默认 `false`）。`shadow` 只记录差异（SLS `status:"shadow_diff"` 与 Redis
+`nf:shadow:<area>:<yyyymmdd>`），不改变请求结果。运维通知统一走 `backend/src/services/notifier.ts`：默认只写日志，
+可选飞书**私聊**（`NF_NOTIFIER=feishu_dm`），禁止群 webhook。
 
 前端 `npm run lint` 当前以 0 error 退出，但仍保留显式 `any`、旧 effect 和少量未使用变量等 warning 作为存量重构信号；不要把“lint 命令通过”写成“无任何 lint 债务”。
 
@@ -510,6 +532,12 @@ git pull --ff-only origin main
 bash scripts/deploy-all-production.sh --dry-run
 bash scripts/deploy-all-production.sh
 ```
+
+发布与 dry-run 在任何动作之前先执行 `scripts/check-release-ci.sh`：目标 SHA 的 GitHub `ci` 工作流全部 job 必须
+`success`，失败、进行中或缺失都是 No-Go。只有在 CI 本身不可用且已获批准时才能用
+`--override-ci "<原因>"` 绕过，原因会写入发布遥测的 `started` 事件。Provider 成本价本的期望 ID 与
+13/10/7/6 档位数优先取自私有 manifest 自带、并由内容哈希保护的 `expected` 字段；旧 manifest 没有该字段时回退到
+原写死值并告警。
 
 两条命令都必须通过 `NEXUSFLOW_PROVIDER_COST_MANIFEST` 指向主节点上随机
 `/run/nexusflow-provider-cost.*/manifest.json`。目录必须 root:root `0700`、只含

@@ -19,7 +19,10 @@
     "test:release-primitives": "bash scripts/test-release-primitives.sh",
     "test:provider-cost-release": "node scripts/test-provider-cost-release.mjs",
     "test:deploy-orchestrator-state": "node scripts/test-deploy-orchestrator-state.mjs",
-    "reconcile:release-telemetry": "node scripts/reconcile-release-telemetry.mjs"
+    "reconcile:release-telemetry": "node scripts/reconcile-release-telemetry.mjs",
+    "test:release-ci-gate": "bash scripts/test-release-ci-gate.sh",
+    "test:backup-freshness": "bash scripts/test-backup-freshness.sh",
+    "test:migration-ledger": "node scripts/test-migration-ledger.mjs"
   },
   "overrides": {
     "body-parser": "2.3.0",
