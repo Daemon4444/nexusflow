@@ -246,6 +246,55 @@ async function main(): Promise<void> {
   assert.equal(legacy.ok, true);
   if (legacy.ok) assert.equal(legacy.upstream.managed, false);
 
+  // ========== Provider health circuit: fault classification + half-open ==========
+  const { classifyHealthOutcome, recordFailure, recordSuccess } = await import("../src/services/scheduler");
+  const { db } = await import("../src/db/client");
+  assert.equal(classifyHealthOutcome({ status: "success" }), "success");
+  assert.equal(classifyHealthOutcome({ status: "error", errorCode: "upstream_error", errorReason: "upstream_http_400" }), "ignore");
+  assert.equal(classifyHealthOutcome({ status: "error", errorReason: "upstream_422: bad schema" }), "ignore");
+  assert.equal(classifyHealthOutcome({ status: "error", httpStatus: 404 }), "ignore");
+  assert.equal(classifyHealthOutcome({ status: "error", errorReason: "upstream_http_429" }), "failure");
+  assert.equal(classifyHealthOutcome({ status: "error", errorReason: "upstream_http_403" }), "failure");
+  assert.equal(classifyHealthOutcome({ status: "error", errorCode: "upstream_http_503" }), "failure");
+  assert.equal(classifyHealthOutcome({ status: "error", errorCode: "upstream_timeout" }), "failure");
+  assert.equal(classifyHealthOutcome({ status: "error", errorCode: "upstream_task_failed", errorReason: "User has been banned" }), "failure");
+
+  await ensureProvider({
+    id: "health-circuit",
+    name: "Health Circuit",
+    slug: "health-circuit",
+    api_base_url: "https://managed-primary.example.invalid/health-circuit/v1",
+    api_key: "health-circuit-secret",
+    contact_name: "Test",
+    contact_email: "health-circuit@example.invalid",
+    status: "enabled",
+  });
+  await upsertCapacity("health-circuit", "qwen3.6-flash", {
+    rpm_limit: 100,
+    tpm_limit: 100_000,
+    daily_limit: 1_000,
+    concurrent_limit: 0,
+    priority: 100,
+    weight: 100,
+    is_enabled: true,
+  });
+  for (let i = 0; i < 10; i++) await recordFailure("health-circuit", "qwen3.6-flash", "upstream_http_503");
+  const tripped = await resolveUpstream("qwen3.6-flash", { userId: "local-user-2" });
+  assert.equal(tripped.ok, false, "a freshly tripped route must be quarantined");
+  await db.execute(
+    "UPDATE provider_health SET last_failure_at = ? WHERE provider_id = ? AND model_id = ?",
+    [new Date(Date.now() - 10 * 60_000).toISOString(), "health-circuit", "qwen3.6-flash"]
+  );
+  const halfOpen = await resolveUpstream("qwen3.6-flash", { userId: "local-user-2" });
+  assert.equal(halfOpen.ok, true, "a down route must become half-open after its cooldown");
+  await recordSuccess("health-circuit", "qwen3.6-flash", 100);
+  const healed = await db.queryOne<any>(
+    "SELECT status, consecutive_failures FROM provider_health WHERE provider_id = ? AND model_id = ?",
+    ["health-circuit", "qwen3.6-flash"]
+  );
+  assert.equal(healed?.status, "healthy");
+  assert.equal(Number(healed?.consecutive_failures), 0);
+
   console.log("managed routing integration checks passed");
   } finally {
     const { closeRedis } = await import("../src/services/redis");

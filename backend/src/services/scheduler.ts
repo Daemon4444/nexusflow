@@ -103,7 +103,54 @@ export type ModelAvailability = {
   reason: null | "provider_not_configured" | "no_active_route" | "provider_unhealthy";
 };
 
-const FAILURE_THRESHOLD_DOWN = 10;
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
+}
+
+const FAILURE_THRESHOLD_DOWN = readPositiveIntEnv("PROVIDER_HEALTH_DOWN_THRESHOLD", 10);
+// After this cooldown a `down` route is half-open: it becomes selectable again
+// so real traffic can probe it. A success closes the circuit (recordSuccess);
+// another failure refreshes last_failure_at and restarts the cooldown.
+const DOWN_COOLDOWN_MS = readPositiveIntEnv("PROVIDER_HEALTH_DOWN_COOLDOWN_MS", 60_000);
+
+export type HealthOutcome = "success" | "failure" | "ignore";
+
+/**
+ * Only provider-side faults may trip the circuit. Caller mistakes (upstream
+ * 400/404/413/422...) say nothing about route health and must neither open
+ * the circuit nor reset its failure streak. Auth (401/403), timeouts (408)
+ * and rate limiting (429) are treated as route faults.
+ */
+export function classifyHealthOutcome(params: {
+  status: string;
+  errorCode?: string | null;
+  errorReason?: string | null;
+  httpStatus?: number | null;
+}): HealthOutcome {
+  if (params.status === "success" && !params.errorCode && !params.errorReason) return "success";
+  if (params.errorCode === "upstream_usage_missing") return "ignore";
+  let httpStatus = Number(params.httpStatus) || 0;
+  if (!httpStatus) {
+    const text = `${params.errorCode || ""} ${params.errorReason || ""}`;
+    const match = text.match(/\bupstream_(?:http_)?(\d{3})\b/);
+    if (match) httpStatus = Number(match[1]);
+  }
+  if (httpStatus >= 400 && httpStatus < 500 && ![401, 403, 408, 429].includes(httpStatus)) {
+    return "ignore";
+  }
+  return "failure";
+}
+
+export function isRouteQuarantined(
+  health: { status: string; lastFailureAt: string | null } | null | undefined,
+  now = Date.now()
+): boolean {
+  if (health?.status !== "down") return false;
+  const lastFailure = health.lastFailureAt ? Date.parse(health.lastFailureAt) : NaN;
+  if (!Number.isFinite(lastFailure)) return false;
+  return now - lastFailure < DOWN_COOLDOWN_MS;
+}
 const CAPACITY_RESERVATION_RETRY_DELAYS_MS = [0, 50, 150, 350, 750] as const;
 const concurrentRequests = new Map<string, number>();
 
@@ -496,7 +543,7 @@ export async function selectProviderDetailed(
       }
     }
     const health = await getHealthRecord(ep.provider_id, ep.model_id);
-    if (health?.status === "down") {
+    if (isRouteQuarantined(health)) {
       reject("health_down");
       continue;
     }
@@ -565,7 +612,8 @@ export async function selectProviderDetailed(
 
   const weighted = available.map(({ ep, health, apiKey, usage }) => {
     const remainingRpm = Math.max(0, ep.rpm - usage.rpm);
-    const healthMultiplier = health?.status === "degraded" ? 0.3 : 1.0;
+    // degraded and half-open (down past cooldown) routes stay selectable at reduced weight.
+    const healthMultiplier = health?.status === "degraded" || health?.status === "down" ? 0.3 : 1.0;
     const capacityRatio = ep.rpm > 0 ? remainingRpm / ep.rpm : 1;
     const cost = costByRoute.get(`${ep.provider_id}:${ep.model_id}`);
     const costPenalty = policy?.strategy === "lowest_cost" && cost
@@ -626,7 +674,7 @@ export async function getModelAvailabilityMap(modelIds: string[]): Promise<Map<s
 
   const placeholders = uniqueIds.map(() => "?").join(", ");
   const routes = await db.queryMany<any>(
-    `SELECT pc.model_id, pc.provider_id, p.api_key, ph.status AS health_status
+    `SELECT pc.model_id, pc.provider_id, p.api_key, ph.status AS health_status, ph.last_failure_at AS health_last_failure_at
        FROM provider_capacity pc
        JOIN providers p ON pc.provider_id = p.id
        LEFT JOIN provider_health ph
@@ -658,7 +706,7 @@ export async function getModelAvailabilityMap(modelIds: string[]): Promise<Map<s
     }
 
     configuredByModel.add(route.model_id);
-    if (route.health_status !== "down") {
+    if (!isRouteQuarantined({ status: route.health_status, lastFailureAt: route.health_last_failure_at })) {
       result.set(route.model_id, { status: "available", reason: null });
     }
   }
