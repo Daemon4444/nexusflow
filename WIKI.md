@@ -245,6 +245,19 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
 
 只通过 build 或只 curl 后端，不算“上线验证完成”。
 
+### 8.1 配置化控制面（实现中，见 `docs/control-plane-config-design.md`）
+
+目标是把模型、上游账号（含配额池）、路由、流量策略四类配置从代码迁到数据库（`cp_*`），经变更单发布、可回滚。
+在 `NF_CP_MODE` 等开关切到 `enforce` 之前，线上仍由上面的旧路径决定。已有的只读工具：
+
+- `backend/src/cli/control-plane-consistency.ts`：旧配置源一致性检查（在售无路由、路由指向不存在模型、覆盖层与
+  静态目录重复、Provider URL 非法却带密钥、能力宣告与能力推导矛盾）。离线读 fixtures，在线只做 SELECT；
+  产出报告（`docs/consistency/`）和**只禁用不删除**的清理 SQL（`ops/sql/cleanup-<date>.sql`），SQL 只生成、不执行。
+- `backend/src/cli/bailian-catalog-sync.ts`：抓取/解析百炼官方限流、价格、模型页和 `/compatible-mode/v1/models`
+  （出站只经 `safeUpstreamCatalogFetch`，主机仅 `help.aliyun.com`、`dashscope.aliyuncs.com`），识别共享配额池，
+  自检（数量下限、人工核对的黄金值、与 `src/data/official-pricing-ref.ts` 的 REF 价比对）失败时不产出任何结果；
+  差异报告在 `docs/upstream-sync/`。**任何结果都不会自动写入配置。**
+
 ## 9. 账号、权限与账本不变量
 
 ### 9.1 身份

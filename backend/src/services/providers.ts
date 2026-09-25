@@ -107,6 +107,24 @@ export function getProviderApiKey(provider: ProviderConfig): string {
   return process.env[provider.apiKeyEnv] || "";
 }
 
+/**
+ * The provider that the legacy bootstrap (`ensureRoutingDefaults`) assigns to
+ * a catalog model. `jawayid-k3` is only used when that managed provider
+ * exists; callers without database access pass `jawayK3Available` explicitly.
+ * Kept as one function so the control-plane backfill and catalog tooling
+ * reproduce exactly the legacy branching.
+ */
+export function legacyRoutedProviderId(
+  modelId: string,
+  options: { jawayK3Available: boolean } = { jawayK3Available: true }
+): string | null {
+  if (modelId === "kimi-k3") return options.jawayK3Available ? "jawayid-k3" : null;
+  if (isHiModelsPublicModel(modelId)) return "himodels";
+  if (modelId === "gpt-6-astra") return "azure-ai-foundry";
+  if (modelId.startsWith("seedance-")) return "volcengine-ark";
+  return "dashscope";
+}
+
 export async function ensureRoutingDefaults(): Promise<void> {
   const { ensureProvider, getCapacity, getProviderById, upsertCapacity } = require("../data/providers") as typeof import("../data/providers");
   const { models } = require("../data/models") as typeof import("../data/models");
@@ -165,20 +183,17 @@ export async function ensureRoutingDefaults(): Promise<void> {
   // K3 使用独立受管 Provider。密钥只存在数据库密文中；若生产尚未预置该
   // Provider，则保持无路由并失败关闭，绝不能重新种回 DashScope。
   const jawayK3 = await getProviderById("jawayid-k3");
+  const providersById: Record<string, { id: string } | null> = {
+    "jawayid-k3": jawayK3,
+    himodels,
+    "azure-ai-foundry": azure,
+    "volcengine-ark": volcengineArk,
+    dashscope,
+  };
   for (const model of models) {
-    let routedProvider: { id: string };
-    if (model.id === "kimi-k3") {
-      if (!jawayK3) continue;
-      routedProvider = jawayK3;
-    } else if (isHiModelsPublicModel(model.id)) {
-      routedProvider = himodels;
-    } else if (model.id === "gpt-6-astra") {
-      routedProvider = azure;
-    } else if (model.id.startsWith("seedance-")) {
-      routedProvider = volcengineArk;
-    } else {
-      routedProvider = dashscope;
-    }
+    const routedProviderId = legacyRoutedProviderId(model.id, { jawayK3Available: !!jawayK3 });
+    const routedProvider = routedProviderId ? providersById[routedProviderId] : null;
+    if (!routedProvider) continue;
     if (await getCapacity(routedProvider.id, model.id)) continue;
     const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
     const isAstra = model.id === "gpt-6-astra";

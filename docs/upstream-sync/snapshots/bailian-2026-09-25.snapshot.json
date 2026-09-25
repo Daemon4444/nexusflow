@@ -1,0 +1,10590 @@
+{
+ "source": "bailian",
+ "fetchedAt": "2026-09-25T05:58:43.003Z",
+ "mode": "offline",
+ "pages": [
+  {
+   "url": "https://help.aliyun.com/zh/model-studio/rate-limit",
+   "sha256": "8df6a73efb8285d4793120f910e45cb99bff838cce4ba2a4d4756dd61ca7391b"
+  },
+  {
+   "url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+   "sha256": "c8733c4378fd2f8bdf43970210ee40fec2e44adc2d05ce6d9fba3852fd92df1e"
+  },
+  {
+   "url": "https://help.aliyun.com/zh/model-studio/models",
+   "sha256": "283c3696896b1675752e757a5f343abad2e1ec43f095fce2c26643a98bf35298"
+  },
+  {
+   "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/models",
+   "sha256": "fa37a3d100c7871fa4e3ea18f92f3b39d245b2a9d0c388210591861faa5f6707"
+  }
+ ],
+ "models": {
+  "MiniMax-M2.1": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.1,
+      "output": 8.4,
+      "thinkingOutput": 8.4
+     }
+    ]
+   }
+  },
+  "MiniMax-M2.5": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.1,
+      "output": 8.4,
+      "thinkingOutput": 8.4
+     }
+    ]
+   }
+  },
+  "MiniMax/MiniMax-H3": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5
+    }
+   }
+  },
+  "MiniMax/MiniMax-M2.1": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 20000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.1,
+      "output": 8.4,
+      "thinkingOutput": 8.4
+     }
+    ]
+   }
+  },
+  "MiniMax/MiniMax-M2.5": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 20000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.1,
+      "output": 8.4,
+      "thinkingOutput": 8.4
+     }
+    ]
+   }
+  },
+  "MiniMax/MiniMax-M2.7": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 20000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.1,
+      "output": 8.4,
+      "thinkingOutput": 8.4
+     }
+    ]
+   }
+  },
+  "MiniMax/MiniMax-M3": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 20000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4.2,
+      "output": 16.8
+     }
+    ]
+   }
+  },
+  "MiniMax/speech-02-hd": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 20
+    }
+   }
+  },
+  "MiniMax/speech-02-turbo": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 20
+    }
+   }
+  },
+  "MiniMax/speech-2.8-hd": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 20
+    }
+   }
+  },
+  "MiniMax/speech-2.8-turbo": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 20
+    }
+   }
+  },
+  "Moonshot-Kimi-K2-Instruct": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 16
+     }
+    ]
+   }
+  },
+  "Tripo/Tripo-H3.1": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 5,
+     "concurrency": 10,
+     "poolId": "pool-b62fdff8b7780169"
+    }
+   }
+  },
+  "Tripo/Tripo-P1.0": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 5,
+     "concurrency": 10,
+     "poolId": "pool-b62fdff8b7780169"
+    }
+   }
+  },
+  "ZHIPU/GLM-5": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 200,
+     "tpm": 3000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 6,
+      "output": 22
+     }
+    ]
+   }
+  },
+  "ZHIPU/GLM-5.1": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 200,
+     "tpm": 3000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 8,
+      "output": 28
+     }
+    ]
+   }
+  },
+  "ZHIPU/GLM-5.2": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 200,
+     "tpm": 3000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 8,
+      "output": 28
+     }
+    ]
+   }
+  },
+  "ZHIPU/GLM-5.3": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 200,
+     "tpm": 3000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 8,
+      "output": 28,
+      "thinkingOutput": 28
+     }
+    ]
+   }
+  },
+  "ZHIPU/GLM-5.3-Flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 200,
+     "tpm": 3000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.8,
+      "output": 2.8,
+      "thinkingOutput": 2.8
+     }
+    ]
+   }
+  },
+  "ZHIPU/GLM-5.3-FlashX": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 200,
+     "tpm": 3000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 7,
+      "thinkingOutput": 7
+     }
+    ]
+   }
+  },
+  "aitryon-parsing-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 10
+    }
+   }
+  },
+  "aitryon-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 10,
+     "concurrency": 5
+    }
+   }
+  },
+  "aitryon-refiner": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 10,
+     "concurrency": 5
+    }
+   }
+  },
+  "animate-anyone": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 1
+    }
+   }
+  },
+  "animate-anyone-detect": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 1
+    }
+   }
+  },
+  "animate-anyone-detect-gen2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5
+    }
+   }
+  },
+  "animate-anyone-gen2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 1
+    }
+   }
+  },
+  "animate-anyone-template-gen2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 1
+    }
+   }
+  },
+  "codeqwen1.5-7b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "cosyvoice-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    }
+   }
+  },
+  "cosyvoice-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    }
+   }
+  },
+  "cosyvoice-v3-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    },
+    "ap-southeast-1": {
+     "rps": 3,
+     "scope": "国际"
+    }
+   }
+  },
+  "cosyvoice-v3-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    },
+    "ap-southeast-1": {
+     "rps": 3,
+     "scope": "国际"
+    }
+   }
+  },
+  "cosyvoice-v3.5-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    }
+   }
+  },
+  "cosyvoice-v3.5-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    }
+   }
+  },
+  "decision-model-preview": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 2000000
+    },
+    "ap-southeast-1": {
+     "rpm": 1200,
+     "tpm": 2000000
+    }
+   }
+  },
+  "deepseek-r1": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 16
+     }
+    ]
+   }
+  },
+  "deepseek-r1-0528": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 16
+     }
+    ]
+   }
+  },
+  "deepseek-r1-distill-llama-70b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    }
+   }
+  },
+  "deepseek-r1-distill-llama-8b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    }
+   }
+  },
+  "deepseek-r1-distill-qwen-1.5b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    }
+   }
+  },
+  "deepseek-r1-distill-qwen-14b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1,
+      "output": 3
+     }
+    ]
+   }
+  },
+  "deepseek-r1-distill-qwen-32b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 6
+     }
+    ]
+   }
+  },
+  "deepseek-r1-distill-qwen-7b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.5,
+      "output": 1
+     }
+    ]
+   }
+  },
+  "deepseek-v3": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 8
+     }
+    ]
+   }
+  },
+  "deepseek-v3.1": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "deepseek-v3.2": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 10000,
+     "tpm": 1200000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 3
+     }
+    ]
+   }
+  },
+  "deepseek-v3.2-exp": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 3
+     }
+    ]
+   }
+  },
+  "deepseek-v4-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    },
+    "us-east-1": {
+     "rpm": 10000,
+     "tpm": 1200000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 10000,
+     "tpm": 1200000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 10000,
+     "tpm": 1200000,
+     "scope": "日本"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "deepseek-v4-flash-0731": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    },
+    "us-east-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "日本"
+    },
+    "cn-hongkong": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "中国香港"
+    }
+   }
+  },
+  "deepseek-v4-pro": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    },
+    "us-east-1": {
+     "rpm": 10000,
+     "tpm": 1200000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 10000,
+     "tpm": 1200000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 10000,
+     "tpm": 1200000,
+     "scope": "日本"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 12,
+      "output": 24
+     }
+    ]
+   }
+  },
+  "deepseek-v4-pro-0813": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "dynamic": true
+    },
+    "us-east-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "dynamic": true,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "日本"
+    },
+    "cn-hongkong": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "中国香港"
+    }
+   }
+  },
+  "deepseek-v4.1-flash": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    },
+    "us-east-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 10000,
+     "tpm": 1200000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "cn-hongkong": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "中国香港"
+    }
+   }
+  },
+  "emo-detect-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5
+    }
+   }
+  },
+  "emo-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 1
+    }
+   }
+  },
+  "emoji-detect-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 1
+    }
+   }
+  },
+  "emoji-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 1,
+     "concurrency": 1
+    }
+   }
+  },
+  "facechain-facedetect": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5
+    }
+   }
+  },
+  "facechain-finetune": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 1,
+     "concurrency": 1
+    }
+   }
+  },
+  "facechain-generation": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "farui-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 240,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 20,
+      "output": 20
+     }
+    ]
+   }
+  },
+  "fun-asr": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "scope": "国际"
+    }
+   }
+  },
+  "fun-asr-2025-08-25": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "scope": "国际"
+    }
+   }
+  },
+  "fun-asr-2025-11-07": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "scope": "国际"
+    }
+   }
+  },
+  "fun-asr-flash-2026-06-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "scope": "国际"
+    }
+   }
+  },
+  "fun-asr-flash-8k-realtime": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    }
+   }
+  },
+  "fun-asr-flash-8k-realtime-2026-01-28": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    }
+   }
+  },
+  "fun-asr-mtl": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 100,
+     "scope": "国际"
+    }
+   }
+  },
+  "fun-asr-mtl-2025-08-25": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 100,
+     "scope": "国际"
+    }
+   }
+  },
+  "fun-asr-realtime": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    },
+    "ap-southeast-1": {
+     "rps": 20,
+     "scope": "国际"
+    }
+   }
+  },
+  "fun-asr-realtime-2025-09-15": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    }
+   }
+  },
+  "fun-asr-realtime-2025-11-07": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    },
+    "ap-southeast-1": {
+     "rps": 20,
+     "scope": "国际"
+    }
+   }
+  },
+  "fun-asr-realtime-2026-02-28": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    }
+   }
+  },
+  "fun-music-preview": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 180
+    }
+   }
+  },
+  "fun-music-v1": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 180
+    }
+   }
+  },
+  "glm-4.5": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 3,
+      "output": 14
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 98304,
+      "input": 4,
+      "output": 16
+     }
+    ]
+   }
+  },
+  "glm-4.5-air": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 0.8,
+      "output": 6
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 98304,
+      "input": 1.2,
+      "output": 8
+     }
+    ]
+   }
+  },
+  "glm-4.6": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 3,
+      "output": 14
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 169984,
+      "input": 4,
+      "output": 16
+     }
+    ]
+   }
+  },
+  "glm-4.7": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 3,
+      "output": 14
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 169984,
+      "input": 4,
+      "output": 16
+     }
+    ]
+   }
+  },
+  "glm-5": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 4,
+      "output": 18
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 202752,
+      "input": 6,
+      "output": 22
+     }
+    ]
+   }
+  },
+  "glm-5.1": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "eu-central-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 6,
+      "output": 24
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 204800,
+      "input": 8,
+      "output": 28
+     }
+    ]
+   }
+  },
+  "glm-5.2": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 2000000
+    },
+    "us-east-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "美国"
+    },
+    "eu-central-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "cn-hongkong": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 8,
+      "output": 28
+     }
+    ]
+   }
+  },
+  "glm-5.2-fast-preview": {
+   "listed": true,
+   "regions": {},
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 16,
+      "output": 56
+     }
+    ]
+   }
+  },
+  "glm-5.3": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 10000,
+     "tpm": 5000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 8,
+      "output": 28
+     }
+    ]
+   }
+  },
+  "glm-5.3-prime": {
+   "listed": true,
+   "regions": {}
+  },
+  "gte-rerank-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 5040,
+     "tpm": 4980000000
+    },
+    "ap-southeast-1": {
+     "rpm": 5040,
+     "tpm": 4980000000,
+     "scope": "国际"
+    }
+   }
+  },
+  "gui-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 80,
+     "tpm": 540000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.5,
+      "output": 4.5
+     }
+    ]
+   }
+  },
+  "gui-plus-2026-02-26": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 100,
+     "tpm": 540000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.5,
+      "output": 4.5
+     }
+    ]
+   }
+  },
+  "happyhorse-1.0-i2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "happyhorse-1.0-r2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "happyhorse-1.0-t2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "happyhorse-1.0-video-edit": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "happyhorse-1.1-i2v": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "happyhorse-1.1-r2v": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "happyhorse-1.1-t2v": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "image-erase-completion": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "image-instance-segmentation": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "image-out-painting": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 10
+    }
+   }
+  },
+  "kimi-k2-thinking": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 16,
+      "thinkingOutput": 16
+     }
+    ]
+   }
+  },
+  "kimi-k2.5": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "eu-central-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 21
+     }
+    ]
+   }
+  },
+  "kimi-k2.6": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 6.5,
+      "output": 27
+     }
+    ]
+   }
+  },
+  "kimi-k2.7-code": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "eu-central-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "cn-hongkong": {
+     "rpm": 500,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 6.5,
+      "output": 27,
+      "thinkingOutput": 27
+     }
+    ]
+   }
+  },
+  "kimi-k3": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "dynamic": true
+    },
+    "us-east-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "dynamic": true,
+     "scope": "国际"
+    },
+    "cn-hongkong": {
+     "rpm": 15000,
+     "tpm": 1200000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 20,
+      "output": 100,
+      "thinkingOutput": 100
+     }
+    ]
+   }
+  },
+  "kimi/kimi-k2.5": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 3000000,
+     "poolId": "pool-9b6ad2fabe118ae5"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 21
+     }
+    ]
+   }
+  },
+  "kimi/kimi-k2.6": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 3000000,
+     "poolId": "pool-9b6ad2fabe118ae5"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 6.5,
+      "output": 27
+     }
+    ]
+   }
+  },
+  "kimi/kimi-k2.7-code": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 3000000,
+     "poolId": "pool-9b6ad2fabe118ae5"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 6.5,
+      "output": 27
+     }
+    ]
+   }
+  },
+  "kimi/kimi-k2.7-code-highspeed": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 3000000,
+     "poolId": "pool-9b6ad2fabe118ae5"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 13,
+      "output": 54
+     }
+    ]
+   }
+  },
+  "kimi/kimi-k2.8-preview": {
+   "listed": true,
+   "regions": {}
+  },
+  "kimi/kimi-k3": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 3000000,
+     "poolId": "pool-9b6ad2fabe118ae5"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 20,
+      "output": 100
+     }
+    ]
+   }
+  },
+  "kling/kling-v3-image-generation": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 10,
+     "poolId": "pool-f0e61afaa578bd26"
+    }
+   }
+  },
+  "kling/kling-v3-omni-image-generation": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 10,
+     "poolId": "pool-f0e61afaa578bd26"
+    }
+   }
+  },
+  "kling/kling-v3-omni-video-generation": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 10,
+     "poolId": "pool-1177f14c1c3283e6"
+    }
+   }
+  },
+  "kling/kling-v3-turbo-video-generation": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 10,
+     "poolId": "pool-1177f14c1c3283e6"
+    }
+   }
+  },
+  "kling/kling-v3-video-generation": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 10,
+     "poolId": "pool-1177f14c1c3283e6"
+    }
+   }
+  },
+  "liveportrait-detect": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5
+    }
+   }
+  },
+  "multimodal-embedding-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 120,
+     "tpm": 1000000
+    }
+   }
+  },
+  "paraformer-8k-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 10,
+     "concurrency": 500
+    }
+   }
+  },
+  "paraformer-8k-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20,
+     "concurrency": 100
+    }
+   }
+  },
+  "paraformer-mtl-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 6000000
+    }
+   }
+  },
+  "paraformer-realtime-8k-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    }
+   }
+  },
+  "paraformer-realtime-8k-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    }
+   }
+  },
+  "paraformer-realtime-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    }
+   }
+  },
+  "paraformer-realtime-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    }
+   }
+  },
+  "paraformer-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 6000000
+    }
+   }
+  },
+  "paraformer-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200
+    }
+   }
+  },
+  "pixverse/pixverse-c1-it2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-592a1d1316dd6ded"
+    }
+   }
+  },
+  "pixverse/pixverse-c1-kf2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-592a1d1316dd6ded"
+    }
+   }
+  },
+  "pixverse/pixverse-c1-r2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-592a1d1316dd6ded"
+    }
+   }
+  },
+  "pixverse/pixverse-c1-t2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-592a1d1316dd6ded"
+    }
+   }
+  },
+  "pixverse/pixverse-lipsync": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5,
+     "poolId": "pool-e4ad6b20e1408bf3"
+    }
+   }
+  },
+  "pixverse/pixverse-motioncontrol": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5,
+     "poolId": "pool-e4ad6b20e1408bf3"
+    }
+   }
+  },
+  "pixverse/pixverse-upscale": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5,
+     "poolId": "pool-e4ad6b20e1408bf3"
+    }
+   }
+  },
+  "pixverse/pixverse-v5.6-it2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-0cddf11578f938ed"
+    }
+   }
+  },
+  "pixverse/pixverse-v5.6-kf2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-0cddf11578f938ed"
+    }
+   }
+  },
+  "pixverse/pixverse-v5.6-r2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-0cddf11578f938ed"
+    }
+   }
+  },
+  "pixverse/pixverse-v5.6-t2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-0cddf11578f938ed"
+    }
+   }
+  },
+  "pixverse/pixverse-v6-it2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-5b1e3c3dbb9258e9"
+    }
+   }
+  },
+  "pixverse/pixverse-v6-kf2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-5b1e3c3dbb9258e9"
+    }
+   }
+  },
+  "pixverse/pixverse-v6-r2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-5b1e3c3dbb9258e9"
+    }
+   }
+  },
+  "pixverse/pixverse-v6-r2v-omni": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-5b1e3c3dbb9258e9"
+    }
+   }
+  },
+  "pixverse/pixverse-v6-t2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-5b1e3c3dbb9258e9"
+    }
+   }
+  },
+  "qvq-max": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 8,
+      "output": 32
+     }
+    ]
+   }
+  },
+  "qvq-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 5
+     }
+    ]
+   }
+  },
+  "qwen-1.8b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-1.8b-longcontext-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-14b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-72b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-7b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-audio-3.0-asr-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-audio-3.0-asr-flash-filetrans": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-audio-3.0-asr-flash-streaming": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    },
+    "ap-southeast-1": {
+     "rps": 20,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-audio-3.0-realtime-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.5,
+      "output": 4.5
+     }
+    ]
+   }
+  },
+  "qwen-audio-3.0-realtime-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 5,
+      "output": 40
+     }
+    ]
+   }
+  },
+  "qwen-audio-3.0-tts-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    },
+    "ap-southeast-1": {
+     "rps": 3,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-audio-3.0-tts-plus": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    },
+    "ap-southeast-1": {
+     "rps": 3,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-audio-3.1-asr-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-audio-3.1-asr-flash-filetrans": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-audio-3.1-asr-flash-message": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200
+    },
+    "ap-southeast-1": {
+     "rpm": 1200,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 6,
+      "output": 4.5
+     }
+    ]
+   }
+  },
+  "qwen-audio-3.1-asr-flash-streaming": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-audio-3.1-realtime-plus": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 5,
+      "output": 40
+     }
+    ]
+   }
+  },
+  "qwen-audio-3.1-tts-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.5,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "qwen-audio-3.1-tts-next": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 3
+    }
+   }
+  },
+  "qwen-audio-turbo": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 120,
+     "tpm": 100000
+    }
+   }
+  },
+  "qwen-audio-turbo-latest": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60
+    }
+   }
+  },
+  "qwen-coder-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 3.5,
+      "output": 7
+     }
+    ]
+   }
+  },
+  "qwen-coder-plus-1106": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-coder-turbo": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 6
+     }
+    ]
+   }
+  },
+  "qwen-deep-research": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 120,
+     "tpm": 1200000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 54,
+      "output": 163
+     }
+    ]
+   }
+  },
+  "qwen-deep-research-2025-12-15": {
+   "listed": true,
+   "regions": {},
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 79,
+      "output": 236
+     }
+    ]
+   }
+  },
+  "qwen-deep-search-planning": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-doc-turbo": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 3000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.6,
+      "output": 1
+     }
+    ]
+   }
+  },
+  "qwen-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 10000000
+    },
+    "us-east-1": {
+     "rpm": 30000,
+     "tpm": 10000000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 30000,
+     "tpm": 10000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.15,
+      "output": 1.5
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 0.6,
+      "output": 6
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 1.2,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "qwen-flash-2025-07-28": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 5000000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.15,
+      "output": 1.5
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 0.6,
+      "output": 6
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 1.2,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "qwen-flash-character": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 120,
+     "tpm": 500000
+    },
+    "ap-southeast-1": {
+     "rpm": 120,
+     "tpm": 500000,
+     "scope": "国际"
+    },
+    "us-east-1": {
+     "rpm": 120,
+     "tpm": 500000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.25,
+      "output": 1.5
+     }
+    ]
+   }
+  },
+  "qwen-flash-character-2026-02-26": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 120,
+     "tpm": 500000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.18,
+      "output": 1.5
+     }
+    ]
+   }
+  },
+  "qwen-image-2.0": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-2.0-2026-03-03": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-2.0-pro": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-2.0-pro-2026-03-03": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-2.0-pro-2026-04-22": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-2.0-pro-2026-06-22": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-3.0": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-3.0-pro": {
+   "listed": true,
+   "featured": true,
+   "regions": {}
+  },
+  "qwen-image-edit-max": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-edit-max-2026-01-16": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-edit-plus": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-edit-plus-2025-10-30": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-edit-plus-2025-12-15": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-max": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-max-2025-12-30": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-image-plus-2026-01-09": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-long": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 3000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.5,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen-long-2025-01-25": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 3,
+     "tpm": 7500
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.5,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen-long-latest": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 60000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.5,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen-math-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "qwen-math-plus-0919": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-math-plus-2024-08-16": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 10,
+     "tpm": 20000
+    }
+   }
+  },
+  "qwen-math-plus-2024-09-19": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    }
+   }
+  },
+  "qwen-math-plus-latest": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 1000000
+    }
+   }
+  },
+  "qwen-math-turbo": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 6
+     }
+    ]
+   }
+  },
+  "qwen-max": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.4,
+      "output": 9.6
+     }
+    ]
+   }
+  },
+  "qwen-max-0107": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-max-1201": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-max-longcontext": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-mt-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 35000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 35000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 35000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.7,
+      "output": 1.95
+     }
+    ]
+   }
+  },
+  "qwen-mt-lite": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.6,
+      "output": 1.6
+     }
+    ]
+   }
+  },
+  "qwen-mt-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 25000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 25000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 25000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.8,
+      "output": 5.4
+     }
+    ]
+   }
+  },
+  "qwen-mt-turbo": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 35000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.7,
+      "output": 1.95
+     }
+    ]
+   }
+  },
+  "qwen-mt-uni": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 162,
+     "tpm": 2592000,
+     "concurrency": 3
+    }
+   }
+  },
+  "qwen-omni-turbo": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.4,
+      "output": 1.6
+     }
+    ]
+   }
+  },
+  "qwen-omni-turbo-2025-01-19": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.4,
+      "output": 1.6
+     }
+    ]
+   }
+  },
+  "qwen-omni-turbo-2025-03-26": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.4,
+      "output": 1.6
+     }
+    ]
+   }
+  },
+  "qwen-omni-turbo-latest": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.4,
+      "output": 1.6
+     }
+    ]
+   }
+  },
+  "qwen-omni-turbo-realtime": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 10000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.6,
+      "output": 6.4
+     }
+    ]
+   }
+  },
+  "qwen-omni-turbo-realtime-2025-05-08": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 10000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.6,
+      "output": 6.4
+     }
+    ]
+   }
+  },
+  "qwen-omni-turbo-realtime-latest": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 10000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.6,
+      "output": 6.4
+     }
+    ]
+   }
+  },
+  "qwen-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "美国"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "欧盟"
+    },
+    "cn-hongkong": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.8,
+      "output": 2,
+      "thinkingOutput": 8
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2.4,
+      "output": 20,
+      "thinkingOutput": 24
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4.8,
+      "output": 48,
+      "thinkingOutput": 64
+     }
+    ]
+   }
+  },
+  "qwen-plus-2024-12-20": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 150000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.8,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen-plus-2025-01-12": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 150000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.8,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen-plus-2025-01-25": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 150000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.8,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen-plus-2025-04-28": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.8,
+      "output": 2,
+      "thinkingOutput": 8
+     }
+    ]
+   }
+  },
+  "qwen-plus-2025-07-14": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.8,
+      "output": 2,
+      "thinkingOutput": 8
+     }
+    ]
+   }
+  },
+  "qwen-plus-2025-07-28": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.8,
+      "output": 2,
+      "thinkingOutput": 8
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2.4,
+      "output": 20,
+      "thinkingOutput": 24
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4.8,
+      "output": 48,
+      "thinkingOutput": 64
+     }
+    ]
+   }
+  },
+  "qwen-plus-2025-09-11": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 120,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.8,
+      "output": 2,
+      "thinkingOutput": 8
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2.4,
+      "output": 20,
+      "thinkingOutput": 24
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4.8,
+      "output": 48,
+      "thinkingOutput": 64
+     }
+    ]
+   }
+  },
+  "qwen-plus-2025-11-05": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-plus-2025-12-01": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 120,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 120,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 120,
+     "tpm": 1000000,
+     "scope": "欧盟"
+    },
+    "cn-hongkong": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.8,
+      "output": 2,
+      "thinkingOutput": 8
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2.4,
+      "output": 20,
+      "thinkingOutput": 24
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4.8,
+      "output": 48,
+      "thinkingOutput": 64
+     }
+    ]
+   }
+  },
+  "qwen-plus-character": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 120,
+     "tpm": 500000
+    },
+    "ap-southeast-1": {
+     "rpm": 120,
+     "tpm": 500000,
+     "scope": "国际"
+    },
+    "us-east-1": {
+     "rpm": 120,
+     "tpm": 500000,
+     "scope": "全球"
+    },
+    "eu-central-1": {
+     "rpm": 120,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 120,
+     "tpm": 5000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.8,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen-plus-character-ja": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rpm": 120,
+     "tpm": 500000,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-plus-latest": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 15000,
+     "tpm": 1200000
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.8,
+      "output": 2,
+      "thinkingOutput": 8
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2.4,
+      "output": 20,
+      "thinkingOutput": 24
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4.8,
+      "output": 48,
+      "thinkingOutput": 64
+     }
+    ]
+   }
+  },
+  "qwen-tts-2025-05-22": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-turbo": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 5000000
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 5000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.3,
+      "output": 0.6,
+      "thinkingOutput": 3
+     }
+    ]
+   }
+  },
+  "qwen-turbo-0919": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-turbo-2024-11-01": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen-vl-max": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 1200,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.6,
+      "output": 4
+     }
+    ]
+   }
+  },
+  "qwen-vl-ocr": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 6000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 6000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 6000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 6000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.3,
+      "output": 0.5
+     }
+    ]
+   }
+  },
+  "qwen-vl-ocr-2024-10-28": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 6000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 5,
+      "output": 5
+     }
+    ]
+   }
+  },
+  "qwen-vl-ocr-2025-04-13": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 6000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 5,
+      "output": 5
+     }
+    ]
+   }
+  },
+  "qwen-vl-ocr-2025-08-28": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 6000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 5,
+      "output": 5
+     }
+    ]
+   }
+  },
+  "qwen-vl-ocr-2025-11-20": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 6000,
+     "tpm": 30000000
+    },
+    "us-east-1": {
+     "rpm": 1200,
+     "tpm": 6000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 1200,
+     "tpm": 6000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 1200,
+     "tpm": 6000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.3,
+      "output": 0.5
+     }
+    ]
+   }
+  },
+  "qwen-vl-ocr-latest": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 6000,
+     "tpm": 30000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.3,
+      "output": 0.5
+     }
+    ]
+   }
+  },
+  "qwen-vl-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 1200,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.8,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen-voice-design": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 180
+    },
+    "ap-southeast-1": {
+     "rpm": 180,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen-voice-enrollment": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 180
+    },
+    "ap-southeast-1": {
+     "rpm": 180,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen1.5-0.5b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen1.5-1.8b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen1.5-110b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen1.5-14b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen1.5-32b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen1.5-72b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen1.5-7b-chat": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen2-0.5b-instruct": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen2-1.5b-instruct": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen2-57b-a14b-instruct": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen2-7b-instruct": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen2.5-0.5b-instruct": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen2.5-1.5b-instruct": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen2.5-math-1.5b-instruct": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen2.5-omni-7b": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.6,
+      "output": 2.4
+     }
+    ]
+   }
+  },
+  "qwen2.5-vl-embedding": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 600000
+    }
+   }
+  },
+  "qwen3-14b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1,
+      "output": 4,
+      "thinkingOutput": 10
+     }
+    ]
+   }
+  },
+  "qwen3-235b-a22b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 8,
+      "thinkingOutput": 20
+     }
+    ]
+   }
+  },
+  "qwen3-235b-a22b-instruct-2507": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 8
+     }
+    ]
+   }
+  },
+  "qwen3-235b-a22b-thinking-2507": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 20,
+      "thinkingOutput": 20
+     }
+    ]
+   }
+  },
+  "qwen3-30b-a3b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.75,
+      "output": 3,
+      "thinkingOutput": 7.5
+     }
+    ]
+   }
+  },
+  "qwen3-30b-a3b-instruct-2507": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.75,
+      "output": 3
+     }
+    ]
+   }
+  },
+  "qwen3-30b-a3b-thinking-2507": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.75,
+      "output": 7.5,
+      "thinkingOutput": 7.5
+     }
+    ]
+   }
+  },
+  "qwen3-32b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 2400,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 2400,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 8,
+      "thinkingOutput": 20
+     }
+    ]
+   }
+  },
+  "qwen3-8b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.5,
+      "output": 2,
+      "thinkingOutput": 5
+     }
+    ]
+   }
+  },
+  "qwen3-asr-flash": {
+   "listed": false,
+   "regions": {
+    "us-east-1": {
+     "rpm": 100,
+     "scope": "美国"
+    }
+   }
+  },
+  "qwen3-asr-flash-2025-09-08": {
+   "listed": false,
+   "regions": {
+    "us-east-1": {
+     "rpm": 100,
+     "scope": "美国"
+    }
+   }
+  },
+  "qwen3-asr-flash-2026-02-10": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-asr-flash-realtime": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    },
+    "ap-southeast-1": {
+     "rps": 20,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen3-asr-flash-realtime-2025-10-27": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    },
+    "ap-southeast-1": {
+     "rps": 20,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen3-asr-flash-realtime-2026-02-10": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20
+    },
+    "ap-southeast-1": {
+     "rps": 20,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen3-coder-30b-a3b-instruct": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 1.5,
+      "output": 6
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 2.25,
+      "output": 9
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 204800,
+      "input": 3.75,
+      "output": 15
+     }
+    ]
+   }
+  },
+  "qwen3-coder-480b-a35b-instruct": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 6,
+      "output": 24
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 9,
+      "output": 36
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 204800,
+      "input": 15,
+      "output": 60
+     }
+    ]
+   }
+  },
+  "qwen3-coder-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 5000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 1200,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 5000,
+     "tpm": 5000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 1,
+      "output": 4
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 1.5,
+      "output": 6
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2.5,
+      "output": 10
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 5,
+      "output": 25
+     }
+    ]
+   }
+  },
+  "qwen3-coder-flash-2025-07-28": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 1,
+      "output": 4
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 1.5,
+      "output": 6
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2.5,
+      "output": 10
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 5,
+      "output": 25
+     }
+    ]
+   }
+  },
+  "qwen3-coder-next": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "欧盟"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 1,
+      "output": 4
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 1.5,
+      "output": 6
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2.5,
+      "output": 10
+     }
+    ]
+   }
+  },
+  "qwen3-coder-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 5000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 2400,
+     "tpm": 2000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 2400,
+     "tpm": 2000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 5000,
+     "tpm": 5000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 4,
+      "output": 16
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 6,
+      "output": 24
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 10,
+      "output": 40
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 20,
+      "output": 200
+     }
+    ]
+   }
+  },
+  "qwen3-coder-plus-2025-07-22": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 4,
+      "output": 16
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 6,
+      "output": 24
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 10,
+      "output": 40
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 20,
+      "output": 200
+     }
+    ]
+   }
+  },
+  "qwen3-coder-plus-2025-09-23": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 4,
+      "output": 16
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 6,
+      "output": 24
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 10,
+      "output": 40
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 20,
+      "output": 200
+     }
+    ]
+   }
+  },
+  "qwen3-livetranslate-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 100,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 100,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 10,
+      "output": 10
+     }
+    ]
+   }
+  },
+  "qwen3-livetranslate-flash-2025-12-01": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 100,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 100,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 10,
+      "output": 10
+     }
+    ]
+   }
+  },
+  "qwen3-livetranslate-flash-realtime": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 10,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 10,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 64,
+      "output": 64
+     }
+    ]
+   }
+  },
+  "qwen3-livetranslate-flash-realtime-2025-09-22": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 10,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 10,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 64,
+      "output": 64
+     }
+    ]
+   }
+  },
+  "qwen3-max": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "欧盟"
+    },
+    "cn-hongkong": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 2.5,
+      "output": 10
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 4,
+      "output": 16
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 7,
+      "output": 28
+     }
+    ]
+   }
+  },
+  "qwen3-max-2025-09-23": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 6,
+      "output": 24
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 10,
+      "output": 40
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 15,
+      "output": 60
+     }
+    ]
+   }
+  },
+  "qwen3-max-2026-01-23": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "欧盟"
+    },
+    "cn-hongkong": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 2.5,
+      "output": 10
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 4,
+      "output": 16
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 7,
+      "output": 28
+     }
+    ]
+   }
+  },
+  "qwen3-max-preview": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 6,
+      "output": 24
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 10,
+      "output": 40
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 15,
+      "output": 60
+     }
+    ]
+   }
+  },
+  "qwen3-next-80b-a3b-instruct": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1,
+      "output": 4
+     }
+    ]
+   }
+  },
+  "qwen3-next-80b-a3b-thinking": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1,
+      "output": 10,
+      "thinkingOutput": 10
+     }
+    ]
+   }
+  },
+  "qwen3-omni-30b-a3b-captioner": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 15.8,
+      "output": 12.7
+     }
+    ]
+   }
+  },
+  "qwen3-omni-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.8,
+      "output": 6.9
+     }
+    ]
+   }
+  },
+  "qwen3-omni-flash-2025-09-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.8,
+      "output": 6.9
+     }
+    ]
+   }
+  },
+  "qwen3-omni-flash-2025-12-01": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.8,
+      "output": 6.9
+     }
+    ]
+   }
+  },
+  "qwen3-omni-flash-realtime": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.2,
+      "output": 8.3
+     }
+    ]
+   }
+  },
+  "qwen3-omni-flash-realtime-2025-09-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.2,
+      "output": 8.3
+     }
+    ]
+   }
+  },
+  "qwen3-omni-flash-realtime-2025-12-01": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.2,
+      "output": 8.3
+     }
+    ]
+   }
+  },
+  "qwen3-rerank": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 5400,
+     "tpm": 5000000000
+    },
+    "ap-southeast-1": {
+     "rpm": 5400,
+     "tpm": 5000000000,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen3-s2s-flash-realtime-2025-09-22": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-flash": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-flash-2025-09-18": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-flash-2025-11-27": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-flash-realtime": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-flash-realtime-2025-09-18": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-flash-realtime-2025-11-27": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-instruct-flash": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-instruct-flash-2026-01-26": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-instruct-flash-realtime": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-instruct-flash-realtime-2026-01-22": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-vc-2026-01-22": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-vc-realtime-2025-11-27": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-vc-realtime-2026-01-15": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-vd-2026-01-26": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-vd-realtime-2025-12-16": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-tts-vd-realtime-2026-01-15": {
+   "listed": true,
+   "regions": {}
+  },
+  "qwen3-vl-235b-a22b-instruct": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 8
+     }
+    ]
+   }
+  },
+  "qwen3-vl-235b-a22b-thinking": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 20,
+      "thinkingOutput": 20
+     }
+    ]
+   }
+  },
+  "qwen3-vl-30b-a3b-instruct": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.75,
+      "output": 3
+     }
+    ]
+   }
+  },
+  "qwen3-vl-30b-a3b-thinking": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.75,
+      "output": 7.5,
+      "thinkingOutput": 7.5
+     }
+    ]
+   }
+  },
+  "qwen3-vl-32b-instruct": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 8
+     }
+    ]
+   }
+  },
+  "qwen3-vl-32b-thinking": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 20,
+      "thinkingOutput": 20
+     }
+    ]
+   }
+  },
+  "qwen3-vl-8b-instruct": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.5,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen3-vl-8b-thinking": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.5,
+      "output": 5,
+      "thinkingOutput": 5
+     }
+    ]
+   }
+  },
+  "qwen3-vl-embedding": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 2400,
+     "tpm": 1200000
+    }
+   }
+  },
+  "qwen3-vl-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 3000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 1200,
+     "tpm": 1000000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 1200,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 12000,
+     "tpm": 10000000,
+     "scope": "欧盟"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 0.15,
+      "output": 1.5
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 0.3,
+      "output": 3
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 0.6,
+      "output": 6
+     }
+    ]
+   }
+  },
+  "qwen3-vl-flash-2025-10-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "us-east-1": {
+     "rpm": 120,
+     "tpm": 1000000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 120,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "欧盟"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 0.15,
+      "output": 1.5
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 0.3,
+      "output": 3
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 0.6,
+      "output": 6
+     }
+    ]
+   }
+  },
+  "qwen3-vl-flash-2026-01-22": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "欧盟"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 0.15,
+      "output": 1.5
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 0.3,
+      "output": 3
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 0.6,
+      "output": 6
+     }
+    ]
+   }
+  },
+  "qwen3-vl-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 3000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 6000,
+     "tpm": 10000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 1200,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 2000,
+     "tpm": 1000000,
+     "scope": "欧盟"
+    },
+    "cn-hongkong": {
+     "rpm": 6000,
+     "tpm": 1000000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 1,
+      "output": 10
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 1.5,
+      "output": 15
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 3,
+      "output": 30
+     }
+    ]
+   }
+  },
+  "qwen3-vl-plus-2025-09-23": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 120,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 1,
+      "output": 10
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 1.5,
+      "output": 15
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 3,
+      "output": 30
+     }
+    ]
+   }
+  },
+  "qwen3-vl-plus-2025-12-19": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    },
+    "cn-hongkong": {
+     "rpm": 6000,
+     "tpm": 1000000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 1,
+      "output": 10
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 131072,
+      "input": 1.5,
+      "output": 15
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 3,
+      "output": 30
+     }
+    ]
+   }
+  },
+  "qwen3-vl-rerank": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 9000000
+    }
+   }
+  },
+  "qwen3.5-122b-a10b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.8,
+      "output": 6.4
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2,
+      "output": 16
+     }
+    ]
+   }
+  },
+  "qwen3.5-27b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.6,
+      "output": 4.8
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 1.8,
+      "output": 14.4
+     }
+    ]
+   }
+  },
+  "qwen3.5-35b-a3b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.4,
+      "output": 3.2
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 1.6,
+      "output": 12.8
+     }
+    ]
+   }
+  },
+  "qwen3.5-397b-a17b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 1.2,
+      "output": 7.2
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 3,
+      "output": 18
+     }
+    ]
+   }
+  },
+  "qwen3.5-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 10000000
+    },
+    "us-east-1": {
+     "rpm": 30000,
+     "tpm": 10000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 35000,
+     "tpm": 10000000,
+     "scope": "欧盟"
+    },
+    "cn-hongkong": {
+     "rpm": 30000,
+     "tpm": 10000000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.2,
+      "output": 2
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 0.8,
+      "output": 8
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 1.2,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "qwen3.5-flash-2026-02-23": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "欧盟"
+    },
+    "cn-hongkong": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.2,
+      "output": 2
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 0.8,
+      "output": 8
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 1.2,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "qwen3.5-livetranslate-flash-realtime": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 10,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 10,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 40,
+      "output": 100
+     }
+    ]
+   }
+  },
+  "qwen3.5-livetranslate-flash-realtime-2026-05-19": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 10,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 10,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 40,
+      "output": 100
+     }
+    ]
+   }
+  },
+  "qwen3.5-ocr": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 6000,
+     "tpm": 30000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.5,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "qwen3.5-omni-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.2,
+      "output": 13.3
+     }
+    ]
+   }
+  },
+  "qwen3.5-omni-flash-2026-03-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2.2,
+      "output": 13.3
+     }
+    ]
+   }
+  },
+  "qwen3.5-omni-flash-realtime": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 3.3,
+      "output": 20
+     }
+    ]
+   }
+  },
+  "qwen3.5-omni-flash-realtime-2026-03-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 3.3,
+      "output": 20
+     }
+    ]
+   }
+  },
+  "qwen3.5-omni-plus": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 7,
+      "output": 40
+     }
+    ]
+   }
+  },
+  "qwen3.5-omni-plus-2026-03-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 7,
+      "output": 40
+     }
+    ]
+   }
+  },
+  "qwen3.5-omni-plus-realtime": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 10,
+      "output": 60
+     }
+    ]
+   }
+  },
+  "qwen3.5-omni-plus-realtime-2026-03-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 10,
+      "output": 60
+     }
+    ]
+   }
+  },
+  "qwen3.5-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.8,
+      "output": 4.8
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2,
+      "output": 12
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4,
+      "output": 24
+     }
+    ]
+   }
+  },
+  "qwen3.5-plus-2026-02-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.8,
+      "output": 4.8
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2,
+      "output": 12
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4,
+      "output": 24
+     }
+    ]
+   }
+  },
+  "qwen3.5-plus-2026-04-20": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 0.8,
+      "output": 4.8
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 2,
+      "output": 12
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4,
+      "output": 24
+     }
+    ]
+   }
+  },
+  "qwen3.6-27b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 262144,
+      "input": 3,
+      "output": 18
+     }
+    ]
+   }
+  },
+  "qwen3.6-35b-a3b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 262144,
+      "input": 1.8,
+      "output": 10.8
+     }
+    ]
+   }
+  },
+  "qwen3.6-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 10000000
+    },
+    "us-east-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 10000000,
+     "scope": "全球"
+    },
+    "cn-hongkong": {
+     "rpm": 30000,
+     "tpm": 10000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 262144,
+      "input": 1.2,
+      "output": 7.2
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4.8,
+      "output": 28.8
+     }
+    ]
+   }
+  },
+  "qwen3.6-flash-2026-04-16": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 262144,
+      "input": 1.2,
+      "output": 7.2
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 4.8,
+      "output": 28.8
+     }
+    ]
+   }
+  },
+  "qwen3.6-max-preview": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 131072,
+      "input": 9,
+      "output": 54
+     },
+     {
+      "minTokens": 131072,
+      "maxTokens": 262144,
+      "input": 15,
+      "output": 90
+     }
+    ]
+   }
+  },
+  "qwen3.6-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "cn-hongkong": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 262144,
+      "input": 2,
+      "output": 12
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 8,
+      "output": 48
+     }
+    ]
+   }
+  },
+  "qwen3.6-plus-2026-04-02": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 262144,
+      "input": 2,
+      "output": 12
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 8,
+      "output": 48
+     }
+    ]
+   }
+  },
+  "qwen3.7-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "cn-hongkong": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 0.2,
+      "output": 0.8
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 262144,
+      "input": 0.6,
+      "output": 2.4
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 1.2,
+      "output": 4.8
+     }
+    ]
+   }
+  },
+  "qwen3.7-flash-2026-07-15": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "cn-hongkong": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 32768,
+      "input": 0.2,
+      "output": 0.8
+     },
+     {
+      "minTokens": 32768,
+      "maxTokens": 262144,
+      "input": 0.6,
+      "output": 2.4
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 1.2,
+      "output": 4.8
+     }
+    ]
+   }
+  },
+  "qwen3.7-max": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 12,
+      "output": 36
+     }
+    ]
+   }
+  },
+  "qwen3.7-max-2026-05-17": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 500000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 12,
+      "output": 36,
+      "thinkingOutput": 36
+     }
+    ]
+   }
+  },
+  "qwen3.7-max-2026-05-20": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 12,
+      "output": 36
+     }
+    ]
+   }
+  },
+  "qwen3.7-max-2026-06-08": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 12,
+      "output": 36
+     }
+    ]
+   }
+  },
+  "qwen3.7-max-preview": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 500000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 12,
+      "output": 36,
+      "thinkingOutput": 36
+     }
+    ]
+   }
+  },
+  "qwen3.7-plus": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "tpm": 5000000
+    },
+    "us-east-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 15000,
+     "tpm": 5000000,
+     "scope": "日本"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 262144,
+      "input": 2,
+      "output": 8,
+      "promotion": "限时8折"
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 6,
+      "output": 24,
+      "promotion": "限时8折"
+     }
+    ]
+   }
+  },
+  "qwen3.7-plus-2026-05-26": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "us-east-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 60,
+     "tpm": 1000000,
+     "scope": "日本"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 262144,
+      "input": 2,
+      "output": 8
+     },
+     {
+      "minTokens": 262144,
+      "maxTokens": 1000000,
+      "input": 6,
+      "output": 24
+     }
+    ]
+   }
+  },
+  "qwen3.7-text-embedding": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 24000,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 24000,
+     "tpm": 1000000,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwen3.7-text-embedding-flash": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 24000,
+     "tpm": 1000000
+    }
+   }
+  },
+  "qwen3.7-text-rerank": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 3000,
+     "tpm": 9000000
+    }
+   }
+  },
+  "qwen3.8-2.4t-a95b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "dynamic": true
+    },
+    "ap-southeast-1": {
+     "dynamic": true,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 12,
+      "output": 36
+     }
+    ]
+   }
+  },
+  "qwen3.8-27b": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "dynamic": true
+    },
+    "ap-southeast-1": {
+     "dynamic": true,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 3,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "qwen3.8-flash": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "dynamic": true
+    },
+    "us-east-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "dynamic": true,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "cn-hongkong": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 0.8,
+      "output": 2.7
+     }
+    ]
+   }
+  },
+  "qwen3.8-livetranslate-flash-realtime": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 10,
+     "tpm": 100000
+    },
+    "ap-southeast-1": {
+     "rpm": 10,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 40,
+      "output": 100
+     }
+    ]
+   }
+  },
+  "qwen3.8-max": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "dynamic": true
+    },
+    "us-east-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "dynamic": true,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 30000,
+     "tpm": 5000000,
+     "scope": "全球"
+    },
+    "cn-hongkong": {
+     "rpm": 600,
+     "tpm": 1000000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 12,
+      "output": 36
+     }
+    ]
+   }
+  },
+  "qwen3.8-max-0902": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "dynamic": true
+    },
+    "us-east-1": {
+     "rpm": 30000,
+     "tpm": 150000,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "dynamic": true,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rpm": 30000,
+     "tpm": 150000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 30000,
+     "tpm": 150000,
+     "scope": "全球"
+    },
+    "cn-hongkong": {
+     "rpm": 600,
+     "tpm": 150000,
+     "scope": "中国香港"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 12,
+      "output": 36
+     }
+    ]
+   }
+  },
+  "qwen3.8-max-prime": {
+   "listed": false,
+   "regions": {},
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": 1000000,
+      "input": 24,
+      "output": 72
+     }
+    ]
+   }
+  },
+  "qwen3.8-omni-flash": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30000,
+     "dynamic": true
+    },
+    "ap-southeast-1": {
+     "rpm": 30000,
+     "dynamic": true,
+     "scope": "国际"
+    },
+    "cn-hongkong": {
+     "rpm": 30000,
+     "tpm": 2000000,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rpm": 30000,
+     "tpm": 2000000,
+     "scope": "全球"
+    },
+    "eu-central-1": {
+     "rpm": 30000,
+     "tpm": 2000000,
+     "scope": "全球"
+    },
+    "us-east-1": {
+     "rpm": 30000,
+     "tpm": 2000000,
+     "scope": "全球"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "中国内地",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.8,
+      "output": 2.7,
+      "cacheHitInput": 0.1
+     }
+    ]
+   }
+  },
+  "qwen3.8-omni-flash-realtime": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 2000000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 2000000,
+     "scope": "国际"
+    }
+   }
+  },
+  "qwq-plus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    },
+    "ap-southeast-1": {
+     "rpm": 60,
+     "tpm": 100000,
+     "scope": "国际"
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.6,
+      "output": 4,
+      "thinkingOutput": 4
+     }
+    ]
+   }
+  },
+  "shoemodel-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "siliconflow/deepseek-r1-0528": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 500000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 16
+     }
+    ]
+   }
+  },
+  "siliconflow/deepseek-v3-0324": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 500000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 8
+     }
+    ]
+   }
+  },
+  "siliconflow/deepseek-v3.1-terminus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 500000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "siliconflow/deepseek-v3.2": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 500000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 3
+     }
+    ]
+   }
+  },
+  "sre-gpu-auto-handle": {
+   "listed": true,
+   "regions": {}
+  },
+  "stepfun/step-3.7-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 20000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1.35,
+      "output": 8.1
+     }
+    ]
+   }
+  },
+  "stepfun/step-5-preview": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 10000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 7,
+      "output": 20
+     }
+    ]
+   }
+  },
+  "test-sre-gpu-auto-handle": {
+   "listed": true,
+   "regions": {}
+  },
+  "text-embedding-async-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60
+    }
+   }
+  },
+  "text-embedding-async-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60
+    }
+   }
+  },
+  "text-embedding-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1800,
+     "tpm": 1200000
+    }
+   }
+  },
+  "text-embedding-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1800,
+     "tpm": 1200000
+    }
+   }
+  },
+  "text-embedding-v3": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1800,
+     "tpm": 1200000
+    },
+    "ap-southeast-1": {
+     "rpm": 6000,
+     "tpm": 24000000,
+     "scope": "国际"
+    }
+   }
+  },
+  "text-embedding-v4": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1800,
+     "tpm": 1200000
+    },
+    "ap-southeast-1": {
+     "rpm": 1800,
+     "tpm": 1000000,
+     "scope": "国际"
+    },
+    "cn-hongkong": {
+     "rpm": 1800,
+     "tpm": 1200000,
+     "scope": "中国香港"
+    }
+   }
+  },
+  "tongyi-embedding-vision-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 200000
+    }
+   }
+  },
+  "tongyi-embedding-vision-flash-2026-03-06": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 9600000
+    }
+   }
+  },
+  "tongyi-embedding-vision-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 200000
+    }
+   }
+  },
+  "tongyi-embedding-vision-plus-2026-03-06": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 9600000
+    }
+   }
+  },
+  "tongyi-intent-detect-v3": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 1200,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.4,
+      "output": 1
+     }
+    ]
+   }
+  },
+  "tongyi-xiaomi-analysis-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.2,
+      "output": 0.4
+     }
+    ]
+   }
+  },
+  "tongyi-xiaomi-analysis-pro": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 600,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1,
+      "output": 2.7
+     }
+    ]
+   }
+  },
+  "unisound/unisound-u2": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "tpm": 3000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 1,
+      "output": 2
+     }
+    ]
+   }
+  },
+  "vanchin/deepseek-ocr": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 0.216,
+      "output": 0.216
+     }
+    ]
+   }
+  },
+  "vanchin/deepseek-r1": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 16
+     }
+    ]
+   }
+  },
+  "vanchin/deepseek-v3": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 8
+     }
+    ]
+   }
+  },
+  "vanchin/deepseek-v3.1-terminus": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 500,
+     "tpm": 1000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 4,
+      "output": 12
+     }
+    ]
+   }
+  },
+  "vanchin/deepseek-v3.2-think": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30,
+     "tpm": 600000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 3
+     }
+    ]
+   }
+  },
+  "vanchin/deepseek-v4-pro": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 60,
+     "tpm": 300000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 12,
+      "output": 24
+     }
+    ]
+   }
+  },
+  "vanchin/deepseek-v4-pro-0813": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30,
+     "tpm": 600000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 9,
+      "output": 27
+     }
+    ]
+   }
+  },
+  "vanchin/deepseek-v4.1-flash": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 30,
+     "tpm": 600000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 2,
+      "output": 8
+     }
+    ]
+   }
+  },
+  "video-style-transform": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 20,
+     "concurrency": 2
+    }
+   }
+  },
+  "vidu/vidu-image-lite_reference2image": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5,
+     "poolId": "pool-b7059dbdb0bb0f5e"
+    }
+   }
+  },
+  "vidu/vidu-image-pro_reference2image": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5,
+     "poolId": "pool-b7059dbdb0bb0f5e"
+    }
+   }
+  },
+  "vidu/vidu-image_reference2image": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5,
+     "poolId": "pool-b7059dbdb0bb0f5e"
+    }
+   }
+  },
+  "vidu/viduq2-fast_reference2image": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5,
+     "poolId": "pool-b7059dbdb0bb0f5e"
+    }
+   }
+  },
+  "vidu/viduq2-pro-fast_img2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq2-pro_img2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq2-pro_reference2image": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5,
+     "poolId": "pool-b7059dbdb0bb0f5e"
+    }
+   }
+  },
+  "vidu/viduq2-pro_reference2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq2-pro_start-end2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq2-turbo_img2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq2-turbo_start-end2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq2_reference2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq2_text2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-ad_reference2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-drama_reference2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-fast_reference2image": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 300,
+     "concurrency": 5,
+     "poolId": "pool-b7059dbdb0bb0f5e"
+    }
+   }
+  },
+  "vidu/viduq3-mix_reference2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-pro-fast_img2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-pro_img2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-pro_start-end2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-pro_text2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-turbo_img2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-turbo_reference2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-turbo_start-end2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3-turbo_text2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "vidu/viduq3_reference2video": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5,
+     "poolId": "pool-15a6530801f3cf71"
+    }
+   }
+  },
+  "virtualmodel-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "voice-enrollment": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 10
+    },
+    "ap-southeast-1": {
+     "rps": 10,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.1-i2v-plus": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.1-i2v-turbo": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.1-kf2v-plus": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rps": 1,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.1-t2i-plus": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.1-t2i-turbo": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.1-t2v-plus": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.1-t2v-turbo": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.1-vace-plus": {
+   "listed": false,
+   "regions": {
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.2-animate-mix": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 1
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 1,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.2-animate-move": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 1
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 1,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.2-i2v-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wan2.2-i2v-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    },
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.2-kf2v-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wan2.2-s2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 1
+    }
+   }
+  },
+  "wan2.2-s2v-detect": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5
+    }
+   }
+  },
+  "wan2.2-t2i-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    },
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.2-t2i-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    },
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.2-t2v-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    },
+    "ap-southeast-1": {
+     "rps": 2,
+     "concurrency": 2,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.5-i2i-preview": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.5-i2v-preview": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.5-t2i-preview": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.5-t2v-preview": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.6-i2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "wan2.6-i2v-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.6-image": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "wan2.6-r2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "wan2.6-r2v-flash": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.6-t2i": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 1,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 1,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "wan2.6-t2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "美国"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "wan2.7-i2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.7-i2v-2026-04-25": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.7-image": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.7-image-pro": {
+   "listed": true,
+   "featured": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.7-r2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.7-r2v-2026-06-12": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "wan2.7-t2v": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.7-t2v-2026-04-25": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.7-t2v-2026-06-12": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan2.7-videoedit": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    }
+   }
+  },
+  "wan3.0-video": {
+   "listed": false,
+   "featured": true,
+   "regions": {
+    "cn-hongkong": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "wan3.0-video-prime": {
+   "listed": false,
+   "regions": {
+    "cn-hongkong": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "cn-beijing": {
+     "rps": 5,
+     "concurrency": 5
+    },
+    "us-east-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-southeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "国际"
+    },
+    "eu-central-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    },
+    "ap-northeast-1": {
+     "rps": 5,
+     "concurrency": 5,
+     "scope": "全球"
+    }
+   }
+  },
+  "wanx-background-generation-v2": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "wanx-poster-generation-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "wanx-sketch-to-image-lite": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "wanx-style-repaint-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx-v1": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "wanx-virtualmodel": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "wanx-x-painting": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "wanx2.0-t2i-turbo": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx2.1-i2v-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx2.1-i2v-turbo": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx2.1-imageedit": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx2.1-kf2v-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx2.1-t2i-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx2.1-t2i-turbo": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx2.1-t2v-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx2.1-t2v-turbo": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wanx2.1-vace-plus": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 2
+    }
+   }
+  },
+  "wordart-semantic": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "wordart-texture": {
+   "listed": false,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2,
+     "concurrency": 1
+    }
+   }
+  },
+  "xiaomi/mimo-v2.5-pro": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rpm": 100,
+     "tpm": 10000000
+    }
+   },
+   "pricing": {
+    "currency": "CNY",
+    "unit": "per_million_tokens",
+    "region": "cn-beijing",
+    "scope": "",
+    "tiers": [
+     {
+      "minTokens": 0,
+      "maxTokens": null,
+      "input": 14,
+      "output": 42
+     }
+    ]
+   }
+  },
+  "z-image-turbo": {
+   "listed": true,
+   "regions": {
+    "cn-beijing": {
+     "rps": 2
+    },
+    "ap-southeast-1": {
+     "rps": 2,
+     "scope": "国际"
+    }
+   }
+  }
+ },
+ "pools": {
+  "pool-9b6ad2fabe118ae5": {
+   "region": "cn-beijing",
+   "rpm": 500,
+   "tpm": 3000000,
+   "members": [
+    "kimi/kimi-k2.5",
+    "kimi/kimi-k2.6",
+    "kimi/kimi-k2.7-code",
+    "kimi/kimi-k2.7-code-highspeed",
+    "kimi/kimi-k3"
+   ]
+  },
+  "pool-f0e61afaa578bd26": {
+   "region": "cn-beijing",
+   "concurrency": 10,
+   "members": [
+    "kling/kling-v3-image-generation",
+    "kling/kling-v3-omni-image-generation"
+   ]
+  },
+  "pool-b7059dbdb0bb0f5e": {
+   "region": "cn-beijing",
+   "concurrency": 5,
+   "members": [
+    "vidu/vidu-image-lite_reference2image",
+    "vidu/vidu-image-pro_reference2image",
+    "vidu/vidu-image_reference2image",
+    "vidu/viduq2-fast_reference2image",
+    "vidu/viduq2-pro_reference2image",
+    "vidu/viduq3-fast_reference2image"
+   ]
+  },
+  "pool-e4ad6b20e1408bf3": {
+   "region": "cn-beijing",
+   "concurrency": 5,
+   "members": [
+    "pixverse/pixverse-lipsync",
+    "pixverse/pixverse-motioncontrol",
+    "pixverse/pixverse-upscale"
+   ]
+  },
+  "pool-592a1d1316dd6ded": {
+   "region": "cn-beijing",
+   "concurrency": 5,
+   "members": [
+    "pixverse/pixverse-c1-it2v",
+    "pixverse/pixverse-c1-kf2v",
+    "pixverse/pixverse-c1-r2v",
+    "pixverse/pixverse-c1-t2v"
+   ]
+  },
+  "pool-5b1e3c3dbb9258e9": {
+   "region": "cn-beijing",
+   "concurrency": 5,
+   "members": [
+    "pixverse/pixverse-v6-it2v",
+    "pixverse/pixverse-v6-kf2v",
+    "pixverse/pixverse-v6-r2v",
+    "pixverse/pixverse-v6-r2v-omni",
+    "pixverse/pixverse-v6-t2v"
+   ]
+  },
+  "pool-0cddf11578f938ed": {
+   "region": "cn-beijing",
+   "concurrency": 5,
+   "members": [
+    "pixverse/pixverse-v5.6-it2v",
+    "pixverse/pixverse-v5.6-kf2v",
+    "pixverse/pixverse-v5.6-r2v",
+    "pixverse/pixverse-v5.6-t2v"
+   ]
+  },
+  "pool-1177f14c1c3283e6": {
+   "region": "cn-beijing",
+   "concurrency": 10,
+   "members": [
+    "kling/kling-v3-omni-video-generation",
+    "kling/kling-v3-turbo-video-generation",
+    "kling/kling-v3-video-generation"
+   ]
+  },
+  "pool-15a6530801f3cf71": {
+   "region": "cn-beijing",
+   "concurrency": 5,
+   "members": [
+    "vidu/viduq2-pro-fast_img2video",
+    "vidu/viduq2-pro_img2video",
+    "vidu/viduq2-pro_reference2video",
+    "vidu/viduq2-pro_start-end2video",
+    "vidu/viduq2-turbo_img2video",
+    "vidu/viduq2-turbo_start-end2video",
+    "vidu/viduq2_reference2video",
+    "vidu/viduq2_text2video",
+    "vidu/viduq3-ad_reference2video",
+    "vidu/viduq3-drama_reference2video",
+    "vidu/viduq3-mix_reference2video",
+    "vidu/viduq3-pro-fast_img2video",
+    "vidu/viduq3-pro_img2video",
+    "vidu/viduq3-pro_start-end2video",
+    "vidu/viduq3-pro_text2video",
+    "vidu/viduq3-turbo_img2video",
+    "vidu/viduq3-turbo_reference2video",
+    "vidu/viduq3-turbo_start-end2video",
+    "vidu/viduq3-turbo_text2video",
+    "vidu/viduq3_reference2video"
+   ]
+  },
+  "pool-b62fdff8b7780169": {
+   "region": "cn-beijing",
+   "concurrency": 10,
+   "members": [
+    "Tripo/Tripo-H3.1",
+    "Tripo/Tripo-P1.0"
+   ]
+  }
+ },
+ "warnings": [
+  {
+   "page": "rate-limit",
+   "message": "non-numeric tpm \"无 TPM 限制\" for qwen-audio-turbo-latest (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0-pro (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-pro (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-pro-2026-06-22 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-pro-2026-04-22 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-pro-2026-03-03 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-2026-03-03 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-max (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-max-2025-12-30 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 2\" for qwen-image-plus (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-plus-2026-01-09 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 2\" for qwen-image (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-max (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-max-2026-01-16 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-plus (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-plus-2025-12-15 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-plus-2025-10-30 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 2\" for qwen-mt-image-2.0 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 2\" for qwen-mt-image (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0-pro (us-east-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0 (us-east-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0-pro (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-pro (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-pro-2026-06-22 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-pro-2026-04-22 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-pro-2026-03-03 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-2.0-2026-03-03 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-max (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-max-2025-12-30 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 2\" for qwen-image-plus (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-plus-2026-01-09 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 2\" for qwen-image (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-max (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-max-2026-01-16 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-plus (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-plus-2025-12-15 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit-plus-2025-10-30 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for qwen-image-edit (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 2\" for qwen-mt-image-2.0 (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0-pro (eu-central-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0 (eu-central-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0-pro (ap-northeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0 (ap-northeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0-pro (cn-hongkong)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制 / 异步接口 10\" for qwen-image-3.0 (cn-hongkong)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for z-image-turbo (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for z-image-turbo (ap-southeast-1)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for facechain-facedetect (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "unrecognised model cell \"aitryon\" under AI试衣-OutfitAnyone/华北2（北京）"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for aitryon-parsing-v1 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-instruct-flash under Qwen-TTS/Qwen3-TTS-Instruct-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-instruct-flash-2026-01-26 under Qwen-TTS/Qwen3-TTS-Instruct-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vd-2026-01-26 under Qwen-TTS/Qwen3-TTS-VD"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vc-2026-01-22 under Qwen-TTS/Qwen3-TTS-VC"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash under Qwen-TTS/Qwen3-TTS-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-2025-11-27 under Qwen-TTS/Qwen3-TTS-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-2025-09-18 under Qwen-TTS/Qwen3-TTS-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen-tts under Qwen-TTS/Qwen-TTS"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen-tts-latest under Qwen-TTS/Qwen-TTS"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen-tts-2025-05-22 under Qwen-TTS/Qwen-TTS"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen-tts-2025-04-10 under Qwen-TTS/Qwen-TTS"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-instruct-flash under Qwen-TTS/Qwen3-TTS-Instruct-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-instruct-flash-2026-01-26 under Qwen-TTS/Qwen3-TTS-Instruct-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vd-2026-01-26 under Qwen-TTS/Qwen3-TTS-VD"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vc-2026-01-22 under Qwen-TTS/Qwen3-TTS-VC"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash under Qwen-TTS/Qwen3-TTS-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-2025-11-27 under Qwen-TTS/Qwen3-TTS-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-2025-09-18 under Qwen-TTS/Qwen3-TTS-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-instruct-flash-realtime under Qwen-TTS-Realtime/Qwen3-TTS-Instruct-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-instruct-flash-realtime-2026-01-22 under Qwen-TTS-Realtime/Qwen3-TTS-Instruct-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vd-realtime-2026-01-15 under Qwen-TTS-Realtime/Qwen3-TTS-VD-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vd-realtime-2025-12-16 under Qwen-TTS-Realtime/Qwen3-TTS-VD-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vc-realtime-2026-01-15 under Qwen-TTS-Realtime/Qwen3-TTS-VC-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vc-realtime-2025-11-27 under Qwen-TTS-Realtime/Qwen3-TTS-VC-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-realtime under Qwen-TTS-Realtime/Qwen3-TTS-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-realtime-2025-11-27 under Qwen-TTS-Realtime/Qwen3-TTS-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-realtime-2025-09-18 under Qwen-TTS-Realtime/Qwen3-TTS-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen-tts-realtime under Qwen-TTS-Realtime/Qwen-TTS-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen-tts-realtime-latest under Qwen-TTS-Realtime/Qwen-TTS-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen-tts-realtime-2025-07-15 under Qwen-TTS-Realtime/Qwen-TTS-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-instruct-flash-realtime under Qwen-TTS-Realtime/Qwen3-TTS-Instruct-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-instruct-flash-realtime-2026-01-22 under Qwen-TTS-Realtime/Qwen3-TTS-Instruct-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vd-realtime-2026-01-15 under Qwen-TTS-Realtime/Qwen3-TTS-VD-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vd-realtime-2025-12-16 under Qwen-TTS-Realtime/Qwen3-TTS-VD-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vc-realtime-2026-01-15 under Qwen-TTS-Realtime/Qwen3-TTS-VC-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-vc-realtime-2025-11-27 under Qwen-TTS-Realtime/Qwen3-TTS-VC-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-realtime under Qwen-TTS-Realtime/Qwen3-TTS-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-realtime-2025-11-27 under Qwen-TTS-Realtime/Qwen3-TTS-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-tts-flash-realtime-2025-09-18 under Qwen-TTS-Realtime/Qwen3-TTS-Flash-Realtime"
+  },
+  {
+   "page": "rate-limit",
+   "message": "unrecognised model cell \"Sambert系列模型\" under Sambert/华北2（北京）"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash-filetrans under Qwen-ASR/Qwen3-ASR-Flash-Filetrans"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash-filetrans-2025-11-17 under Qwen-ASR/Qwen3-ASR-Flash-Filetrans"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash under Qwen-ASR/Qwen3-ASR-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash-2026-02-10 under Qwen-ASR/Qwen3-ASR-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash-2025-09-08 under Qwen-ASR/Qwen3-ASR-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash-filetrans under Qwen-ASR/Qwen3-ASR-Flash-Filetrans"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash-filetrans-2025-11-17 under Qwen-ASR/Qwen3-ASR-Flash-Filetrans"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash under Qwen-ASR/Qwen3-ASR-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash-2026-02-10 under Qwen-ASR/Qwen3-ASR-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "no region for qwen3-asr-flash-2025-09-08 under Qwen-ASR/Qwen3-ASR-Flash"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for wan2.2-s2v-detect (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for animate-anyone-detect-gen2 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for emo-detect-v1 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for liveportrait-detect (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "unrecognised model cell \"liveportrait\" under 灵动人像LivePortrait/华北2（北京）"
+  },
+  {
+   "page": "rate-limit",
+   "message": "unrecognised model cell \"videoretalk\" under 声动人像VideoRetalk/华北2（北京）"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric concurrency \"同步接口无限制\" for emoji-detect-v1 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric tpm \"当前用户在系统通用文本向量异步作业排队中和运行中的作业数量不超过50个。 另外，\" for text-embedding-async-v1 (cn-beijing)"
+  },
+  {
+   "page": "rate-limit",
+   "message": "non-numeric tpm \"当前用户在系统通用文本向量异步作业排队中和运行中的作业数量不超过50个。 另外，\" for text-embedding-async-v2 (cn-beijing)"
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for qwen-audio-turbo: \"目前仅供免费体验。 免费额度用完后不可调用，推荐使用全模态（Qwen-Omni）作为替代模型\" / \"目前仅供免费体验。 免费额度用完后不可调用，推荐使用全模态（Qwen-Omni）作为替代模型\""
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for qwen-audio-turbo-latest: \"目前仅供免费体验。 免费额度用完后不可调用，推荐使用全模态（Qwen-Omni）作为替代模型\" / \"目前仅供免费体验。 免费额度用完后不可调用，推荐使用全模态（Qwen-Omni）作为替代模型\""
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for qwen2-audio-instruct: \"目前仅供免费体验。 免费额度用完后不可调用，推荐使用全模态（Qwen-Omni）作为替代模型。\" / \"目前仅供免费体验。 免费额度用完后不可调用，推荐使用全模态（Qwen-Omni）作为替代模型。\""
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for qwen-audio-chat: \"目前仅供免费体验。 免费额度用完后不可调用，推荐使用全模态（Qwen-Omni）作为替代模型。\" / \"目前仅供免费体验。 免费额度用完后不可调用，推荐使用全模态（Qwen-Omni）作为替代模型。\""
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for deepseek-v4.1-flash: \"忙时 2元 闲时 1元\" / \"忙时 8元 闲时 4元\""
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for deepseek-v4-pro-0813: \"忙时 9元 闲时 4.5元\" / \"忙时 27元 闲时 13.5元\""
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for deepseek-v4-flash-0731: \"忙时 3元 闲时 1.5元\" / \"忙时 9元 闲时 4.5元\""
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for deepseek-r1-distill-qwen-1.5b: \"限时免费\" / \"限时免费\""
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for deepseek-r1-distill-llama-8b: \"已下线 该模型已下线，推荐使用深度思考、DeepSeek-阿里云、Kimi-阿里云作为替代模型。\" / \"已下线 该模型已下线，推荐使用深度思考、DeepSeek-阿里云、Kimi-阿里云作为替代模型。\""
+  },
+  {
+   "page": "model-pricing",
+   "message": "unparsed price row for deepseek-r1-distill-llama-70b: \"目前仅供免费体验 免费额度用完后不可调用，推荐使用深度思考、DeepSeek-阿里云、Kimi-阿里云作为替代模型\" / \"目前仅供免费体验 免费额度用完后不可调用，推荐使用深度思考、DeepSeek-阿里云、Kimi-阿里云作为替代模型\""
+  }
+ ]
+}

@@ -256,8 +256,16 @@ export async function deleteOverride(id: string): Promise<boolean> {
 // ============ Merge + refresh ============
 
 export function computeEffectiveModels(overrides: ModelOverrideRow[]): AIModel[] {
+  return computeEffectiveModelsFrom(getStaticModels(), overrides);
+}
+
+/** Same merge as computeEffectiveModels, over an explicit static seed. */
+export function computeEffectiveModelsFrom(
+  staticModels: AIModel[],
+  overrides: Array<Pick<ModelOverrideRow, "id" | "doc" | "action" | "enabled">>
+): AIModel[] {
   const map = new Map<string, AIModel>();
-  for (const m of getStaticModels()) map.set(m.id, { ...m });
+  for (const m of staticModels) map.set(m.id, { ...m });
 
   for (const ov of overrides) {
     if (!ov.enabled) continue;
