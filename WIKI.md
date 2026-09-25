@@ -70,7 +70,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
 | 模型目录 | 94 个可计费静态模型（2026-09-24 重算）；含 5 个通过 HiModels AWS 上游提供的 Claude 稳定公共 ID |
-| 数据库迁移 | 仓库已提交到 `031_control_plane_versions.sql`（`024`/`025` 为并行分支预留），其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
+| 数据库迁移 | 仓库已提交到 `032_async_task_queue.sql`（`024`/`025` 为并行分支预留），其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | 5 个并行 job：`security`、`billing-routing`、`control-plane`（含真实 PostgreSQL 迁移账本与 checksum 校验）、`release-scripts`、`frontend`；发布脚本要求目标 SHA 的全部 job 成功 |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
 
@@ -286,6 +286,28 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
   版本（preview 仅白名单用户可用、retired 不可用），凭据仍在 `providers` 表（`secret_ref=legacy_provider:<id>`）。
   enforce 不再有旧的“无托管路由时回落环境变量 Key”兜底。
 
+流量（P4，`backend/src/traffic/`，`NF_TRAFFIC_MODE`，需要 `NF_CP_MODE≠legacy` 已加载版本）：
+
+- `reservation.ts`：一个 Lua 脚本原子预占“路由 → 配额池 → 该用户在池（无池时在路由）上的公平份额
+  （`fair_share.max_share_per_user`）”，全过或全不过；4 个进程经 Redis 共享。租约/释放语义同
+  `rate-limiter.ts`（RPM/日限不退，并发退还，TPM 按实际对账）。Redis 不可用时失败关闭（503
+  `provider_capacity_store_unavailable`）。键前缀 `nf:traffic:v1:*`，与旧限流键互不相干。
+- 对话超限（D1）：`selectRoute` 在 enforce 下按候选顺序用 dry-run 找第一条还有容量的路由（换路由），全部
+  满了返回 **429 `capacity_exhausted`** + `Retry-After`（策略 `overflow.chat.retry_after_s`，默认 5s；
+  上游冷却中取冷却剩余时间）。OpenAI 格式 `error.type=rate_limit_error`，Anthropic 格式
+  `{type:"error",error:{type:"rate_limit_error"}}`。legacy 下仍是原来的 503。
+- 上游 429：解析 `Retry-After`（秒或 HTTP 日期，夹在 1–300s），路由在 Redis 里冷却，所有进程跳过；
+  同时照常计入熔断。熔断阈值/冷却/计数的 HTTP 状态在 enforce 下取全局策略 `circuit`，否则用环境变量。
+- 异步队列：`032` 给 `async_tasks` 加 `queued_at`/`queue_deadline_at`/`queue_request`（状态值 `queued`）。
+  视频任务（`/api/video/generate`、`/v1/tasks` 的 video）无容量时入队，保留预扣；按模型严格先进先出，
+  队列深度和每用户排队数有上限，最长等待默认 1800s，超时任务失败并释放预扣。单进程出队（Redis 租约
+  `nf:traffic:v1:queue-leader`），`queue_request` 只存适配器种类和参数，派发时重新解析凭据。任务查询返回
+  `status:"queued"` 和 `queue_position`。worker 在 legacy 下也跑，但只做超时，确保回滚开关不遗留预扣。
+- 用户默认限额：enforce 下取策略 `user_default`（`user:<id>` 可覆盖）；否则代码默认 30000 QPM / 5M TPM
+  （即生产实际生效值，表默认 60/100000 只在插入未给值时生效）。
+- shadow：旧决策照常执行，另做 dry-run，把“新规则会换路由/拒绝(429)/排队/冷却”记为 `shadow_diff`（area
+  `traffic`）。
+
 ## 9. 账号、权限与账本不变量
 
 ### 9.1 身份
@@ -378,6 +400,7 @@ QPM/TPM。旧 `rate_limit` 字段在 expand/rollback 窗口内仅保留旧版本
 029_schema_migration_checksums.sql
 030_control_plane_config.sql
 031_control_plane_versions.sql
+032_async_task_queue.sql
 ```
 
 历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。

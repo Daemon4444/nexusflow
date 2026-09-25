@@ -22,15 +22,7 @@ import { getProviderById } from "../data/providers";
 import { getProviderChannel } from "../data/provider-channels";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost, settleAsyncCost } from "../services/async-billing";
 import { releaseReservation } from "../data/billing";
-import {
-  adaptVideoRequest,
-  adaptHappyHorseRequest,
-  adaptPixVerseRequest,
-  adaptSeedanceRequest,
-  pollDashScopeTask,
-  pollPixVerseTask,
-  pollVolcEngineTask,
-} from "../services/adapters";
+import { pollDashScopeTask, pollPixVerseTask, pollVolcEngineTask } from "../services/adapters";
 import { sendBillingReservationFailure } from "../utils/billing-response";
 import {
   normalizeDashScopeVideoResolution,
@@ -43,6 +35,9 @@ import { upstreamErrorBody } from "../services/upstream";
 import { pollTaskWithControl } from "../services/task-poll-control";
 import { InferenceContext } from "../pipeline/context";
 import { taskProtocolFor } from "../pipeline/adapters";
+import { adaptAsync, type AsyncAdapterCall } from "../traffic/async-submit";
+import { enqueueAsyncTask, queuePosition } from "../traffic/queue";
+import { asyncPolicy } from "../traffic/engine";
 import {
   adapterForUpstream,
   authenticateApiKeyOrSession,
@@ -56,6 +51,7 @@ import {
   reserveQpm,
   resolveModel,
   selectRoute,
+  capacityHttpStatus,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -86,6 +82,14 @@ function sendVideoTaskCreated(
       ...(upstreamStatus ? { task_status: upstreamStatus } : {}),
     },
   });
+}
+
+function sendVideoTaskQueued(res: Response, taskId: string, position: number): void {
+  if (res.locals.videoLegacyEnvelope) {
+    res.json({ request_id: randomUUID(), output: { task_id: taskId, task_status: "QUEUED", queue_position: position } });
+    return;
+  }
+  res.json({ success: true, data: { task_id: taskId, status: "queued", queue_position: position } });
 }
 
 function sendVideoTaskStatus(
@@ -276,13 +280,158 @@ export const handleGenerate = async (req: Request, res: Response) => {
   const isPixVerseOfficial = taskProtocol === "pixverse";
   const isVolcEngine = taskProtocol === "volcengine";
 
+  // Upstream call, described as data so a queued task can be submitted later.
+  let call: AsyncAdapterCall;
+  if (isPixVerseOfficial) {
+    call = { kind: "pixverse", args: {
+      model: modelId,
+      prompt,
+      duration,
+      aspect_ratio: ratio || aspect_ratio,
+      quality: resolution || quality,
+      negative_prompt,
+      img_url,
+      motion_mode,
+      seed,
+      style,
+      camera_movement,
+      water_mark: water_mark ?? watermark,
+      audio,
+    } };
+  } else if (isSeedance) {
+    call = { kind: "seedance", args: {
+      model: modelId,
+      prompt: prompt || "",
+      resolution,
+      ratio,
+      duration,
+      seed,
+      watermark,
+      img_url,
+      img_end_url,
+      img_urls,
+      video_urls,
+      audio_urls,
+      audio,
+      generate_audio,
+      draft,
+      return_last_frame,
+      camera_fixed,
+      service_tier,
+      callback_url,
+      priority,
+    } };
+  } else if (isHappyHorse) {
+    call = { kind: "happyhorse", args: {
+      model: modelId,
+      prompt: prompt || "",
+      resolution,
+      ratio,
+      duration,
+      seed,
+      watermark,
+      img_url,
+      img_urls,
+      video_url,
+      audio_setting,
+    } };
+  } else {
+    call = { kind: "video", args: {
+      model: modelId,
+      prompt,
+      negative_prompt,
+      size: normalizedSize,
+      resolution: normalizedResolution,
+      ratio,
+      duration: modelId === "wan2.7-videoedit" ? duration : (duration || 5),
+      img_url,
+      img_end_url,
+      img_urls,
+      video_url,
+      video_urls,
+      audio_urls,
+      prompt_extend: prompt_extend !== undefined ? prompt_extend : true,
+      seed,
+      watermark,
+      audio,
+      audio_url,
+      audio_setting,
+      shot_type,
+    } };
+  }
+
+  const taskInput = {
+      prompt,
+      duration,
+      aspect_ratio,
+      quality,
+      negative_prompt,
+      size: normalizedSize,
+      img_url,
+      img_end_url,
+      img_urls,
+      video_url,
+      video_urls,
+      audio_urls,
+      resolution: normalizedResolution,
+      ratio,
+      audio,
+      audio_setting,
+      generate_audio,
+      draft,
+      return_last_frame,
+      camera_fixed,
+      service_tier,
+      callback_url,
+      priority,
+      seed,
+      watermark,
+      style,
+      camera_movement,
+      water_mark,
+      audio_url,
+      shot_type,
+      motion_mode,
+      prompt_extend,
+      _route: {
+        channelId: upstream.channelId,
+        region: upstream.region,
+        nativeBaseUrl: upstream.nativeBaseUrl,
+        managed: upstream.managed,
+        rpm: upstream.rpm,
+        tpm: upstream.tpm,
+        dailyLimit: upstream.dailyLimit,
+        concurrentLimit: upstream.concurrentLimit,
+      },
+    };
+
   // Create internal task record
   let task;
   try {
-    const capacityFailure = await reserveProviderCapacity(ctx, 0);
+    const capacityFailure = await reserveProviderCapacity(ctx, 0, { overflow: "queue" });
+    if (capacityFailure?.code === "capacity_exhausted" && capacityFailure.queue) {
+      // NF_TRAFFIC_MODE=enforce: wait in the queue instead of failing (D1).
+      const queued = await enqueueAsyncTask({
+        userId: caller.userId,
+        apiKeyId: caller.apiKeyId,
+        modelId,
+        providerId: selected.providerId,
+        input: taskInput,
+        call,
+        billingReservationId: reservation.id,
+        policy: asyncPolicy(modelId, caller.userId),
+      });
+      if (queued.ok) {
+        sendVideoTaskQueued(res, queued.task.id, queued.position);
+        return;
+      }
+      await releaseReservation(reservation.id, "provider_capacity_unavailable");
+      res.status(capacityHttpStatus(res, capacityFailure)).json({ success: false, message: queued.message, code: queued.reason });
+      return;
+    }
     if (capacityFailure) {
       await releaseReservation(reservation.id, "provider_capacity_unavailable");
-      res.status(503).json({
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
         success: false,
         message: capacityFailure.message,
         code: capacityFailure.code,
@@ -296,50 +445,7 @@ export const handleGenerate = async (req: Request, res: Response) => {
       type: "video",
       model: modelId,
       provider: selected.providerId,
-      input: {
-        prompt,
-        duration,
-        aspect_ratio,
-        quality,
-        negative_prompt,
-        size: normalizedSize,
-        img_url,
-        img_end_url,
-        img_urls,
-        video_url,
-        video_urls,
-        audio_urls,
-        resolution: normalizedResolution,
-        ratio,
-        audio,
-        audio_setting,
-        generate_audio,
-        draft,
-        return_last_frame,
-        camera_fixed,
-        service_tier,
-        callback_url,
-        priority,
-        seed,
-        watermark,
-        style,
-        camera_movement,
-        water_mark,
-        audio_url,
-        shot_type,
-        motion_mode,
-        prompt_extend,
-        _route: {
-          channelId: upstream.channelId,
-          region: upstream.region,
-          nativeBaseUrl: upstream.nativeBaseUrl,
-          managed: upstream.managed,
-          rpm: upstream.rpm,
-          tpm: upstream.tpm,
-          dailyLimit: upstream.dailyLimit,
-          concurrentLimit: upstream.concurrentLimit,
-        },
-      },
+      input: taskInput,
       billingReservationId: reservation.id,
     });
   } catch (error) {
@@ -350,84 +456,7 @@ export const handleGenerate = async (req: Request, res: Response) => {
 
   // Build request based on provider
   try {
-    let adapted;
-    if (isPixVerseOfficial) {
-      adapted = adaptPixVerseRequest(apiKey, {
-        model: modelId,
-        prompt,
-        duration,
-        aspect_ratio: ratio || aspect_ratio,
-        quality: resolution || quality,
-        negative_prompt,
-        img_url,
-        motion_mode,
-        seed,
-        style,
-        camera_movement,
-        water_mark: water_mark ?? watermark,
-        audio,
-      }, selected.apiBaseUrl);
-    } else if (isSeedance) {
-      adapted = adaptSeedanceRequest(apiKey, {
-        model: modelId,
-        prompt: prompt || "",
-        resolution,
-        ratio,
-        duration,
-        seed,
-        watermark,
-        img_url,
-        img_end_url,
-        img_urls,
-        video_urls,
-        audio_urls,
-        audio,
-        generate_audio,
-        draft,
-        return_last_frame,
-        camera_fixed,
-        service_tier,
-        callback_url,
-        priority,
-      }, selected.apiBaseUrl);
-    } else if (isHappyHorse) {
-      adapted = adaptHappyHorseRequest(apiKey, {
-        model: modelId,
-        prompt: prompt || "",
-        resolution,
-        ratio,
-        duration,
-        seed,
-        watermark,
-        img_url,
-        img_urls,
-        video_url,
-        audio_setting,
-      }, selected.apiBaseUrl);
-    } else {
-      adapted = adaptVideoRequest(apiKey, {
-        model: modelId,
-        prompt,
-        negative_prompt,
-        size: normalizedSize,
-        resolution: normalizedResolution,
-        ratio,
-        duration: modelId === "wan2.7-videoedit" ? duration : (duration || 5),
-        img_url,
-        img_end_url,
-        img_urls,
-        video_url,
-        video_urls,
-        audio_urls,
-        prompt_extend: prompt_extend !== undefined ? prompt_extend : true,
-        seed,
-        watermark,
-        audio,
-        audio_url,
-        audio_setting,
-        shot_type,
-      }, selected.apiBaseUrl);
-    }
+    const adapted = adaptAsync(call, apiKey, selected.apiBaseUrl);
 
     const response = await invokeUpstream(ctx, {
       url: adapted.url,
@@ -575,6 +604,11 @@ export const handleVideoStatus = async (req: Request, res: Response) => {
         videoUrl: task.output?.video_url,
         error: task.error_message,
       });
+      return;
+    }
+
+    if (task.status === "queued") {
+      sendVideoTaskQueued(res, task.id, (await queuePosition(task)) ?? 1);
       return;
     }
 

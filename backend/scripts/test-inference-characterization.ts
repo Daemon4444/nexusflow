@@ -202,8 +202,19 @@ async function limitRoute(modelId: string, limits: { rpm: number }) {
   await db.execute("UPDATE provider_capacity SET rpm_limit = ? WHERE model_id = ?", [limits.rpm, modelId]);
 }
 
+/**
+ * Columns added by later expand-only migrations. They are NULL on every
+ * legacy path, so they are dropped when NULL to keep the golden file
+ * comparable with the pre-refactor baseline; a non-NULL value is a
+ * behaviour change and still shows up.
+ */
+const EXPAND_ONLY_COLUMNS = new Set(["queued_at", "queue_deadline_at", "queue_request"]);
+
 async function tableRows(table: string, where: string, params: unknown[]): Promise<unknown[]> {
-  return db.queryMany<Record<string, unknown>>(`SELECT * FROM ${table} WHERE ${where}`, params);
+  const rows = await db.queryMany<Record<string, unknown>>(`SELECT * FROM ${table} WHERE ${where}`, params);
+  return rows.map((row) => Object.fromEntries(
+    Object.entries(row).filter(([key, value]) => !(EXPAND_ONLY_COLUMNS.has(key) && value === null))
+  ));
 }
 
 // ----------------------------------------------------------------- requests

@@ -26,7 +26,7 @@ import {
 import { logUsage as persistUsage } from "../data/usage";
 import { reconcileAccountTpm, reserveAccountQpm, reserveAccountTpm } from "../services/account-rate-limiter";
 import { checkConsumerLimitsAsync } from "../services/rate-limiter";
-import { getRequestedRegion, resolveUpstream, type ResolveUpstreamResult } from "../services/upstream";
+import { getRequestedRegion, resolveUpstream, resolveUpstreamFromControlPlane, type ResolvedUpstream, type ResolveUpstreamResult } from "../services/upstream";
 import {
   acquireProviderCapacity,
   releaseProviderCapacity,
@@ -37,10 +37,13 @@ import { getProviderAuthHeaders } from "../services/providers";
 import { getProviderChannel } from "../data/provider-channels";
 import { logToSLS } from "../services/sls";
 import { resolveUpstreamAdapter } from "./adapters";
-import { controlPlaneMode } from "../config/feature-flags";
-import { runShadow } from "../services/shadow";
-import { controlPlaneRuntime, isModelServable } from "../control-plane/runtime";
-import { diffModel, diffRoute } from "../control-plane/shadow-compare";
+import { controlPlaneMode, trafficMode } from "../config/feature-flags";
+import { recordShadowDiff, runShadow } from "../services/shadow";
+import { controlPlaneRuntime, isModelServable, type LoadedControlPlane } from "../control-plane/runtime";
+import { controlPlaneCandidates, diffModel, diffRoute } from "../control-plane/shadow-compare";
+import { effectivePolicy } from "../traffic/policy";
+import { coolingRoutes, parseRetryAfter, recordUpstreamCooldown, reserveScopes } from "../traffic/reservation";
+import { capacityExhaustedMessage, controlPlaneRouteFor, scopesFor, type OverflowBehavior } from "../traffic/engine";
 import type { InferenceContext, PipelineCaller } from "./context";
 
 export const UPSTREAM_TIMEOUT_MS = 600_000;
@@ -263,13 +266,50 @@ export async function selectRoute(
     );
   }
   if (!result.ok) return result;
-  ctx.upstream = result.upstream;
+  ctx.upstream = trafficMode() === "enforce"
+    ? await failoverToRouteWithCapacity(ctx, result.upstream)
+    : result.upstream;
   ctx.adapter = (await adapterForUpstream(
-    result.upstream.providerId,
-    result.upstream.channelId,
-    result.upstream.nativeBaseUrl
+    ctx.upstream.providerId,
+    ctx.upstream.channelId,
+    ctx.upstream.nativeBaseUrl
   )).adapter;
   return null;
+}
+
+/**
+ * NF_TRAFFIC_MODE=enforce, D1: walk the model's candidate routes in order
+ * and keep the first whose route/pool/fair-share scopes still admit the
+ * request (dry run; the real reservation follows in reserveProviderCapacity).
+ * Choosing here keeps the upstream fixed for the rest of the handler. When
+ * every candidate is full the first choice is kept, and the reservation
+ * then answers 429 (chat) or queues (async).
+ */
+async function failoverToRouteWithCapacity(ctx: InferenceContext, first: ResolvedUpstream): Promise<ResolvedUpstream> {
+  const snapshot = controlPlaneRuntime.get();
+  if (!snapshot || !first.managed) return first;
+  const userId = ctx.caller?.userId ?? null;
+  const policy = effectivePolicy(snapshot, { modelId: ctx.modelId, userId });
+  const tried = new Set<string>();
+  let current = first;
+  for (;;) {
+    const route = controlPlaneRouteFor(snapshot, ctx.modelId, current.providerId);
+    if (!route) return current;
+    const cooling = await coolingRoutes([route.id]);
+    if (!cooling.has(route.id)) {
+      const check = await reserveScopes({ scopes: scopesFor(snapshot, route, userId, policy), estimatedTokens: 0, dryRun: true });
+      if (check.allowed || check.reason === "redis_unavailable") return current;
+    }
+    tried.add(current.providerId);
+    const next = await resolveUpstreamFromControlPlane(ctx.modelId, snapshot, {
+      region: getRequestedRegion(ctx.req),
+      userId,
+      excludeProviders: tried,
+    });
+    if (!next.ok) return first;
+    logToSLS({ status: "info", model: ctx.modelId, providerId: next.upstream.providerId, errorCode: "capacity_failover", errorReason: `from ${current.providerId}` });
+    current = next.upstream;
+  }
 }
 
 /** Adapter for a provider/channel pair, logging data/URL disagreements. */
@@ -297,14 +337,168 @@ export async function adapterForUpstream(providerId: string, channelId: string |
 
 // ------------------------------------------------- reserveProviderCapacity
 
+export type CapacityFailure = Extract<ProviderCapacityAcquireResult, { ok: false }> | {
+  ok: false;
+  /** NF_TRAFFIC_MODE=enforce overflow: 429 + Retry-After instead of 503 (D1). */
+  code: "capacity_exhausted";
+  status: 429;
+  reason: string;
+  message: string;
+  retryAfterSeconds: number;
+  /** Async routes queue the task instead of failing (see traffic/queue.ts). */
+  queue: boolean;
+};
+
+/**
+ * Reserves upstream capacity for the selected route. NF_TRAFFIC_MODE:
+ * legacy → per-route limiter only; shadow → the same, plus a dry run of the
+ * route/pool/fair-share rules whose would-be decision is logged; enforce →
+ * the multi-scope reservation with failover (chat) or queueing (async).
+ */
 export async function reserveProviderCapacity(
   ctx: InferenceContext,
-  estimatedTokens: number
-): Promise<Extract<ProviderCapacityAcquireResult, { ok: false }> | null> {
+  estimatedTokens: number,
+  options: { overflow?: OverflowBehavior } = {}
+): Promise<CapacityFailure | null> {
+  const overflow = options.overflow ?? "failover";
+  const mode = trafficMode();
+  const snapshot = mode === "legacy" ? null : controlPlaneRuntime.get();
+  if (mode === "enforce" && snapshot && ctx.requireUpstream().managed) {
+    return reserveTrafficEnforced(ctx, estimatedTokens, snapshot, overflow);
+  }
   const capacity = await acquireProviderCapacity(ctx.requireUpstream(), ctx.modelId, estimatedTokens);
+  if (mode === "shadow" && snapshot && ctx.upstream?.managed) {
+    const upstream = ctx.upstream;
+    const userId = ctx.caller?.userId ?? null;
+    void runShadow("traffic", async () => {
+      const decision = await trafficDryRun(snapshot, ctx.modelId, upstream.providerId, userId, estimatedTokens, overflow);
+      const legacy = capacity.ok ? "admit" : "reject_503";
+      if (decision.decision === legacy) return [];
+      return [{ route: ctx.route, model: ctx.modelId, providerId: upstream.providerId, legacy, enforce: decision.decision, scope: decision.scope }];
+    });
+  }
   if (!capacity.ok) return capacity;
   ctx.providerLease = capacity.lease;
   return null;
+}
+
+/**
+ * HTTP status for a capacity failure: 429 + Retry-After for the enforce
+ * overflow (D1), otherwise the legacy 503.
+ */
+export function capacityHttpStatus(res: { setHeader(name: string, value: string): unknown }, failure: CapacityFailure): number {
+  if (failure.code === "capacity_exhausted") {
+    res.setHeader("Retry-After", String(failure.retryAfterSeconds));
+    return 429;
+  }
+  return 503;
+}
+
+/** Error `type` for a capacity failure in OpenAI/Anthropic bodies. */
+export function capacityErrorType(failure: CapacityFailure, legacyType: string): string {
+  return failure.code === "capacity_exhausted" ? "rate_limit_error" : legacyType;
+}
+
+/** What NF_TRAFFIC_MODE=enforce would decide, without reserving anything. */
+async function trafficDryRun(
+  snapshot: LoadedControlPlane,
+  modelId: string,
+  providerId: string,
+  userId: string | null,
+  estimatedTokens: number,
+  overflow: OverflowBehavior
+): Promise<{ decision: "admit" | "failover" | "reject_429" | "queue"; scope: string | null }> {
+  const route = controlPlaneRouteFor(snapshot, modelId, providerId);
+  if (!route) return { decision: "admit", scope: null };
+  const policy = effectivePolicy(snapshot, { modelId, kind: overflow === "queue" ? "async" : "chat", userId });
+  const result = await reserveScopes({ scopes: scopesFor(snapshot, route, userId, policy), estimatedTokens, dryRun: true });
+  if (result.allowed) return { decision: "admit", scope: null };
+  if (overflow === "queue") return { decision: "queue", scope: result.scope };
+  for (const other of controlPlaneCandidates(snapshot, modelId)) {
+    if (other.id === route.id) continue;
+    const alt = await reserveScopes({ scopes: scopesFor(snapshot, other, userId, policy), estimatedTokens, dryRun: true });
+    if (alt.allowed) return { decision: "failover", scope: result.scope };
+  }
+  return { decision: "reject_429", scope: result.scope };
+}
+
+async function reserveTrafficEnforced(
+  ctx: InferenceContext,
+  estimatedTokens: number,
+  snapshot: LoadedControlPlane,
+  overflow: OverflowBehavior
+): Promise<CapacityFailure | null> {
+  const upstream = ctx.requireUpstream();
+  const userId = ctx.caller?.userId ?? null;
+  const policy = effectivePolicy(snapshot, { modelId: ctx.modelId, kind: overflow === "queue" ? "async" : "chat", userId });
+  const route = controlPlaneRouteFor(snapshot, ctx.modelId, upstream.providerId);
+  if (!route) {
+    // Not a control-plane route (e.g. a legacy-only provider): legacy limiter.
+    const capacity = await acquireProviderCapacity(upstream, ctx.modelId, estimatedTokens);
+    if (!capacity.ok) return capacity;
+    ctx.providerLease = capacity.lease;
+    return null;
+  }
+  let reason: string;
+  let retryAfterSeconds = policy.chat.retryAfterS;
+  const cooling = await coolingRoutes([route.id]);
+  if (cooling.has(route.id)) {
+    reason = "upstream_cooldown";
+    retryAfterSeconds = Math.max(1, Math.ceil((cooling.get(route.id)! - Date.now()) / 1000));
+  } else {
+    const result = await reserveScopes({ scopes: scopesFor(snapshot, route, userId, policy), estimatedTokens });
+    if (result.allowed) {
+      ctx.providerLease = {
+        providerId: upstream.providerId,
+        modelId: ctx.modelId,
+        managed: true,
+        leaseId: null,
+        traffic: { leaseId: result.leaseId, scopes: result.scopes },
+      };
+      return null;
+    }
+    if (result.reason === "redis_unavailable") {
+      // Fail closed, exactly like the legacy managed limiter.
+      return {
+        ok: false,
+        code: "provider_capacity_store_unavailable",
+        reason: "redis_unavailable",
+        message: "Managed provider capacity cannot be verified right now.",
+      };
+    }
+    reason = `${result.scope}:${result.reason}`;
+  }
+  logToSLS({ status: "rejected", model: ctx.modelId, providerId: upstream.providerId, errorCode: "capacity_exhausted", errorReason: reason });
+  return {
+    ok: false,
+    code: "capacity_exhausted",
+    status: 429,
+    reason,
+    message: capacityExhaustedMessage(ctx.modelId, retryAfterSeconds),
+    retryAfterSeconds,
+    queue: overflow === "queue",
+  };
+}
+
+/**
+ * Upstream 429 (NF_TRAFFIC_MODE≠legacy): the route cools down for the
+ * upstream's Retry-After (default from policy). Shared through Redis, so
+ * all processes skip it. Shadow only logs what would have happened.
+ */
+export async function noteUpstreamRateLimited(ctx: InferenceContext, retryAfterHeader: string | null): Promise<void> {
+  const mode = trafficMode();
+  if (mode === "legacy" || !ctx.upstream) return;
+  const snapshot = controlPlaneRuntime.get();
+  if (!snapshot) return;
+  const route = controlPlaneRouteFor(snapshot, ctx.modelId, ctx.upstream.providerId);
+  if (!route) return;
+  const policy = effectivePolicy(snapshot, { modelId: ctx.modelId });
+  const seconds = parseRetryAfter(retryAfterHeader, policy.chat.retryAfterS);
+  if (mode === "shadow") {
+    recordShadowDiff("traffic", { route: ctx.route, model: ctx.modelId, routeId: route.id, legacy: "none", enforce: "cooldown", seconds });
+    return;
+  }
+  await recordUpstreamCooldown(route.id, seconds);
 }
 
 // ------------------------------------------------------------ reserveBilling
@@ -370,6 +564,11 @@ export function invokeUpstream(ctx: InferenceContext, call: UpstreamCall): Promi
       ? { body: typeof call.body === "string" ? call.body : JSON.stringify(call.body) }
       : {}),
     ...(timeout ? { signal: AbortSignal.timeout(timeout) } : {}),
+  }).then((response) => {
+    if (response.status === 429) {
+      void noteUpstreamRateLimited(ctx, response.headers.get("retry-after")).catch(() => undefined);
+    }
+    return response;
   });
 }
 

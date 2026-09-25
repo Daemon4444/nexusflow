@@ -26,7 +26,8 @@ import {
   type RouteRow,
 } from "./scheduler";
 import { db } from "../db/client";
-import { controlPlaneMode } from "../config/feature-flags";
+import { controlPlaneMode, trafficMode } from "../config/feature-flags";
+import { coolingRoutes } from "../traffic/reservation";
 import { controlPlaneRuntime, type LoadedControlPlane } from "../control-plane/runtime";
 import { parseAndValidateOutboundUrl } from "./outbound-url-policy";
 import { getUpstreamModelId } from "../utils/upstream-model-aliases";
@@ -192,12 +193,20 @@ export async function resolveUpstream(
 export async function resolveUpstreamFromControlPlane(
   modelId: string,
   snapshot: LoadedControlPlane,
-  options: { region?: string; userId?: string | null } = {}
+  options: { region?: string; userId?: string | null; excludeProviders?: Set<string> } = {}
 ): Promise<ResolveUpstreamResult> {
-  const candidates = (snapshot.routesByModel.get(modelId) || []).filter((route) => {
+  let candidates = (snapshot.routesByModel.get(modelId) || []).filter((route) => {
     const account = snapshot.accounts.get(route.account_id);
+    if (options.excludeProviders?.has(account?.legacy_provider_id || route.account_id)) return false;
     return route.status === "active" && account?.status === "active";
   });
+  if (trafficMode() === "enforce" && candidates.length > 1) {
+    // Routes cooling down after an upstream 429 are skipped while any other
+    // candidate exists (state shared through Redis by every process).
+    const cooling = await coolingRoutes(candidates.map((route) => route.id));
+    const warm = candidates.filter((route) => !cooling.has(route.id));
+    if (warm.length) candidates = warm;
+  }
   if (candidates.length === 0) {
     return {
       ok: false,

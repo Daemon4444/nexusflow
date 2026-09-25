@@ -42,6 +42,8 @@ import {
   resolveModel,
   selectRoute,
   useApiKeyCaller,
+  capacityErrorType,
+  capacityHttpStatus,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -300,8 +302,8 @@ router.post("/speech", async (req: Request, res: Response) => {
     // 8. Call DashScope
     const capacityFailure = await reserveProviderCapacity(ctx, charCount);
     if (capacityFailure) {
-      res.status(503).json({
-        error: { message: capacityFailure.message, type: "server_error", code: capacityFailure.code },
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
+        error: { message: capacityFailure.message, type: capacityErrorType(capacityFailure, "server_error"), code: capacityFailure.code },
       });
       return;
     }
@@ -577,8 +579,8 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     // 7. Call DashScope
     const capacityFailure = await reserveProviderCapacity(ctx, QWEN3_ASR_MAX_SECONDS);
     if (capacityFailure) {
-      res.status(503).json({
-        error: { message: capacityFailure.message, type: "server_error", code: capacityFailure.code },
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
+        error: { message: capacityFailure.message, type: capacityErrorType(capacityFailure, "server_error"), code: capacityFailure.code },
       });
       return;
     }

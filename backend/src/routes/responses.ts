@@ -53,6 +53,8 @@ import {
   reserveTpm,
   resolveModel,
   selectRoute,
+  capacityErrorType,
+  capacityHttpStatus,
 } from "../pipeline/stages";
 
 /** 记录 response 归属（POST 成功后调用）。失败不影响主流程，但会导致该 response 后续不可检索（fail-closed）。 */
@@ -385,10 +387,10 @@ router.post("/", async (req: Request, res: Response) => {
   try {
     const capacityFailure = await reserveProviderCapacity(ctx, estimatedTokens);
     if (capacityFailure) {
-      res.status(503).json({
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
         error: {
           message: capacityFailure.message,
-          type: "server_error",
+          type: capacityErrorType(capacityFailure, "server_error"),
           code: capacityFailure.code,
         },
       });

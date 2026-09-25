@@ -46,6 +46,8 @@ import {
   reserveTpm,
   resolveModel,
   selectRoute,
+  capacityErrorType,
+  capacityHttpStatus,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -329,9 +331,9 @@ router.post("/", async (req: Request, res: Response) => {
   try {
   const capacityFailure = await reserveProviderCapacity(ctx, reservedMessageTokens);
   if (capacityFailure) {
-    res.status(503).json({
+    res.status(capacityHttpStatus(res, capacityFailure)).json({
       type: "error",
-      error: { type: "api_error", message: capacityFailure.message },
+      error: { type: capacityErrorType(capacityFailure, "api_error"), message: capacityFailure.message },
     });
     return;
   }

@@ -25,6 +25,7 @@ import { seedApiKeysIfNeeded } from "./data/apikeys";
 import { refreshModels, startModelRefreshLoop } from "./data/model-overrides";
 import { controlPlaneMode } from "./config/feature-flags";
 import { controlPlaneRuntime } from "./control-plane/runtime";
+import { startQueueWorker } from "./traffic/queue";
 import { ensureRoutingDefaults } from "./services/providers";
 import { startUploadCleanupLoop } from "./services/upload-lifecycle";
 
@@ -81,6 +82,9 @@ async function start() {
   }
   startModelRefreshLoop();
   startUploadCleanupLoop();
+  // Async queue (NF_TRAFFIC_MODE=enforce). Also runs in legacy/shadow, but
+  // then only expires queued tasks, so a flag rollback releases their holds.
+  startQueueWorker();
 
   app.listen(PORT, HOST, () => {
     console.log(`[Quadrant API] 服务已启动: http://${HOST}:${PORT}`);

@@ -21,6 +21,8 @@ import {
   reserveTpm,
   resolveModel,
   selectRoute,
+  capacityErrorType,
+  capacityHttpStatus,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -183,7 +185,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   try {
     const capacityFailure = await reserveProviderCapacity(ctx, estimatedTokens);
     if (capacityFailure) {
-      openAiError(res, 503, capacityFailure.message, capacityFailure.code, "server_error");
+      openAiError(res, capacityHttpStatus(res, capacityFailure), capacityFailure.message, capacityFailure.code, capacityErrorType(capacityFailure, "server_error"));
       return;
     }
 

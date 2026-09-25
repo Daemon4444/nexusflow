@@ -39,6 +39,8 @@ import {
   reserveQpm,
   resolveModel,
   selectRoute,
+  capacityErrorType,
+  capacityHttpStatus,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -152,7 +154,7 @@ router.post("/generate", async (req: Request, res: Response) => {
     const capacityFailure = await reserveProviderCapacity(ctx, 0);
     if (capacityFailure) {
       await releaseReservation(reservation.id, "provider_capacity_unavailable");
-      res.status(503).json({
+      res.status(capacityHttpStatus(res, capacityFailure)).json({
         success: false,
         message: capacityFailure.message,
         code: capacityFailure.code,

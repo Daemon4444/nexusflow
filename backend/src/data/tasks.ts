@@ -8,7 +8,7 @@ export interface AsyncTask {
   type: "image" | "video";
   model: string;
   provider: string;
-  status: "pending" | "running" | "succeeded" | "failed";
+  status: "queued" | "pending" | "running" | "succeeded" | "failed";
   input: any;
   output: any | null;
   upstream_task_id: string | null;
@@ -19,6 +19,9 @@ export interface AsyncTask {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  /** NF_TRAFFIC_MODE=enforce queue (migration 032). */
+  queued_at?: string | null;
+  queue_deadline_at?: string | null;
 }
 
 function parseRow(row: any): AsyncTask {
