@@ -55,6 +55,7 @@ import {
   selectRoute,
   capacityErrorType,
   capacityHttpStatus,
+  checkProtocol,
 } from "../pipeline/stages";
 
 /** 记录 response 归属（POST 成功后调用）。失败不影响主流程，但会导致该 response 后续不可检索（fail-closed）。 */
@@ -264,6 +265,14 @@ router.post("/", async (req: Request, res: Response) => {
         type: "invalid_request_error",
         code: "unsupported_model",
       },
+    });
+    return;
+  }
+
+  const protocolFailure = checkProtocol(ctx, "openai.responses");
+  if (protocolFailure) {
+    res.status(protocolFailure.status).json({
+      error: { message: protocolFailure.message, type: "invalid_request_error", code: "unsupported_protocol" },
     });
     return;
   }

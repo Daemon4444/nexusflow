@@ -7,6 +7,10 @@
  * - POST /v1/embeddings - Text embeddings
  */
 
+import { controlPlaneMode, paramMode } from "../config/feature-flags";
+import { controlPlaneRuntime } from "../control-plane/runtime";
+import { displaySupportedFor, publicCapabilities } from "../control-plane/capabilities";
+import { BILLING_GUARDED_PARAMS, guardedParamsRequested } from "../control-plane/params";
 import { Router, Request, Response } from "express";
 import { models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
@@ -51,6 +55,9 @@ import {
   selectRoute,
   capacityErrorType,
   capacityHttpStatus,
+  checkGuardedParams,
+  prepareChatParams,
+  checkProtocol,
 } from "../pipeline/stages";
 
 const router = Router();
@@ -229,20 +236,38 @@ router.get("/models", async (req: Request, res: Response) => {
   const visibleModels = allowed == null ? models : models.filter((m) => allowed.includes(m.id));
   const availability = await getModelAvailabilityMap(visibleModels.map((model) => model.id));
 
-  const data = visibleModels.map((m) => ({
-    id: m.id,
-    object: "model",
-    created: Math.floor(new Date("2025-01-01").getTime() / 1000),
-    owned_by: m.provider,
-    permission: [],
-    root: m.id,
-    parent: null,
-    supported_protocols: getSupportedProtocols(m),
-    capabilities: getModelCapabilities(m),
-    allowed_parameters: getAllowedChatParameters(m),
-    availability: availability.get(m.id)?.status || "temporarily_unavailable",
-    availability_reason: availability.has(m.id) ? availability.get(m.id)!.reason : "no_active_route",
-  }));
+  // NF_CP_MODE=enforce: capabilities and protocols come from the published
+  // version, structured (the legacy flag object stays as capability_flags).
+  const snapshot = controlPlaneMode() === "enforce" ? controlPlaneRuntime.get() : null;
+  const data = visibleModels.map((m) => {
+    const cp = snapshot?.models.get(m.id);
+    const base = {
+      id: m.id,
+      object: "model",
+      created: Math.floor(new Date("2025-01-01").getTime() / 1000),
+      owned_by: m.provider,
+      permission: [],
+      root: m.id,
+      parent: null,
+      supported_protocols: getSupportedProtocols(m),
+      capabilities: getModelCapabilities(m) as unknown,
+      allowed_parameters: getAllowedChatParameters(m),
+      availability: availability.get(m.id)?.status || "temporarily_unavailable",
+      availability_reason: availability.has(m.id) ? availability.get(m.id)!.reason : "no_active_route",
+    };
+    if (!cp) return base;
+    return {
+      ...base,
+      protocols: cp.protocols,
+      capabilities: publicCapabilities(cp),
+      capability_flags: base.capabilities,
+      capability_labels: displaySupportedFor(cp),
+      ...(paramMode() === "enforce"
+        ? { parameter_policy: { mode: "passthrough", billing_guarded: guardedParamsRequested(Object.fromEntries(BILLING_GUARDED_PARAMS.map((p) => [p.name, true])), cp.param_overrides?.allow_guarded || []) } }
+        : {}),
+      ...(cp.lifecycle === "deprecated" ? { deprecation: { date: cp.deprecation_date ?? null, replacement: cp.replacement_model_id ?? null } } : {}),
+    };
+  });
 
   res.json({ object: "list", data });
 });
@@ -663,6 +688,14 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     return;
   }
 
+  const protocolFailure = checkProtocol(ctx, "openai.chat");
+  if (protocolFailure) {
+    res.status(protocolFailure.status).json({
+      error: { message: protocolFailure.message, type: "invalid_request_error", code: "unsupported_protocol" },
+    });
+    return;
+  }
+
   if (modelId.startsWith("claude-")) {
     res.status(400).json({
       error: {
@@ -706,6 +739,12 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         code: "model_not_allowed",
       },
     });
+    return;
+  }
+
+  const paramFailure = checkGuardedParams(ctx, req.body);
+  if (paramFailure) {
+    res.status(paramFailure.status).json({ error: paramFailure.error });
     return;
   }
 
@@ -759,7 +798,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   const wantsAudioOutput = Array.isArray(modalities) && modalities.includes("audio");
   const effectiveStream = stream || wantsAudioOutput;
   const requiresUpstreamStream = modelId === "qwq-plus" && !stream;
-  const requestBody = buildUpstreamChatRequest(
+  const legacyRequestBody = buildUpstreamChatRequest(
     model,
     {
       model: modelId,
@@ -792,6 +831,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     },
     { forceStream: requiresUpstreamStream }
   );
+  const requestBody = prepareChatParams(ctx, req.body, legacyRequestBody);
   const explicitCache = isExplicitCacheRequested(messages, req.body);
 
   const startTime = Date.now();

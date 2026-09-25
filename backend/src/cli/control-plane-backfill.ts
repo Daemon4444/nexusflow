@@ -182,6 +182,12 @@ export function renderBackfillMarkdown(run: BackfillRun, meta: { source: string;
   const diffs = [...comparison.modelDiffs, ...comparison.routeDiffs];
   if (diffs.length === 0) lines.push("零差异：模型目录、价格和启用路由完全一致（已跳过的孤儿路由除外）。");
   for (const diff of diffs) lines.push(`- \`${diff.kind}\` ${diff.modelId}：${diff.detail}`);
+  const capabilityIssues = validation.warnings.filter((issue) => issue.check === "display_capabilities");
+  if (capabilityIssues.length) {
+    lines.push("", "## 能力宣告 vs 结构化能力（展示串将由结构化能力生成）", "");
+    lines.push("结构化能力由 `model-capabilities.ts` 的现有推导生成；下列模型的展示串与之不一致（对应 P1a 规则 5），发布前需人工确认以哪边为准。", "");
+    for (const issue of capabilityIssues) lines.push(`- ${issue.id}：${issue.message}`);
+  }
   if (report.skippedOrphanRoutes.length) {
     lines.push("", "## 跳过的孤儿路由", "");
     for (const row of report.skippedOrphanRoutes) lines.push(`- ${row.provider_id} / ${row.model_id}：${row.reason}`);

@@ -37,7 +37,10 @@ import { getProviderAuthHeaders } from "../services/providers";
 import { getProviderChannel } from "../data/provider-channels";
 import { logToSLS } from "../services/sls";
 import { resolveUpstreamAdapter } from "./adapters";
-import { controlPlaneMode, trafficMode } from "../config/feature-flags";
+import { controlPlaneMode, paramMode, protocolMode, trafficMode } from "../config/feature-flags";
+import { droppedParamNames, guardedParamsRequested, passthroughChatRequest } from "../control-plane/params";
+import { cpModelFromAIModel } from "../control-plane/mapping";
+import { CHAT_PROTOCOLS, type CpModel, type CpProtocol } from "../control-plane/schema";
 import { recordShadowDiff, runShadow } from "../services/shadow";
 import { controlPlaneRuntime, isModelServable, type LoadedControlPlane } from "../control-plane/runtime";
 import { controlPlaneCandidates, diffModel, diffRoute } from "../control-plane/shadow-compare";
@@ -627,4 +630,103 @@ export async function release(
   const lease = ctx.providerLease;
   ctx.providerLease = null;
   await releaseProviderCapacity(lease, ctx.actualProviderTokens);
+}
+
+// ------------------------------------------------------------ chat params
+
+export type ParamFailure = {
+  status: 400;
+  error: { message: string; type: "invalid_request_error"; code: "unsupported_parameter"; param: string };
+};
+
+function cpModelFor(ctx: InferenceContext): CpModel {
+  const snapshot = controlPlaneRuntime.get();
+  return snapshot?.models.get(ctx.modelId) || cpModelFromAIModel(ctx.requireModel());
+}
+
+/**
+ * NF_PARAM_MODE=enforce (D2): billing_guarded parameters the model's
+ * billing cannot price are rejected with 400 unsupported_parameter. Runs
+ * before any quota or billing reservation.
+ */
+export function checkGuardedParams(ctx: InferenceContext, body: Record<string, unknown>): ParamFailure | null {
+  if (paramMode() !== "enforce") return null;
+  const cp = cpModelFor(ctx);
+  const guarded = guardedParamsRequested(body, cp.param_overrides?.allow_guarded || []);
+  if (!guarded.length) return null;
+  return {
+    status: 400,
+    error: {
+      message: `Parameter '${guarded[0]}' is not supported for model '${ctx.modelId}': it changes cost or resource usage that the platform cannot bill yet.`,
+      type: "invalid_request_error",
+      code: "unsupported_parameter",
+      param: guarded[0],
+    },
+  };
+}
+
+/**
+ * NF_PARAM_MODE (D2). legacy: the legacy allow-list request. shadow: the
+ * same request; only the *names* of parameters legacy dropped, and of
+ * guarded parameters enforce would reject, are logged. enforce: every
+ * client parameter is passed through (guarded ones were rejected earlier
+ * by checkGuardedParams), then the model's rewrite/fixed overrides apply.
+ */
+export function prepareChatParams(
+  ctx: InferenceContext,
+  body: Record<string, unknown>,
+  legacyRequest: Record<string, unknown>
+): Record<string, unknown> {
+  const mode = paramMode();
+  if (mode === "legacy") return legacyRequest;
+  const cp = cpModelFor(ctx);
+  if (mode === "shadow") {
+    const dropped = droppedParamNames(body, legacyRequest);
+    const guarded = guardedParamsRequested(body, cp.param_overrides?.allow_guarded || []);
+    if (dropped.length || guarded.length) {
+      recordShadowDiff("params", {
+        route: ctx.route,
+        model: ctx.modelId,
+        userId: ctx.caller?.userId ?? null,
+        apiKeyId: ctx.caller?.apiKeyId ?? null,
+        dropped,
+        wouldReject: guarded,
+      });
+    }
+    return legacyRequest;
+  }
+  return passthroughChatRequest(body, legacyRequest, cp.param_overrides);
+}
+
+// ---------------------------------------------------------------- protocol
+
+export type ProtocolFailure = { status: 400; message: string; available: CpProtocol[] };
+
+/**
+ * NF_PROTOCOL_MODE=enforce (D6): a model is only served on the chat
+ * protocols its routes support natively (cp `protocols`). Without a
+ * loaded control-plane version this stays legacy (logged).
+ */
+export function checkProtocol(ctx: InferenceContext, protocol: CpProtocol): ProtocolFailure | null {
+  if (protocolMode() !== "enforce") return null;
+  const snapshot = controlPlaneRuntime.get();
+  const cp = snapshot?.models.get(ctx.modelId);
+  if (!cp) {
+    logToSLS({ status: "warning", model: ctx.modelId, errorCode: "protocol_enforce_without_version", errorReason: protocol });
+    return null;
+  }
+  if (cp.protocols.includes(protocol)) return null;
+  const available = cp.protocols.filter((item) => CHAT_PROTOCOLS.has(item));
+  return {
+    status: 400,
+    available,
+    message: `Model '${ctx.modelId}' does not support the ${protocol} protocol. Available protocols: ${available.join(", ") || "none"}.`,
+  };
+}
+
+/** Whether /v1/messages would forward natively (vs. the legacy protocol bridge). */
+export function anthropicPassThrough(upstream: ResolvedUpstream, model: AIModel): boolean {
+  return upstream.providerId === "anthropic"
+    || model.anthropicPassThrough === true
+    || (!!upstream.anthropicCompatBaseUrl && model.anthropicPassThrough !== false);
 }

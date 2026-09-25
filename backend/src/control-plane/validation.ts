@@ -3,6 +3,7 @@
  * A version with any error cannot be published; warnings are shown but do
  * not block.
  */
+import { displayCapabilityMismatches } from "./capabilities";
 import {
   CHAT_PROTOCOLS,
   controlPlaneContentSchema,
@@ -12,6 +13,7 @@ import {
 import { BILLING_GUARDED_NAMES, guardedParamBillingSupported } from "./params";
 
 export type ValidationCheck =
+  | "display_capabilities"
   | "schema"
   | "unique_ids"
   | "model_has_active_route"
@@ -149,6 +151,14 @@ export function validateContent(input: unknown): ValidationResult {
       } else if (!guardedParamBillingSupported(model, param)) {
         errors.push({ check: "guarded_params_billable", entity: "model", id: model.id, message: `billing cannot reserve and settle ${param} for this model` });
       }
+    }
+  }
+
+  // Display labels generated from capabilities (P5): drift is a warning.
+  for (const model of content.models) {
+    const mismatches = displayCapabilityMismatches(model);
+    if (mismatches.length) {
+      warnings.push({ check: "display_capabilities", entity: "model", id: model.id, message: mismatches.join("; ") });
     }
   }
 

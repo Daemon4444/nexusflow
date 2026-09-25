@@ -308,6 +308,25 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
 - shadow：旧决策照常执行，另做 dry-run，把“新规则会换路由/拒绝(429)/排队/冷却”记为 `shadow_diff`（area
   `traffic`）。
 
+参数、能力、协议（P5）：
+
+- `NF_PARAM_MODE`（D2，`/v1/chat/completions`）：legacy 按旧白名单拼请求；shadow 仍按旧请求发，但把“旧逻辑丢弃的
+  参数名”和“enforce 会拒绝的 billing_guarded 参数名”记 `shadow_diff`（area `params`，**只记参数名，不记值**），
+  `scripts/analyze-dropped-params.mjs <SLS 导出>` 按客户汇总（只给人跑，`usage_logs` 不含参数名）；enforce 透传全部
+  客户参数，`billing_guarded`（`n`、`enable_search`、`search_options`、`plugins`、`file_ids`、`batch`，见
+  `control-plane/params.ts`）在任何预占之前返回 400 `unsupported_parameter`（模型计费能处理时才可经
+  `param_overrides.allow_guarded` 放行，目前没有模型满足）。平台必须改写/固定的参数由 `param_overrides.rewrite/fixed`
+  决定（如 `gpt-6-astra` 的 `max_tokens→max_completion_tokens`）；流式时 `stream_options.include_usage=true` 永远固定。
+- 能力：`cp_models.capabilities` 结构化；`/v1/models` 在 `NF_CP_MODE=enforce` 时输出结构化 `capabilities`、
+  `protocols`、`capability_labels`（旧的标志对象保留为 `capability_flags`），参数 enforce 时附 `parameter_policy`。
+  展示用中文能力串由 `control-plane/capabilities.ts` 从结构化能力生成（“前缀续写”等无结构化来源的保留为编辑项）；
+  不一致只作发布告警 `display_capabilities`，回填报告列出了 32 个现存不一致的模型。
+- 探测：`src/cli/route-probe.ts`（`--dry-run` 只列计划，`--write` 写 `cp_route_probe_results`）对每条 active 路由按
+  声明的协议 × 能力（文本、工具调用、图片输入、思考开/关）各发一个最小请求，和声明不符就通知并以 2 退出。只给人跑。
+- 协议（D6）：`NF_PROTOCOL_MODE=enforce` 时模型只开放 cp `protocols`（每条 active 路由原生支持）里的对话协议，
+  其他返回 400 `unsupported_protocol` 并列出可用协议；`/v1/messages` 的协议转换分支不再进入。
+  `anthropic-openai-bridge.ts` 暂不删除，列入 contract 清单。
+
 ## 9. 账号、权限与账本不变量
 
 ### 9.1 身份
