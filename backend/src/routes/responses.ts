@@ -10,20 +10,14 @@
 
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { getReservedOutputTokens, models } from "../data/models";
+import { getReservedOutputTokens } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUpstreamFailure, logUsage } from "../data/usage";
-import { releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
+import { settleReservation } from "../data/billing";
 import { sendBillingReservationFailure } from "../utils/billing-response";
 import { calculateDiscountedTokenCost } from "../data/user-discounts";
-import { checkConsumerLimitsAsync } from "../services/rate-limiter";
 import { setRateLimitHeaders } from "../utils/rate-limit-headers";
-import {
-  reconcileAccountTpm,
-  reserveAccountQpm,
-  reserveAccountTpm,
-} from "../services/account-rate-limiter";
-import { isModelAllowed } from "../data/model-access";
+import { reconcileAccountTpm } from "../services/account-rate-limiter";
 import {
   getRequestedRegion,
   resolveUpstream,
@@ -48,6 +42,22 @@ import {
   rewriteUpstreamModelAliasText,
 } from "../utils/upstream-model-aliases";
 import { getProviderAuthHeaders } from "../services/providers";
+import { InferenceContext } from "../pipeline/context";
+import { roughTokenCount } from "../pipeline/estimates";
+import {
+  authenticateApiKey,
+  bearerToken,
+  checkConsumer,
+  checkModelAccess,
+  invokeUpstream,
+  release,
+  reserveBilling,
+  reserveProviderCapacity,
+  reserveQpm,
+  reserveTpm,
+  resolveModel,
+  selectRoute,
+} from "../pipeline/stages";
 
 /** 记录 response 归属（POST 成功后调用）。失败不影响主流程，但会导致该 response 后续不可检索（fail-closed）。 */
 async function recordResponseOwnership(responseId: string | null | undefined, userId: string | null): Promise<void> {
@@ -94,7 +104,6 @@ function extractResponseIdFromStream(fullResponse: string): string | null {
 }
 
 const router = Router();
-const UPSTREAM_TIMEOUT = 600000;
 
 // Built-in tools can create material non-token upstream charges. Keep the safe
 // local function tool enabled by default and require an explicit production
@@ -106,20 +115,6 @@ const ALLOWED_RESPONSE_TOOL_TYPES = new Set(
     .filter(Boolean)
 );
 const MAX_RESPONSE_TOOLS = 32;
-
-function extractToken(req: Request): string | null {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Bearer ")) return null;
-  return auth.slice(7).trim();
-}
-
-function roughTokenCount(value: unknown): number {
-  if (value === undefined || value === null) return 0;
-  if (typeof value === "string") return Math.ceil(value.length / 2);
-  if (Array.isArray(value)) return value.reduce((sum, item) => sum + roughTokenCount(item), 0);
-  if (typeof value === "object") return Math.ceil(JSON.stringify(value).length / 2);
-  return Math.ceil(String(value).length / 2);
-}
 
 function resolveModelFromBody(body: any): string | null {
   return body?.model || null;
@@ -215,9 +210,8 @@ async function proxyResponseControlRequest(params: {
 
 // POST /responses — Create a response (proxy to upstream)
 router.post("/", async (req: Request, res: Response) => {
-  const token = extractToken(req);
-  const apiKeyRecord = token ? await validateApiKey(token) : null;
-  if (!apiKeyRecord) {
+  const ctx = new InferenceContext("v1.responses", req, res);
+  if (!(await authenticateApiKey(ctx, bearerToken(req)))) {
     res.status(401).json({
       error: {
         message: "Invalid API key provided.",
@@ -227,6 +221,7 @@ router.post("/", async (req: Request, res: Response) => {
     });
     return;
   }
+  const apiKeyRecord = ctx.requireCaller().apiKey!;
 
   const modelId = resolveModelFromBody(req.body);
   if (!modelId) {
@@ -240,7 +235,7 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const model = models.find((m) => m.id === modelId);
+  const model = resolveModel(ctx, modelId) ? ctx.requireModel() : null;
   if (!model) {
     res.status(404).json({
       error: {
@@ -275,15 +270,12 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
 
-  const resolvedUpstream = await resolveUpstream(modelId, {
-    region: getRequestedRegion(req),
-    userId: apiKeyRecord.user_id,
-  });
-  if (!resolvedUpstream.ok) {
-    res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
+  const routeFailure = await selectRoute(ctx);
+  if (routeFailure) {
+    res.status(routeFailure.status).json({ error: upstreamErrorBody(routeFailure) });
     return;
   }
-  const upstream = resolvedUpstream.upstream;
+  const upstream = ctx.requireUpstream();
 
   if (!apiKeyRecord.user_id) {
     res.status(403).json({
@@ -326,7 +318,7 @@ router.post("/", async (req: Request, res: Response) => {
   const estimatedInputTokens = Math.max(1, roughTokenCount(req.body.input) + roughTokenCount(req.body.tools));
   const estimatedOutputTokens = getReservedOutputTokens(model, req.body.max_output_tokens);
   const estimatedTokens = estimatedInputTokens + estimatedOutputTokens;
-  if (!isModelAllowed(apiKeyRecord.parent_user_id, apiKeyRecord.allowed_models, modelId)) {
+  if (!checkModelAccess(ctx)) {
     res.status(403).json({
       error: {
         message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`,
@@ -336,45 +328,36 @@ router.post("/", async (req: Request, res: Response) => {
     });
     return;
   }
-  const rpmCheck = await reserveAccountQpm({
-    userId: apiKeyRecord.user_id,
-    parentUserId: apiKeyRecord.parent_user_id,
-    modelId,
-  });
-  if (!rpmCheck.allowed) {
-    setRateLimitHeaders(res, { scope: "account_model_qpm", limit: rpmCheck.limit, remaining: 0, resetMs: rpmCheck.resetMs, rejected: true });
+  const qpmFailure = await reserveQpm(ctx);
+  if (qpmFailure) {
+    setRateLimitHeaders(res, { scope: "account_model_qpm", limit: qpmFailure.limit, remaining: 0, resetMs: qpmFailure.resetMs, rejected: true });
     res.status(429).json({
       error: {
-        message: `Model-level QPM limit exceeded: ${rpmCheck.limit} requests/min for '${modelId}'.`,
+        message: `Model-level QPM limit exceeded: ${qpmFailure.limit} requests/min for '${modelId}'.`,
         type: "rate_limit_error",
         code: "rate_limit_exceeded",
       },
     });
     return;
   }
-  const tpmCheck = await reserveAccountTpm({
-    userId: apiKeyRecord.user_id,
-    parentUserId: apiKeyRecord.parent_user_id,
-    modelId,
-    estimatedTokens,
-  });
-  if (!tpmCheck.allowed) {
-    setRateLimitHeaders(res, { scope: "account_model_tpm", limit: tpmCheck.limit, remaining: tpmCheck.remaining ?? 0, rejected: true });
+  const tpmFailure = await reserveTpm(ctx, estimatedTokens);
+  if (tpmFailure) {
+    setRateLimitHeaders(res, { scope: "account_model_tpm", limit: tpmFailure.limit, remaining: tpmFailure.remaining ?? 0, rejected: true });
     res.status(429).json({
       error: {
-        message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmCheck.remaining} tokens.`,
+        message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmFailure.remaining} tokens.`,
         type: "rate_limit_error",
         code: "rate_limit_exceeded",
       },
     });
     return;
   }
-  const rateCheck = await checkConsumerLimitsAsync(apiKeyRecord.id, apiKeyRecord.rate_limit_override);
-  if (!rateCheck.allowed) {
-    setRateLimitHeaders(res, { ...rateCheck, rejected: true });
+  const consumerFailure = await checkConsumer(ctx);
+  if (consumerFailure) {
+    setRateLimitHeaders(res, { ...consumerFailure.check, rejected: true });
     res.status(429).json({
       error: {
-        message: rateCheck.reason,
+        message: consumerFailure.check.reason,
         type: "rate_limit_error",
         code: "rate_limit_exceeded",
       },
@@ -389,60 +372,46 @@ router.post("/", async (req: Request, res: Response) => {
     estimatedInputTokens,
     estimatedOutputTokens
   )).finalAmount;
-  const billingReservationResult = await reserveBalanceWithReason(
-    apiKeyRecord.user_id,
-    estimatedCost,
-    `responses:${randomUUID()}`
-  );
-  if (!billingReservationResult.reservation) {
-    sendBillingReservationFailure(res, billingReservationResult.reason);
+  const billingFailure = await reserveBilling(ctx, estimatedCost, "responses");
+  if (billingFailure) {
+    sendBillingReservationFailure(res, billingFailure);
     return;
   }
-  const billingReservation = billingReservationResult.reservation;
+  const billingReservation = ctx.billingReservation!;
 
   const startTime = Date.now();
-  const logId = randomUUID();
+  const logId = ctx.logId;
   const isStream = req.body.stream === true;
+  const rateCheck = { remaining: ctx.consumerRemaining };
 
   // 预占的 TPM 必须在所有出口恰好归还一次；billAndLog 内 reconcile 后置 true，
-  // 上游错误/异常路径由 finally 兜底释放。
-  let tokensReconciled = false;
-  let billableResponseReceived = false;
-  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
-  let actualProviderTokens = 0;
-
+  // 上游错误/异常路径由 release（finally）兜底释放。
   try {
-    const capacity = await acquireProviderCapacity(upstream, modelId, estimatedTokens);
-    if (!capacity.ok) {
+    const capacityFailure = await reserveProviderCapacity(ctx, estimatedTokens);
+    if (capacityFailure) {
       res.status(503).json({
         error: {
-          message: capacity.message,
+          message: capacityFailure.message,
           type: "server_error",
-          code: capacity.code,
+          code: capacityFailure.code,
         },
       });
       return;
     }
-    providerCapacityLease = capacity.lease;
 
-    const upstreamUrl = `${upstream.baseUrl}/responses`;
-    const upstreamHeaders: Record<string, string> = {
-      ...getProviderAuthHeaders(upstream.providerId, upstream.apiKey),
-      "Content-Type": "application/json",
-    };
+    const upstreamHeaders: Record<string, string> = {};
     const sessionCache = req.headers["x-dashscope-session-cache"];
     if (sessionCache && upstream.providerId === "dashscope") {
       upstreamHeaders["x-dashscope-session-cache"] = String(sessionCache);
     }
 
-    const response = await safeProviderFetch(upstreamUrl, {
-      method: "POST",
+    const response = await invokeUpstream(ctx, {
+      path: "/responses",
       headers: upstreamHeaders,
-      body: JSON.stringify({
+      body: {
         ...req.body,
         model: getUpstreamModelId(modelId, upstream.providerId),
-      }),
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT),
+      },
     });
 
     if (!response.ok) {
@@ -473,7 +442,7 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
-    billableResponseReceived = true;
+    ctx.billableResponseReceived = true;
 
     if (isStream) {
       // Stream SSE directly to client
@@ -522,11 +491,11 @@ router.post("/", async (req: Request, res: Response) => {
         billableUsage = { input_tokens: est.prompt_tokens, output_tokens: est.completion_tokens, total_tokens: est.total_tokens };
         estimated = true;
       }
-      actualProviderTokens = await billAndLog(billableUsage, {
+      ctx.actualProviderTokens = await billAndLog(billableUsage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated,
         requestBody: req.body,
         responseBody: fullResponse,
-        onReconciled: () => { tokensReconciled = true; },
+        onReconciled: () => { ctx.tokensReconciled = true; },
       });
     } else {
       // Non-streaming: parse response and return
@@ -539,11 +508,11 @@ router.post("/", async (req: Request, res: Response) => {
       await recordResponseOwnership(data?.id, apiKeyRecord.user_id);
       // Bill based on response usage
       const usage = data?.usage || {};
-      actualProviderTokens = await billAndLog(usage, {
+      ctx.actualProviderTokens = await billAndLog(usage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated: false,
         requestBody: req.body,
         responseBody: data,
-        onReconciled: () => { tokensReconciled = true; },
+        onReconciled: () => { ctx.tokensReconciled = true; },
       });
     }
   } catch (err: any) {
@@ -581,25 +550,13 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
   } finally {
-    if (!billableResponseReceived) await releaseReservation(billingReservation.id);
-    if (!tokensReconciled) {
-      try {
-        await reconcileAccountTpm({
-          userId: apiKeyRecord.user_id,
-          parentUserId: apiKeyRecord.parent_user_id,
-          modelId,
-          reservedTokens: estimatedTokens,
-          actualTokens: 0,
-        });
-      } catch { /* 归还失败仅影响 60s 窗口，不阻断 */ }
-    }
-    await releaseProviderCapacity(providerCapacityLease, actualProviderTokens);
+    await release(ctx);
   }
 });
 
 // GET /responses/:id — Retrieve a response
 router.get("/:id", async (req: Request, res: Response) => {
-  const token = extractToken(req);
+  const token = bearerToken(req);
   const apiKeyRecord = token ? await validateApiKey(token) : null;
   if (!apiKeyRecord) {
     res.status(401).json({
@@ -634,7 +591,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 // DELETE /responses/:id — Delete a response
 router.delete("/:id", async (req: Request, res: Response) => {
-  const token = extractToken(req);
+  const token = bearerToken(req);
   const apiKeyRecord = token ? await validateApiKey(token) : null;
   if (!apiKeyRecord) {
     res.status(401).json({
@@ -687,7 +644,7 @@ export function buildResponseInputItemsUrl(
 }
 
 router.get("/:id/input_items", async (req: Request, res: Response) => {
-  const token = extractToken(req);
+  const token = bearerToken(req);
   const apiKeyRecord = token ? await validateApiKey(token) : null;
   if (!apiKeyRecord) {
     res.status(401).json({

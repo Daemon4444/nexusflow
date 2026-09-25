@@ -4603,5 +4603,889 @@
   "unusedUpstreamReplies": 0,
   "upstreamCalls": [],
   "usageLogs": []
+ },
+ "video.status.poll_succeeded": {
+  "asyncTasks": [
+   {
+    "api_key_id": "<api_key_id>",
+    "billing_reservation_id": "<uuid>",
+    "completed_at": "<date>",
+    "cost": 3,
+    "created_at": "<date>",
+    "error_message": null,
+    "id": "<id>",
+    "input": "{\"prompt\":\"a cat\",\"duration\":5,\"size\":\"1280*720\",\"_route\":{\"channelId\":null,\"region\":\"cn-beijing\",\"nativeBaseUrl\":\"https://dashscope.aliyuncs.com\",\"managed\":true,\"rpm\":1000,\"tpm\":0,\"dailyLimit\":100000,\"concurrentLimit\":10}}",
+    "model": "wan2.7-t2v",
+    "output": "{\"type\":\"video\",\"video_url\":\"https://dashscope-result.oss-cn-beijing.aliyuncs.com/v.mp4\",\"usage\":{\"duration\":5,\"video_count\":1}}",
+    "progress": 100,
+    "provider": "dashscope",
+    "status": "succeeded",
+    "type": "video",
+    "updated_at": "<date>",
+    "upstream_task_id": "<upstream_task_id>",
+    "user_id": "<user_id>"
+   }
+  ],
+  "balanceDelta": -3,
+  "providerHealth": [
+   {
+    "consecutive_failures": 0,
+    "model_id": "wan2.7-t2v",
+    "provider_id": "dashscope",
+    "status": "healthy"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 3,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "视频生成: wan2.7-t2v",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 3,
+    "settled_at": "<date>",
+    "status": "settled",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": {
+     "data": {
+      "task_id": "<task_id>",
+      "task_status": "PENDING",
+      "upstream_task_id": "<upstream_task_id>"
+     },
+     "success": true
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 200
+   },
+   {
+    "body": {
+     "data": {
+      "progress": 100,
+      "status": "successful",
+      "task_id": "<task_id>",
+      "video_url": "https://dashscope-result.oss-cn-beijing.aliyuncs.com/v.mp4"
+     },
+     "success": true
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [
+   {
+    "actor_user_id": "<actor_user_id>",
+    "amount": 3,
+    "balance_after": 97,
+    "created_at": "<date>",
+    "credit_after": 0,
+    "credit_amount": 0,
+    "description": "视频生成: wan2.7-t2v",
+    "discount_amount_cny": null,
+    "discount_rate": null,
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "type": "consumption",
+    "user_id": "<user_id>"
+   }
+  ],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": {
+      "prompt": "a cat"
+     },
+     "model": "wan2.7-t2v",
+     "parameters": {
+      "duration": 5,
+      "prompt_extend": true,
+      "size": "1280*720"
+     }
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json",
+     "x-dashscope-async": "enable"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis"
+   },
+   {
+    "body": null,
+    "headers": {
+     "authorization": "<secret:236b6cbd>"
+    },
+    "method": "GET",
+    "url": "https://dashscope.aliyuncs.com/api/v1/tasks/<task>"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 3,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": null,
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "wan2.7-t2v",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "async-video",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "missing_version",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "success",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "tasks.poll.succeeded": {
+  "asyncTasks": [
+   {
+    "api_key_id": "<api_key_id>",
+    "billing_reservation_id": "<uuid>",
+    "completed_at": "<date>",
+    "cost": 3,
+    "created_at": "<date>",
+    "error_message": null,
+    "id": "<id>",
+    "input": "{\"input\":{\"prompt\":\"a cat\"},\"parameters\":{\"duration\":5,\"size\":\"1280*720\"},\"size\":\"1280*720\",\"_route\":{\"channelId\":null,\"region\":\"cn-beijing\",\"nativeBaseUrl\":\"https://dashscope.aliyuncs.com\",\"managed\":true,\"rpm\":1000,\"tpm\":0,\"dailyLimit\":100000,\"concurrentLimit\":10}}",
+    "model": "wan2.7-t2v",
+    "output": "{\"type\":\"video\",\"video_url\":\"https://dashscope-result.oss-cn-beijing.aliyuncs.com/t.mp4\",\"usage\":{\"duration\":5,\"video_count\":1}}",
+    "progress": 100,
+    "provider": "dashscope",
+    "status": "succeeded",
+    "type": "video",
+    "updated_at": "<date>",
+    "upstream_task_id": "<upstream_task_id>",
+    "user_id": "<user_id>"
+   }
+  ],
+  "balanceDelta": -3,
+  "providerHealth": [
+   {
+    "consecutive_failures": 0,
+    "model_id": "wan2.7-t2v",
+    "provider_id": "dashscope",
+    "status": "healthy"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 3,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "视频生成: wan2.7-t2v",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 3,
+    "settled_at": "<date>",
+    "status": "settled",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": {
+     "created_at": "<created_at>",
+     "id": "<id>",
+     "model": "wan2.7-t2v",
+     "object": "task",
+     "status": "running",
+     "type": "video"
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 202
+   },
+   {
+    "body": {
+     "completed_at": "<completed_at>",
+     "created_at": "<created_at>",
+     "error": null,
+     "id": "<id>",
+     "model": "wan2.7-t2v",
+     "object": "task",
+     "output": {
+      "type": "video",
+      "usage": {
+       "duration": 5,
+       "video_count": 1
+      },
+      "video_url": "https://dashscope-result.oss-cn-beijing.aliyuncs.com/t.mp4"
+     },
+     "progress": 100,
+     "status": "succeeded",
+     "type": "video"
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [
+   {
+    "actor_user_id": "<actor_user_id>",
+    "amount": 3,
+    "balance_after": 97,
+    "created_at": "<date>",
+    "credit_after": 0,
+    "credit_amount": 0,
+    "description": "视频生成: wan2.7-t2v",
+    "discount_amount_cny": null,
+    "discount_rate": null,
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "type": "consumption",
+    "user_id": "<user_id>"
+   }
+  ],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": {},
+     "model": "wan2.7-t2v",
+     "parameters": {
+      "size": "1280*720"
+     }
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json",
+     "x-dashscope-async": "enable"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis"
+   },
+   {
+    "body": null,
+    "headers": {
+     "authorization": "<secret:236b6cbd>"
+    },
+    "method": "GET",
+    "url": "https://dashscope.aliyuncs.com/api/v1/tasks/<task>"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 3,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": null,
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "wan2.7-t2v",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "async-video",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "missing_version",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "success",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "video.seedance.generate.ark": {
+  "asyncTasks": [
+   {
+    "api_key_id": "<api_key_id>",
+    "billing_reservation_id": "<uuid>",
+    "completed_at": null,
+    "cost": 0,
+    "created_at": "<date>",
+    "error_message": null,
+    "id": "<id>",
+    "input": "{\"prompt\":\"a cat\",\"duration\":5,\"resolution\":\"720p\",\"ratio\":\"16:9\",\"_route\":{\"channelId\":null,\"region\":\"global\",\"nativeBaseUrl\":\"https://ark.cn-beijing.volces.com/api/v3\",\"managed\":true,\"rpm\":1000,\"tpm\":0,\"dailyLimit\":100000,\"concurrentLimit\":10}}",
+    "model": "seedance-2.0-fast",
+    "output": null,
+    "progress": 0,
+    "provider": "volcengine-ark",
+    "status": "running",
+    "type": "video",
+    "updated_at": "<date>",
+    "upstream_task_id": "<upstream_task_id>",
+    "user_id": "<user_id>"
+   }
+  ],
+  "balanceDelta": 0,
+  "providerHealth": [
+   {
+    "consecutive_failures": 0,
+    "model_id": "seedance-2.0-fast",
+    "provider_id": "volcengine-ark",
+    "status": "healthy"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": null,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": null,
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 4,
+    "settled_at": null,
+    "status": "active",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": {
+     "data": {
+      "task_id": "<task_id>",
+      "upstream_task_id": "<upstream_task_id>"
+     },
+     "success": true
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "content": [
+      {
+       "text": "a cat",
+       "type": "text"
+      }
+     ],
+     "duration": 5,
+     "generate_audio": true,
+     "model": "seedance2.0-fast-uaep1",
+     "ratio": "16:9",
+     "resolution": "720p"
+    },
+    "headers": {
+     "authorization": "<secret:2c12f617>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks"
+   }
+  ],
+  "usageLogs": []
+ },
+ "audio.transcriptions.success": {
+  "asyncTasks": [],
+  "balanceDelta": -0.00066,
+  "providerHealth": [
+   {
+    "consecutive_failures": 0,
+    "model_id": "qwen3-asr-flash",
+    "provider_id": "dashscope",
+    "status": "healthy"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 0.00066,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "ASR: qwen3-asr-flash (3s)",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.066,
+    "settled_at": "<date>",
+    "status": "settled",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": {
+     "text": "你好"
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [
+   {
+    "actor_user_id": "<actor_user_id>",
+    "amount": 0.00066,
+    "balance_after": 99.99934,
+    "created_at": "<date>",
+    "credit_after": 0,
+    "credit_amount": 0,
+    "description": "ASR: qwen3-asr-flash (3s)",
+    "discount_amount_cny": null,
+    "discount_rate": null,
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "type": "consumption",
+    "user_id": "<user_id>"
+   }
+  ],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": {
+      "messages": [
+       {
+        "content": [
+         {
+          "audio": "https://example.com/a.wav"
+         }
+        ],
+        "role": "user"
+       }
+      ]
+     },
+     "model": "qwen3-asr-flash"
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 2,
+    "cost": 0.00066,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": null,
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3-asr-flash",
+    "node_id": null,
+    "prompt_tokens": 30,
+    "protocol": "openai-audio-transcriptions",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "missing_version",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "success",
+    "thinking_output": null,
+    "total_tokens": 32,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": "<uuid>",
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "audio.transcriptions.upstream_400": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [],
+  "reservations": [
+   {
+    "actual_amount": null,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "request_failed",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.066,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": {
+     "error": "An internal error occurred. Please try again."
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 400
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": {
+      "messages": [
+       {
+        "content": [
+         {
+          "audio": "https://example.com/a.wav"
+         }
+        ],
+        "role": "user"
+       }
+      ]
+     },
+     "model": "qwen3-asr-flash"
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "upstream_asr_error",
+    "estimated": false,
+    "http_status": 400,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3-asr-flash",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "openai-audio-transcriptions",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "error",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "v1.images.upstream_400": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [],
+  "reservations": [
+   {
+    "actual_amount": null,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "request_failed",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.2,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": {
+     "error": {
+      "code": "InvalidParameter",
+      "message": "bad",
+      "type": "upstream_error"
+     }
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 400
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": {
+      "messages": [
+       {
+        "content": [
+         {
+          "text": "a cat"
+         }
+        ],
+        "role": "user"
+       }
+      ]
+     },
+     "model": "wan2.7-image",
+     "parameters": {
+      "n": 1,
+      "size": "2K",
+      "watermark": false
+     }
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "upstream_http_400",
+    "estimated": false,
+    "http_status": 400,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "wan2.7-image",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "openai-images",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "error",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "v1.images.sync_success": {
+  "asyncTasks": [],
+  "balanceDelta": -0.2,
+  "providerHealth": [
+   {
+    "consecutive_failures": 0,
+    "model_id": "wan2.7-image",
+    "provider_id": "dashscope",
+    "status": "healthy"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 0.2,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "Image generation: wan2.7-image (1 images)",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.2,
+    "settled_at": "<date>",
+    "status": "settled",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": {
+     "created": "<created>",
+     "data": [
+      {
+       "revised_prompt": "a cat",
+       "url": "https://dashscope-result.oss-cn-beijing.aliyuncs.com/i.png"
+      }
+     ]
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [
+   {
+    "actor_user_id": "<actor_user_id>",
+    "amount": 0.2,
+    "balance_after": 99.8,
+    "created_at": "<date>",
+    "credit_after": 0,
+    "credit_amount": 0,
+    "description": "Image generation: wan2.7-image (1 images)",
+    "discount_amount_cny": null,
+    "discount_rate": null,
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "type": "consumption",
+    "user_id": "<user_id>"
+   }
+  ],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": {
+      "messages": [
+       {
+        "content": [
+         {
+          "text": "a cat"
+         }
+        ],
+        "role": "user"
+       }
+      ]
+     },
+     "model": "wan2.7-image",
+     "parameters": {
+      "n": 1,
+      "size": "2K",
+      "watermark": false
+     }
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0.2,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": null,
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "wan2.7-image",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "openai-images",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "missing_version",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "success",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
  }
 }

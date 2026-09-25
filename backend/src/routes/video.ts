@@ -9,8 +9,6 @@
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import { models } from "../data/models";
-import { validateApiKey } from "../data/apikeys";
-import { validateSession } from "../data/users";
 import {
   createTask,
   getTaskById,
@@ -19,19 +17,11 @@ import {
   failTask,
   updateTaskStatus
 } from "../data/tasks";
-import {
-  acquireProviderCapacity,
-  releaseProviderCapacity,
-  recordSuccess,
-  recordFailure,
-  type ProviderRequestCapacityLease,
-} from "../services/scheduler";
+import { recordSuccess, recordFailure } from "../services/scheduler";
 import { getProviderById } from "../data/providers";
 import { getProviderChannel } from "../data/provider-channels";
 import { billAsyncError, billAsyncSuccess, ensureAsyncTaskSettlement, estimateDiscountedAsyncCost, settleAsyncCost } from "../services/async-billing";
-import { releaseReservation, reserveBalanceWithReason } from "../data/billing";
-import { isModelAllowed } from "../data/model-access";
-import { reserveAccountQpm } from "../services/account-rate-limiter";
+import { releaseReservation } from "../data/billing";
 import {
   adaptVideoRequest,
   adaptHappyHorseRequest,
@@ -49,19 +39,26 @@ import {
   requiresVideoInput,
   VideoParameterError,
 } from "../utils/video-parameters";
-import { getRequestedRegion, resolveUpstream, upstreamErrorBody } from "../services/upstream";
-import { safeProviderFetch } from "../services/outbound-url-policy";
+import { upstreamErrorBody } from "../services/upstream";
 import { pollTaskWithControl } from "../services/task-poll-control";
+import { InferenceContext } from "../pipeline/context";
+import { taskProtocolFor } from "../pipeline/adapters";
+import {
+  adapterForUpstream,
+  authenticateApiKeyOrSession,
+  bearerToken,
+  canAccessTask,
+  checkModelAccess,
+  invokeUpstream,
+  release,
+  reserveBilling,
+  reserveProviderCapacity,
+  reserveQpm,
+  resolveModel,
+  selectRoute,
+} from "../pipeline/stages";
 
 const router = Router();
-
-type Caller = {
-  userId: string | null;
-  apiKeyId: string | null;
-  parentUserId: string | null;
-  allowedModels: string | null;
-  errorIdentity: { id: string | null; user_id: string | null } | null;
-};
 
 type VideoTaskStatus = "pending" | "processing" | "successful" | "failed";
 
@@ -140,56 +137,11 @@ function getPixVerseKey(): string {
   return process.env.PIXVERSE_API_KEY || "";
 }
 
-function extractToken(req: Request): string | null {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Bearer ")) return null;
-  return auth.slice(7).trim();
-}
-
-async function authenticateCaller(req: Request): Promise<Caller | null> {
-  const token = extractToken(req);
-  if (!token) return null;
-
-  const apiKeyRecord = await validateApiKey(token);
-  if (apiKeyRecord) {
-    return {
-      userId: apiKeyRecord.user_id,
-      apiKeyId: apiKeyRecord.id,
-      parentUserId: apiKeyRecord.parent_user_id,
-      allowedModels: apiKeyRecord.allowed_models,
-      errorIdentity: apiKeyRecord,
-    };
-  }
-
-  const session = await validateSession(token);
-  if (session) {
-    return {
-      userId: session.id,
-      apiKeyId: null,
-      parentUserId: session.parent_user_id,
-      allowedModels: session.allowed_models,
-      errorIdentity: { id: null, user_id: session.id },
-    };
-  }
-
-  return null;
-}
-
-async function canAccessTask(req: Request, taskUserId: string | null, taskApiKeyId: string | null): Promise<boolean> {
-  const token = extractToken(req);
-  if (!token) return false;
-  const apiKeyRecord = await validateApiKey(token);
-  if (apiKeyRecord) {
-    return (!!taskApiKeyId && apiKeyRecord.id === taskApiKeyId) || (!!taskUserId && apiKeyRecord.user_id === taskUserId);
-  }
-  const session = await validateSession(token);
-  return !!session && !!taskUserId && session.id === taskUserId;
-}
-
 // Submit video generation task. Mounted as /api/video/generate and
 // /v1/videos/generations for clients that expect an OpenAI-style video path.
 export const handleGenerate = async (req: Request, res: Response) => {
-  const startTime = Date.now();
+  const ctx = new InferenceContext("video.generate", req, res);
+  const startTime = ctx.startTime;
   const {
     model: modelId, prompt, duration, aspect_ratio, quality, negative_prompt, size,
     img_url, img_end_url, img_urls, video_url, video_urls, audio_urls,
@@ -212,13 +164,13 @@ export const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
-  const caller = await authenticateCaller(req);
-  if (!caller) {
+  if (!(await authenticateApiKeyOrSession(ctx, bearerToken(req)))) {
     res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
     return;
   }
+  const caller = ctx.requireCaller();
 
-  const model = models.find((m) => m.id === modelId);
+  const model = resolveModel(ctx, modelId) ? ctx.requireModel() : null;
   if (!model || model.category !== "视频生成") {
     res.status(404).json({ success: false, message: "视频生成模型不存在" });
     return;
@@ -230,21 +182,15 @@ export const handleGenerate = async (req: Request, res: Response) => {
     return;
   }
 
-  if (!isModelAllowed(caller.parentUserId, caller.allowedModels, modelId)) {
+  if (!checkModelAccess(ctx)) {
     res.status(403).json({ success: false, message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。` });
     return;
   }
 
-  if (caller.userId) {
-    const rpmCheck = await reserveAccountQpm({
-      userId: caller.userId,
-      parentUserId: caller.parentUserId,
-      modelId,
-    });
-    if (!rpmCheck.allowed) {
-      res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${rpmCheck.limit}/min` });
-      return;
-    }
+  const qpmFailure = await reserveQpm(ctx);
+  if (qpmFailure) {
+    res.status(429).json({ success: false, message: `模型 QPM 限流已触发：${qpmFailure.limit}/min` });
+    return;
   }
 
   if (requiresImageInput(modelId) && !img_url && !img_urls?.length) {
@@ -286,30 +232,17 @@ export const handleGenerate = async (req: Request, res: Response) => {
     }
   }
 
-  const resolvedUpstream = await resolveUpstream(modelId, {
-    region: getRequestedRegion(req),
-    userId: caller.userId,
-  });
-  if (!resolvedUpstream.ok) {
-    res.status(resolvedUpstream.status).json({
+  const routeFailure = await selectRoute(ctx);
+  if (routeFailure) {
+    res.status(routeFailure.status).json({
       success: false,
-      ...upstreamErrorBody(resolvedUpstream),
+      ...upstreamErrorBody(routeFailure),
     });
     return;
   }
-  const selected = {
-    providerId: resolvedUpstream.upstream.providerId,
-    apiKey: resolvedUpstream.upstream.apiKey,
-    apiBaseUrl: resolvedUpstream.upstream.nativeBaseUrl,
-    channelId: resolvedUpstream.upstream.channelId,
-    region: resolvedUpstream.upstream.region,
-    managed: resolvedUpstream.upstream.managed,
-    rpm: resolvedUpstream.upstream.rpm,
-    tpm: resolvedUpstream.upstream.tpm,
-    dailyLimit: resolvedUpstream.upstream.dailyLimit,
-    concurrentLimit: resolvedUpstream.upstream.concurrentLimit,
-  };
-  const apiKey = selected.apiKey;
+  const upstream = ctx.requireUpstream();
+  const selected = { providerId: upstream.providerId, apiBaseUrl: upstream.nativeBaseUrl };
+  const apiKey = upstream.apiKey;
 
   let estimatedCost: number;
   try {
@@ -331,36 +264,31 @@ export const handleGenerate = async (req: Request, res: Response) => {
     });
     return;
   }
-  const reservationResult = await reserveBalanceWithReason(
-    caller.userId,
-    estimatedCost,
-    `video:${randomUUID()}`,
-    30 * 24 * 60 * 60
-  );
-  if (!reservationResult.reservation) {
-    sendBillingReservationFailure(res, reservationResult.reason, "api");
+  const billingFailure = await reserveBilling(ctx, estimatedCost, "video", 30 * 24 * 60 * 60);
+  if (billingFailure) {
+    sendBillingReservationFailure(res, billingFailure, "api");
     return;
   }
-  const reservation = reservationResult.reservation;
-  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
+  const reservation = ctx.billingReservation!;
 
-  const isPixVerseOfficial = selected.apiBaseUrl.includes("pixverse.ai");
-  const isVolcEngine = selected.apiBaseUrl.includes("volces.com") || selected.apiBaseUrl.includes("genvia.ai");
+  // The request/poll protocol follows the upstream adapter, not the URL.
+  const taskProtocol = taskProtocolFor(ctx.adapter!);
+  const isPixVerseOfficial = taskProtocol === "pixverse";
+  const isVolcEngine = taskProtocol === "volcengine";
 
   // Create internal task record
   let task;
   try {
-    const capacity = await acquireProviderCapacity(selected, modelId, 0);
-    if (!capacity.ok) {
+    const capacityFailure = await reserveProviderCapacity(ctx, 0);
+    if (capacityFailure) {
       await releaseReservation(reservation.id, "provider_capacity_unavailable");
       res.status(503).json({
         success: false,
-        message: capacity.message,
-        code: capacity.code,
+        message: capacityFailure.message,
+        code: capacityFailure.code,
       });
       return;
     }
-    providerCapacityLease = capacity.lease;
 
     task = await createTask({
       userId: caller.userId,
@@ -402,22 +330,21 @@ export const handleGenerate = async (req: Request, res: Response) => {
         motion_mode,
         prompt_extend,
         _route: {
-          channelId: selected.channelId,
-          region: selected.region,
-          nativeBaseUrl: selected.apiBaseUrl,
-          managed: selected.managed,
-          rpm: selected.rpm,
-          tpm: selected.tpm,
-          dailyLimit: selected.dailyLimit,
-          concurrentLimit: selected.concurrentLimit,
+          channelId: upstream.channelId,
+          region: upstream.region,
+          nativeBaseUrl: upstream.nativeBaseUrl,
+          managed: upstream.managed,
+          rpm: upstream.rpm,
+          tpm: upstream.tpm,
+          dailyLimit: upstream.dailyLimit,
+          concurrentLimit: upstream.concurrentLimit,
         },
       },
       billingReservationId: reservation.id,
     });
   } catch (error) {
     await releaseReservation(reservation.id);
-    await releaseProviderCapacity(providerCapacityLease, 0);
-    providerCapacityLease = null;
+    await release(ctx, { releaseReservation: false });
     throw error;
   }
 
@@ -502,10 +429,13 @@ export const handleGenerate = async (req: Request, res: Response) => {
       }, selected.apiBaseUrl);
     }
 
-    const response = await safeProviderFetch(adapted.url, {
+    const response = await invokeUpstream(ctx, {
+      url: adapted.url,
       method: adapted.method,
       headers: adapted.headers,
-      body: JSON.stringify(adapted.body),
+      auth: false,
+      body: adapted.body,
+      timeoutMs: null,
     });
 
     const data: any = await response.json();
@@ -601,7 +531,7 @@ export const handleGenerate = async (req: Request, res: Response) => {
       message: `请求失败: ${err.message}`,
     });
   } finally {
-    await releaseProviderCapacity(providerCapacityLease, 0);
+    await release(ctx, { releaseReservation: false });
   }
 };
 
@@ -611,7 +541,8 @@ router.post("/generations", handleGenerate);
 // GET /api/video/status/:taskId - Get video generation status
 export const handleVideoStatus = async (req: Request, res: Response) => {
   const taskId = req.params.taskId as string;
-  const caller = await authenticateCaller(req);
+  const ctx = new InferenceContext("video.status", req, res);
+  const caller = (await authenticateApiKeyOrSession(ctx, bearerToken(req))) ? ctx.requireCaller() : null;
   if (!caller) {
     res.status(401).json({ success: false, message: "请先登录或提供有效的 API Key" });
     return;
@@ -680,8 +611,11 @@ export const handleVideoStatus = async (req: Request, res: Response) => {
           task.input?._route?.nativeBaseUrl || providerRecord.api_base_url
         );
         pollApiBaseUrl = resolvedPollBaseUrl;
-        isPixVerseOfficialPoll = resolvedPollBaseUrl.includes("pixverse.ai");
-        isVolcEnginePoll = resolvedPollBaseUrl.includes("volces.com") || resolvedPollBaseUrl.includes("genvia.ai");
+        const pollProtocol = taskProtocolFor(
+          (await adapterForUpstream(providerRecord.id, taskChannelId || null, resolvedPollBaseUrl)).adapter
+        );
+        isPixVerseOfficialPoll = pollProtocol === "pixverse";
+        isVolcEnginePoll = pollProtocol === "volcengine";
       }
 
       const controlledPoll = await pollTaskWithControl({

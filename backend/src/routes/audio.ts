@@ -9,36 +9,17 @@
  */
 
 import express, { Router, Request, Response, NextFunction } from "express";
-import { randomUUID } from "crypto";
 import multer from "multer";
 import { models } from "../data/models";
 import { validateApiKey, type ValidApiKey } from "../data/apikeys";
 import { logUpstreamFailure, logUsage } from "../data/usage";
-import { BillingReservation, releaseReservation, reserveBalanceWithReason, settleReservation } from "../data/billing";
+import { settleReservation } from "../data/billing";
 import { applyUserModelDiscount } from "../data/user-discounts";
-import { isModelAllowed } from "../data/model-access";
 import { checkRPMFailClosed } from "../services/rate-limiter";
-import {
-  reserveAccountQpm,
-  reserveAccountTpm,
-} from "../services/account-rate-limiter";
-import {
-  getRequestedRegion,
-  resolveUpstream,
-  upstreamErrorBody,
-  type ResolvedUpstream,
-} from "../services/upstream";
-import {
-  safeExternalResourceFetch,
-  safeProviderFetch,
-} from "../services/outbound-url-policy";
+import { upstreamErrorBody, type ResolvedUpstream } from "../services/upstream";
+import { safeExternalResourceFetch } from "../services/outbound-url-policy";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { sendBillingReservationFailure } from "../utils/billing-response";
-import {
-  acquireProviderCapacity,
-  releaseProviderCapacity,
-  type ProviderRequestCapacityLease,
-} from "../services/scheduler";
 import {
   AudioPricingUnavailableError,
   QWEN3_ASR_MAX_SECONDS,
@@ -48,6 +29,20 @@ import {
   qwen3AsrPricePerSecond,
   qwen3TtsPricePer10kCharacters,
 } from "../services/audio-pricing";
+import { InferenceContext } from "../pipeline/context";
+import {
+  bearerToken,
+  checkModelAccess,
+  invokeUpstream,
+  release,
+  reserveBilling,
+  reserveProviderCapacity,
+  reserveQpm,
+  reserveTpm,
+  resolveModel,
+  selectRoute,
+  useApiKeyCaller,
+} from "../pipeline/stages";
 
 const router = Router();
 const AUDIO_BODY_LIMIT_BYTES = 64 * 1024;
@@ -55,12 +50,6 @@ const AUDIO_BODY_LIMIT_BYTES = 64 * 1024;
 // ============================================================
 // Helpers
 // ============================================================
-
-function extractToken(req: Request): string | null {
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Bearer ")) return null;
-  return auth.slice(7).trim();
-}
 
 type AuthenticatedAudioCaller = ValidApiKey & { user_id: string };
 
@@ -70,7 +59,7 @@ async function requireAudioCallerBeforeBody(
   next: NextFunction
 ): Promise<void> {
   try {
-    const token = extractToken(req);
+    const token = bearerToken(req);
     const caller = token ? await validateApiKey(token) : null;
     if (!caller) {
       res.status(401).json({
@@ -203,16 +192,14 @@ async function recordAudioFailure(
 // ============================================================
 
 router.post("/speech", async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  let billingReservation: BillingReservation | null = null;
-  let billableResponseReceived = false;
-  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
-  let actualProviderTokens = 0;
+  const ctx = new InferenceContext("audio.speech", req, res);
+  const startTime = ctx.startTime;
   let upstreamFlowCompleted = false;
   let failureContext: AudioFailureContext | null = null;
 
   try {
     const caller = res.locals.audioCaller as AuthenticatedAudioCaller;
+    useApiKeyCaller(ctx, caller);
 
     // 1. Parse request
     const { model: modelId, input: text, voice, response_format } = req.body || {};
@@ -223,8 +210,7 @@ router.post("/speech", async (req: Request, res: Response) => {
       return;
     }
 
-    const model = models.find((m) => m.id === modelId);
-    if (!model) {
+    if (!resolveModel(ctx, modelId)) {
       res.status(404).json({
         error: { message: `Model '${modelId}' not found.`, type: "invalid_request_error", code: "model_not_found" },
       });
@@ -233,46 +219,34 @@ router.post("/speech", async (req: Request, res: Response) => {
 
     // 4. Balance check
     const charCount = typeof text === "string" ? text.length : 0;
-    if (!isModelAllowed(caller.parent_user_id, caller.allowed_models, modelId)) {
+    if (!checkModelAccess(ctx)) {
       res.status(403).json({
         error: { message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`, type: "invalid_request_error", code: "model_not_allowed" },
       });
       return;
     }
     // 5. Rate limits (per-user-per-model QPM/TPM via Redis + per-API-key RPM)
-    const rpmCheck = await reserveAccountQpm({
-      userId: caller.user_id,
-      parentUserId: caller.parent_user_id,
-      modelId,
-    });
-    if (!rpmCheck.allowed) {
+    const qpmFailure = await reserveQpm(ctx);
+    if (qpmFailure) {
       res.status(429).json({
-        error: { message: `Model-level QPM limit exceeded (${rpmCheck.limit}/min).`, type: "rate_limit_error", code: "rate_limit_exceeded" },
+        error: { message: `Model-level QPM limit exceeded (${qpmFailure.limit}/min).`, type: "rate_limit_error", code: "rate_limit_exceeded" },
       });
       return;
     }
-    const tpmCheck = await reserveAccountTpm({
-      userId: caller.user_id,
-      parentUserId: caller.parent_user_id,
-      modelId,
-      estimatedTokens: charCount,
-    });
-    if (!tpmCheck.allowed) {
+    const tpmFailure = await reserveTpm(ctx, charCount);
+    if (tpmFailure) {
       res.status(429).json({
-        error: { message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmCheck.remaining || 0} tokens.`, type: "rate_limit_error", code: "rate_limit_exceeded" },
+        error: { message: `Model-level TPM limit exceeded for '${modelId}'. Remaining: ${tpmFailure.remaining || 0} tokens.`, type: "rate_limit_error", code: "rate_limit_exceeded" },
       });
       return;
     }
     // 6. Resolve the same managed route used by the other public protocols.
-    const resolvedUpstream = await resolveUpstream(modelId, {
-      region: getRequestedRegion(req),
-      userId: caller.user_id,
-    });
-    if (!resolvedUpstream.ok) {
-      res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
+    const routeFailure = await selectRoute(ctx);
+    if (routeFailure) {
+      res.status(routeFailure.status).json({ error: upstreamErrorBody(routeFailure) });
       return;
     }
-    const upstream = resolvedUpstream.upstream;
+    const upstream = ctx.requireUpstream();
     const upstreamApiKey = upstream.apiKey;
     let pricePer10kCharacters: number;
     try {
@@ -295,16 +269,12 @@ router.post("/speech", async (req: Request, res: Response) => {
       estimatedCost
     );
 
-    const billingReservationResult = await reserveBalanceWithReason(
-      caller.user_id,
-      discountedCost,
-      `audio-tts:${randomUUID()}`
-    );
-    if (!billingReservationResult.reservation) {
-      sendBillingReservationFailure(res, billingReservationResult.reason);
+    const billingFailure = await reserveBilling(ctx, discountedCost, "audio-tts");
+    if (billingFailure) {
+      sendBillingReservationFailure(res, billingFailure);
       return;
     }
-    billingReservation = billingReservationResult.reservation;
+    const billingReservation = ctx.billingReservation!;
     failureContext = {
       apiKeyId: caller.id,
       userId: caller.user_id,
@@ -328,21 +298,22 @@ router.post("/speech", async (req: Request, res: Response) => {
     }
 
     // 8. Call DashScope
-    const capacity = await acquireProviderCapacity(upstream, modelId, charCount);
-    if (!capacity.ok) {
+    const capacityFailure = await reserveProviderCapacity(ctx, charCount);
+    if (capacityFailure) {
       res.status(503).json({
-        error: { message: capacity.message, type: "server_error", code: capacity.code },
+        error: { message: capacityFailure.message, type: "server_error", code: capacityFailure.code },
       });
       return;
     }
-    providerCapacityLease = capacity.lease;
-    const upstreamResp = await safeProviderFetch(resolveMultimodalUrl(upstream.nativeBaseUrl), {
-      method: "POST",
+    const upstreamResp = await invokeUpstream(ctx, {
+      url: resolveMultimodalUrl(upstream.nativeBaseUrl),
+      auth: false,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${upstreamApiKey}`,
       },
-      body: JSON.stringify(dashScopeBody),
+      body: dashScopeBody,
+      timeoutMs: null,
     });
 
     if (!upstreamResp.ok) {
@@ -439,8 +410,8 @@ router.post("/speech", async (req: Request, res: Response) => {
       reservationId: billingReservation.id,
       transactionId: transaction?.id || null,
     });
-    actualProviderTokens = characters;
-    billableResponseReceived = true;
+    ctx.actualProviderTokens = characters;
+    ctx.billableResponseReceived = true;
     res.send(buffer);
   } catch (err) {
     console.error("[Audio TTS] Error:", err);
@@ -457,8 +428,9 @@ router.post("/speech", async (req: Request, res: Response) => {
       });
     }
   } finally {
-    if (billingReservation && !billableResponseReceived) await releaseReservation(billingReservation.id);
-    await releaseProviderCapacity(providerCapacityLease, actualProviderTokens);
+    // Audio has never returned its account TPM reservation (kept as-is; see
+    // the P2 notes in the PR). Only the billing hold and the lease are released.
+    await release(ctx, { reconcileTokens: false });
   }
 });
 
@@ -493,16 +465,14 @@ function parseAudioTranscriptionFields(
 }
 
 router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  let billingReservation: BillingReservation | null = null;
-  let billableResponseReceived = false;
-  let providerCapacityLease: ProviderRequestCapacityLease | null = null;
-  let actualProviderTokens = 0;
+  const ctx = new InferenceContext("audio.transcriptions", req, res);
+  const startTime = ctx.startTime;
   let upstreamFlowCompleted = false;
   let failureContext: AudioFailureContext | null = null;
 
   try {
     const caller = res.locals.audioCaller as AuthenticatedAudioCaller;
+    useApiKeyCaller(ctx, caller);
     const modelId = (req.body?.model || "qwen3-asr-flash") as string;
 
     // DashScope ASR requires a remotely retrievable URL. Binary OpenAI-style
@@ -522,8 +492,7 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     }
 
     // 3. Find model
-    const model = models.find((m) => m.id === modelId);
-    if (!model) {
+    if (!resolveModel(ctx, modelId)) {
       res.status(404).json({
         error: { message: `Model '${modelId}' not found.`, type: "invalid_request_error", code: "model_not_found" },
       });
@@ -531,18 +500,13 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     }
 
     // 4. Access & rate checks
-    if (!isModelAllowed(caller.parent_user_id, caller.allowed_models, modelId)) {
+    if (!checkModelAccess(ctx)) {
       res.status(403).json({
         error: { message: `当前账号无权使用模型 '${modelId}'，请联系主账号授权。`, type: "invalid_request_error", code: "model_not_allowed" },
       });
       return;
     }
-    const rpmCheck = await reserveAccountQpm({
-      userId: caller.user_id,
-      parentUserId: caller.parent_user_id,
-      modelId,
-    });
-    if (!rpmCheck.allowed) {
+    if (await reserveQpm(ctx)) {
       res.status(429).json({
         error: { message: `Rate limit exceeded.`, type: "rate_limit_error", code: "rate_limit_exceeded" },
       });
@@ -550,15 +514,12 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     }
 
     // 5. Provider route
-    const resolvedUpstream = await resolveUpstream(modelId, {
-      region: getRequestedRegion(req),
-      userId: caller.user_id,
-    });
-    if (!resolvedUpstream.ok) {
-      res.status(resolvedUpstream.status).json({ error: upstreamErrorBody(resolvedUpstream) });
+    const routeFailure = await selectRoute(ctx);
+    if (routeFailure) {
+      res.status(routeFailure.status).json({ error: upstreamErrorBody(routeFailure) });
       return;
     }
-    const upstream = resolvedUpstream.upstream;
+    const upstream = ctx.requireUpstream();
     const upstreamApiKey = upstream.apiKey;
     let pricePerSecond: number;
     try {
@@ -584,16 +545,12 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
       estimatedCost
     );
 
-    const billingReservationResult = await reserveBalanceWithReason(
-      caller.user_id,
-      discountedCost,
-      `audio-asr:${randomUUID()}`
-    );
-    if (!billingReservationResult.reservation) {
-      sendBillingReservationFailure(res, billingReservationResult.reason);
+    const billingFailure = await reserveBilling(ctx, discountedCost, "audio-asr");
+    if (billingFailure) {
+      sendBillingReservationFailure(res, billingFailure);
       return;
     }
-    billingReservation = billingReservationResult.reservation;
+    const billingReservation = ctx.billingReservation!;
     failureContext = {
       apiKeyId: caller.id,
       userId: caller.user_id,
@@ -618,22 +575,22 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     };
 
     // 7. Call DashScope
-    const capacity = await acquireProviderCapacity(upstream, modelId, QWEN3_ASR_MAX_SECONDS);
-    if (!capacity.ok) {
+    const capacityFailure = await reserveProviderCapacity(ctx, QWEN3_ASR_MAX_SECONDS);
+    if (capacityFailure) {
       res.status(503).json({
-        error: { message: capacity.message, type: "server_error", code: capacity.code },
+        error: { message: capacityFailure.message, type: "server_error", code: capacityFailure.code },
       });
       return;
     }
-    providerCapacityLease = capacity.lease;
-    const upstreamResp = await safeProviderFetch(resolveMultimodalUrl(upstream.nativeBaseUrl), {
-      method: "POST",
+    const upstreamResp = await invokeUpstream(ctx, {
+      url: resolveMultimodalUrl(upstream.nativeBaseUrl),
+      auth: false,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${upstreamApiKey}`,
       },
-      body: JSON.stringify(dashScopeBody),
-      signal: AbortSignal.timeout(120_000),
+      body: dashScopeBody,
+      timeoutMs: 120_000,
     });
 
     if (!upstreamResp.ok) {
@@ -706,8 +663,8 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
       reservationId: billingReservation.id,
       transactionId: transaction?.id || null,
     });
-    actualProviderTokens = totalTokens;
-    billableResponseReceived = true;
+    ctx.actualProviderTokens = totalTokens;
+    ctx.billableResponseReceived = true;
 
     // 9. Return OpenAI-compatible response only after settlement succeeds.
     res.json({
@@ -735,8 +692,9 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
       });
     }
   } finally {
-    if (billingReservation && !billableResponseReceived) await releaseReservation(billingReservation.id);
-    await releaseProviderCapacity(providerCapacityLease, actualProviderTokens);
+    // Audio has never returned its account TPM reservation (kept as-is; see
+    // the P2 notes in the PR). Only the billing hold and the lease are released.
+    await release(ctx, { reconcileTokens: false });
   }
 });
 
