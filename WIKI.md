@@ -70,7 +70,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | 进程 | 每节点 PM2；后端 cluster ×2，前端 fork ×1 |
 | 反向代理 | 阿里云 ALB + 每节点 nginx |
 | 模型目录 | 94 个可计费静态模型（2026-09-24 重算）；含 5 个通过 HiModels AWS 上游提供的 Claude 稳定公共 ID |
-| 数据库迁移 | 仓库已提交到 `029_schema_migration_checksums.sql`（`024`/`025` 为并行分支预留），其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
+| 数据库迁移 | 仓库已提交到 `031_control_plane_versions.sql`（`024`/`025` 为并行分支预留），其中历史上存在两个 `006_*`；以实际 migration 目录和 ledger 为准 |
 | CI | 5 个并行 job：`security`、`billing-routing`、`control-plane`（含真实 PostgreSQL 迁移账本与 checksum 校验）、`release-scripts`、`frontend`；发布脚本要求目标 SHA 的全部 job 成功 |
 | 备份 | 发布前 age 加密 RDS 备份和异地 PostgreSQL 16 全量恢复为强制门禁；主机 03:30 日备与异地 04:30 拉取已安装并完成恢复演练 |
 
@@ -266,6 +266,26 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
   自检（数量下限、人工核对的黄金值、与 `src/data/official-pricing-ref.ts` 的 REF 价比对）失败时不产出任何结果；
   差异报告在 `docs/upstream-sync/`。**任何结果都不会自动写入配置。**
 
+配置数据面（P3，`backend/src/control-plane/`）：
+
+- 表：`030` 建 `cp_models`、`cp_upstream_accounts`、`cp_quota_pools`、`cp_routes`、`cp_traffic_policies`（当前版本的
+  物化投影）；`031` 建 `cp_config_versions`（不可变版本，整版 JSON + SHA-256，PostgreSQL 触发器禁止改删）、
+  `cp_change_requests`、`cp_route_probe_results`。版本只能 `insertVersion({expectedParent})` 追加，并发发布抛
+  `VersionConflictError`。
+- `schema.ts`（zod）/`validation.ts`：发布前校验 schema、ID 唯一、在售模型有活跃路由、引用完整（额度池须属于路由的
+  账号）、暴露的对话协议必须在每条活跃路由上原生支持（D6）、价格阶梯递增且覆盖上下文、billing_guarded 参数
+  必须可计费、中转账号披露运营方和数据路径；额度未核实只告警。
+- `backfill.ts` + `cli/control-plane-backfill.ts`：旧配置（静态目录 + `model_overrides` + `provider_capacity` +
+  `providers`）→ 版本 1。路由限额原样搬旧值；孤儿路由跳过并列出；百炼额度池来自 P1 快照（`source=docs`），
+  其余 `legacy_default`/`unverified`。离线报告在 `docs/control-plane/`，fixtures 上影子比对零差异。
+  在线 `--apply` 只在尚无版本且校验通过时写入（已知旧问题需 `--allow-check` 显式放行）。
+- `runtime.ts`：`NF_CP_MODE≠legacy` 时启动时加载、每 5s 轮询版本号，整版校验后原子替换；加载失败保留上一版并
+  告警，绝不清空配置。
+- `NF_CP_MODE=shadow`：管线 `resolveModel`（目录字段、价格）和 `selectRoute` 同时用 cp 算一次，差异记
+  `shadow_diff`（`cp_resolve_model`/`cp_pricing`/`cp_select_route`）。`enforce`：模型、价格、目录、候选路由都来自
+  版本（preview 仅白名单用户可用、retired 不可用），凭据仍在 `providers` 表（`secret_ref=legacy_provider:<id>`）。
+  enforce 不再有旧的“无托管路由时回落环境变量 Key”兜底。
+
 ## 9. 账号、权限与账本不变量
 
 ### 9.1 身份
@@ -356,6 +376,8 @@ QPM/TPM。旧 `rate_limit` 字段在 expand/rollback 窗口内仅保留旧版本
 027_disable_legacy_anthropic_claude_routes.sql
 028_reset_himodels_for_aws_aliases.sql
 029_schema_migration_checksums.sql
+030_control_plane_config.sql
+031_control_plane_versions.sql
 ```
 
 历史上两个迁移都使用了 `006` 前缀。不要按数字前缀去重；迁移器按完整文件名登记。

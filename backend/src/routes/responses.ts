@@ -36,11 +36,7 @@ import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { db } from "../db/client";
 import { safeProviderFetch } from "../services/outbound-url-policy";
 import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
-import {
-  getUpstreamModelId,
-  restorePublicModelAlias,
-  rewriteUpstreamModelAliasText,
-} from "../utils/upstream-model-aliases";
+import { restorePublicModelAlias, rewriteUpstreamModelAliasText } from "../utils/upstream-model-aliases";
 import { getProviderAuthHeaders } from "../services/providers";
 import { InferenceContext } from "../pipeline/context";
 import { roughTokenCount } from "../pipeline/estimates";
@@ -410,7 +406,7 @@ router.post("/", async (req: Request, res: Response) => {
       headers: upstreamHeaders,
       body: {
         ...req.body,
-        model: getUpstreamModelId(modelId, upstream.providerId),
+        model: upstream.upstreamModelId,
       },
     });
 

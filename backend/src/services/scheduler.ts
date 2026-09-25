@@ -388,11 +388,25 @@ export async function getManagedRouteCount(modelId: string): Promise<number> {
   return Number(row?.count || 0);
 }
 
-export async function selectProviderDetailed(
-  modelId: string,
-  context: ProviderSelectionContext = {}
-): Promise<ProviderSelectionResult> {
-  const endpoints = await db.queryMany<any>(
+/** Raw route rows as the legacy selector expects them. */
+export interface RouteRow {
+  provider_id: string;
+  provider_name: string;
+  api_base_url: string;
+  api_key: string | null;
+  model_id: string;
+  rpm: number;
+  tpm: number;
+  daily_limit: number;
+  concurrent_limit: number;
+  weight: number;
+  priority: number;
+  is_enabled: boolean;
+}
+
+/** Enabled provider_capacity routes of enabled providers (legacy source). */
+export async function loadLegacyRouteRows(modelId: string): Promise<RouteRow[]> {
+  return db.queryMany<RouteRow>(
     `SELECT
       p.id as provider_id,
       p.name as provider_name,
@@ -412,6 +426,25 @@ export async function selectProviderDetailed(
     ORDER BY pc.priority DESC, pc.weight DESC`,
     [modelId]
   );
+}
+
+export async function selectProviderDetailed(
+  modelId: string,
+  context: ProviderSelectionContext = {}
+): Promise<ProviderSelectionResult> {
+  return selectFromRouteRows(modelId, await loadLegacyRouteRows(modelId), context);
+}
+
+/**
+ * Health, policy, credential, cost and capacity filtering plus weighted
+ * ranking over a set of candidate routes. The control plane supplies its
+ * own rows (NF_CP_MODE=enforce); the legacy path uses loadLegacyRouteRows.
+ */
+export async function selectFromRouteRows(
+  modelId: string,
+  endpoints: RouteRow[],
+  context: ProviderSelectionContext = {}
+): Promise<ProviderSelectionResult> {
   if (endpoints.length === 0) {
     return { ok: false, reason: "no_enabled_route", filters: { no_enabled_route: 1 } };
   }

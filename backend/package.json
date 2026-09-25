@@ -56,7 +56,9 @@
     "control-plane:consistency": "ts-node src/cli/control-plane-consistency.ts",
     "bailian:catalog-sync": "ts-node src/cli/bailian-catalog-sync.ts",
     "test:inference-characterization": "ts-node scripts/test-inference-characterization-isolated.ts",
-    "test:pipeline-stages": "ts-node scripts/test-pipeline-stages.ts"
+    "test:pipeline-stages": "ts-node scripts/test-pipeline-stages.ts",
+    "test:control-plane-config": "ts-node scripts/test-control-plane-config-isolated.ts",
+    "control-plane:backfill": "ts-node src/cli/control-plane-backfill.ts"
   },
   "keywords": [],
   "author": "",

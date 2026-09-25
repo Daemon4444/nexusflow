@@ -195,18 +195,23 @@ export async function ensureRoutingDefaults(): Promise<void> {
     const routedProvider = routedProviderId ? providersById[routedProviderId] : null;
     if (!routedProvider) continue;
     if (await getCapacity(routedProvider.id, model.id)) continue;
-    const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
-    const isAstra = model.id === "gpt-6-astra";
-    await upsertCapacity(routedProvider.id, model.id, {
-      rpm_limit: 1000,
-      tpm_limit: isAstra ? 1_000_000 : isTaskModel ? 0 : 1000000,
-      daily_limit: isAstra ? 0 : 100000,
-      concurrent_limit: isAstra ? 0 : isTaskModel ? 10 : 0,
-      priority: isAstra ? 100 : 10,
-      weight: 100,
-      is_enabled: !isHiModelsPublicModel(model.id) && !isAstra,
-    });
+    await upsertCapacity(routedProvider.id, model.id, legacyDefaultCapacity(model));
   }
+}
+
+/** The capacity row ensureRoutingDefaults() seeds for a catalog model. */
+export function legacyDefaultCapacity(model: { id: string; category: string }) {
+  const isTaskModel = model.category === "图像生成" || model.category === "视频生成" || model.category === "语音模型";
+  const isAstra = model.id === "gpt-6-astra";
+  return {
+    rpm_limit: 1000,
+    tpm_limit: isAstra ? 1_000_000 : isTaskModel ? 0 : 1000000,
+    daily_limit: isAstra ? 0 : 100000,
+    concurrent_limit: isAstra ? 0 : isTaskModel ? 10 : 0,
+    priority: isAstra ? 100 : 10,
+    weight: 100,
+    is_enabled: !isHiModelsPublicModel(model.id) && !isAstra,
+  };
 }
 
 export function getResolvedProviderApiKey(provider: ProviderConfig): string {
