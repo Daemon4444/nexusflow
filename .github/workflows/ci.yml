@@ -129,6 +129,7 @@ jobs:
       - run: npm --workspace backend run test:managed-routing
       - run: npm --workspace backend run test:audio-pricing
       - run: npm --workspace backend run test:task-poll-control
+      - run: npm --workspace backend run test:inference-characterization
       - name: Migrate the CI database
         run: npm --workspace backend run db:migrate
         env:

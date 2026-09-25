@@ -364,12 +364,43 @@ export function assertRedirectBlocked(
   throw new OutboundUrlPolicyError(`upstream redirect is disabled (${target})`);
 }
 
+/**
+ * Test-only transport. Characterization tests replace the network with a
+ * recorder *after* the URL policy has validated scheme, host allowlist and
+ * port; DNS resolution is skipped because the fake upstream never connects.
+ * It can never be enabled in a production or managed-release runtime.
+ */
+export type OutboundTestTransport = (
+  url: URL,
+  init: RequestInit,
+  kind: OutboundUrlKind
+) => Promise<Response>;
+
+let outboundTestTransport: OutboundTestTransport | null = null;
+
+export function setOutboundTestTransport(transport: OutboundTestTransport | null): void {
+  if (transport && (isProductionRuntime() || process.env.NEXUSFLOW_RELEASE_RUNTIME === "true")) {
+    throw new OutboundUrlPolicyError("test outbound transport is forbidden in production");
+  }
+  outboundTestTransport = transport;
+}
+
 async function safeOutboundFetch(
   rawUrl: string | URL,
   init: RequestInit = {},
   kind: OutboundUrlKind,
   fixedAllowlist?: ReadonlySet<string>
 ): Promise<Response> {
+  if (outboundTestTransport && !isProductionRuntime()) {
+    const url = parseAndValidateOutboundUrl(rawUrl, {
+      kind: fixedAllowlist ? "provider" : kind,
+      usage: "runtime-request",
+      allowlist: fixedAllowlist,
+    });
+    const response = await outboundTestTransport(url, init, kind);
+    assertRedirectBlocked(response.status, response.headers.get("location"), url.href);
+    return response;
+  }
   const url = await assertSafeOutboundUrl(rawUrl, {
     // A fixed-purpose allowlist uses the strict provider rules (hostname only,
     // exact allowlist match) independent of the provider environment list.
