@@ -1,48 +1,21 @@
-import fs from "fs";
+/**
+ * Thin forwarder to the single migration runner, scripts/migrate-with-lock.mjs.
+ *
+ * The runner holds a PostgreSQL advisory lock, rejects pending contract SQL,
+ * records and verifies per-file SHA-256 checksums (migration 029) and applies
+ * each migration in its own transaction. There is intentionally no second
+ * implementation here; `npm run db:migrate` and releases share one code path.
+ */
+import { spawnSync } from "child_process";
 import path from "path";
-import dotenv from "dotenv";
-import { closePool, query, transaction } from "./pg";
 
-dotenv.config();
-
-async function main() {
-  const migrationDir = path.resolve(__dirname, "migrations");
-  const files = fs.readdirSync(migrationDir)
-    .filter((file) => file.endsWith(".sql"))
-    .sort();
-
-  if (files.length === 0) {
-    throw new Error(`No migration files found in ${migrationDir}`);
-  }
-
-  await query(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      filename TEXT PRIMARY KEY,
-      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `);
-
-  for (const file of files) {
-    const applied = await query("SELECT filename FROM schema_migrations WHERE filename = $1", [file]);
-    if (applied.rowCount) {
-      console.log(`[PG] skip ${file}`);
-      continue;
-    }
-
-    const sql = fs.readFileSync(path.join(migrationDir, file), "utf8");
-    console.log(`[PG] apply ${file}`);
-    await transaction(async (client) => {
-      await client.query(sql);
-      await client.query("INSERT INTO schema_migrations (filename) VALUES ($1)", [file]);
-    });
-  }
-
-  console.log("[PG] migrations complete");
-}
-
-main()
-  .catch((error) => {
-    console.error("[PG] migration failed:", error);
-    process.exitCode = 1;
-  })
-  .finally(() => closePool());
+const repositoryRoot = path.resolve(__dirname, "../../..");
+const runner = path.join(repositoryRoot, "scripts/migrate-with-lock.mjs");
+const result = spawnSync(process.execPath, [runner, ...process.argv.slice(2)], {
+  stdio: "inherit",
+  env: {
+    ...process.env,
+    NEXUSFLOW_APP_ROOT: process.env.NEXUSFLOW_APP_ROOT || repositoryRoot,
+  },
+});
+process.exitCode = result.status ?? 1;

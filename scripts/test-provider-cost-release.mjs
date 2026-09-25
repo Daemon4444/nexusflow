@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -231,6 +232,68 @@ if (args.includes("--manifest")) {
   ], 1);
   assert.match(lastStderr, /\[private-manifest\]/);
   assert.ok(!lastStderr.includes(manifest), "private manifest path must be redacted");
+
+  // P0: manifest-carried release contract (`expected`), hash-protected, with
+  // a warned fallback to the legacy 13/10/7/6 contract.
+  assert.equal(
+    run("expected", ["--manifest", manifest]),
+    "pb-19cfc14c11f74a74ac7438c5 13 10 7 6 legacy_default"
+  );
+  assert.match(lastStderr, /legacy hard-coded release contract/);
+  const sourceSha = "c".repeat(64);
+  const content = {
+    schemaVersion: 1,
+    providerId: "dashscope",
+    source: { reference: "reviewed.xlsx", sha256: sourceSha },
+    rows: [
+      { modelId: "m1", decision: "ELIGIBLE_FULL" },
+      { modelId: "m1", decision: "ELIGIBLE_PARTIAL" },
+      { modelId: "m2", decision: "ELIGIBLE_FULL" },
+    ],
+  };
+  const canonical = (value) => {
+    if (value === null || typeof value !== "object") return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+    return `{${Object.entries(value).sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}`;
+  };
+  const contentSha256 = crypto.createHash("sha256").update(canonical(content)).digest("hex");
+  const selfDescribing = {
+    ...content,
+    expected: {
+      priceBookId: `pb-${sourceSha.slice(0, 24)}`,
+      models: 2, tiers: 3, fullTiers: 2, partialTiers: 1, contentSha256,
+    },
+  };
+  const writeManifest = (value) => {
+    fs.writeFileSync(manifest, JSON.stringify(value));
+    fs.chmodSync(manifest, 0o600);
+  };
+  writeManifest(selfDescribing);
+  assert.equal(
+    run("expected", ["--manifest", manifest]),
+    `pb-${sourceSha.slice(0, 24)} 3 2 2 1 manifest`
+  );
+  // A tampered row breaks the content hash.
+  writeManifest({ ...selfDescribing, rows: [...content.rows, { modelId: "m3", decision: "ELIGIBLE_FULL" }] });
+  run("expected", ["--manifest", manifest], 1);
+  assert.match(lastStderr, /content hash/);
+  // Declared counts must equal the rows even when the hash is recomputed.
+  writeManifest({ ...selfDescribing, expected: { ...selfDescribing.expected, tiers: 4 } });
+  run("expected", ["--manifest", manifest], 1);
+  // The price book must derive from source.sha256.
+  writeManifest({ ...selfDescribing, expected: { ...selfDescribing.expected, priceBookId: "pb-000000000000000000000000" } });
+  run("expected", ["--manifest", manifest], 1);
+  // Unknown expected fields are rejected.
+  writeManifest({ ...selfDescribing, expected: { ...selfDescribing.expected, extra: 1 } });
+  run("expected", ["--manifest", manifest], 1);
+  // Runtime commands accept the manifest's price book and reject malformed IDs.
+  fs.writeFileSync(state, JSON.stringify({ activeRows: 0, everApplied: false }));
+  run("verify-inactive", [...runtimeArgs, "--price-book-id", "pb-19cfc14c11f74a74ac7438c5"]);
+  run("verify-inactive", [...runtimeArgs, "--price-book-id", "not-a-book"], 1);
+  // A different reviewed book makes the CLI's summary fail validation.
+  run("verify-inactive", [...runtimeArgs, "--price-book-id", `pb-${sourceSha.slice(0, 24)}`], 1);
+  writeManifest({ private: true });
 
   fs.chmodSync(manifest, 0o640);
   run("preflight", ["--manifest", manifest], 1);

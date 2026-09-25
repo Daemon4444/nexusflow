@@ -10,6 +10,10 @@ import {
   isPublicUnicastAddress,
   OutboundUrlPolicyError,
   parseAndValidateOutboundUrl,
+  NOTIFIER_HOSTS,
+  UPSTREAM_CATALOG_HOSTS,
+  safeNotifierFetch,
+  safeUpstreamCatalogFetch,
 } from "../src/services/outbound-url-policy";
 import {
   createProvider,
@@ -344,6 +348,16 @@ async function main(): Promise<void> {
     enabled: true,
   });
   assert("error" in unsafeChannel);
+
+  // Fixed-purpose allowlists (P0/P1): catalog sync and notifier may reach
+  // only their own hosts, never provider or arbitrary hosts, and never HTTP.
+  assert.deepEqual([...UPSTREAM_CATALOG_HOSTS].sort(), ["dashscope.aliyuncs.com", "help.aliyun.com"]);
+  assert.deepEqual([...NOTIFIER_HOSTS], ["open.feishu.cn"]);
+  await assertBlockedAsync(() => safeUpstreamCatalogFetch("https://api.himodels.ai/v1/models"), /not allowlisted/);
+  await assertBlockedAsync(() => safeUpstreamCatalogFetch("http://help.aliyun.com/zh/model-studio/rate-limit"), /HTTPS/);
+  await assertBlockedAsync(() => safeUpstreamCatalogFetch("https://169.254.169.254/latest"), /./);
+  await assertBlockedAsync(() => safeNotifierFetch("https://www.feishu.cn/flow/api/trigger-webhook/x"), /not allowlisted/);
+  await assertBlockedAsync(() => safeNotifierFetch("https://open.feishu.cn:8443/open-apis"), /port/);
 
   // Static regression gate: provider-origin HTTP must go through the common
   // safe wrapper; no raw global fetch call may reappear elsewhere.

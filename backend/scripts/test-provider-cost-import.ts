@@ -9,8 +9,10 @@ import {
 import {
   deactivateProviderCostBook,
   importProviderCostManifest,
+  manifestSha256,
   priceBookIdForManifest,
   providerCostManifestSchema,
+  validateExpectedBlock,
 } from "../src/services/provider-cost-import";
 
 function tier(overrides: Partial<ProviderCostTier> = {}): ProviderCostTier {
@@ -174,6 +176,32 @@ async function main(): Promise<void> {
       },
     ],
   });
+  // P0: the optional self-describing `expected` block does not change the
+  // price-book identity and must describe exactly these rows.
+  const selfDescribing = providerCostManifestSchema.parse({
+    ...manifest,
+    expected: {
+      priceBookId: priceBookIdForManifest(manifest),
+      models: 1,
+      tiers: 2,
+      fullTiers: 1,
+      partialTiers: 1,
+      contentSha256: manifestSha256(manifest),
+    },
+  });
+  assert.equal(manifestSha256(selfDescribing), manifestSha256(manifest));
+  validateExpectedBlock(selfDescribing);
+  assert.throws(
+    () => validateExpectedBlock({ ...selfDescribing, expected: { ...selfDescribing.expected!, tiers: 3 } }),
+    /expected\.tiers/
+  );
+  assert.throws(
+    () => validateExpectedBlock({ ...selfDescribing, expected: { ...selfDescribing.expected!, contentSha256: "0".repeat(64) } }),
+    /contentSha256/
+  );
+  const selfDescribingDryRun = await importProviderCostManifest(selfDescribing, { apply: false });
+  assert.equal(selfDescribingDryRun.manifestSha256, manifestSha256(manifest));
+
   const dryRun = await importProviderCostManifest(manifest, { apply: false });
   assert.equal(dryRun.dryRun, true);
   assert.equal(dryRun.idempotent, false);

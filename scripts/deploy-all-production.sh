@@ -25,11 +25,20 @@ LOCAL_NODE_ID="${NEXUSFLOW_LOCAL_NODE_ID:-main}"
 PEER_NODE_ID="${NEXUSFLOW_PEER_NODE_ID:-peer}"
 DRY_RUN=false
 VERIFY_ONLY=false
+CI_OVERRIDE_REASON=""
+CI_OVERRIDE_SET=false
+CI_GATE="${NEXUSFLOW_CI_GATE:-$SCRIPT_DIR/check-release-ci.sh}"
 BUILD_SHA=""
+# Legacy release contract. It applies only when the private manifest has no
+# self-describing `expected` block (older manifests); otherwise
+# load_provider_cost_contract replaces these values from the hash-verified
+# manifest before any provider-cost step runs.
 PROVIDER_COST_EXPECTED_TIERS=13
 PROVIDER_COST_EXPECTED_MODELS=10
 PROVIDER_COST_EXPECTED_FULL_TIERS=7
 PROVIDER_COST_EXPECTED_PARTIAL_TIERS=6
+PROVIDER_COST_PRICE_BOOK_ID=pb-19cfc14c11f74a74ac7438c5
+PROVIDER_COST_CONTRACT_SOURCE=legacy_default
 PROVIDER_COST_CONTROL="$SCRIPT_DIR/provider-cost-release.mjs"
 PROVIDER_COST_MANIFEST_CLEANED=false
 EARLY_MANIFEST_CLEANUP_ARMED=false
@@ -38,7 +47,7 @@ RELEASE_LOCK_ACQUIRED=false
 usage() {
   cat <<'EOF'
 Usage:
-  deploy-all-production.sh [--sha <origin/main-sha>] [--dry-run]
+  deploy-all-production.sh [--sha <origin/main-sha>] [--dry-run] [--override-ci "<reason>"]
   deploy-all-production.sh --verify-only [--sha <deployed-sha>]
 
 The live release path is blue/green across the two ALB nodes:
@@ -48,6 +57,11 @@ The default root-owned traffic hook drains a node by making only exact ALB
 health checks return 503, proving public node identity, and waiting for live
 connections to close. The script also fails closed unless its database hook can
 create and verify a fresh backup.
+
+Before any release action the target SHA must have a successful GitHub "ci"
+workflow (scripts/check-release-ci.sh). --override-ci "<reason>" bypasses that
+gate explicitly; the reason is recorded in the release telemetry "started"
+event.
 EOF
 }
 
@@ -65,6 +79,12 @@ while test "$#" -gt 0; do
     --verify-only)
       VERIFY_ONLY=true
       shift
+      ;;
+    --override-ci)
+      test "$#" -ge 2 || release_die "--override-ci requires a reason"
+      CI_OVERRIDE_REASON="$2"
+      CI_OVERRIDE_SET=true
+      shift 2
       ;;
     --help|-h)
       usage
@@ -153,6 +173,25 @@ else
     release_die "local HEAD is not the current origin/main"
 fi
 release_validate_sha "$BUILD_SHA"
+CI_GATE_RESULT=""
+if ! "$VERIFY_ONLY"; then
+  test -x "$CI_GATE" || release_die "release CI gate is missing: $CI_GATE"
+  if "$CI_OVERRIDE_SET"; then
+    CI_GATE_RESULT="$("$CI_GATE" --sha "$BUILD_SHA" --override-ci "$CI_OVERRIDE_REASON")" ||
+      release_die "CI gate override was rejected"
+  else
+    "$CI_GATE" --sha "$BUILD_SHA" ||
+      release_die "target SHA $BUILD_SHA has not passed CI"
+  fi
+elif "$CI_OVERRIDE_SET"; then
+  release_die "--override-ci is only meaningful for a release or dry-run"
+fi
+RELEASE_STARTED_MESSAGE="Immutable artifact, backup, and migration gates passed; rollout started"
+case "$CI_GATE_RESULT" in
+  ci-override:*)
+    RELEASE_STARTED_MESSAGE="$RELEASE_STARTED_MESSAGE; CI gate overridden: ${CI_GATE_RESULT#ci-override:}"
+    ;;
+esac
 RELEASE_ID="${NEXUSFLOW_RELEASE_ID:-prod-${BUILD_SHA:0:12}-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
 TELEMETRY_SCRIPT="$RELEASES_ROOT/$BUILD_SHA/scripts/release-telemetry.mjs"
 SESSION_SECURITY_SCRIPT="$RELEASES_ROOT/$BUILD_SHA/scripts/session-token-security.mjs"
@@ -184,6 +223,27 @@ if ! "$VERIFY_ONLY"; then
     release_die "NEXUSFLOW_PROVIDER_COST_MANIFEST must identify the private staged price book"
   node "$PROVIDER_COST_CONTROL" preflight \
     --manifest "$PROVIDER_COST_MANIFEST"
+fi
+
+load_provider_cost_contract() {
+  local contract
+  contract="$(node "$PROVIDER_COST_CONTROL" expected --manifest "$PROVIDER_COST_MANIFEST")" ||
+    release_die "provider-cost manifest release contract is invalid"
+  read -r PROVIDER_COST_PRICE_BOOK_ID PROVIDER_COST_EXPECTED_TIERS \
+    PROVIDER_COST_EXPECTED_MODELS PROVIDER_COST_EXPECTED_FULL_TIERS \
+    PROVIDER_COST_EXPECTED_PARTIAL_TIERS PROVIDER_COST_CONTRACT_SOURCE <<<"$contract"
+  case "$PROVIDER_COST_PRICE_BOOK_ID" in
+    pb-[0-9a-f]*) ;;
+    *) release_die "provider-cost manifest contract returned an invalid price book" ;;
+  esac
+  if test "$PROVIDER_COST_CONTRACT_SOURCE" = legacy_default; then
+    release_log "warning: provider-cost manifest has no expected block; using the legacy 13/10/7/6 contract"
+  fi
+  release_log "provider-cost contract: $PROVIDER_COST_EXPECTED_TIERS tiers / $PROVIDER_COST_EXPECTED_MODELS models ($PROVIDER_COST_CONTRACT_SOURCE)"
+}
+
+if test -n "$PROVIDER_COST_MANIFEST"; then
+  load_provider_cost_contract
 fi
 
 "$SCRIPT_DIR/deploy-production.sh" preflight
@@ -365,6 +425,7 @@ provider_cost_release_command() {
   node "$PROVIDER_COST_RELEASE_CONTROL" "$command" \
     --release-dir "$RELEASES_ROOT/$BUILD_SHA" \
     --backend-env "$BACKEND_ENV" \
+    --price-book-id "$PROVIDER_COST_PRICE_BOOK_ID" \
     "$@"
 }
 
@@ -1003,7 +1064,7 @@ TELEMETRY_ACTIVE=true
 release_log "release telemetry ID: $RELEASE_ID"
 telemetry_event_required \
   started \
-  "Immutable artifact, backup, and migration gates passed; rollout started"
+  "$RELEASE_STARTED_MESSAGE"
 if "$BASELINE_SESSION_HASH_CAPABLE"; then
   session_security_command posture --expect hash-only ||
     release_die "hash-capable baseline does not have hash-only session posture"

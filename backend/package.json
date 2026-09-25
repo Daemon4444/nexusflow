@@ -42,13 +42,15 @@
     "test:control-plane-persistence": "ts-node scripts/test-control-plane-persistence-isolated.ts",
     "test:provider-secrets": "NODE_ENV=production USE_PG_MEM=true PROVIDER_OUTBOUND_TEST_SKIP_DNS=true PROVIDER_SECRET_KEY=test-only-provider-secret-key-000000000000000000000000 ts-node scripts/test-provider-secrets.ts",
     "test:demo-admin": "ts-node scripts/test-demo-admin.ts",
-    "db:migrate": "ts-node src/db/migrate.ts",
-    "db:pg:migrate": "ts-node src/db/migrate.ts",
+    "db:migrate": "NEXUSFLOW_APP_ROOT=.. node ../scripts/migrate-with-lock.mjs",
+    "db:pg:migrate": "NEXUSFLOW_APP_ROOT=.. node ../scripts/migrate-with-lock.mjs",
     "db:pg:copy": "ts-node src/db/copy-sqlite-to-pg.ts",
     "db:pg:verify": "ts-node src/db/verify-pg.ts",
     "provider-cost:backfill": "ts-node src/cli/backfill-provider-costs.ts",
     "azure-astra:control": "ts-node src/cli/azure-astra-control.ts",
-    "himodels:control": "ts-node src/cli/himodels-control.ts"
+    "himodels:control": "ts-node src/cli/himodels-control.ts",
+    "test:notifier": "ts-node scripts/test-notifier.ts",
+    "test:feature-flags": "ts-node scripts/test-feature-flags.ts"
   },
   "keywords": [],
   "author": "",
@@ -69,8 +71,8 @@
     "nodemailer": "^9.1.1",
     "pg": "^8.12.0",
     "sharp": "^0.35.4",
-    "uuid": "^14.0.0",
     "undici": "^7.29.0",
+    "uuid": "^14.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
