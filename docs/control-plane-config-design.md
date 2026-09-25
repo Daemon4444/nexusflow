@@ -63,7 +63,7 @@ capabilities:                   # 结构化字段，取代"从描述文字里找
   search: bool
   caching: { implicit, explicit }
   structured_output: bool
-param_rules: <见 §4>
+param_overrides: <可选，只写平台必须改写或拦截的例外，见 §4>
 ```
 
 "展示用的中文能力串"（比如"函数调用""图像输入"）改为**由 `capabilities` 生成**，不再单独维护。
@@ -140,7 +140,7 @@ circuit:
 1. 状态为 `active` 或 `preview` 的模型，至少要有一条 `active` 路由，而且它所属的上游账号也是 `active`。这样就不会再出现"目录里有，却调不了"。
 2. 路由的 `model_id` 必须存在，`account_id` 必须存在；路由选用的适配器必须支持该模型声明的所有协议。
 3. 价格不能是负数；阶梯价按上限单调递增，最后一档要覆盖整个上下文长度。
-4. `capabilities` 和 `param_rules` 不能互相矛盾，比如 `tools.supported=false` 却放行了 `tools` 参数。
+4. 模型要放行 `billing_guarded` 里的某个参数（比如 `enable_search`），前提是它的计费配置能对这项功能正确预扣和结算。
 5. 中转账号必须填写 `relay_operator` 和 `data_path`。
 6. 配额来源是 `unverified` 的账号可以发布，但后台会一直显示警告。
 
