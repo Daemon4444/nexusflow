@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-09-25T00:00:00.000Z",
+  "mode": "offline",
+  "source": "fixtures backend/scripts/fixtures/bailian-2026-09-25",
+  "counts": {
+    "sellable_model_without_route": 3,
+    "route_to_unknown_model": 5,
+    "override_identical_to_static": 1,
+    "provider_invalid_url_with_secret": 0,
+    "capability_declaration_mismatch": 2
+  },
+  "skippedRules": [
+    {
+      "rule": "provider_invalid_url_with_secret",
+      "reason": "offline mode has no providers table export"
+    }
+  ],
+  "findings": [
+    {
+      "rule": "sellable_model_without_route",
+      "severity": "high",
+      "subject": "seedance-1.5-pro",
+      "detail": "sold in the catalog but every route is disabled (volcengine-ark)"
+    },
+    {
+      "rule": "sellable_model_without_route",
+      "severity": "high",
+      "subject": "seedance-1.0-pro",
+      "detail": "sold in the catalog but every route is disabled (volcengine-ark)"
+    },
+    {
+      "rule": "sellable_model_without_route",
+      "severity": "high",
+      "subject": "seedance-1.0-pro-fast",
+      "detail": "sold in the catalog but every route is disabled (volcengine-ark)"
+    },
+    {
+      "rule": "route_to_unknown_model",
+      "severity": "low",
+      "subject": "anthropic/claude-opus-4-7",
+      "detail": "disabled route points at a model that is not in the catalog (already inert)"
+    },
+    {
+      "rule": "route_to_unknown_model",
+      "severity": "high",
+      "subject": "dashscope/MiniMax-M2.7",
+      "detail": "enabled route points at a model that is not in the catalog",
+      "cleanupSql": "UPDATE provider_capacity SET is_enabled = FALSE, updated_at = NOW() WHERE provider_id = 'dashscope' AND model_id = 'MiniMax-M2.7' AND is_enabled = TRUE;"
+    },
+    {
+      "rule": "route_to_unknown_model",
+      "severity": "high",
+      "subject": "dashscope/qwen3-tts-flash-realtime",
+      "detail": "enabled route points at a model that is not in the catalog",
+      "cleanupSql": "UPDATE provider_capacity SET is_enabled = FALSE, updated_at = NOW() WHERE provider_id = 'dashscope' AND model_id = 'qwen3-tts-flash-realtime' AND is_enabled = TRUE;"
+    },
+    {
+      "rule": "route_to_unknown_model",
+      "severity": "low",
+      "subject": "himodels/claude-fable-5",
+      "detail": "disabled route points at a model that is not in the catalog (already inert)"
+    },
+    {
+      "rule": "route_to_unknown_model",
+      "severity": "low",
+      "subject": "himodels/claude-opus-4-7",
+      "detail": "disabled route points at a model that is not in the catalog (already inert)"
+    },
+    {
+      "rule": "override_identical_to_static",
+      "severity": "medium",
+      "subject": "glm-5.2-fast-preview",
+      "detail": "model_overrides row equals the static entry in every pricing/limit/runtime field and differs only in display fields (supported); disabling it reverts the display to the static catalog",
+      "cleanupSql": "UPDATE model_overrides SET enabled = FALSE, updated_at = NOW() WHERE id = 'glm-5.2-fast-preview' AND action = 'upsert' AND enabled = TRUE;"
+    },
+    {
+      "rule": "capability_declaration_mismatch",
+      "severity": "medium",
+      "subject": "deepseek-v4.1-flash",
+      "detail": "declares \"联网搜索\" but supports_search is false, so the related parameters are not honoured"
+    },
+    {
+      "rule": "capability_declaration_mismatch",
+      "severity": "medium",
+      "subject": "glm-5.2-fast-preview",
+      "detail": "declares \"联网搜索\" but supports_search is false, so the related parameters are not honoured"
+    }
+  ]
+}

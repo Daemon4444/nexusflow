@@ -50,7 +50,11 @@
     "azure-astra:control": "ts-node src/cli/azure-astra-control.ts",
     "himodels:control": "ts-node src/cli/himodels-control.ts",
     "test:notifier": "ts-node scripts/test-notifier.ts",
-    "test:feature-flags": "ts-node scripts/test-feature-flags.ts"
+    "test:feature-flags": "ts-node scripts/test-feature-flags.ts",
+    "test:control-plane-consistency": "ts-node scripts/test-control-plane-consistency.ts",
+    "test:bailian-catalog": "ts-node scripts/test-bailian-catalog.ts",
+    "control-plane:consistency": "ts-node src/cli/control-plane-consistency.ts",
+    "bailian:catalog-sync": "ts-node src/cli/bailian-catalog-sync.ts"
   },
   "keywords": [],
   "author": "",
@@ -69,6 +73,7 @@
     "ipaddr.js": "^1.9.1",
     "multer": "^2.3.0",
     "nodemailer": "^9.1.1",
+    "parse5": "7.3.0",
     "pg": "^8.12.0",
     "sharp": "^0.35.4",
     "undici": "^7.29.0",
