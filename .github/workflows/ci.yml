@@ -118,6 +118,7 @@ jobs:
           REDISMS_DISABLE_POSTINSTALL: "true"
       - run: npm --workspace backend run test:stream-reliability
       - run: npm --workspace backend run test:billing
+      - run: npm --workspace backend run test:load-test-account
       - run: npm --workspace backend run test:model-catalog
       - run: npm --workspace backend run test:official-pricing
       - run: npm --workspace backend run test:media-contracts
@@ -244,6 +245,8 @@ jobs:
       - run: npm run test:deploy-orchestrator-state
       - run: npm run test:release-ci-gate
       - run: npm run test:backup-freshness
+      - run: npm run test:load-test
+      - run: npm run test:docs-index
 
   frontend:
     runs-on: ubuntu-latest
