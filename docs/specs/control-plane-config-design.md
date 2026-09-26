@@ -1,6 +1,6 @@
 # NexusFlow 配置化控制面：目标设计
 
-- 状态：**实现中**。实现见 Draft PR https://github.com/Daemon4444/nexusflow/pull/1（分支 `feat/config-control-plane` → `main`，未合并）；逐阶段说明、上线手册和所有假设在该 PR 描述里，执行规格见 `docs/specs/control-plane-implementation-spec.md`。本文档不涉及任何上线动作。
+- 状态：**已实现并部署**。PR https://github.com/Daemon4444/nexusflow/pull/1 已合并（main `21faee6`），2026-09-26 部署到生产，开关推进见 `docs/control-plane-rollout-runbook.md`，当前状态见 `WIKI.md` §8.1；执行规格见 `docs/specs/control-plane-implementation-spec.md`。本文档不涉及任何上线动作。
 - 日期：2026-09-25
 - 前置文档：2026-09-25 工程成熟度审查（Obsidian「nexusflow 工程成熟度审查 2026-09-25」）
 

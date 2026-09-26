@@ -508,7 +508,7 @@ export async function getBillingReservation(reservationId: string): Promise<Bill
 }
 
 /**
- * 扣费（唯一入口，docs/sub-accounts-spec.md §3.2）。
+ * 扣费（唯一入口，docs/specs/sub-accounts-spec.md §3.2）。
  * userId 是实际发起消费的账号（actor）；若为子账号，钱从主账号余额扣，
  * 同事务内对子账号 quota 做原子条件更新（超限/停用则整体回滚）。
  * 锁序固定：先主账号行 FOR UPDATE，再子账号条件 UPDATE，全局一致无死锁。

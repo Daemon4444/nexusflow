@@ -16,7 +16,7 @@
 6. **出站 HTTP 只能走 `backend/src/services/outbound-url-policy.ts`**。`backend/src/` 下不允许出现裸的 `fetch(`，`test:outbound-url-policy` 有静态检查。需要新的出站目标时，在 policy 里加专用函数和主机白名单。
 7. **测试必须兼容 pg-mem**：不要使用 `::float8`（用 `::double precision`）等 pg-mem 不支持的语法。写完就跑一遍。
 8. **不要把密钥、`.env`、客户数据或请求正文写进仓库**。
-9. 开始之前，先完整阅读 `WIKI.md`、`AGENTS.md`、`docs/control-plane-config-design.md`（目标设计，**本 spec 以它为准**）、`docs/MODEL_ONBOARDING.md`、`docs/production-release-runbook.md`。
+9. 开始之前，先完整阅读 `WIKI.md`、`AGENTS.md`、`docs/specs/control-plane-config-design.md`（目标设计，**本 spec 以它为准**）、`docs/MODEL_ONBOARDING.md`、`docs/production-release-runbook.md`。
 10. 每个阶段结束时，至少跑一遍：`npx tsc --noEmit -p backend`，CI 里所有**不依赖真实 Postgres** 的测试，你新增的测试，前端的 `lint` 和 `build`。有依赖真实 Postgres 的测试，就把 PR 推上去让 GitHub CI 跑（CI 里有 Postgres 服务）。
 11. 修改项目事实时，同步更新 `WIKI.md`。
 
@@ -24,7 +24,7 @@
 
 ## 1. 背景与已拍板的决策
 
-完整背景见 `docs/control-plane-config-design.md`。核心结论：平台像 demo，根因是**"接入"写在代码里，而不是数据里**。目标是把**模型、上游账号（含配额池）、路由、流量策略**四类配置变成数据库里的数据：运维可以编辑，每次变更有审计，可以回滚。
+完整背景见 `docs/specs/control-plane-config-design.md`。核心结论：平台像 demo，根因是**"接入"写在代码里，而不是数据里**。目标是把**模型、上游账号（含配额池）、路由、流量策略**四类配置变成数据库里的数据：运维可以编辑，每次变更有审计，可以回滚。
 
 | # | 决策（已由负责人拍板，不要再讨论） |
 |---|---|
@@ -246,7 +246,7 @@
    - **上线手册**：按顺序写清楚每一步由谁执行、执行什么命令、怎么验证、怎么回滚。顺序是：部署（全部开关都是 legacy）→ 跑迁移 → 在线回填 → `NF_CP_MODE=shadow` 观察 → `enforce` → `NF_TRAFFIC_MODE` 同样先 shadow 再 enforce → `NF_PARAM_MODE` 先 shadow，统计后通知客户，再 enforce → `NF_PROTOCOL_MODE=enforce`（之前要先通知 MiniMax-M3 的 2 个用户）→ 执行 contract 清单；
    - **需要人做的事**：安装备份 cron、在线执行一致性检查和清理 SQL、在线回填、核对百炼控制台的实际配额和提额情况、提供 HiModels/jawayid/genvia/Azure 的配额、配置飞书私聊通知；
    - **未决事项**：你做过的所有假设。
-3. 更新文档：`WIKI.md`、`docs/MODEL_ONBOARDING.md`（改成走控制面流程的版本）、`docs/control-plane-config-design.md`（状态改为"实现中"，并链接到 PR）。
+3. 更新文档：`WIKI.md`、`docs/MODEL_ONBOARDING.md`（改成走控制面流程的版本）、`docs/specs/control-plane-config-design.md`（状态改为"实现中"，并链接到 PR）。
 
 ## 5. 完成标准（全部满足才算完成）
 

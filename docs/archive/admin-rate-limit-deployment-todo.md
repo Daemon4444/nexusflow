@@ -1,5 +1,8 @@
 # NexusFlow Admin Rate Limit Deployment TODO
 
+> **已归档（2026-09-26）**：本清单对应的功能早已上线，内容只作历史参考，不代表现状。当前流程见 [文档索引](../README.md)。
+
+
 This checklist is for deploying and verifying admin-managed user/model rate limits.
 
 ## What This Feature Does

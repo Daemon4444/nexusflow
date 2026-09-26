@@ -18,7 +18,7 @@ export interface User {
   password_hash: string | null;
   created_at: string;
   updated_at: string;
-  // 子账号体系（docs/sub-accounts-spec.md）
+  // 子账号体系（docs/specs/sub-accounts-spec.md）
   parent_user_id: string | null;
   username: string | null;
   status: string; // 'active' | 'suspended' | 'deleted'

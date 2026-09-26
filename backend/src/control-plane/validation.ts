@@ -1,5 +1,5 @@
 /**
- * Publish-time validation (docs/control-plane-config-design.md §3.2 + D6).
+ * Publish-time validation (docs/specs/control-plane-config-design.md §3.2 + D6).
  * A version with any error cannot be published; warnings are shown but do
  * not block.
  */
