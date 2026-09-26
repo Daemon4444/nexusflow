@@ -345,6 +345,7 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
 - 两个 CLI：`himodels-control`、`azure-astra-control` 在 `NF_CP_MODE≠legacy` 时只写凭据，路由/账号状态变化生成
   变更单（`control-plane/cli-change.ts`），不再直接写 `providers.status`/`provider_capacity`。
 - enforce 稳定后才能删除的旧代码/表/路径，见 `docs/control-plane-contract-checklist.md`。
+- **上线步骤**（部署 → 一致性检查 → 回填 → 逐个开关 shadow/enforce → 收尾）见 `docs/control-plane-rollout-runbook.md`。
 
 ## 9. 账号、权限与账本不变量
 
