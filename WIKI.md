@@ -253,7 +253,7 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
 
 只通过 build 或只 curl 后端，不算“上线验证完成”。
 
-### 8.1 配置化控制面（实现中：`feat/config-control-plane` Draft PR；设计见 `docs/control-plane-config-design.md`）
+### 8.1 配置化控制面（实现中：Draft PR https://github.com/Daemon4444/nexusflow/pull/1；设计见 `docs/control-plane-config-design.md`）
 
 目标是把模型、上游账号（含配额池）、路由、流量策略四类配置从代码迁到数据库（`cp_*`），经变更单发布、可回滚。
 在 `NF_CP_MODE` 等开关切到 `enforce` 之前，线上仍由上面的旧路径决定。已有的只读工具：
