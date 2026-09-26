@@ -72,7 +72,7 @@ let recordedCalls: RecordedCall[] = [];
 
 const SECRET_HEADERS = new Set(["authorization", "x-api-key", "api-key"]);
 
-function normaliseHeaders(input: HeadersInit | undefined): Record<string, string> {
+function normaliseHeaders(input: ConstructorParameters<typeof Headers>[0] | undefined): Record<string, string> {
   const out: Record<string, string> = {};
   const headers = new Headers(input || {});
   headers.forEach((value, key) => {

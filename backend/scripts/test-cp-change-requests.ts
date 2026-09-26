@@ -216,7 +216,7 @@ async function main(): Promise<void> {
     const files = exporter.renderSnapshot(backfill.content, { version: 1, sha256: backfill.contentSha256, publishedAt: null, publishedBy: "test" });
     const again = exporter.renderSnapshot(clone(backfill.content), { version: 1, sha256: backfill.contentSha256, publishedAt: null, publishedBy: "test" });
     assert.deepEqual(files, again, "export is deterministic");
-    assert.deepEqual(yaml.load(files["routes.yaml"]), JSON.parse(JSON.stringify(store.contentSha256 && backfill.content.routes)), "YAML round-trips");
+    assert.deepEqual(yaml.load(files["routes.yaml"]), JSON.parse(JSON.stringify(backfill.content.routes)), "YAML round-trips");
     assert.deepEqual(yaml.load(files["models.yaml"]).map((model: any) => model.id), [...backfill.content.models.map((model) => model.id)].sort((x, y) => x.localeCompare(y)));
     assert.equal(/api_key|sk-/.test(files["accounts.yaml"]), false, "no secrets in snapshots");
 
