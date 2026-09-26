@@ -48,8 +48,9 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 | `GEMINI.md` | Gemini CLI 自动入口 |
 | `.github/copilot-instructions.md` | GitHub Copilot 自动入口 |
 | `README.md` | 面向开发者和 GitHub 访客的快速介绍 |
+| `docs/README.md` | `docs/` 全部文档的分类索引（带状态）和写文档规则；CI 校验索引完整 |
 | `docs/MODEL_ONBOARDING.md` | 新模型上线的强制 Playbook |
-| `docs/whole-site-reliability-ux-spec-2026-07-21.md` | 2026-07-21 整站功能、协议、视觉与发布验收记录 |
+| `docs/load-testing.md` | 压测安全规则、流程、判读、当前基线与改进建议 |
 | `MODELS.md` | 人工维护的模型说明；运行时目录以 API/代码/DB 覆盖层为准 |
 | `REVIEW_SPEC_2026-07.md` | 2026-07-20 审计快照，不代表所有事项仍未完成 |
 
@@ -253,10 +254,14 @@ Provider Router 当前是 Backend 内部核心模块，不在 ACK 等价迁移�
 
 只通过 build 或只 curl 后端，不算“上线验证完成”。
 
-### 8.1 配置化控制面（实现中：Draft PR https://github.com/Daemon4444/nexusflow/pull/1；设计见 `docs/control-plane-config-design.md`）
+### 8.1 配置化控制面（已部署；设计见 `docs/specs/control-plane-config-design.md`）
+
+**生产状态（2026-09-26）**：`21faee6` 已部署，迁移 `029`–`032` 已执行，控制面版本 v1 已回填（影子比对零差异）；
+两节点 `NF_CP_MODE=shadow`（2026-09-26 19:19 CST 起），其余开关 legacy。按 `docs/control-plane-rollout-runbook.md`
+逐步推进；Seedance 3 个在售无路由模型待定（回填用了 `--allow-check model_has_active_route`）。
 
 目标是把模型、上游账号（含配额池）、路由、流量策略四类配置从代码迁到数据库（`cp_*`），经变更单发布、可回滚。
-在 `NF_CP_MODE` 等开关切到 `enforce` 之前，线上仍由上面的旧路径决定。已有的只读工具：
+在 `NF_CP_MODE` 等开关切到 `enforce` 之前，线上仍由上面的旧路径决定（shadow 只比对不生效）。已有的只读工具：
 
 - `backend/src/cli/control-plane-consistency.ts`：旧配置源一致性检查（在售无路由、路由指向不存在模型、覆盖层与
   静态目录重复、Provider URL 非法却带密钥、能力宣告与能力推导矛盾）。离线读 fixtures，在线只做 SELECT；
@@ -527,7 +532,9 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 
 每日备份的 cron 模板在 `ops/cron/nexusflow-db-backup.cron`（显式 `PATH`，输出追加到
 `/var/log/nexusflow/db-backup.log`），`scripts/check-backup-freshness.sh` 在最新 `*.dump.age` 超过 26 小时、
-缺失或过小时非零退出。两者只在仓库中准备，需由人按 runbook 安装。
+缺失或过小时非零退出。2026-09-26 已安装到主节点 `/etc/cron.d/nexusflow-db-backup`（替换了 crontab 里缺 PATH 的旧条目）；
+注意安装版在备份行前加载了 `/etc/nexusflow/backup-release.env`（异地验证机配置），仓库模板目前缺这一步，照原样安装会每晚失败。
+控制面每日快照 `/etc/cron.d/nexusflow-cp-export` 同日安装，输出在 `/var/lib/nexusflow/cp-snapshots`（本地 git）。
 
 备份“文件存在”不等于可恢复。重大 schema/计费变更后应定期执行认证解密、PostgreSQL
 16 隔离库完整恢复和业务一致性演练；演练记录不得包含私钥、数据库口令或客户数据。
@@ -597,6 +604,10 @@ CI（`.github/workflows/ci.yml`）拆成 5 个并行 job，互不阻塞：`secur
 `NF_CP_REQUIRE_SECOND_APPROVER`（默认 `false`）。`shadow` 只记录差异（SLS `status:"shadow_diff"` 与 Redis
 `nf:shadow:<area>:<yyyymmdd>`），不改变请求结果。运维通知统一走 `backend/src/services/notifier.ts`：默认只写日志，
 可选飞书**私聊**（`NF_NOTIFIER=feishu_dm`），禁止群 webhook。
+
+性能与容量用 `docs/load-testing.md` 的流程验证：`scripts/load-test.mjs` 阶梯发压（费用上限、自动停止、非本地须 `--confirm-production`），
+`npm --workspace backend run load-test:account` 建/对账/清理 `nf-loadtest-*` 压测账号并采样数据库等锁。2026-09-26 生产基线：
+单个主账号吞吐上限约 48 rps（≈2900 次/分钟），瓶颈是 `users` 余额行 `FOR UPDATE` 锁，与节点数无关；详见该文档 §6–§7。
 
 前端 `npm run lint` 当前以 0 error 退出，但仍保留显式 `any`、旧 effect 和少量未使用变量等 warning 作为存量重构信号；不要把“lint 命令通过”写成“无任何 lint 债务”。
 
@@ -730,13 +741,14 @@ bash scripts/deploy-all-production.sh --verify-only
 
 按价值优先，而不是把旧 Spec 中所有勾选框机械重做：
 
-1. 主动监控与告警闭环：健康、错误率、低余额、402、备份失败；
-2. 定期恢复演练与凭据轮换，确认 `PROVIDER_SECRET_KEY` 等生产安全配置；
-3. 扩充 CI：路由契约、迁移、真实 PostgreSQL、浏览器 E2E，并逐步清零前端 lint warning；
-4. 处理客户端取消后的上游 stream/resource 释放；
-5. 上传对象生命周期、配额与对象存储；
-6. 拆分前端超大组件、收紧诊断 payload 类型并清理重复路由逻辑；
-7. 稳定后再从 Next.js preview 版本迁移到正式版本；
-8. 对海外渠道、Responses 付费工具、Seedance/Claude 等能力保持“有 Key 且真实端到端通过才宣称可用”。
+1. 解除单账号计费行锁瓶颈（`FOR NO KEY UPDATE`、用量写入移出持锁事务、并发计费测试），修完按 `docs/load-testing.md` 饱和档复测；
+2. 主动监控与告警闭环：健康、错误率、低余额、402、备份失败；
+3. 定期恢复演练与凭据轮换，确认 `PROVIDER_SECRET_KEY` 等生产安全配置；
+4. 扩充 CI：路由契约、迁移、真实 PostgreSQL、浏览器 E2E，并逐步清零前端 lint warning；
+5. 处理客户端取消后的上游 stream/resource 释放；
+6. 上传对象生命周期、配额与对象存储；
+7. 拆分前端超大组件、收紧诊断 payload 类型并清理重复路由逻辑；
+8. 稳定后再从 Next.js preview 版本迁移到正式版本；
+9. 对海外渠道、Responses 付费工具、Seedance/Claude 等能力保持“有 Key 且真实端到端通过才宣称可用”。
 
 每次开始新一轮优化前，先查 GitHub CI、生产版本、最近错误和真实业务数据，再重新排序。

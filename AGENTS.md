@@ -6,10 +6,11 @@
 
 1. **完整阅读 [`WIKI.md`](WIKI.md)**。它是项目全景、架构、不变量、部署和当前边界的唯一事实入口。
 2. **完整阅读 [`docs/AGENT_PROJECT_MEMORY.md`](docs/AGENT_PROJECT_MEMORY.md)**。它把业务域、请求链路、计费、Provider 路由、双节点发布和历史故障收敛为 Agent 必须掌握的长期记忆。
-3. 根据任务再读专项文档：
+3. 根据任务再读专项文档（完整分类索引见 [`docs/README.md`](docs/README.md)）：
    - 新模型：`docs/MODEL_ONBOARDING.md`
    - 模型目录：`MODELS.md` 与实际 `/api/models`
    - 发布回归：`docs/release-regression-test-checklist.md`
+   - 压测与容量：`docs/load-testing.md`
    - 海外区域：`docs/overseas-region-deployment-todo.md`
    - 历史审计：`REVIEW_SPEC_2026-07.md`
 4. 先检查当前分支、工作区、GitHub 和必要的生产状态。不要把历史记忆当成当前运行事实。

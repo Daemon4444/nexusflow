@@ -438,10 +438,13 @@ container-era cron. It:
   used by releases;
 - retains only matching verified release dump names for the configured period.
 
-As of 2026-07-29 the script is implemented but no production cron or systemd
-timer has been changed. The old 20-byte-producing task remains an operations
-No-Go until this replacement is installed, observed producing a valid RDS dump,
-and included in an isolated restore drill.
+On 2026-09-26 the replacement was installed as `/etc/cron.d/nexusflow-db-backup`
+on the main node (the older crontab entry, which lacked `PATH` and silently
+stopped producing dumps, was removed) and one run under a cron-equivalent
+`env -i` environment produced a 19 MB dump that passed the offsite full
+restore. The installed line loads `/etc/nexusflow/backup-release.env` before
+running the script; the repository template does not yet do this and fails
+without `NEXUSFLOW_BACKUP_RESTORE_VERIFY_HOST`.
 
 ### Daily backup cron installation (operator task, not automated)
 
@@ -491,6 +494,20 @@ bash scripts/deploy-all-production.sh --override-ci "GitHub Actions outage; hotf
 
 The reason (8–300 characters) is logged and appended to the release telemetry
 `started` event message. `--verify-only` does not consult CI.
+
+The main node has neither `gh` nor a stored `GITHUB_TOKEN`. Pass an operator
+token for the one command through stdin, so it never appears in arguments,
+shell history or files:
+
+```bash
+gh auth token | ssh nexus 'IFS= read -r GITHUB_TOKEN; export GITHUB_TOKEN;
+  cd /root/distiny/nexusflow && set -a && . /etc/nexusflow/backup-release.env && set +a &&
+  NEXUSFLOW_PROVIDER_COST_MANIFEST=... bash scripts/deploy-all-production.sh --dry-run'
+```
+
+`/etc/nexusflow/backup-release.env` provides `NEXUSFLOW_BACKUP_RESTORE_VERIFY_HOST`
+(the `nexusflow-backup-offsite` SSH alias; a bare IP is rejected) and the
+verifier hook path.
 
 ### Provider-cost release contract
 

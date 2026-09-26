@@ -63,7 +63,9 @@
     "test:params-protocols": "ts-node scripts/test-params-protocols-isolated.ts",
     "control-plane:route-probe": "ts-node src/cli/route-probe.ts",
     "control-plane:export": "ts-node src/cli/control-plane-export.ts",
-    "test:cp-change-requests": "USE_PG_MEM=true ts-node scripts/test-cp-change-requests.ts"
+    "test:cp-change-requests": "USE_PG_MEM=true ts-node scripts/test-cp-change-requests.ts",
+    "test:load-test-account": "USE_PG_MEM=true ts-node scripts/test-load-test-account.ts",
+    "load-test:account": "ts-node src/cli/load-test-account.ts"
   },
   "keywords": [],
   "author": "",
