@@ -1,6 +1,6 @@
 # 控制面 contract 清单（enforce 稳定后才能删除的内容）
 
-本清单列出配置化控制面（`docs/control-plane-config-design.md`、`docs/specs/control-plane-implementation-spec.md`）
+本清单列出配置化控制面（`docs/specs/control-plane-config-design.md`、`docs/specs/control-plane-implementation-spec.md`）
 全部开关切到 enforce 并稳定运行后，才允许删除的旧代码、旧表和旧路径。**每一项都必须满足它自己的前置条件，
 且以单独的 PR 执行**。表只能在 contract 迁移里删除，编号接在当时最新的 migration 之后；`024`/`025` 保留给并行分支，永远不用。
 

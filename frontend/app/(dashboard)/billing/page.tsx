@@ -45,7 +45,7 @@ export default function BillingPage() {
   const [exportEndDate, setExportEndDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportError, setExportError] = useState("");
-  // 子账号视角：无充值入口，余额卡替换为限额视图（docs/sub-accounts-spec.md §4.3）
+  // 子账号视角：无充值入口，余额卡替换为限额视图（docs/specs/sub-accounts-spec.md §4.3）
   const isSub = user?.accountType === "sub";
   const quota = user?.quota || null;
 

@@ -382,7 +382,7 @@ router.post("/login-password", validateBody(PasswordLoginSchema), async (req: Re
   });
 });
 
-// POST /api/auth/login-username — 用户名 + 密码登录（子账号，docs/sub-accounts-spec.md §2.3）
+// POST /api/auth/login-username — 用户名 + 密码登录（子账号，docs/specs/sub-accounts-spec.md §2.3）
 const UsernameLoginSchema = z.object({
   username: z.string().min(3).max(32),
   password: z.string().min(6, "Password must be at least 6 characters"),

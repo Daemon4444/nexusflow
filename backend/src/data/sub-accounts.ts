@@ -5,7 +5,7 @@ import { models } from "./models";
 import { normalizeAllowedModels } from "./model-access";
 import { validateNewPassword } from "../utils/password-policy";
 
-// docs/sub-accounts-spec.md §2
+// docs/specs/sub-accounts-spec.md §2
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_-]{3,32}$/;
 const RESERVED_USERNAMES = new Set([

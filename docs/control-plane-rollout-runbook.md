@@ -1,6 +1,6 @@
 # 配置化控制面上线手册
 
-对应 PR：https://github.com/Daemon4444/nexusflow/pull/1 ；设计见 `docs/control-plane-config-design.md`，
+对应 PR：https://github.com/Daemon4444/nexusflow/pull/1 ；设计见 `docs/specs/control-plane-config-design.md`，
 规格见 `docs/specs/control-plane-implementation-spec.md`，上线后可删除的旧东西见
 `docs/control-plane-contract-checklist.md`。
 

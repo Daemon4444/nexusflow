@@ -17,7 +17,7 @@
 
 控制面切到 enforce 之后，**模型、上游账号/配额池、路由、流量策略都是数据**，改代码不再上线模型。上线/下线
 全部在后台「配置控制面」（`/admin/config`，需要 `traffic.manage`）用变更单完成，每一步都有审计、都是一个新版本、
-都能回滚。设计见 `docs/control-plane-config-design.md` §5，接口见 `backend/src/routes/admin-cp-config.ts`。
+都能回滚。设计见 `docs/specs/control-plane-config-design.md` §5，接口见 `backend/src/routes/admin-cp-config.ts`。
 
 1. **核对官方数据**（同下文 §1）。百炼模型先看最新的差异报告（后台「百炼差异报告」页，或
    `npm --workspace backend run bailian:catalog-sync -- --offline ...` 产出的 `docs/upstream-sync/bailian-*.md`）：

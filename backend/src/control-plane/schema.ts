@@ -3,7 +3,7 @@
  *
  * One version holds the complete published state of the four entities:
  * models, upstream accounts (+ quota pools), routes and traffic policies.
- * Field names follow docs/control-plane-config-design.md §2.
+ * Field names follow docs/specs/control-plane-config-design.md §2.
  */
 import { z } from "zod";
 import { UPSTREAM_ADAPTERS } from "../pipeline/adapters";

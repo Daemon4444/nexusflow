@@ -14,7 +14,7 @@ import {
   reserveKdfAdmission,
 } from "../services/kdf-admission";
 
-// docs/sub-accounts-spec.md §6 — 全部接口要求：已登录 + 发起者是主账号
+// docs/specs/sub-accounts-spec.md §6 — 全部接口要求：已登录 + 发起者是主账号
 const router = Router();
 
 async function requireMainAccount(req: Request, res: Response): Promise<User | null> {
