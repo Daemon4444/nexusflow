@@ -562,6 +562,16 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 - Rate Limits、Tickets、Monitor、Sub Accounts；
 - Admin：用户、余额、Provider、容量、路由、模型目录、折扣、工单等。
 
+后台（`/admin`，`frontend/features/admin/`）约定：
+- 客户详情页可直接编辑该客户的模型限额（`support.manage`，`PUT/DELETE /api/rate-limits/admin/users/:id/models/:model`）
+  和模型折扣（`billing.manage`；子账号不能设折扣，计费按主账号取折扣；实付 0% 需二次确认），并按北京时间自然日导出
+  账单 CSV（`GET /api/admin/customers/:id/billing-export.csv`，只需 `billing.read`）。子账号的调账按钮禁用。
+- 「模型与定价」的可用性按 `provider_capacity` 路由启用且所属 Provider 启用计算（与一致性检查
+  `sellable_model_without_route` 同口径），可筛出在售但无可用路由的模型。
+- 账务流水里 `consumption` 按扣款显示为负数；状态码显示中文、悬停可见原值。
+- `AdminState` 只在首次加载显示骨架屏，编辑后的刷新保留当前内容和标签页。
+- `usage_logs.node_id` 由 PM2 配置写入主机名（`NEXUSFLOW_NODE_ID`，发布保留变量，不写进 `.env`）。
+
 前端已有浅/深主题、中文优先的控制台文案和部分 i18n。不要在没有产品决策时把公开营销页整页改成单一语言。模型详情使用 catch-all 路由承接含斜杠的模型 ID。
 
 当前主推模型和推荐顺序会随运营调整，不能从历史对话推断。以 `frontend/app/page.tsx`、`frontend/lib/models.ts` 和线上页面为准。

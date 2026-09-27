@@ -9,6 +9,7 @@
     --nf-admin-line: #e2e8e6;
     --nf-admin-wash: #f5f7f8;
     --nf-admin-signal: #0f766e;
+    --nf-admin-out: #be123c;
     min-height: 100vh;
     background:
       linear-gradient(rgba(15, 118, 110, 0.025) 1px, transparent 1px),
@@ -26,6 +27,7 @@
     --nf-admin-line: #26322f;
     --nf-admin-wash: #0c1014;
     --nf-admin-signal: #2dd4bf;
+    --nf-admin-out: #fb7185;
   }
 
   .nf-admin-sider {
@@ -255,6 +257,40 @@
     margin-bottom: 16px;
   }
 
+  /* Modals render outside .nf-admin, so every variable carries a fallback. */
+  .nf-admin-amount-in {
+    color: var(--nf-admin-signal, #0f766e);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .nf-admin-amount-out {
+    color: var(--nf-admin-out, #be123c);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .nf-admin-tab-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+  }
+
+  .nf-admin-refreshing {
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+  }
+
+  /* Two equal form fields side by side (modals render outside .nf-admin). */
+  .nf-admin-form-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .nf-admin-muted-text {
+    color: var(--nf-admin-muted, #66736f);
+  }
+
   .nf-admin-metric {
     min-height: 118px;
     border-color: var(--nf-admin-line) !important;
@@ -469,19 +505,23 @@
     grid-template-columns: minmax(130px, 0.35fr) minmax(0, 1fr);
     gap: 12px;
     padding: 10px 0;
-    border-bottom: 1px solid var(--nf-admin-line);
+    border-bottom: 1px solid var(--nf-admin-line, #e2e8e6);
   }
 
   .nf-admin-kv > span:first-child {
-    color: var(--nf-admin-muted);
+    color: var(--nf-admin-muted, #66736f);
     font-size: 11px;
   }
 
   .nf-admin-kv > span:last-child {
     min-width: 0;
     overflow-wrap: anywhere;
-    color: var(--nf-admin-ink);
+    color: var(--nf-admin-ink, #14211f);
     font-size: 12px;
+  }
+
+  .nf-admin-kv > span.nf-admin-amount-out {
+    color: var(--nf-admin-out, #be123c);
   }
 
   @media (max-width: 1100px) {
@@ -494,6 +534,15 @@
   @media (max-width: 720px) {
     .nf-admin-content {
       padding: 18px 14px 54px;
+    }
+
+    .nf-admin-metric-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .nf-admin-metric {
+      min-height: 0;
     }
 
     .nf-admin-header {

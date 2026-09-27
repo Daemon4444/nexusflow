@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Input, Select, Table, Tag } from "antd";
+import { Input, Select, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import { SearchOutlined } from "@ant-design/icons";
 import { adminGet, AdminApiError } from "../client";
@@ -21,6 +21,7 @@ export default function ModelsScreen() {
   const provider = searchParams.get("provider") || "all";
   const category = searchParams.get("category") || "all";
   const source = searchParams.get("source") || "all";
+  const availability = searchParams.get("availability") || "all";
   const page = positiveInt(searchParams.get("page"), 1);
   const pageSize = positiveInt(searchParams.get("pageSize"), 20);
   const resource = useAdminResource(async (signal) => {
@@ -43,9 +44,11 @@ export default function ModelsScreen() {
       return matchesQuery
         && (provider === "all" || item.provider === provider)
         && (category === "all" || item.category === category)
-        && (source === "all" || item.source === source);
+        && (source === "all" || item.source === source)
+        && (availability === "all"
+          || (availability === "unrouted" ? item.availability !== "available" : item.availability === availability));
     });
-  }, [category, provider, q, resource.data, source]);
+  }, [availability, category, provider, q, resource.data, source]);
 
   const providers = useMemo(
     () => [...new Set((resource.data?.models || []).map((item) => item.provider))].sort(),
@@ -71,7 +74,23 @@ export default function ModelsScreen() {
     },
     { title: "Provider", dataIndex: "provider", width: 150 },
     { title: "分类", dataIndex: "category", width: 120 },
-    { title: "可用性", dataIndex: "availability", width: 150, render: (value, row) => <StatusTag status={value || row.status || "unknown"} /> },
+    {
+      title: "可用性",
+      dataIndex: "availability",
+      width: 170,
+      render: (value, row) => {
+        const tag = <StatusTag status={value || row.status || "unknown"} />;
+        if (typeof row.totalRoutes !== "number") return tag;
+        const detail = row.routes?.length
+          ? row.routes.map((route) => `${route.providerId}：${route.routeEnabled ? "路由启用" : "路由停用"}${route.providerEnabled ? "" : "，账号停用"}`).join("；")
+          : "provider_capacity 中没有该模型的路由";
+        return (
+          <Tooltip title={detail}>
+            <span>{tag}<span className="nf-admin-table-secondary">{row.enabledRoutes}/{row.totalRoutes} 条</span></span>
+          </Tooltip>
+        );
+      },
+    },
     { title: "输入价格", dataIndex: "promptPrice", align: "right", width: 125, render: (value) => displayMoney(value, true) },
     { title: "输出价格", dataIndex: "completionPrice", align: "right", width: 125, render: (value) => displayMoney(value, true) },
     { title: "上下文", dataIndex: "contextLength", align: "right", width: 120, render: displayNumber },
@@ -84,7 +103,7 @@ export default function ModelsScreen() {
         ? values.map((value) => <Tag key={value}>{value}</Tag>)
         : "unknown",
     },
-    { title: "来源", dataIndex: "source", width: 105, render: (value) => <Tag>{value || "unknown"}</Tag> },
+    { title: "来源", dataIndex: "source", width: 105, render: (value) => <Tag>{({ static: "静态默认", overridden: "已覆盖", added: "后台新增" } as Record<string, string>)[value] || value || "unknown"}</Tag> },
   ];
 
   const pagination: TablePaginationConfig = {
@@ -101,7 +120,7 @@ export default function ModelsScreen() {
       <AdminPageHeader
         eyebrow="Catalog truth"
         title="模型与定价"
-        description="有效模型目录、覆盖来源、能力、真实可用性与对客价格。目录展示不代表存在可用承载路由。"
+        description="有效模型目录、覆盖来源、能力、对客价格与真实可用性（按启用的路由且所属上游账号启用计算）。"
       />
       <AdminState loading={resource.loading} error={resource.error} empty={!resource.data} onRetry={resource.reload}>
         {resource.data ? (
@@ -112,6 +131,7 @@ export default function ModelsScreen() {
               <AdminMetric label="静态目录" value={displayNumber(resource.data.staticCount)} unknown={resource.data.staticCount == null} />
               <AdminMetric label="目录覆盖" value={displayNumber(resource.data.overrideCount)} unknown={resource.data.overrideCount == null} />
               <AdminMetric label="已下架 ID" value={displayNumber(resource.data.disabledIds?.length)} unknown={!resource.data.disabledIds} />
+              <AdminMetric label="无可用路由" value={displayNumber(resource.data.unroutedCount)} unknown={resource.data.unroutedCount == null} />
             </div>
             <div className="nf-admin-filterbar" role="search">
               <Input
@@ -147,6 +167,19 @@ export default function ModelsScreen() {
                   { label: "静态默认", value: "static" },
                   { label: "已覆盖", value: "overridden" },
                   { label: "后台新增", value: "added" },
+                ]}
+              />
+              <Select
+                value={availability}
+                onChange={(value) => setQuery({ availability: value, page: 1 })}
+                style={{ width: 170 }}
+                aria-label="筛选可用性"
+                options={[
+                  { label: "全部可用性", value: "all" },
+                  { label: "可用", value: "available" },
+                  { label: "无可用路由（全部）", value: "unrouted" },
+                  { label: "路由全部停用", value: "no_active_route" },
+                  { label: "无托管路由", value: "no_route" },
                 ]}
               />
             </div>

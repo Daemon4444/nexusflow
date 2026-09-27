@@ -112,3 +112,33 @@ export function appendQuery(path: string, params: Record<string, string | number
   const query = search.toString();
   return query ? `${path}?${query}` : path;
 }
+
+const DOWNLOAD_API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
+
+/** Downloads a non-JSON admin export (CSV) with the admin session headers. */
+export async function adminDownload(path: string, filename: string): Promise<void> {
+  const response = await fetch(`${DOWNLOAD_API_BASE}${path}`, { headers: authHeaders() });
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text || `导出失败（HTTP ${response.status}）`;
+    try {
+      const parsed = JSON.parse(text) as { message?: unknown };
+      if (typeof parsed.message === "string") message = parsed.message;
+    } catch {
+      // Keep the raw body as the message.
+    }
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("nexusflow:admin-session-expired"));
+    }
+    throw new AdminApiError(message, response.status);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

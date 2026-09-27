@@ -247,7 +247,7 @@ export default function TrafficScreen() {
                 ]}
               />
             </Card>
-            <AdminState loading={detail.loading} error={detail.error} empty={false} onRetry={detail.reload}>
+            <AdminState loading={detail.loading} error={detail.error} onRetry={detail.reload}>
               <>
                 {detail.data?.note ? <Alert type="info" showIcon title={detail.data.note} /> : null}
                 <TruthBar truth={detail.data?.truth} />

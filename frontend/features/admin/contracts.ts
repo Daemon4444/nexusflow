@@ -311,7 +311,10 @@ export interface CatalogModel {
   maxOutput?: NullableNumber;
   status?: string;
   source?: "static" | "overridden" | "added" | string;
-  availability?: string | null;
+  availability?: "available" | "no_active_route" | "no_route" | string | null;
+  enabledRoutes?: number;
+  totalRoutes?: number;
+  routes?: Array<{ providerId: string; routeEnabled: boolean; providerEnabled: boolean }>;
   supported?: string[];
 }
 
@@ -320,6 +323,7 @@ export interface ModelCatalog {
   disabledIds?: string[];
   staticCount?: number;
   overrideCount?: number;
+  unroutedCount?: number;
   truth?: Record<string, unknown>;
 }
 

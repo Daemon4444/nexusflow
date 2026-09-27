@@ -12,6 +12,7 @@ import { displayDate, displayNumber } from "../shared/format";
 import { asRecord, numberValue, optionalText, pickValue, textValue } from "../shared/normalize";
 import { positiveInt, useAdminQuery } from "../shared/useAdminQuery";
 import { useAdminResource } from "../shared/useAdminResource";
+import { validateOrNull } from "../shared/forms";
 
 interface ReviewForm {
   model: string;
@@ -80,7 +81,8 @@ export default function ApprovalsScreen() {
 
   const submitReview = async () => {
     if (!review) return;
-    const values = await form.validateFields();
+    const values = await validateOrNull(form);
+    if (!values) return;
     setSubmitting(true);
     try {
       await adminPost(
@@ -206,14 +208,14 @@ export default function ApprovalsScreen() {
               <Form.Item name="model" label="生效模型" rules={[{ required: true, whitespace: true, message: "请输入模型 ID" }]}>
                 <Input />
               </Form.Item>
-              <Space size={12} style={{ display: "flex" }}>
-                <Form.Item name="qpm" label="批准 QPM" style={{ flex: 1 }} rules={[{ required: true, type: "number", min: 1, message: "QPM 必须大于 0" }]}>
+              <div className="nf-admin-form-pair">
+                <Form.Item name="qpm" label="批准 QPM" rules={[{ required: true, type: "number", min: 1, message: "QPM 必须大于 0" }]}>
                   <InputNumber min={1} precision={0} style={{ width: "100%" }} />
                 </Form.Item>
-                <Form.Item name="tpm" label="批准 TPM" style={{ flex: 1 }} rules={[{ required: true, type: "number", min: 1, message: "TPM 必须大于 0" }]}>
+                <Form.Item name="tpm" label="批准 TPM" rules={[{ required: true, type: "number", min: 1, message: "TPM 必须大于 0" }]}>
                   <InputNumber min={1} precision={0} style={{ width: "100%" }} />
                 </Form.Item>
-              </Space>
+              </div>
             </>
           ) : null}
           <Form.Item
