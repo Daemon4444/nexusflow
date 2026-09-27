@@ -256,6 +256,9 @@ export interface ProviderRoute {
   avgLatencyMs?: NullableNumber;
   availability?: NullableNumber;
   lastObservedAt?: string | null;
+  lastSuccessAt?: string | null;
+  lastFailureAt?: string | null;
+  consecutiveFailures?: number;
   lastError?: string | null;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Alert, Card, Input, Progress, Select, Table, Tabs } from "antd";
+import { Alert, Card, Input, Progress, Select, Space, Table, Tabs, Tooltip } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import { SearchOutlined } from "@ant-design/icons";
 import { adminGet } from "../client";
@@ -44,11 +44,51 @@ function displayTier(row: ProviderCostTier): string {
   return `[${min}, ${max})`;
 }
 
+type RouteState = "active" | "route_disabled" | "provider_disabled";
+
+// A route only carries traffic when both the route and its provider are enabled.
+function routeState(row: ProviderRoute): RouteState {
+  if (row.providerStatus && row.providerStatus !== "enabled") return "provider_disabled";
+  return row.enabled ? "active" : "route_disabled";
+}
+
+const PROBLEM_HEALTH = new Set(["degraded", "down"]);
+
+function isProblem(row: ProviderRoute): boolean {
+  return routeState(row) === "active" && row.healthObserved !== false && PROBLEM_HEALTH.has(row.health || "");
+}
+
+function RouteHealthTag({ row }: { row: ProviderRoute }) {
+  const state = routeState(row);
+  if (state !== "active") {
+    return (
+      <Tooltip title={state === "provider_disabled" ? "所属 Provider 已停用，这条路由不接流量" : "路由已停用，不接流量"}>
+        <span><StatusTag status="closed" label="不适用" /></span>
+      </Tooltip>
+    );
+  }
+  if (row.healthObserved === false) {
+    return (
+      <Tooltip title="还没有真实请求经过这条路由，没有健康依据（未观测不等于不可用）">
+        <span><StatusTag status="unknown" label="未观测" /></span>
+      </Tooltip>
+    );
+  }
+  const tag = <StatusTag status={row.health} />;
+  if (!PROBLEM_HEALTH.has(row.health || "")) return tag;
+  return (
+    <Tooltip title={`连续失败 ${row.consecutiveFailures ?? 0} 次；最近错误：${row.lastError || "未记录"}`}>
+      <span>{tag}</span>
+    </Tooltip>
+  );
+}
+
 export default function ProvidersScreen() {
   const { searchParams, setQuery } = useAdminQuery();
   const q = searchParams.get("q") || "";
   const health = searchParams.get("health") || "all";
   const provider = searchParams.get("provider") || "all";
+  const routeFilter = searchParams.get("routeState") || "active";
   const page = positiveInt(searchParams.get("page"), 1);
   const pageSize = positiveInt(searchParams.get("pageSize"), 20);
   const resource = useAdminResource(
@@ -71,10 +111,33 @@ export default function ProvidersScreen() {
       const matchesQuery = !keyword || [item.providerName, item.providerId, item.modelId, item.modelName]
         .some((value) => value?.toLowerCase().includes(keyword));
       const matchesProvider = provider === "all" || item.providerId === provider;
-      const matchesHealth = health === "all" || item.health === health;
-      return matchesQuery && matchesProvider && matchesHealth;
+      const state = routeState(item);
+      const effectiveHealth = state !== "active" ? "n/a" : item.healthObserved === false ? "unknown" : item.health;
+      const matchesHealth = health === "all" || effectiveHealth === health;
+      const matchesState = routeFilter === "all"
+        || (routeFilter === "active" ? state === "active" : state !== "active");
+      return matchesQuery && matchesProvider && matchesHealth && matchesState;
     });
-  }, [health, provider, q, resource.data]);
+  }, [health, provider, q, resource.data, routeFilter]);
+
+  const allRoutes = useMemo(() => resource.data?.routes || [], [resource.data]);
+  const inactiveRouteCount = useMemo(() => allRoutes.filter((item) => routeState(item) !== "active").length, [allRoutes]);
+
+  // Which providers actually serve each model, to explain a disabled route.
+  const activeProvidersByModel = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const item of allRoutes) {
+      if (routeState(item) !== "active") continue;
+      map.set(item.modelId, [...(map.get(item.modelId) || []), item.providerName]);
+    }
+    return map;
+  }, [allRoutes]);
+
+  const routesByProvider = useMemo(() => {
+    const map = new Map<string, ProviderRoute[]>();
+    for (const item of allRoutes) map.set(item.providerId, [...(map.get(item.providerId) || []), item]);
+    return map;
+  }, [allRoutes]);
 
   const costs = useMemo(() => {
     const keyword = q.trim().toLowerCase();
@@ -102,7 +165,18 @@ export default function ProvidersScreen() {
       ),
     },
     { title: "状态", dataIndex: "status", width: 95, render: (value) => <StatusTag status={value} /> },
-    { title: "健康", dataIndex: "health", width: 100, render: (value) => <StatusTag status={value} /> },
+    {
+      title: "健康",
+      dataIndex: "health",
+      width: 150,
+      render: (value, row) => {
+        if (row.status !== "enabled") return <StatusTag status="closed" label="不适用" />;
+        const problems = (routesByProvider.get(row.id) || []).filter(isProblem).length;
+        return problems > 0
+          ? <Tooltip title="展开这一行查看出错的路由"><span><StatusTag status={value} label={`${value === "down" ? "不可用" : "降级"} · ${problems} 条`} /></span></Tooltip>
+          : <StatusTag status={value} label={value === "unknown" ? "未观测" : undefined} />;
+      },
+    },
     { title: "路由", dataIndex: "enabledRoutes", width: 90, align: "right", render: (value, row) => `${displayNumber(value)} / ${displayNumber(row.modelCount)}` },
     {
       title: "容量使用",
@@ -122,15 +196,42 @@ export default function ProvidersScreen() {
       title: "承载路由",
       key: "route",
       width: 260,
-      render: (_, row) => (
-        <div>
-          <div className="nf-admin-table-primary">{row.providerName} / {row.modelName || row.modelId}</div>
-          <div className="nf-admin-table-secondary">{row.modelId}</div>
-        </div>
-      ),
+      render: (_, row) => {
+        const state = routeState(row);
+        const servedBy = (activeProvidersByModel.get(row.modelId) || []).filter((name) => name !== row.providerName);
+        return (
+          <div>
+            <div className="nf-admin-table-primary">{row.providerName} / {row.modelName || row.modelId}</div>
+            <div className="nf-admin-table-secondary">{row.modelId}</div>
+            {state !== "active" ? (
+              <div className="nf-admin-table-secondary">
+                {servedBy.length ? `该模型由 ${servedBy.join("、")} 承载` : "该模型当前没有可用路由"}
+              </div>
+            ) : null}
+          </div>
+        );
+      },
     },
-    { title: "启用", dataIndex: "enabled", width: 85, render: (value) => <StatusTag status={value ? "enabled" : "disabled"} /> },
-    { title: "健康", dataIndex: "health", width: 100, render: (value, row) => <StatusTag status={row.healthObserved === false ? "unknown" : value} /> },
+    {
+      title: "状态",
+      key: "state",
+      width: 125,
+      render: (_, row) => {
+        const state = routeState(row);
+        if (state === "provider_disabled") return <StatusTag status="disabled" label="Provider 已停用" />;
+        return <StatusTag status={state === "active" ? "enabled" : "disabled"} />;
+      },
+    },
+    { title: "健康", key: "health", width: 100, render: (_, row) => <RouteHealthTag row={row} /> },
+    {
+      title: "最近错误",
+      dataIndex: "lastError",
+      width: 220,
+      ellipsis: { showTitle: false },
+      render: (value, row) => value && isProblem(row)
+        ? <Tooltip title={`${value}（${displayDate(row.lastFailureAt)}）`}><span className="nf-admin-amount-out">{value}</span></Tooltip>
+        : "—",
+    },
     { title: "优先级", dataIndex: "priority", align: "right", width: 85, render: displayNumber },
     { title: "权重", dataIndex: "weight", align: "right", width: 85, render: displayNumber },
     { title: "RPM", key: "rpm", align: "right", width: 140, render: (_, row) => `${displayNumber(row.currentRpm)} / ${displayNumber(row.rpmLimit)}` },
@@ -212,6 +313,45 @@ export default function ProvidersScreen() {
     { title: "生效时间", dataIndex: "effectiveFrom", width: 165, render: displayDate },
   ];
 
+  const renderProviderRoutes = (row: ProviderSummary) => {
+    const own = routesByProvider.get(row.id) || [];
+    const problems = own.filter(isProblem);
+    const active = own.filter((item) => routeState(item) === "active");
+    const healthy = active.filter((item) => item.healthObserved !== false && item.health === "healthy").length;
+    const unobserved = active.filter((item) => item.healthObserved === false || item.health === "unknown").length;
+    return (
+      <div className="nf-admin-expanded">
+        <Space size={16} wrap className="nf-admin-muted-text" style={{ marginBottom: problems.length ? 10 : 0 }}>
+          <span>生效路由 {active.length} 条</span>
+          <span>健康 {healthy}</span>
+          <span>出错 {problems.length}</span>
+          <span>未观测 {unobserved}</span>
+          <span>停用 {own.length - active.length}</span>
+        </Space>
+        {problems.length ? (
+          <Table
+            size="small"
+            rowKey={(item) => `${item.providerId}:${item.modelId}`}
+            pagination={false}
+            dataSource={problems}
+            scroll={{ x: 900 }}
+            columns={[
+              { title: "模型", dataIndex: "modelId", width: 200, render: (value) => <code className="nf-admin-mono">{value}</code> },
+              { title: "健康", key: "health", width: 90, render: (_, item) => <RouteHealthTag row={item} /> },
+              { title: "连续失败", dataIndex: "consecutiveFailures", width: 90, align: "right", render: displayNumber },
+              { title: "最近错误", dataIndex: "lastError", render: (value) => <span className="nf-admin-amount-out">{value || "未记录"}</span> },
+              { title: "最后失败", dataIndex: "lastFailureAt", width: 160, render: displayDate },
+              { title: "最后成功", dataIndex: "lastSuccessAt", width: 160, render: (value) => value ? displayDate(value) : "从未成功" },
+            ]}
+          />
+        ) : <div className="nf-admin-muted-text">这个 Provider 的生效路由没有记录到错误。</div>}
+        <div className="nf-admin-muted-text" style={{ marginTop: 8 }}>
+          健康状态只在有真实请求时更新；很久没有流量的路由，状态可能停留在当时。
+        </div>
+      </div>
+    );
+  };
+
   const pagination: TablePaginationConfig = {
     current: page,
     pageSize,
@@ -276,6 +416,18 @@ export default function ProvidersScreen() {
                   { label: "降级", value: "degraded" },
                   { label: "不可用", value: "down" },
                   { label: "未观测", value: "unknown" },
+                  { label: "不适用（已停用）", value: "n/a" },
+                ]}
+              />
+              <Select
+                value={routeFilter}
+                onChange={(value) => setQuery({ routeState: value, page: 1 })}
+                style={{ width: 170 }}
+                aria-label="筛选路由状态"
+                options={[
+                  { label: "生效中的路由", value: "active" },
+                  { label: `已停用的路由（${inactiveRouteCount}）`, value: "inactive" },
+                  { label: "全部路由", value: "all" },
                 ]}
               />
             </div>
@@ -290,6 +442,11 @@ export default function ProvidersScreen() {
                       rowKey="id"
                       columns={providerColumns}
                       dataSource={providers}
+                      expandable={{
+                        expandedRowRender: renderProviderRoutes,
+                        rowExpandable: (row) => (routesByProvider.get(row.id) || []).length > 0,
+                        expandRowByClick: true,
+                      }}
                       pagination={false}
                       scroll={{ x: 1180 }}
                       locale={{ emptyText: "没有匹配的真实 Provider" }}
@@ -298,7 +455,9 @@ export default function ProvidersScreen() {
                 },
                 {
                   key: "routes",
-                  label: `承载路由 ${routes.length}`,
+                  label: routeFilter === "active" && inactiveRouteCount > 0
+                    ? `承载路由 ${routes.length}（另有 ${inactiveRouteCount} 条已停用）`
+                    : `承载路由 ${routes.length}`,
                   children: (
                     <Table
                       className="nf-admin-table"
@@ -306,7 +465,7 @@ export default function ProvidersScreen() {
                       columns={routeColumns}
                       dataSource={routes}
                       pagination={pagination}
-                      scroll={{ x: 1640 }}
+                      scroll={{ x: 1900 }}
                       locale={{ emptyText: "没有匹配的真实承载路由" }}
                     />
                   ),
