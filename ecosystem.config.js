@@ -1,4 +1,5 @@
 const fs = require("fs");
+const os = require("os");
 const dotenv = require("dotenv");
 const legacyRoot = "/root/distiny/nexusflow";
 const currentLink = process.env.NEXUSFLOW_CURRENT_LINK || "/root/distiny/nexusflow-current";
@@ -64,6 +65,9 @@ module.exports = {
         PORT: process.env.BACKEND_PORT || 3001,
         BUILD_SHA: process.env.BUILD_SHA || "unknown",
         BUILD_TIME: process.env.BUILD_TIME || "unknown",
+        // Written to usage_logs.node_id / SLS so traffic can be attributed to
+        // a node. Release-reserved (never set in backend/.env).
+        NEXUSFLOW_NODE_ID: process.env.NEXUSFLOW_NODE_ID || os.hostname(),
       },
     },
     {

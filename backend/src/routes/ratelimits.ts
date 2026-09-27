@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
-import { validateSession } from "../data/users";
+import { getUserById, validateSession } from "../data/users";
+import { models } from "../data/models";
 import {
   approveRateLimitRequest,
   deleteUserRateLimit,
@@ -192,6 +193,14 @@ router.put("/admin/users/:userId/models/:model", auditAdminWrite, requirePermiss
     res.status(400).json({ success: false, message: "tpm 必须是大于 0 的数字" });
     return;
   }
+  if (model !== "*" && !models.some((item) => item.id === model)) {
+    res.status(400).json({ success: false, message: `模型 ${model} 不在当前目录中；默认限额请用 *`, code: "unknown_model" });
+    return;
+  }
+  if (!(await getUserById(userId))) {
+    res.status(404).json({ success: false, message: "用户不存在", code: "customer_not_found" });
+    return;
+  }
   await setUserRateLimit(userId, model, qpm, tpm, "admin");
   res.json({
     success: true,
@@ -203,7 +212,11 @@ router.put("/admin/users/:userId/models/:model", auditAdminWrite, requirePermiss
 /** DELETE /api/rate-limits/admin/users/:userId/models/:model — Remove a direct user/model limit */
 router.delete("/admin/users/:userId/models/:model", auditAdminWrite, requirePermission("support.manage"), async (req: Request, res: Response) => {
   const ok = await deleteUserRateLimit(String(req.params.userId), String(req.params.model || "*"));
-  res.json({ success: ok, message: ok ? "用户模型限流已删除" : "限流规则不存在" });
+  if (!ok) {
+    res.status(404).json({ success: false, message: "限流规则不存在", code: "rate_limit_not_found" });
+    return;
+  }
+  res.json({ success: true, message: "用户模型限流已删除" });
 });
 
 /** POST /api/rate-limits/admin/requests/:id/approve — Approve request */
