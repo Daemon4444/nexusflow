@@ -12,6 +12,8 @@ import { displayDate, displayNumber } from "../shared/format";
 import { asRecord, booleanValue, optionalText, pickValue, stringArray, textValue } from "../shared/normalize";
 import { positiveInt, useAdminQuery } from "../shared/useAdminQuery";
 import { useAdminResource } from "../shared/useAdminResource";
+import { validateOrNull } from "../shared/forms";
+import CustomerPicker from "../shared/CustomerPicker";
 
 interface RoleDefinition {
   id: string;
@@ -142,7 +144,8 @@ export default function AccessScreen() {
 
   const submitChange = async () => {
     if (!change) return;
-    const values = await form.validateFields();
+    const values = await validateOrNull(form);
+    if (!values) return;
     setSubmitting(true);
     try {
       if (change.type === "assign") {
@@ -319,12 +322,12 @@ export default function AccessScreen() {
             <Space direction="vertical" size={0} style={{ width: "100%" }}>
               <Form.Item
                 name="userId"
-                label="用户 ID"
-                extra="请输入 NexusFlow 用户表中的精确 ID；授权不会按邮箱猜测账号。"
-                rules={[{ required: true, whitespace: true, message: "请输入用户 ID" }]}
+                label="用户"
+                extra="按邮箱、昵称或 ID 搜索后从列表中选择；授权按所选用户的精确 ID 生效，不会自动匹配账号。"
+                rules={[{ required: true, whitespace: true, message: "请选择要授权的用户" }]}
                 style={{ width: "100%" }}
               >
-                <Input placeholder="用户 UUID" />
+                <CustomerPicker />
               </Form.Item>
               <Form.Item name="role" label="角色" rules={[{ required: true, message: "请选择角色" }]} style={{ width: "100%" }}>
                 <Select

@@ -6,7 +6,7 @@ import { SearchOutlined } from "@ant-design/icons";
 import { adminGet, appendQuery } from "../client";
 import type { CustomerTransaction, FinanceOverview } from "../contracts";
 import { AdminMetric, AdminPageHeader, AdminState, StatusTag, TruthBar } from "../shared/AdminUI";
-import { displayDate, displayMoney, displayPercent } from "../shared/format";
+import { displayDate, displayLedgerAmount, displayMoney, displayPercent, ledgerAmountClass } from "../shared/format";
 import { positiveInt, useAdminQuery } from "../shared/useAdminQuery";
 import { useAdminResource } from "../shared/useAdminResource";
 
@@ -45,7 +45,13 @@ export default function FinanceScreen() {
     { title: "类型", dataIndex: "type", width: 110, render: (value) => <StatusTag status={value} /> },
     { title: "描述", dataIndex: "description", ellipsis: true },
     { title: "发起账号", dataIndex: "actor", width: 160, render: (value) => value || "本人" },
-    { title: "金额", dataIndex: "amount", width: 130, align: "right", render: (value) => displayMoney(value, true) },
+    {
+      title: "金额",
+      dataIndex: "amount",
+      width: 130,
+      align: "right",
+      render: (value, row) => <span className={ledgerAmountClass(row.type, value)}>{displayLedgerAmount(row.type, value)}</span>,
+    },
     { title: "余额", dataIndex: "balanceAfter", width: 120, align: "right", render: (value) => displayMoney(value) },
     { title: "信控", dataIndex: "creditAfter", width: 120, align: "right", render: (value) => displayMoney(value) },
   ];

@@ -12,6 +12,7 @@ import { displayDate } from "../shared/format";
 import { asRecord, optionalText, pickValue, textValue } from "../shared/normalize";
 import { positiveInt, useAdminQuery } from "../shared/useAdminQuery";
 import { useAdminResource } from "../shared/useAdminResource";
+import { validateOrNull } from "../shared/forms";
 
 interface ReplyForm {
   status: "open" | "in_progress" | "resolved" | "rejected";
@@ -75,7 +76,8 @@ export default function SupportScreen() {
 
   const submitReply = async () => {
     if (!active) return;
-    const values = await form.validateFields();
+    const values = await validateOrNull(form);
+    if (!values) return;
     setSubmitting(true);
     try {
       await adminPost(`/api/tickets/${encodeURIComponent(active.id)}/reply`, {
