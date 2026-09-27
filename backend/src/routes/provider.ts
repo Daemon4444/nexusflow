@@ -482,6 +482,8 @@ router.get("/admin/operations", async (_req: Request, res: Response) => {
       availabilitySource: "unavailable",
       avgLatencyMs: routeHealth?.avgLatencyMs ?? null,
       consecutiveFailures: routeHealth?.consecutiveFailures ?? 0,
+      lastSuccessAt: routeHealth?.lastSuccessAt ?? null,
+      lastFailureAt: routeHealth?.lastFailureAt ?? null,
       lastError: routeHealth?.lastError ?? null,
     };
   });
