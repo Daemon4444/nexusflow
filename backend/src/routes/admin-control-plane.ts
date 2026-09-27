@@ -38,7 +38,9 @@ import {
 import { sanitizeError } from "../utils/sanitize-error";
 import { getStaticModels, models } from "../data/models";
 import { listOverrides, refreshModels } from "../data/model-overrides";
+import { loadModelRouteSummaries, routeSummaryFor } from "../data/model-availability";
 import cpConfigRouter from "./admin-cp-config";
+import { sendAdminBillingExport } from "./admin-billing-export";
 
 const router = Router();
 
@@ -231,7 +233,7 @@ router.get(
   requirePermission("catalog.read"),
   route(async (_req, res) => {
     await refreshModels();
-    const overrides = await listOverrides();
+    const [overrides, routeSummaries] = await Promise.all([listOverrides(), loadModelRouteSummaries()]);
     const overrideById = new Map(overrides.map((item) => [item.id, item]));
     const staticIds = new Set(getStaticModels().map((item) => item.id));
     const effective = models.map((model) => {
@@ -239,7 +241,15 @@ router.get(
       const source = override?.action === "upsert"
         ? staticIds.has(model.id) ? "overridden" : "added"
         : "static";
-      return { ...model, source };
+      const routes = routeSummaryFor(routeSummaries, model.id);
+      return {
+        ...model,
+        source,
+        availability: routes.availability,
+        enabledRoutes: routes.enabledRoutes,
+        totalRoutes: routes.totalRoutes,
+        routes: routes.routes,
+      };
     });
     res.json({
       success: true,
@@ -247,11 +257,12 @@ router.get(
         models: effective,
         staticCount: staticIds.size,
         overrideCount: overrides.length,
+        unroutedCount: effective.filter((item) => item.availability !== "available").length,
         disabledIds: overrides
           .filter((item) => item.action === "disable" && item.enabled)
           .map((item) => item.id),
         truth: {
-          sources: ["static model catalog", "model_overrides"],
+          sources: ["static model catalog", "model_overrides", "provider_capacity", "providers"],
           generatedAt: new Date().toISOString(),
         },
       },
@@ -273,6 +284,14 @@ router.get(
     }
     res.json({ success: true, data: projectCustomerDetail(req, data) });
   })
+);
+
+// Billing CSV needs billing.read, not the broad legacy.admin permission, so
+// finance operators can export. The legacy path is answered here first too.
+router.get(
+  ["/customers/:id/billing-export.csv", "/users/:id/billing-export.csv"],
+  requirePermission("billing.read"),
+  route(sendAdminBillingExport)
 );
 
 router.get(

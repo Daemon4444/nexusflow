@@ -6,6 +6,8 @@ import {
   listUserModelDiscounts,
   upsertUserModelDiscount,
 } from "../data/user-discounts";
+import { getUserById } from "../data/users";
+import { models } from "../data/models";
 
 const router = Router();
 
@@ -38,6 +40,21 @@ router.post("/admin/user-model-discounts", async (req: Request, res: Response) =
     res.status(400).json({ success: false, message: "discountRate 必须在 0 到 1 之间" });
     return;
   }
+  // "*" (all models) and prefix patterns such as "qwen*" are resolved at
+  // billing time; anything else must be a model in the current catalog.
+  if (!normalizedModelId.endsWith("*") && !models.some((item) => item.id === normalizedModelId)) {
+    res.status(400).json({ success: false, message: `模型 ${normalizedModelId} 不在当前目录中；全部模型用 *，前缀匹配用如 qwen*`, code: "unknown_model" });
+    return;
+  }
+  const user = await getUserById(normalizedUserId);
+  if (!user) {
+    res.status(404).json({ success: false, message: "用户不存在", code: "customer_not_found" });
+    return;
+  }
+  if ((user as { parent_user_id?: string | null }).parent_user_id) {
+    res.status(400).json({ success: false, message: "子账号没有独立计费，折扣请设置在主账号上", code: "subaccount_discount_forbidden" });
+    return;
+  }
 
   const row = await upsertUserModelDiscount({
     userId: normalizedUserId,
@@ -52,7 +69,11 @@ router.post("/admin/user-model-discounts", async (req: Request, res: Response) =
 
 router.delete("/admin/user-model-discounts/:id", async (req: Request, res: Response) => {
   const ok = await deleteUserModelDiscount(String(req.params.id));
-  res.json({ success: ok, message: ok ? "折扣已删除" : "折扣不存在" });
+  if (!ok) {
+    res.status(404).json({ success: false, message: "折扣不存在", code: "discount_not_found" });
+    return;
+  }
+  res.json({ success: true, message: "折扣已删除" });
 });
 
 export default router;
