@@ -278,6 +278,51 @@
     padding: 4px 4px 8px;
   }
 
+  .nf-admin-bucket-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .nf-admin-bucket {
+    padding: 4px 12px;
+    border: 1px solid var(--nf-admin-line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--nf-admin-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+
+  .nf-admin-bucket:hover {
+    color: var(--nf-admin-ink);
+    border-color: var(--nf-admin-signal);
+  }
+
+  .nf-admin-bucket.is-danger {
+    color: var(--nf-admin-out);
+  }
+
+  .nf-admin-bucket.is-active {
+    border-color: var(--nf-admin-signal);
+    background: color-mix(in srgb, var(--nf-admin-signal) 12%, transparent);
+    color: var(--nf-admin-signal);
+    font-weight: 600;
+  }
+
+  .nf-admin-bucket.is-active.is-danger {
+    border-color: var(--nf-admin-out);
+    background: color-mix(in srgb, var(--nf-admin-out) 10%, transparent);
+    color: var(--nf-admin-out);
+  }
+
+  .nf-admin-bucket:focus-visible {
+    outline: 2px solid var(--nf-admin-signal);
+    outline-offset: 2px;
+  }
+
   .nf-admin-refreshing {
     opacity: 0.6;
     pointer-events: none;
