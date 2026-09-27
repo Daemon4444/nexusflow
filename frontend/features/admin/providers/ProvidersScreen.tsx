@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { Alert, Card, Input, Progress, Select, Space, Table, Tabs, Tooltip } from "antd";
+import { useMemo, useState } from "react";
+import { Alert, Card, Input, Progress, Select, Table, Tabs, Tooltip } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import { SearchOutlined } from "@ant-design/icons";
 import { adminGet } from "../client";
@@ -80,6 +80,107 @@ function RouteHealthTag({ row }: { row: ProviderRoute }) {
     <Tooltip title={`连续失败 ${row.consecutiveFailures ?? 0} 次；最近错误：${row.lastError || "未记录"}`}>
       <span>{tag}</span>
     </Tooltip>
+  );
+}
+
+type RouteBucket = "active" | "healthy" | "problem" | "unobserved" | "inactive";
+
+function routeBucket(row: ProviderRoute): Exclude<RouteBucket, "active"> {
+  if (routeState(row) !== "active") return "inactive";
+  if (isProblem(row)) return "problem";
+  if (row.healthObserved === false || !row.health || row.health === "unknown") return "unobserved";
+  return "healthy";
+}
+
+const BUCKET_LABEL: Record<RouteBucket, string> = {
+  active: "生效路由",
+  healthy: "健康",
+  problem: "出错",
+  unobserved: "未观测",
+  inactive: "停用",
+};
+
+function ProviderRoutesPanel({ routes }: { routes: ProviderRoute[] }) {
+  const counts = useMemo(() => {
+    const result: Record<RouteBucket, number> = { active: 0, healthy: 0, problem: 0, unobserved: 0, inactive: 0 };
+    for (const item of routes) {
+      const bucket = routeBucket(item);
+      result[bucket] += 1;
+      if (bucket !== "inactive") result.active += 1;
+    }
+    return result;
+  }, [routes]);
+  const [bucket, setBucket] = useState<RouteBucket>(counts.problem > 0 ? "problem" : "active");
+  const visible = routes.filter((item) => bucket === "active"
+    ? routeBucket(item) !== "inactive"
+    : routeBucket(item) === bucket);
+
+  const columns: ColumnsType<ProviderRoute> = [
+    {
+      title: "模型",
+      dataIndex: "modelId",
+      width: 220,
+      render: (value, item) => (
+        <div>
+          <code className="nf-admin-mono">{value}</code>
+          {item.modelName && item.modelName !== value ? <div className="nf-admin-table-secondary">{item.modelName}</div> : null}
+        </div>
+      ),
+    },
+    { title: "健康", key: "health", width: 100, render: (_, item) => <RouteHealthTag row={item} /> },
+    { title: "平均延迟", dataIndex: "avgLatencyMs", width: 100, align: "right", render: displayLatency },
+    { title: "连续失败", dataIndex: "consecutiveFailures", width: 90, align: "right", render: (value) => (value ? displayNumber(value) : "—") },
+    {
+      title: "最近错误",
+      dataIndex: "lastError",
+      ellipsis: { showTitle: false },
+      render: (value, item) => value && isProblem(item)
+        ? <Tooltip title={value}><span className="nf-admin-amount-out">{value}</span></Tooltip>
+        : "—",
+    },
+    { title: "最后失败", dataIndex: "lastFailureAt", width: 160, render: (value) => (value ? displayDate(value) : "—") },
+    {
+      title: "最后成功",
+      dataIndex: "lastSuccessAt",
+      width: 160,
+      render: (value, item) => value ? displayDate(value) : item.healthObserved === false ? "—" : "从未成功",
+    },
+  ];
+
+  return (
+    <div className="nf-admin-expanded">
+      <div className="nf-admin-bucket-bar" role="tablist" aria-label="按状态查看路由">
+        {(Object.keys(BUCKET_LABEL) as RouteBucket[]).map((key) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={bucket === key}
+            className={`nf-admin-bucket${bucket === key ? " is-active" : ""}${key === "problem" && counts.problem > 0 ? " is-danger" : ""}`}
+            onClick={(event) => {
+              // The provider row toggles on click; switching buckets must not collapse it.
+              event.stopPropagation();
+              setBucket(key);
+            }}
+          >
+            {BUCKET_LABEL[key]} {counts[key]}{key === "active" ? " 条" : ""}
+          </button>
+        ))}
+      </div>
+      <Table
+        size="small"
+        rowKey={(item) => `${item.providerId}:${item.modelId}`}
+        pagination={visible.length > 10 ? { pageSize: 10, size: "small", showSizeChanger: false } : false}
+        dataSource={visible}
+        scroll={{ x: 980 }}
+        columns={columns}
+        onRow={() => ({ onClick: (event) => event.stopPropagation() })}
+        locale={{ emptyText: `没有${BUCKET_LABEL[bucket]}的路由` }}
+      />
+      <div className="nf-admin-muted-text" style={{ marginTop: 8 }}>
+        健康状态只在有真实请求时更新；很久没有流量的路由，状态可能停留在当时。
+      </div>
+    </div>
   );
 }
 
@@ -313,44 +414,9 @@ export default function ProvidersScreen() {
     { title: "生效时间", dataIndex: "effectiveFrom", width: 165, render: displayDate },
   ];
 
-  const renderProviderRoutes = (row: ProviderSummary) => {
-    const own = routesByProvider.get(row.id) || [];
-    const problems = own.filter(isProblem);
-    const active = own.filter((item) => routeState(item) === "active");
-    const healthy = active.filter((item) => item.healthObserved !== false && item.health === "healthy").length;
-    const unobserved = active.filter((item) => item.healthObserved === false || item.health === "unknown").length;
-    return (
-      <div className="nf-admin-expanded">
-        <Space size={16} wrap className="nf-admin-muted-text" style={{ marginBottom: problems.length ? 10 : 0 }}>
-          <span>生效路由 {active.length} 条</span>
-          <span>健康 {healthy}</span>
-          <span>出错 {problems.length}</span>
-          <span>未观测 {unobserved}</span>
-          <span>停用 {own.length - active.length}</span>
-        </Space>
-        {problems.length ? (
-          <Table
-            size="small"
-            rowKey={(item) => `${item.providerId}:${item.modelId}`}
-            pagination={false}
-            dataSource={problems}
-            scroll={{ x: 900 }}
-            columns={[
-              { title: "模型", dataIndex: "modelId", width: 200, render: (value) => <code className="nf-admin-mono">{value}</code> },
-              { title: "健康", key: "health", width: 90, render: (_, item) => <RouteHealthTag row={item} /> },
-              { title: "连续失败", dataIndex: "consecutiveFailures", width: 90, align: "right", render: displayNumber },
-              { title: "最近错误", dataIndex: "lastError", render: (value) => <span className="nf-admin-amount-out">{value || "未记录"}</span> },
-              { title: "最后失败", dataIndex: "lastFailureAt", width: 160, render: displayDate },
-              { title: "最后成功", dataIndex: "lastSuccessAt", width: 160, render: (value) => value ? displayDate(value) : "从未成功" },
-            ]}
-          />
-        ) : <div className="nf-admin-muted-text">这个 Provider 的生效路由没有记录到错误。</div>}
-        <div className="nf-admin-muted-text" style={{ marginTop: 8 }}>
-          健康状态只在有真实请求时更新；很久没有流量的路由，状态可能停留在当时。
-        </div>
-      </div>
-    );
-  };
+  const renderProviderRoutes = (row: ProviderSummary) => (
+    <ProviderRoutesPanel routes={routesByProvider.get(row.id) || []} />
+  );
 
   const pagination: TablePaginationConfig = {
     current: page,
