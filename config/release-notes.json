@@ -1,0 +1,256 @@
+{
+  "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
+  "notes": {
+    "subject:Release centre: structured Chinese release notes": {
+      "type": "improve",
+      "audience": "admin",
+      "title": "发布中心改为结构化的中文变更说明",
+      "points": [
+        "变更按新功能 / 修复 / 改进 / 运维 / 文档分组，每项有中文标题、要点和影响范围（客户可见 / 仅后台 / 仅内部）",
+        "英文提交信息折叠进“技术细节”；右侧单独列出版本、耗时、发起人和中文发布过程时间线",
+        "中文说明维护在 config/release-notes.json，已补齐最近 26 个提交"
+      ]
+    },
+    "4a340277024936bb828ce93ee849d3a9488a0693": {
+      "type": "feature",
+      "audience": "admin",
+      "title": "发布中心显示每次发布改了什么",
+      "points": [
+        "发布包自带最近 300 条提交记录，每次发布可展开查看和上一次发布之间的全部变更",
+        "展开后可看到发布过程时间线和当前运行该版本的节点",
+        "新增“主要变更”列；发起人为空时显示“发布脚本”；“节点”改为“当前运行节点”"
+      ]
+    },
+    "f134b0f75ea1fb2c8d307ab6d4bdc45068b0e83b": {
+      "type": "improve",
+      "audience": "admin",
+      "title": "Provider 展开区可按健康状态切换",
+      "points": [
+        "生效路由 / 健康 / 出错 / 未观测 / 停用 变成可点击的筛选",
+        "有出错线路时默认停在“出错”，超过 10 条自动分页",
+        "切换分类时展开行不会被收起"
+      ]
+    },
+    "cbbe3b8ff90572d9b1c03ec60eabf398cfd9d5c0": {
+      "type": "improve",
+      "audience": "admin",
+      "title": "Provider 页可展开查看出错线路，停用线路说明来龙去脉",
+      "points": [
+        "健康状态写明“降级 · N 条”，展开可看错误原文、连续失败次数、最后成功和失败时间",
+        "已停用 Provider 下的线路显示“不适用”，并注明该模型实际由哪个 Provider 承载",
+        "承载路由默认只显示生效线路，新增“最近错误”列"
+      ]
+    },
+    "22c4bafa04ef31bf86e684c5e23c9df5377bc546": {
+      "type": "feature",
+      "audience": "admin",
+      "title": "客户详情可编辑限额和折扣、导出账单",
+      "points": [
+        "客户页直接编辑模型限额和折扣，实付 0%（免费）需二次确认；子账号调账按钮禁用",
+        "账务流水里消费显示为负数并上色；状态统一显示中文",
+        "角色授权可按邮箱搜索用户；模型页显示真实可用性和线路数",
+        "保存后不再整页闪烁、标签页不再跳回第一个"
+      ]
+    },
+    "8b652e327bd7bb6c2e3224e1869f21489ee58949": {
+      "type": "fix",
+      "audience": "admin",
+      "title": "后台接口：模型可用性、账单导出权限、限额和折扣的错误码",
+      "points": [
+        "模型目录按“路由启用且上游账号启用”计算真实可用性，不再全是 unknown",
+        "财务角色（billing.read）即可导出客户账单 CSV",
+        "限额、折扣接口对错误模型、不存在的用户返回 400/404；子账号不能设折扣",
+        "用量记录开始写入节点 ID，可按节点排查"
+      ]
+    },
+    "ccd043f3e7c0662db68a80b3251a75e9cd9b77b8": {
+      "type": "ops",
+      "audience": "internal",
+      "title": "压测手册和压测工具",
+      "points": [
+        "新增 docs/load-testing.md：安全规则、流程、判读方法、当前基线和改进建议",
+        "发压工具带费用上限和自动熔断，压生产必须显式确认",
+        "压测账号工具：建号、对账、数据库等锁采样、清理"
+      ]
+    },
+    "75320989d1e0d249b3725b68e95ced6e052a1ede": {
+      "type": "docs",
+      "audience": "internal",
+      "title": "整理 docs 目录并加索引",
+      "points": [
+        "按操作手册 / 设计规格 / 上线记录 / 归档分类，新增带状态的文档索引",
+        "CI 检查每份文档都已登记在索引里"
+      ]
+    },
+    "21faee687e61a7cf3ca0a7faca362130a3977a2f": {
+      "type": "docs",
+      "audience": "internal",
+      "title": "控制面上线手册入库",
+      "points": [
+        "逐步切换开关的操作手册：每步的验证项和回滚方法"
+      ]
+    },
+    "e7a5acf8f8ebbcfb82fca2d1cda37b572afe4069": {
+      "type": "internal",
+      "audience": "internal",
+      "title": "修复 CI 类型检查报错",
+      "points": [
+        "两个测试脚本的类型错误，本地跳过类型检查时没发现"
+      ]
+    },
+    "e0664df0c80ecc2226ebb45cecec7b37a55577e3": {
+      "type": "docs",
+      "audience": "internal",
+      "title": "设计文档和 WIKI 关联到控制面 PR",
+      "points": [
+        "补充设计文档与实现 PR 之间的链接"
+      ]
+    },
+    "e4c0c14af6ab0e3c86301333c03595abc2cb2b24": {
+      "type": "feature",
+      "audience": "admin",
+      "title": "控制面 P6：变更单、版本回滚和后台配置页",
+      "points": [
+        "模型、路由、价格的修改一律走变更单：创建、对比、校验、审批、发布，全程审计",
+        "任意版本可一键回滚，5 秒内所有节点生效",
+        "后台新增「配置控制面」页；每日导出 YAML 快照",
+        "新增 traffic.manage 权限，可开启双人审批"
+      ]
+    },
+    "d20af1b3f4e79f4134559e1e948e5b6ea5143654": {
+      "type": "feature",
+      "audience": "customer",
+      "title": "控制面 P5：参数透传、结构化能力、只开放原生协议",
+      "points": [
+        "参数改为原样透传给上游，只拦截影响计费的少数参数（开关切 enforce 后生效）",
+        "/v1/models 输出结构化能力；每个模型只开放上游原生支持的协议",
+        "新增线路探测工具，核对能力声明是否属实"
+      ]
+    },
+    "d83fd9b48fb683364aab1f061598e7a731c02b79": {
+      "type": "feature",
+      "audience": "customer",
+      "title": "控制面 P4：流量引擎（配额池、公平份额、超限排队）",
+      "points": [
+        "按配额池和单用户公平份额原子预占，多个进程共享",
+        "对话超限先换线路，都满了返回 429 并带重试时间；视频任务改为排队",
+        "上游 429 时按其要求冷却该线路（开关切 enforce 后生效）"
+      ]
+    },
+    "6a00cb3461e1913800c5ce189614bdeeb9be2722": {
+      "type": "feature",
+      "audience": "internal",
+      "title": "控制面 P3：配置数据表、版本存储和影子比对",
+      "points": [
+        "新增 cp_* 配置表和不可篡改的版本表",
+        "从旧配置自动回填版本 1；运行时每 5 秒检查新版本",
+        "shadow 模式同时用新旧逻辑计算并记录差异，不影响线上"
+      ]
+    },
+    "0250ddb4bbe4153834300a72cacaebe43f7e3e12": {
+      "type": "internal",
+      "audience": "internal",
+      "title": "控制面 P2：九个推理入口统一为同一条处理流水线",
+      "points": [
+        "鉴权、限流、预占、调用上游、结算、记用量拆成统一步骤，行为不变",
+        "上游协议改为显式配置，不再按网址猜测"
+      ]
+    },
+    "e105302c5109d44521b40ca8beee86c189a50b9a": {
+      "type": "internal",
+      "audience": "internal",
+      "title": "控制面 P2：为九个推理入口录制行为基准测试",
+      "points": [
+        "重构前先录下 44 个场景的完整行为，保证重构后逐字节一致"
+      ]
+    },
+    "12768e883470d2f343c85af9775c2f9e7b8ad04a": {
+      "type": "ops",
+      "audience": "internal",
+      "title": "控制面 P1：配置一致性检查和百炼官方目录同步",
+      "points": [
+        "检查在售无路由、路由指向不存在的模型、多余的覆盖配置等问题，只生成报告和禁用类 SQL",
+        "抓取百炼官方限流和价格，与本地配置对比"
+      ]
+    },
+    "00405ce5a3427e93e12c8bb67790a5ddecc637b2": {
+      "type": "ops",
+      "audience": "internal",
+      "title": "控制面 P0：安全网（CI 门禁、并行 CI、备份、迁移）",
+      "points": [
+        "发布前强制检查目标版本的 CI 全部通过",
+        "CI 拆成 5 个并行任务；准备每日备份定时任务和新鲜度检查",
+        "迁移统一走带锁的执行器，并记录校验和"
+      ]
+    },
+    "041e7e17144fb29d2cd0c71463a387d394c99e03": {
+      "type": "docs",
+      "audience": "internal",
+      "title": "控制面一次性实施规格",
+      "points": [
+        "P0 到 P6 的完整实施规格和验收标准"
+      ]
+    },
+    "35bf2f1c358500127081bcf79863a3a014f036d5": {
+      "type": "docs",
+      "audience": "internal",
+      "title": "设计决定：不做协议转换，只开放上游原生协议",
+      "points": [
+        "影响 MiniMax-M3 的 Anthropic 协议用户，切换前需通知"
+      ]
+    },
+    "48d7b1fd365e89fd2d324801ba12879568d87455": {
+      "type": "docs",
+      "audience": "internal",
+      "title": "设计文档去掉残留的白名单表述",
+      "points": [
+        "与参数透传的最终决定保持一致"
+      ]
+    },
+    "55594923311df193b29646ee51a2550c9e4723af": {
+      "type": "docs",
+      "audience": "internal",
+      "title": "设计决定：参数处理与上游保持一致",
+      "points": [
+        "参数原样透传，上游拒绝就转发其错误；平台只拦截影响计费的参数"
+      ]
+    },
+    "f7d5f95820ce0ff661be9373767383c73e965cca": {
+      "type": "docs",
+      "audience": "internal",
+      "title": "配置化控制面设计初稿",
+      "points": [
+        "把模型、上游账号、路由、流量策略从代码迁到数据库的目标设计"
+      ]
+    },
+    "68c2be948fc63685b0c61ac65bd6ff65d05fc1f2": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "修复 09-25 体检发现的问题",
+      "points": [
+        "Claude 工具调用参数里的 model 字段不再被误改（之前会损坏客户的工具参数）",
+        "熔断只统计上游故障；熔断后经过冷却期会半开恢复，不再永久停用",
+        "生产缺少数据库密码时直接报错，不再回落到开发密码"
+      ]
+    },
+    "d110f44b933df382554e2d1e6cda3fcbc35d61d2": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "修正官网文档和展示细节",
+      "points": [
+        "Claude 文档里的模型数量与实际一致",
+        "首页 GPT-6 Astra 横幅链接修正",
+        "上下文长度按 1000 换算（200,000 显示为 200K，而不是 195K）"
+      ]
+    },
+    "e62b4ea5dae5d7139ca296fac8439f0b4242d953": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "不再向客户泄露上游内部模型名",
+      "points": [
+        "HiModels AWS 线路返回的内部模型标识会被替换回客户请求的模型名",
+        "流式和非流式响应都已修正，并补了端到端验证"
+      ]
+    }
+  }
+}

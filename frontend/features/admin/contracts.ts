@@ -402,7 +402,19 @@ export interface ReleaseRecord {
     available: boolean;
     baseSha: string | null;
     truncated: boolean;
-    commits: Array<{ sha: string; author: string; date: string; subject: string; body: string }>;
+    commits: Array<{
+      sha: string;
+      author: string;
+      date: string;
+      subject: string;
+      body: string;
+      note?: {
+        type: "feature" | "fix" | "improve" | "ops" | "docs" | "internal";
+        audience: "customer" | "admin" | "internal";
+        title: string;
+        points: string[];
+      } | null;
+    }>;
   } | null;
 }
 

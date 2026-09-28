@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Input, Select, Table, Tooltip } from "antd";
+import { Input, Select, Table, Tag, Timeline, Tooltip } from "antd";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import { SearchOutlined } from "@ant-design/icons";
 import { adminGet, appendQuery, extractItems } from "../client";
@@ -56,80 +56,192 @@ const EVENT_LABEL: Record<string, string> = {
   node_failed: "节点切换失败",
   succeeded: "发布成功",
   failed: "发布失败",
-  rolled_back: "已回滚",
   rollback_started: "开始回滚",
+  rolled_back: "已回滚",
 };
+
+// Fixed sentences written by scripts/deploy-all-production.sh.
+const RELEASE_MESSAGE_ZH: Array<[RegExp, string]> = [
+  [/^Immutable artifact, backup, and migration gates passed; rollout started/, "发布包、备份和迁移检查全部通过，开始切换"],
+  [/^Node rollout sequence started/, "节点开始切换（先摘流再激活）"],
+  [/^Direct node verification passed/, "节点直连校验通过"],
+  [/^Node activation or verification did not complete successfully/, "节点激活或校验未通过"],
+  [/^Both immutable application nodes passed direct verification/, "两台节点直连校验均通过"],
+  [/^Both nodes and the balanced public path passed/, "两台节点和公网入口均通过发布校验"],
+  [/^Automatic rollback started/, "发布失败，开始自动回滚"],
+  [/^Automatic rollback restored the previous verified release/, "已自动回滚到上一个版本"],
+  [/^Automatic security recovery/, "回滚失败后的自动安全恢复"],
+  [/^Compatibility transition before activating a legacy rollback baseline/, "回滚到旧版本前的兼容切换"],
+  [/^Release attempt ended unsuccessfully/, "发布未成功结束，详情见发布日志"],
+];
+
+function translateReleaseMessage(message?: string | null): string | null {
+  if (!message) return null;
+  const override = /CI gate overridden: (.+)$/.exec(message);
+  for (const [pattern, text] of RELEASE_MESSAGE_ZH) {
+    if (pattern.test(message)) return override ? `${text}（跳过了 CI 检查：${override[1]}）` : text;
+  }
+  return message;
+}
+
+type ReleaseCommitView = NonNullable<ReleaseRecord["changes"]>["commits"][number];
+type ChangeType = "feature" | "fix" | "improve" | "ops" | "docs" | "internal";
+
+const TYPE_META: Record<ChangeType, { label: string; color: string }> = {
+  feature: { label: "新功能", color: "green" },
+  fix: { label: "修复", color: "red" },
+  improve: { label: "改进", color: "blue" },
+  ops: { label: "运维", color: "purple" },
+  internal: { label: "内部", color: "default" },
+  docs: { label: "文档", color: "default" },
+};
+const TYPE_ORDER: ChangeType[] = ["feature", "fix", "improve", "ops", "internal", "docs"];
+
+const AUDIENCE_META: Record<string, { label: string; color: string }> = {
+  customer: { label: "客户可见", color: "orange" },
+  admin: { label: "仅后台", color: "cyan" },
+  internal: { label: "仅内部", color: "default" },
+};
+
+function guessType(subject: string): ChangeType {
+  const lower = subject.toLowerCase();
+  if (/^docs?[:(]/.test(lower)) return "docs";
+  if (/^(fix|hotfix)[:(]|^fix\b/.test(lower)) return "fix";
+  if (/^(ops|ci|build|chore)[:(]/.test(lower)) return "ops";
+  if (/^(test|refactor)[:(]/.test(lower)) return "internal";
+  return "improve";
+}
+
+// "- a\n  continued\n- b" -> ["a continued", "b"]; plain paragraphs otherwise.
+function bodyPoints(body: string): string[] {
+  const lines = body.split("\n");
+  const bullets: string[] = [];
+  for (const line of lines) {
+    const match = /^\s*[-*]\s+(.*)$/.exec(line);
+    if (match) bullets.push(match[1].trim());
+    else if (bullets.length && line.trim() && /^\s{2,}/.test(line)) bullets[bullets.length - 1] += ` ${line.trim()}`;
+  }
+  if (bullets.length) return bullets;
+  return body.split(/\n{2,}/).map((part) => part.replace(/\s+/g, " ").trim()).filter(Boolean);
+}
+
+function commitView(commit: ReleaseCommitView) {
+  const note = commit.note;
+  return {
+    type: (note?.type || guessType(commit.subject)) as ChangeType,
+    audience: note?.audience || null,
+    title: note?.title || commit.subject.replace(/^[a-z]+(\([^)]*\))?:\s*/i, ""),
+    points: note?.points?.length ? note.points : bodyPoints(commit.body).slice(0, 4),
+    translated: Boolean(note),
+  };
+}
+
+function ChangeCard({ commit }: { commit: ReleaseCommitView }) {
+  const view = commitView(commit);
+  const technical = bodyPoints(commit.body);
+  return (
+    <div className="nf-admin-change-card">
+      <div className="nf-admin-change-title">
+        <strong>{view.title}</strong>
+        {view.audience ? <Tag color={AUDIENCE_META[view.audience]?.color}>{AUDIENCE_META[view.audience]?.label}</Tag> : null}
+      </div>
+      {view.points.length ? (
+        <ul className="nf-admin-change-points">
+          {view.points.map((point, index) => <li key={index}>{point}</li>)}
+        </ul>
+      ) : null}
+      <details className="nf-admin-change-tech">
+        <summary>
+          技术细节 · <code className="nf-admin-mono">{commit.sha.slice(0, 7)}</code> · {commit.author} · {displayDate(commit.date)}
+        </summary>
+        <div className="nf-admin-change-tech-body">
+          <div className="nf-admin-mono">{commit.subject}</div>
+          {technical.length ? <ul>{technical.map((point, index) => <li key={index}>{point}</li>)}</ul> : null}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function durationText(start?: string | null, end?: string | null): string {
+  if (!start || !end) return "—";
+  const seconds = Math.max(0, Math.round((Date.parse(end) - Date.parse(start)) / 1000));
+  return seconds >= 60 ? `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒` : `${seconds} 秒`;
+}
 
 function ReleaseDetail({ row }: { row: ReleaseRecord }) {
   const changes = row.changes;
+  const commits = changes?.available ? changes.commits : [];
+  const groups = TYPE_ORDER
+    .map((type) => ({ type, items: commits.filter((commit) => commitView(commit).type === type) }))
+    .filter((group) => group.items.length);
+  const customerFacing = commits.some((commit) => commit.note?.audience === "customer");
+  const eventColor = (type: string) => type.includes("fail") ? "red" : type === "succeeded" || type === "node_succeeded" ? "green" : type.includes("roll") ? "orange" : "blue";
+
   return (
     <div className="nf-admin-release-detail">
-      <section>
-        <h4>本次变更</h4>
+      <div className="nf-admin-release-main">
+        <div className="nf-admin-release-summary">
+          <strong>本次变更</strong>
+          {groups.map((group) => (
+            <Tag key={group.type} color={TYPE_META[group.type].color}>{TYPE_META[group.type].label} {group.items.length}</Tag>
+          ))}
+          {commits.length ? (
+            customerFacing
+              ? <Tag color="orange">含客户可见变更</Tag>
+              : <span className="nf-admin-muted-text">不影响客户</span>
+          ) : null}
+        </div>
         {!changes || !changes.available ? (
           <p className="nf-admin-muted-text">这次发布没有附带提交记录（早于变更记录功能，或构建时未生成）。</p>
-        ) : changes.commits.length === 0 ? (
+        ) : commits.length === 0 ? (
           <p className="nf-admin-muted-text">和上一次发布是同一个版本（重新部署），没有新的代码变更。</p>
         ) : (
-          <>
-            <ol className="nf-admin-commit-list">
-              {changes.commits.map((commit) => (
-                <li key={commit.sha}>
-                  <div className="nf-admin-commit-head">
-                    <strong>{commit.subject}</strong>
-                    <span className="nf-admin-muted-text">
-                      <code className="nf-admin-mono">{commit.sha.slice(0, 7)}</code> · {commit.author} · {displayDate(commit.date)}
-                    </span>
-                  </div>
-                  {commit.body ? (
-                    <details>
-                      <summary>查看说明</summary>
-                      <pre className="nf-admin-commit-body">{commit.body}</pre>
-                    </details>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-            {changes.truncated ? (
-              <p className="nf-admin-muted-text">
-                {changes.baseSha ? "变更较多，只显示最近 50 条。" : "没有更早的发布记录可以对比，这里只显示该版本最近的提交。"}
-              </p>
-            ) : null}
-          </>
+          groups.map((group) => (
+            <section key={group.type} className="nf-admin-change-group">
+              <h4><Tag color={TYPE_META[group.type].color}>{TYPE_META[group.type].label}</Tag></h4>
+              {group.items.map((commit) => <ChangeCard key={commit.sha} commit={commit} />)}
+            </section>
+          ))
         )}
-      </section>
-      {row.notes ? (
-        <section>
-          <h4>发布说明</h4>
-          <p>{row.notes}</p>
-        </section>
-      ) : null}
-      {row.events?.length ? (
-        <section>
-          <h4>发布过程</h4>
-          <ul className="nf-admin-event-list">
-            {row.events.map((event, index) => (
-              <li key={`${event.type}-${index}`}>
-                <span className="nf-admin-muted-text">{displayDate(event.at)}</span>
-                <span>{EVENT_LABEL[event.type] || event.type}{event.nodeId ? `（${event.nodeId}）` : ""}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {row.nodes?.length ? (
-        <section>
-          <h4>当前运行该版本的节点</h4>
-          <ul className="nf-admin-event-list">
-            {row.nodes.map((node) => (
-              <li key={node.id}>
-                <span>{node.id}</span>
-                <span className="nf-admin-muted-text">状态 {node.status} · 依赖 {node.health || "unknown"}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+        {changes?.truncated ? (
+          <p className="nf-admin-muted-text">
+            {changes.baseSha ? "变更较多，只显示最近 50 项。" : "没有更早的发布记录可以对比，这里只显示该版本最近的提交。"}
+          </p>
+        ) : null}
+      </div>
+      <aside className="nf-admin-release-side">
+        <h4>发布信息</h4>
+        <dl className="nf-admin-release-facts">
+          <dt>版本</dt><dd><code className="nf-admin-mono">{row.sha.slice(0, 12)}</code></dd>
+          <dt>结果</dt><dd><StatusTag status={row.status} /></dd>
+          <dt>开始</dt><dd>{displayDate(row.startedAt)}</dd>
+          <dt>完成</dt><dd>{displayDate(row.completedAt)}</dd>
+          <dt>耗时</dt><dd>{durationText(row.startedAt, row.completedAt)}</dd>
+          <dt>发起人</dt><dd>{row.actor || "发布脚本"}</dd>
+          <dt>运行节点</dt><dd>{row.nodes?.length ? row.nodes.map((node) => node.id).join("、") : "已被后续版本替换"}</dd>
+        </dl>
+        {row.events?.length ? (
+          <>
+            <h4>发布过程</h4>
+            <Timeline
+              className="nf-admin-release-timeline"
+              items={row.events.map((event) => ({
+                color: eventColor(event.type),
+                content: (
+                  <div>
+                    <div>{EVENT_LABEL[event.type] || event.type}{event.nodeId ? `（${event.nodeId === "main" ? "主节点" : event.nodeId === "peer" ? "副节点" : event.nodeId}）` : ""}</div>
+                    <div className="nf-admin-muted-text">
+                      {displayDate(event.at)}
+                      {translateReleaseMessage(event.message) ? ` · ${translateReleaseMessage(event.message)}` : ""}
+                    </div>
+                  </div>
+                ),
+              }))}
+            />
+          </>
+        ) : null}
+      </aside>
     </div>
   );
 }
@@ -194,11 +306,11 @@ export default function ReleasesScreen() {
   );
 
   const columns: ColumnsType<ReleaseRecord> = [
-    { title: "开始时间", dataIndex: "startedAt", width: 170, render: displayDate },
+    { title: "开始时间", dataIndex: "startedAt", width: 150, render: displayDate },
     {
       title: "版本",
       key: "release",
-      width: 200,
+      width: 150,
       render: (_, row) => (
         <div>
           <Tooltip title={row.sha}><code className="nf-admin-table-primary nf-admin-mono">{row.sha.slice(0, 12)}</code></Tooltip>
@@ -209,32 +321,38 @@ export default function ReleasesScreen() {
     {
       title: "主要变更",
       key: "changes",
-      width: 320,
       render: (_, row) => {
         const commits = row.changes?.available ? row.changes.commits : null;
         if (!commits) return <span className="nf-admin-muted-text">未记录</span>;
         if (!commits.length) return <span className="nf-admin-muted-text">重新部署同一版本</span>;
+        const views = commits.map(commitView);
+        const types = TYPE_ORDER.filter((type) => views.some((view) => view.type === type));
         return (
           <div>
-            <div className="nf-admin-table-primary nf-admin-ellipsis">{commits[0].subject}</div>
-            {commits.length > 1 ? <div className="nf-admin-table-secondary">另有 {commits.length - 1} 项变更，展开查看</div> : null}
+            <div className="nf-admin-table-primary nf-admin-ellipsis">{views[0].title}</div>
+            <div className="nf-admin-change-types">
+              {types.map((type) => (
+                <Tag key={type} color={TYPE_META[type].color}>{TYPE_META[type].label} {views.filter((view) => view.type === type).length}</Tag>
+              ))}
+              {views.some((view) => view.audience === "customer") ? <Tag color="orange">客户可见</Tag> : null}
+            </div>
           </div>
         );
       },
     },
-    { title: "环境", dataIndex: "environment", width: 110, render: (value) => value || "unknown" },
-    { title: "状态", dataIndex: "status", width: 110, render: (value) => <StatusTag status={value} /> },
+    { title: "环境", dataIndex: "environment", width: 100, render: (value) => value || "unknown" },
+    { title: "状态", dataIndex: "status", width: 80, render: (value) => <StatusTag status={value} /> },
     {
       title: "发起人",
       dataIndex: "actor",
-      width: 130,
+      width: 100,
       render: (value) => value || <Tooltip title="由服务器上的发布脚本执行，没有关联后台账号"><span>发布脚本</span></Tooltip>,
     },
-    { title: "完成时间", dataIndex: "completedAt", width: 170, render: displayDate },
+    { title: "完成时间", dataIndex: "completedAt", width: 150, render: displayDate },
     {
       title: <Tooltip title="现在还在运行这个版本的节点数；被后续版本替换后为 0"><span>当前运行节点</span></Tooltip>,
       dataIndex: "nodes",
-      width: 120,
+      width: 110,
       align: "right",
       render: (nodes) => Array.isArray(nodes) ? (nodes.length ? displayNumber(nodes.length) : <span className="nf-admin-muted-text">已替换</span>) : "unknown",
     },
@@ -315,7 +433,7 @@ export default function ReleasesScreen() {
             columns={columns}
             dataSource={items}
             pagination={pagination}
-            scroll={{ x: 1200 }}
+            scroll={{ x: 1100 }}
             locale={{ emptyText: "该筛选下没有真实发布记录" }}
             expandable={{
               expandedRowRender: (row) => <ReleaseDetail row={row} />,

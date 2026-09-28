@@ -10,7 +10,7 @@ import rateLimitsRouter from "../src/routes/ratelimits";
 import discountsRouter from "../src/routes/discounts";
 import { closeDb, db } from "../src/db/client";
 import { summarizeModelRoutes, routeSummaryFor } from "../src/data/model-availability";
-import { changesBetween, loadReleaseHistory, type ReleaseCommit } from "../src/data/release-history";
+import { attachNotes, changesBetween, loadReleaseHistory, loadReleaseNotes, parseReleaseNotes, type ReleaseCommit } from "../src/data/release-history";
 
 process.env.ADMIN_EMAILS = "local-test@nexusflow.test";
 
@@ -66,6 +66,24 @@ async function main() {
   assert.deepEqual(noBase.commits.map((c) => c.subject), ["c4", "c3", "c2", "c1"]);
   assert.equal(changesBetween(history, sha(4), sha(4)).commits.length, 0, "redeploy of the same SHA");
   assert.deepEqual(loadReleaseHistory("/nonexistent/release-history.json"), []);
+  const parsed = parseReleaseNotes({ notes: {
+    [sha(5)]: { type: "fix", audience: "customer", title: "修复", points: ["a", 1, ""] },
+    [sha(4)]: { type: "bogus", audience: "nobody", title: "未知类型" },
+    "short": { title: "ignored" },
+    [sha(3)]: { title: "  " },
+  } });
+  assert.equal(parsed.size, 2);
+  assert.deepEqual(parsed.get(sha(5))?.points, ["a"]);
+  assert.equal(parsed.get(sha(4))?.type, "improve");
+  assert.equal(parsed.get(sha(4))?.audience, "internal");
+  const noted = attachNotes(changesBetween(history, sha(5), sha(3)), parsed);
+  assert.equal(noted.commits[0].note?.title, "修复");
+  assert.equal(noted.commits[1].note?.title, "未知类型");
+  const bySubject = attachNotes(changesBetween(history, sha(5), sha(3)), parseReleaseNotes({ notes: { "subject:c4": { title: "按标题匹配" } } }));
+  assert.equal(bySubject.commits[1].note?.title, "按标题匹配");
+  // The committed notes file must parse and every key must be a full SHA.
+  const repoNotes = loadReleaseNotes(require("path").resolve(__dirname, "../../config/release-notes.json"));
+  assert(repoNotes.size >= 20, `config/release-notes.json parsed ${repoNotes.size} notes`);
 
   const financeToken = await addUser("finance-user", "finance@nexusflow.test", "finance");
   const viewerToken = await addUser("viewer-user", "viewer@nexusflow.test", "viewer");
