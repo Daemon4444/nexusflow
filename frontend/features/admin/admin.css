@@ -323,6 +323,78 @@
     outline-offset: 2px;
   }
 
+  .nf-admin-release-detail {
+    display: grid;
+    gap: 16px;
+    padding: 4px 8px 8px;
+  }
+
+  .nf-admin-release-detail h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .nf-admin-release-detail p {
+    margin: 0;
+  }
+
+  .nf-admin-commit-list {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .nf-admin-commit-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    align-items: baseline;
+  }
+
+  .nf-admin-commit-list details {
+    margin-top: 4px;
+  }
+
+  .nf-admin-commit-list summary {
+    cursor: pointer;
+    color: var(--nf-admin-signal);
+    font-size: 12px;
+  }
+
+  .nf-admin-commit-body {
+    margin: 6px 0 0;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: var(--nf-admin-wash);
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .nf-admin-event-list {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .nf-admin-event-list li {
+    display: flex;
+    gap: 12px;
+  }
+
+  .nf-admin-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 300px;
+  }
+
   .nf-admin-refreshing {
     opacity: 0.6;
     pointer-events: none;

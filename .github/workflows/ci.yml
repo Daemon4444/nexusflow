@@ -247,6 +247,7 @@ jobs:
       - run: npm run test:release-ci-gate
       - run: npm run test:backup-freshness
       - run: npm run test:load-test
+      - run: npm run test:release-history
       - run: npm run test:docs-index
 
   frontend:

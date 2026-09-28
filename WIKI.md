@@ -571,6 +571,9 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 - 账务流水里 `consumption` 按扣款显示为负数；状态码显示中文、悬停可见原值。
 - `AdminState` 只在首次加载显示骨架屏，编辑后的刷新保留当前内容和标签页。
 - `usage_logs.node_id` 由 PM2 配置写入主机名（`NEXUSFLOW_NODE_ID`，发布保留变量，不写进 `.env`）。
+- 发布中心每次发布可展开看“本次变更”：构建发布包时 `scripts/write-release-history.mjs` 把最近 300 条
+  first-parent 提交（标题、说明、作者、时间，去掉 trailer，无 diff）写进 `backend/release-history.json`
+  （构建产物，已 gitignore），后端按“和上一次成功发布之间的提交”切片；生成失败只告警、不阻断发布。
 
 前端已有浅/深主题、中文优先的控制台文案和部分 i18n。不要在没有产品决策时把公开营销页整页改成单一语言。模型详情使用 catch-all 路由承接含斜杠的模型 ID。
 

@@ -10,6 +10,7 @@ import rateLimitsRouter from "../src/routes/ratelimits";
 import discountsRouter from "../src/routes/discounts";
 import { closeDb, db } from "../src/db/client";
 import { summarizeModelRoutes, routeSummaryFor } from "../src/data/model-availability";
+import { changesBetween, loadReleaseHistory, type ReleaseCommit } from "../src/data/release-history";
 
 process.env.ADMIN_EMAILS = "local-test@nexusflow.test";
 
@@ -53,6 +54,18 @@ async function main() {
   assert.equal(routeSummaryFor(summaries, "m-disabled").availability, "no_active_route");
   assert.equal(routeSummaryFor(summaries, "m-provider-off").availability, "no_active_route");
   assert.equal(routeSummaryFor(summaries, "m-none").availability, "no_route");
+
+  // Release changes: commits since the previous successful release.
+  const sha = (n: number) => String(n).padStart(40, "0").replace(/0/g, "a").slice(0, 39) + n;
+  const history: ReleaseCommit[] = [5, 4, 3, 2, 1].map((n) => ({ sha: sha(n), author: "t", date: "2026-09-27", subject: `c${n}`, body: "" }));
+  assert.deepEqual(changesBetween(history, sha(5), sha(3)).commits.map((c) => c.subject), ["c5", "c4"]);
+  assert.equal(changesBetween(history, sha(5), sha(3)).truncated, false);
+  assert.equal(changesBetween(history, sha(9), sha(3)).available, false, "release not in history");
+  const noBase = changesBetween(history, sha(4), null);
+  assert.equal(noBase.truncated, true);
+  assert.deepEqual(noBase.commits.map((c) => c.subject), ["c4", "c3", "c2", "c1"]);
+  assert.equal(changesBetween(history, sha(4), sha(4)).commits.length, 0, "redeploy of the same SHA");
+  assert.deepEqual(loadReleaseHistory("/nonexistent/release-history.json"), []);
 
   const financeToken = await addUser("finance-user", "finance@nexusflow.test", "finance");
   const viewerToken = await addUser("viewer-user", "viewer@nexusflow.test", "viewer");
