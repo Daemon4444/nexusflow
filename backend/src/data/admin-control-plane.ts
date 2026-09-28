@@ -1,6 +1,6 @@
 import { db } from "../db/client";
 import { ALL_ADMIN_PERMISSIONS, ROLE_PERMISSIONS, listAdminRoleAssignments } from "./admin-access";
-import { changesBetween, loadReleaseHistory } from "./release-history";
+import { attachNotes, changesBetween, loadReleaseHistory, loadReleaseNotes } from "./release-history";
 
 export interface AdminWindow {
   range: string;
@@ -835,10 +835,11 @@ export async function getAdminReleases() {
   // What each release changed: commits since the previous successful release
   // (the list is newest first, so the "previous" one is further down).
   const history = loadReleaseHistory();
+  const notes = loadReleaseNotes();
   releases.sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
   const withChanges = releases.map((release, index) => {
     const previous = releases.slice(index + 1).find((item) => item.status === "succeeded" && item.sha && item.sha !== release.sha);
-    return { ...release, changes: changesBetween(history, release.sha, previous?.sha || null) };
+    return { ...release, changes: attachNotes(changesBetween(history, release.sha, previous?.sha || null), notes) };
   });
   return {
     generatedAt: new Date().toISOString(),

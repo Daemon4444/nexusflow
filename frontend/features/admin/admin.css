@@ -325,8 +325,9 @@
 
   .nf-admin-release-detail {
     display: grid;
-    gap: 16px;
-    padding: 4px 8px 8px;
+    grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+    gap: 20px;
+    padding: 6px 8px 10px;
   }
 
   .nf-admin-release-detail h4 {
@@ -339,53 +340,112 @@
     margin: 0;
   }
 
-  .nf-admin-commit-list {
-    display: grid;
-    gap: 10px;
-    margin: 0;
-    padding-left: 20px;
-  }
-
-  .nf-admin-commit-head {
+  .nf-admin-release-summary {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 12px;
-    align-items: baseline;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 12px;
   }
 
-  .nf-admin-commit-list details {
-    margin-top: 4px;
+  .nf-admin-release-summary > strong {
+    margin-right: 6px;
   }
 
-  .nf-admin-commit-list summary {
+  .nf-admin-change-group + .nf-admin-change-group {
+    margin-top: 14px;
+  }
+
+  .nf-admin-change-card {
+    padding: 10px 12px;
+    border: 1px solid var(--nf-admin-line);
+    border-radius: 8px;
+    background: var(--nf-admin-paper);
+  }
+
+  .nf-admin-change-card + .nf-admin-change-card {
+    margin-top: 8px;
+  }
+
+  .nf-admin-change-title {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .nf-admin-change-points {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    line-height: 1.7;
+  }
+
+  .nf-admin-change-tech {
+    margin-top: 6px;
+  }
+
+  .nf-admin-change-tech summary {
     cursor: pointer;
-    color: var(--nf-admin-signal);
+    color: var(--nf-admin-muted);
     font-size: 12px;
   }
 
-  .nf-admin-commit-body {
-    margin: 6px 0 0;
-    padding: 10px 12px;
+  .nf-admin-change-tech-body {
+    margin-top: 6px;
+    padding: 8px 10px;
     border-radius: 6px;
     background: var(--nf-admin-wash);
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-family: inherit;
     font-size: 12px;
     line-height: 1.6;
   }
 
-  .nf-admin-event-list {
-    display: grid;
-    gap: 4px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
+  .nf-admin-change-tech-body ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
   }
 
-  .nf-admin-event-list li {
+  .nf-admin-change-types {
     display: flex;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .nf-admin-release-side {
+    padding-left: 20px;
+    border-left: 1px solid var(--nf-admin-line);
+  }
+
+  .nf-admin-release-side,
+  .nf-admin-release-main {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .nf-admin-release-facts {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 6px 10px;
+    margin: 0 0 16px;
+  }
+
+  .nf-admin-release-facts dt {
+    color: var(--nf-admin-muted);
+  }
+
+  .nf-admin-release-facts dd {
+    margin: 0;
+  }
+
+  @media (max-width: 900px) {
+    .nf-admin-release-detail {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .nf-admin-release-side {
+      padding-left: 0;
+      border-left: 0;
+    }
   }
 
   .nf-admin-ellipsis {
