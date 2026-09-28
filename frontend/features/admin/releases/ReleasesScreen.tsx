@@ -136,6 +136,14 @@ function commitView(commit: ReleaseCommitView) {
   };
 }
 
+// The headline of a release is its most important change, not its newest
+// commit: customer-facing first, then by type (新功能 > 修复 > 改进 > 运维 > 内部 > 文档).
+function headlineView(views: Array<ReturnType<typeof commitView>>) {
+  const rank = (view: ReturnType<typeof commitView>) =>
+    (view.audience === "customer" ? 0 : 10) + TYPE_ORDER.indexOf(view.type);
+  return views.reduce((best, view) => (rank(view) < rank(best) ? view : best), views[0]);
+}
+
 function ChangeCard({ commit }: { commit: ReleaseCommitView }) {
   const view = commitView(commit);
   const technical = bodyPoints(commit.body);
@@ -329,7 +337,7 @@ export default function ReleasesScreen() {
         const types = TYPE_ORDER.filter((type) => views.some((view) => view.type === type));
         return (
           <div>
-            <div className="nf-admin-table-primary nf-admin-ellipsis">{views[0].title}</div>
+            <div className="nf-admin-table-primary nf-admin-ellipsis">{headlineView(views).title}</div>
             <div className="nf-admin-change-types">
               {types.map((type) => (
                 <Tag key={type} color={TYPE_META[type].color}>{TYPE_META[type].label} {views.filter((view) => view.type === type).length}</Tag>
