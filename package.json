@@ -24,7 +24,8 @@
     "test:backup-freshness": "bash scripts/test-backup-freshness.sh",
     "test:migration-ledger": "node scripts/test-migration-ledger.mjs",
     "test:load-test": "node scripts/test-load-test.mjs",
-    "test:docs-index": "node scripts/check-docs-index.mjs"
+    "test:docs-index": "node scripts/check-docs-index.mjs",
+    "test:release-history": "node scripts/test-release-history.mjs"
   },
   "overrides": {
     "body-parser": "2.3.0",

@@ -114,6 +114,13 @@ if test -e "$STAGING/backend/.env" || test -L "$STAGING/backend/.env"; then
   release_die "backend/.env must never be embedded in a release artifact"
 fi
 
+# Commit subjects/messages for the admin release centre ("what changed").
+# Best effort: a missing history must never block a release.
+if ! node "$STAGING/scripts/write-release-history.mjs" \
+  --sha "$BUILD_SHA" --repo "$ROOT" --out "$STAGING/backend/release-history.json"; then
+  release_log "warning: release history not written; the release centre will not list changes"
+fi
+
 release_log "installing locked dependencies in isolated release"
 (
   cd "$STAGING"

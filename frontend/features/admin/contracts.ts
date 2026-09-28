@@ -397,6 +397,13 @@ export interface ReleaseRecord {
     health?: string | null;
   }>;
   notes?: string | null;
+  events?: Array<{ type: string; at: string | null; nodeId?: string | null; message?: string | null }>;
+  changes?: {
+    available: boolean;
+    baseSha: string | null;
+    truncated: boolean;
+    commits: Array<{ sha: string; author: string; date: string; subject: string; body: string }>;
+  } | null;
 }
 
 export interface AccessPrincipal {

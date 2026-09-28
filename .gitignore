@@ -13,3 +13,4 @@ data.db
 backend/uploads/
 backups/
 dump.rdb
+backend/release-history.json
