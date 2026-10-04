@@ -1,6 +1,16 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:chore(deps): patch Next.js, undici and nodemailer advisories": {
+      "type": "ops",
+      "audience": "internal",
+      "title": "修补依赖安全漏洞（Next.js / undici / nodemailer）",
+      "points": [
+        "Next.js 16.3.4 → 16.3.8：修复 next/og 图片生成的远程代码执行（严重）",
+        "undici 7.29 → 7.30：修复一批拒绝服务、缓存和证书校验问题（高危）",
+        "nodemailer 9 → 10：修复 SMTP 凭据串用和解析拒绝服务（高危）；验证码邮件代码已适配新版类型"
+      ]
+    },
     "subject:fix: stop billing interrupted streams that delivered nothing": {
       "type": "fix",
       "audience": "customer",
