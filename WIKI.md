@@ -62,7 +62,7 @@ NexusFlow 是一个面向开发者的 AI 模型聚合、协议兼容、路由和
 
 | 项目 | 当前状态 |
 | --- | --- |
-| 前端 | Next.js `16.3.0-preview.9`、React 19、Tailwind CSS 4 |
+| 前端 | Next.js `16.3.8`（2026-10-04 安全补丁升级）、React 19、Tailwind CSS 4 |
 | 后端 | Express 5、TypeScript，生产运行编译后的 `backend/dist/index.js` |
 | Runtime | 生产 Node.js 22.22.1；CI 使用 Node.js 24 |
 | 数据库 | 阿里云托管 PostgreSQL 16，两应用节点共享 |
@@ -660,6 +660,13 @@ CI（`.github/workflows/ci.yml`）拆成 5 个并行 job，互不阻塞：`secur
 `backend/.env` 不进入制品或 manifest。安装器只在 manifest 通过后创建指向既有
 root-only 配置源的软链，并在安装、激活和核验时检查实际解析目标，防止制品携带
 密钥或运行目录改指其他配置。
+
+release 目录在 PM2 启动新进程**之后**还会再核验一次：除 `frontend/.next/cache/`、
+`backend/uploads/` 外，运行时不得往 release 目录写任何文件。Next 16.3 起 ISR 首次读取会把
+构建期页面复制进 `.next/server/route-cache/`，因此 `frontend/next.config.ts` 设了
+`experimental.isrFlushToDisk: false`（页面缓存只放内存）。升级 Next 后若激活报
+“missing or unmanifested regular file”，先在失败的 release 目录对比 manifest 与 `find`
+找出运行时新写的路径，再从配置上阻止写入；不要放宽核验（2026-10-04 fb87047 因此自动回滚）。
 
 ```bash
 ssh nexus
