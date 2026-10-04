@@ -33,14 +33,14 @@ async function main(): Promise<void> {
   assert.equal(percentile([1, 2, 3, 4], 0.99), 4);
 
   // Reconciliation compares money at ledger precision.
-  const good = { initialBalance: 20, balance: 19.6805, usageCost: 0.3195, transactionAmount: -0.3195, successCount: 2, settledReservations: 2, openReservations: 0 };
+  const good = { initialBalance: 20, balance: 19.6805, usageCost: 0.3195, transactionAmount: -0.3195, billedCalls: 2, settledReservations: 2, openReservations: 0 };
   assert.equal(reconcile(good).ok, true);
   assert.equal(reconcile({ ...good, balance: 19.6804 }).ok, false);
   assert.equal(reconcile({ ...good, openReservations: 1 }).ok, false);
   assert.equal(reconcile({ ...good, settledReservations: 1 }).ok, false);
 
-  // End to end on the migrated schema: create -> two billed calls + one
-  // released failure -> reconciled report -> cleanup removes every row.
+  // End to end on the migrated schema: create -> two billed calls, one partially
+  // billed client_closed, one released failure -> reconciled report -> cleanup.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nf-loadtest-"));
   const keyFile = path.join(dir, "key");
   const userId = await createLoadTestAccount("ci", 20, keyFile);
@@ -61,13 +61,19 @@ async function main(): Promise<void> {
     await settleReservation(reservation.id, cost, "load test settlement");
     await logUsage({ apiKeyId: key!.id, userId, model: "qwen-flash", promptTokens: 10, completionTokens: 8, totalTokens: 18, cost, status: "success", latencyMs: 300 + index * 100 });
   }
+  // A client that disconnects after partial output is an error row that still
+  // settles its reservation with a charge.
+  const aborted = await reserveBalance(userId, 1, "loadtest-ci-client-closed");
+  assert.ok(aborted);
+  await settleReservation(aborted.id, 0.000664, "load test partial settlement");
+  await logUsage({ apiKeyId: key!.id, userId, model: "qwen-flash", promptTokens: 10, completionTokens: 30, totalTokens: 40, cost: 0.000664, status: "error", errorCode: "client_closed", latencyMs: 900 });
   const failed = await reserveBalance(userId, 1, "loadtest-ci-failed");
   assert.ok(failed);
   await releaseReservation(failed.id, "request_failed");
 
   const report = await loadTestReport(userId, 20);
   assert.equal(report.reconciliation.ok, true, report.reconciliation.problems.join("; "));
-  assert.equal(report.ledger.successCount, 2);
+  assert.equal(report.ledger.billedCalls, 3);
   assert.equal(report.usage[0].serverLatencyMs.p50, 400);
   const wrongInitial = await loadTestReport(userId, 25);
   assert.equal(wrongInitial.reconciliation.ok, false, "a wrong starting balance must not reconcile");
@@ -75,8 +81,8 @@ async function main(): Promise<void> {
   await assert.rejects(cleanupLoadTestAccount("local-user-1"), /not a nf-loadtest-/);
   const deleted = await cleanupLoadTestAccount(userId);
   assert.equal(deleted.users, 1);
-  assert.equal(deleted.usage_logs, 2);
-  assert.equal(deleted.billing_reservations, 3);
+  assert.equal(deleted.usage_logs, 3);
+  assert.equal(deleted.billing_reservations, 4);
   for (const table of ["users", "api_keys", "usage_logs", "billing_reservations", "transactions"]) {
     const column = table === "users" ? "id" : "user_id";
     const left: { n: string } | null = await db.queryOne<{ n: string }>(`SELECT COUNT(*) AS n FROM ${table} WHERE ${column} = $1`, [userId]);

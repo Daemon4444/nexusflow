@@ -68,7 +68,8 @@ export interface LedgerFigures {
   balance: number;
   usageCost: number;
   transactionAmount: number;
-  successCount: number;
+  /** Calls that settled a reservation: successes, plus errors that still carry a charge (e.g. client_closed after partial output). */
+  billedCalls: number;
   settledReservations: number;
   openReservations: number;
 }
@@ -80,7 +81,7 @@ export function reconcile(f: LedgerFigures): { ok: boolean; problems: string[] }
   const problems: string[] = [];
   if (spent !== micros(f.usageCost)) problems.push(`balance spent ${spent / 1e6} != usage cost ${f.usageCost}`);
   if (micros(Math.abs(f.transactionAmount)) !== micros(f.usageCost)) problems.push(`transactions ${f.transactionAmount} != usage cost ${f.usageCost}`);
-  if (f.settledReservations !== f.successCount) problems.push(`settled reservations ${f.settledReservations} != successful calls ${f.successCount}`);
+  if (f.settledReservations !== f.billedCalls) problems.push(`settled reservations ${f.settledReservations} != billed calls ${f.billedCalls}`);
   if (f.openReservations !== 0) problems.push(`${f.openReservations} reservations are neither settled nor released`);
   return { ok: problems.length === 0, problems };
 }
@@ -132,7 +133,7 @@ export async function loadTestReport(userId: string, initialBalance: number) {
 
   const groups = new Map<string, { model: string; status: string; errorCode: string | null; calls: number; cost: number; promptTokens: number; completionTokens: number; latency: number[] }>();
   let usageCost = 0;
-  let successCount = 0;
+  let billedCalls = 0;
   for (const row of rows) {
     const key = `${row.model}\u0000${row.status}\u0000${row.error_code ?? ""}`;
     const group = groups.get(key) ?? { model: row.model, status: row.status, errorCode: row.error_code, calls: 0, cost: 0, promptTokens: 0, completionTokens: 0, latency: [] };
@@ -143,7 +144,7 @@ export async function loadTestReport(userId: string, initialBalance: number) {
     if (row.latency_ms !== null) group.latency.push(Number(row.latency_ms));
     groups.set(key, group);
     usageCost += Number(row.cost ?? 0);
-    if (row.status === "success") successCount += 1;
+    if (row.status === "success" || Number(row.cost ?? 0) > 0) billedCalls += 1;
   }
   const byStatus = Object.fromEntries(reservations.map((r) => [r.status, Number(r.n)]));
   const settled = byStatus.settled ?? 0;
@@ -153,7 +154,7 @@ export async function loadTestReport(userId: string, initialBalance: number) {
     balance: Number(user.balance),
     usageCost: Math.round(usageCost * 1e6) / 1e6,
     transactionAmount: Number(tx?.amount ?? 0),
-    successCount,
+    billedCalls,
     settledReservations: settled,
     openReservations: open,
   };
