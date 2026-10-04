@@ -32,6 +32,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: path.join(configDir, "../"),
   generateBuildId: async () => buildSha,
+  // Release directories are immutable and verified against their SHA-256
+  // manifest after activation. Since Next 16.3 the ISR cache copies build-time
+  // pages into .next/server/route-cache/ on first read; keep it in memory.
+  experimental: { isrFlushToDisk: false },
   async headers() {
     return [
       {

@@ -290,6 +290,15 @@
         "HiModels AWS 线路返回的内部模型标识会被替换回客户请求的模型名",
         "流式和非流式响应都已修正，并补了端到端验证"
       ]
+    },
+    "subject:fix: keep Next.js ISR cache out of the immutable release directory": {
+      "type": "fix",
+      "audience": "internal",
+      "title": "发布目录保持只读:Next.js 页面缓存不再落盘",
+      "points": [
+        "Next 16.3 起首次访问会把预渲染页面复制到 .next/server/route-cache/,导致发布完整性校验失败并自动回滚",
+        "关闭 isrFlushToDisk,页面缓存只放内存;发布目录与 SHA-256 清单保持一致,校验规则不放宽"
+      ]
     }
   }
 }
