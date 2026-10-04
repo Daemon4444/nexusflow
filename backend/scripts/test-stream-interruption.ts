@@ -30,6 +30,8 @@ assert.equal(responsesStreamTerminal(sse({ type: "response.created" }) + sse({ t
 assert.equal(responsesStreamTerminal(sse({ type: "response.created" })), null);
 assert.equal(responsesStreamTerminal(sse({ type: "response.failed" })), "failed");
 assert.equal(responsesStreamTerminal(sse({ type: "response.incomplete" })), "incomplete");
+// response.incomplete is a normal end (the route treats it like completed); only a missing
+// terminal or response.failed counts as an interruption.
 assert.equal(anthropicStreamTerminal(`event: message_stop\n${sse({ type: "message_stop" })}`), "completed");
 assert.equal(anthropicStreamTerminal(sse({ type: "message_delta", delta: { stop_reason: "end_turn" } })), "completed", "stop_reason without message_stop still completes");
 assert.equal(anthropicStreamTerminal(sse({ type: "message_start" }) + sse({ type: "content_block_delta", delta: { type: "text_delta", text: "x" } })), null);

@@ -1,6 +1,15 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:fix: treat response.incomplete as a normal Responses stream end": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "Responses 输出到上限（incomplete）按正常结束处理并按真实用量计费",
+      "points": [
+        "百炼在输出达到 max_output_tokens 时以 response.incomplete 结束，这是协议里的正常结束，不再判为中断、不再补发错误事件",
+        "从 response.incomplete / response.failed 里读取真实用量，不再估算（此前这类调用被估算计费）"
+      ]
+    },
     "subject:chore(deps): patch Next.js, undici and nodemailer advisories": {
       "type": "ops",
       "audience": "internal",

@@ -487,17 +487,19 @@ router.post("/", async (req: Request, res: Response) => {
         streamReadError = { name: typeof streamErr?.name === "string" ? streamErr.name : undefined };
       }
 
-      // A Responses stream is complete only with response.completed. A read
-      // error, response.failed / response.incomplete or a stream that simply
-      // stops is an interruption: tell the client and never bill it as success.
+      // A Responses stream ends normally with response.completed or
+      // response.incomplete (stopped by max_output_tokens / content filter —
+      // a protocol-level normal end that carries usage). A read error,
+      // response.failed or a stream that simply stops is an interruption:
+      // tell the client and never bill it as success.
       const terminal = responsesStreamTerminal(fullResponse);
-      const interrupted = streamReadError !== null || terminal !== "completed";
+      const interrupted = streamReadError !== null || (terminal !== "completed" && terminal !== "incomplete");
       const streamErrorCode = ctx.clientClosed
         ? "client_closed"
         : streamReadError?.name === "AbortError" || streamReadError?.name === "TimeoutError"
           ? "upstream_timeout"
-          : terminal === "failed" || terminal === "incomplete"
-            ? `upstream_response_${terminal}`
+          : terminal === "failed"
+            ? "upstream_response_failed"
             : "upstream_stream_interrupted";
       if (interrupted && terminal !== "failed") {
         res.write(`event: error\ndata: ${JSON.stringify({ type: "error", error: { message: "The upstream stream was interrupted before completion.", type: "server_error", code: streamErrorCode } })}\n\n`);
@@ -720,14 +722,19 @@ export function responsesStreamTerminal(fullResponse: string): "completed" | "fa
 }
 
 function extractUsageFromStream(fullResponse: string): any {
-  // Look for the response.completed event which contains usage
+  // Look for the terminal event (completed / incomplete / failed) that carries usage
   const lines = fullResponse.split("\n");
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
     if (!line.startsWith("data:")) continue;
     try {
       const json = JSON.parse(line.slice(5));
-      if (json?.type === "response.completed" && json?.response?.usage) {
+      // response.incomplete (e.g. max_output_tokens reached) is a normal end
+      // and carries usage too; so may response.failed.
+      if (
+        (json?.type === "response.completed" || json?.type === "response.incomplete" || json?.type === "response.failed")
+        && json?.response?.usage
+      ) {
         return json.response.usage;
       }
     } catch {}

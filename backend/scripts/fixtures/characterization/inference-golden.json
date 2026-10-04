@@ -6358,5 +6358,172 @@
     "user_id": "<user_id>"
    }
   ]
+ },
+ "responses.stream.incomplete_max_tokens": {
+  "asyncTasks": [],
+  "balanceDelta": -0.000021,
+  "providerHealth": [
+   {
+    "consecutive_failures": 0,
+    "model_id": "qwen3.8-flash",
+    "provider_id": "dashscope",
+    "status": "healthy"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 0.000021,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "API 调用: qwen3.8-flash (14 tokens)",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.000044,
+    "settled_at": "<date>",
+    "status": "settled",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": [
+     "event: response.created",
+     {
+      "data": {
+       "response": {
+        "id": "<id>",
+        "model": "qwen3.8-flash",
+        "status": "in_progress"
+       },
+       "type": "response.created"
+      }
+     },
+     "event: response.output_text.delta",
+     {
+      "data": {
+       "delta": "hi",
+       "type": "response.output_text.delta"
+      }
+     },
+     "event: response.incomplete",
+     {
+      "data": {
+       "response": {
+        "created_at": "<created_at>",
+        "id": "<id>",
+        "incomplete_details": {
+         "reason": "max_output_tokens"
+        },
+        "model": "qwen3.8-flash",
+        "object": "response",
+        "output": [
+         {
+          "content": [
+           {
+            "text": "hello responses",
+            "type": "output_text"
+           }
+          ],
+          "id": "<id>",
+          "role": "assistant",
+          "type": "message"
+         }
+        ],
+        "status": "incomplete",
+        "usage": {
+         "input_tokens": 9,
+         "input_tokens_details": {
+          "cached_tokens": 0
+         },
+         "output_tokens": 5,
+         "total_tokens": 14
+        }
+       },
+       "type": "response.incomplete"
+      }
+     }
+    ],
+    "headers": {
+     "cache-control": "no-cache",
+     "content-type": "text/event-stream"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [
+   {
+    "actor_user_id": "<actor_user_id>",
+    "amount": 0.000021,
+    "balance_after": 99.999979,
+    "created_at": "<date>",
+    "credit_after": 0,
+    "credit_amount": 0,
+    "description": "API 调用: qwen3.8-flash (14 tokens)",
+    "discount_amount_cny": null,
+    "discount_rate": null,
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "type": "consumption",
+    "user_id": "<user_id>"
+   }
+  ],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": "hi",
+     "max_output_tokens": 16,
+     "model": "qwen3.8-flash",
+     "stream": true
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/responses"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 5,
+    "cost": 0.000021,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": null,
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 9,
+    "protocol": "openai-responses",
+    "provider_cache_mode": "implicit",
+    "provider_cost": 0.000021,
+    "provider_cost_basis": "official_list",
+    "provider_cost_resolution": "exact",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": true,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": 0,
+    "retail_discount_rate": 1,
+    "retail_list_cost": 0.000021,
+    "status": "success",
+    "thinking_output": false,
+    "total_tokens": 14,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
  }
 }
