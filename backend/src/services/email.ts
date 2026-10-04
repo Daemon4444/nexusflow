@@ -33,7 +33,9 @@ import {
 
 // ============ SMTP 客户端 ============
 
-let transporter: nodemailer.Transporter | null = null;
+// nodemailer 10 ships its own types; derive the transporter type from them.
+type SmtpTransporter = ReturnType<typeof nodemailer.createTransport>;
+let transporter: SmtpTransporter | null = null;
 
 function isSmtpConfigured(): boolean {
   return !!(
@@ -47,7 +49,7 @@ function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-function getTransporter(): nodemailer.Transporter {
+function getTransporter(): SmtpTransporter {
   if (!transporter) {
     const port = Number(process.env.SMTP_PORT) || 465;
     const outboundProxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
