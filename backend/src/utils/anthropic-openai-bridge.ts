@@ -299,5 +299,23 @@ export function createAnthropicStreamTranslator(msgId: string, modelId: string, 
       emit("message_stop", { type: "message_stop" });
       return { usage: anthropicUsage, stopReason: mapStopReason(finishReason) };
     },
+    /**
+     * The upstream stream ended before completing: flush what arrived, then
+     * send an Anthropic `error` event instead of a synthetic message_stop, so
+     * the client does not mistake a truncated answer for a finished one.
+     */
+    finishInterrupted(code: string): StreamTranslateResult {
+      if (buffer) {
+        processLine(buffer);
+        buffer = "";
+      }
+      ensureStarted();
+      closeBlock();
+      emit("error", {
+        type: "error",
+        error: { type: "api_error", message: `The upstream stream was interrupted before completion (${code}).` },
+      });
+      return { usage: openAiUsageToAnthropic(usage), stopReason: mapStopReason(finishReason) };
+    },
   };
 }

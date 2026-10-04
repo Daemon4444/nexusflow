@@ -26,7 +26,7 @@ function charTokenCount(s: string): number {
 }
 
 /**
- * 从流式响应文本中提取已产出的 assistant 内容（覆盖 OpenAI 与 Anthropic delta）。
+ * 从流式响应文本中提取已产出的 assistant 内容（覆盖 OpenAI Chat、OpenAI Responses 与 Anthropic delta）。
  * 同时单独累计思维链文本，供估费判定思考模式。
  */
 export function extractStreamedContent(fullResponse: string): { content: string; reasoning: string } {
@@ -46,6 +46,24 @@ export function extractStreamedContent(fullResponse: string): { content: string;
         if (typeof delta.reasoning_content === "string") {
           content += delta.reasoning_content;
           reasoning += delta.reasoning_content;
+        }
+        // Tool-call-only answers are output too.
+        if (Array.isArray(delta.tool_calls)) {
+          for (const call of delta.tool_calls) {
+            const args = call?.function?.arguments;
+            if (typeof args === "string") content += args;
+            const name = call?.function?.name;
+            if (typeof name === "string") content += name;
+          }
+        }
+      }
+      // OpenAI Responses: response.output_text.delta / reasoning / tool arguments.
+      if (typeof json?.type === "string" && json.type.startsWith("response.") && typeof json.delta === "string") {
+        if (json.type === "response.output_text.delta" || json.type === "response.refusal.delta" || json.type === "response.function_call_arguments.delta") {
+          content += json.delta;
+        } else if (json.type === "response.reasoning_text.delta" || json.type === "response.reasoning_summary_text.delta") {
+          content += json.delta;
+          reasoning += json.delta;
         }
       }
       // Anthropic Messages: content_block_delta.delta.{text_delta,thinking_delta}
@@ -86,4 +104,13 @@ export function isUsageMissing(usage: any): boolean {
   const completion = Number(usage?.completion_tokens || usage?.output_tokens || 0);
   const prompt = Number(usage?.prompt_tokens || usage?.input_tokens || 0);
   return prompt === 0 && completion === 0;
+}
+
+/**
+ * 流里是否真的给客户产出了内容（文本、思维链或工具调用参数）。
+ * 只有为 true 时才允许在 usage 缺失时估费（AGENTS.md：估算只能在确有输出时启用）；
+ * 仅收到 role/created/message_start 之类的事件不算产出。
+ */
+export function hasStreamedOutput(fullResponse: string): boolean {
+  return extractStreamedContent(fullResponse).content.length > 0;
 }

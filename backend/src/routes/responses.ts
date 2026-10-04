@@ -35,7 +35,7 @@ import {
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
 import { db } from "../db/client";
 import { safeProviderFetch } from "../services/outbound-url-policy";
-import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
+import { estimateStreamUsage, hasStreamedOutput, isUsageMissing } from "../utils/estimate-stream-usage";
 import { restorePublicModelAlias, rewriteUpstreamModelAliasText } from "../utils/upstream-model-aliases";
 import { getProviderAuthHeaders } from "../services/providers";
 import { InferenceContext } from "../pipeline/context";
@@ -461,6 +461,7 @@ router.post("/", async (req: Request, res: Response) => {
 
       let fullResponse = "";
       const reader = response.body as any;
+      let streamReadError: { name?: string } | null = null;
 
       try {
         if (reader && typeof reader[Symbol.asyncIterator] === "function") {
@@ -483,24 +484,44 @@ router.post("/", async (req: Request, res: Response) => {
           }
         }
       } catch (streamErr: any) {
-        const errMsg = streamErr?.name === "AbortError" ? "upstream_timeout" : "upstream_stream_error";
-        res.write(`event: error\ndata: ${JSON.stringify({ error: { message: errMsg, type: "server_error" } })}\n\n`);
+        streamReadError = { name: typeof streamErr?.name === "string" ? streamErr.name : undefined };
+      }
+
+      // A Responses stream is complete only with response.completed. A read
+      // error, response.failed / response.incomplete or a stream that simply
+      // stops is an interruption: tell the client and never bill it as success.
+      const terminal = responsesStreamTerminal(fullResponse);
+      const interrupted = streamReadError !== null || terminal !== "completed";
+      const streamErrorCode = ctx.clientClosed
+        ? "client_closed"
+        : streamReadError?.name === "AbortError" || streamReadError?.name === "TimeoutError"
+          ? "upstream_timeout"
+          : terminal === "failed" || terminal === "incomplete"
+            ? `upstream_response_${terminal}`
+            : "upstream_stream_interrupted";
+      if (interrupted && terminal !== "failed") {
+        res.write(`event: error\ndata: ${JSON.stringify({ type: "error", error: { message: "The upstream stream was interrupted before completion.", type: "server_error", code: streamErrorCode } })}\n\n`);
       }
       res.end();
 
       // Extract usage from the response.completed event for billing
       const usage = extractUsageFromStream(fullResponse);
       await recordResponseOwnership(extractResponseIdFromStream(fullResponse), apiKeyRecord.user_id);
-      // 断流兜底：上游在 response.completed（含 usage）发出前断开 → usage 为空，按已收内容估费
+      // 断流兜底：只在确实给客户产出过内容时按已收内容估费；中断且没有任何产出则不收费。
+      const deliveredOutput = hasStreamedOutput(fullResponse);
       let estimated = false;
       let billableUsage = usage;
-      if (isUsageMissing(usage) && fullResponse.length > 0) {
+      if (interrupted && !deliveredOutput) {
+        billableUsage = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
+      } else if (isUsageMissing(usage) && deliveredOutput) {
         const est = estimateStreamUsage(fullResponse, req.body.input);
         billableUsage = { input_tokens: est.prompt_tokens, output_tokens: est.completion_tokens, total_tokens: est.total_tokens };
         estimated = true;
       }
       ctx.actualProviderTokens = await billAndLog(billableUsage, {
         upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId: billingReservation.id, estimated,
+        status: interrupted ? "error" : "success",
+        errorCode: interrupted ? streamErrorCode : undefined,
         requestBody: req.body,
         responseBody: fullResponse,
         onReconciled: () => { ctx.tokensReconciled = true; },
@@ -680,6 +701,24 @@ router.get("/:id/input_items", async (req: Request, res: Response) => {
 
 // --- Helpers ---
 
+/** Last terminal event of a Responses SSE stream, or null when it never arrived. */
+export function responsesStreamTerminal(fullResponse: string): "completed" | "failed" | "incomplete" | null {
+  let terminal: "completed" | "failed" | "incomplete" | null = null;
+  for (const line of fullResponse.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) continue;
+    try {
+      const type = JSON.parse(trimmed.slice(5).trimStart())?.type;
+      if (type === "response.completed") terminal = "completed";
+      else if (type === "response.failed" || type === "error") terminal = "failed";
+      else if (type === "response.incomplete") terminal = "incomplete";
+    } catch {
+      /* 残缺行 */
+    }
+  }
+  return terminal;
+}
+
 function extractUsageFromStream(fullResponse: string): any {
   // Look for the response.completed event which contains usage
   const lines = fullResponse.split("\n");
@@ -708,6 +747,9 @@ async function billAndLog(
     estimatedTokens: number;
     billingReservationId: string;
     estimated?: boolean;
+    /** Stream outcome; interrupted streams are recorded as errors. */
+    status?: "success" | "error";
+    errorCode?: string;
     onReconciled?: () => void;
     /** 原始请求体，用于判定是否开启了显式缓存（本路由整体透传上游）。 */
     requestBody?: unknown;
@@ -716,6 +758,7 @@ async function billAndLog(
   },
 ): Promise<number> {
   const { upstream, logId, apiKeyRecord, modelId, model, startTime, estimatedTokens, billingReservationId, estimated, requestBody, responseBody } = ctx;
+  const status = ctx.status || "success";
   const latencyMs = Date.now() - startTime;
   const inputTokens = usage.input_tokens || 0;
   const outputTokens = usage.output_tokens || 0;
@@ -768,7 +811,7 @@ async function billAndLog(
     completionTokens: outputTokens,
     totalTokens,
     cost: billing.finalAmount,
-    status: "success",
+    status,
     latencyMs,
     cachedTokens: billing.cachedTokens,
     cacheCreationTokens: billing.cacheCreationTokens,
@@ -779,6 +822,8 @@ async function billAndLog(
     providerCacheMode: explicitCache ? "explicit" : "implicit",
     providerInputIncludesCache: true,
     estimated,
+    errorCode: status === "error" ? ctx.errorCode : undefined,
+    errorReason: status === "error" ? ctx.errorCode : undefined,
     reservationId: billingReservationId,
     requestBody,
     responseBody,

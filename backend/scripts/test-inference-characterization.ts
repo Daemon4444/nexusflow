@@ -345,6 +345,8 @@ const scenarios: Scenario[] = [
   { name: "v1.chat.non_stream.success", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody() }], upstream: [{ status: 200, json: chatCompletion(CHAT) }] },
   { name: "v1.chat.stream.success", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody({ stream: true, stream_options: { include_usage: true } }) }], upstream: [{ status: 200, sse: chatSse(CHAT) }] },
   { name: "v1.chat.stream.truncated_without_usage", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody({ stream: true }) }], upstream: [{ status: 200, sse: chatSse(CHAT).slice(0, 1) }] },
+  // Interrupted before any output: a role-only chunk is not output, so nothing is billed.
+  { name: "v1.chat.stream.role_only_truncated", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody({ stream: true }) }], upstream: [{ status: 200, sse: [`data: ${JSON.stringify({ id: "chatcmpl-up", object: "chat.completion.chunk", created: 1_790_000_000, model: CHAT, choices: [{ index: 0, delta: { role: "assistant" } }] })}\n\n`] }] },
   { name: "v1.chat.upstream_400", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody() }], upstream: [upstreamError(400, "bad parameter")] },
   { name: "v1.chat.upstream_500", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody() }], upstream: [upstreamError(500, "internal")] },
   { name: "v1.chat.stream.upstream_500", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody({ stream: true }) }], upstream: [upstreamError(500, "internal")] },
@@ -373,6 +375,10 @@ const scenarios: Scenario[] = [
   { name: "messages.passthrough.stream.success", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT, { stream: true }) }], upstream: [{ status: 200, sse: anthropicSse(CHAT) }] },
   { name: "messages.passthrough.upstream_400", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT) }], upstream: [{ status: 400, json: { type: "error", error: { type: "invalid_request_error", message: "bad" } } }] },
   { name: "messages.passthrough.upstream_500", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT) }], upstream: [{ status: 500, json: { type: "error", error: { type: "api_error", message: "internal" } } }] },
+  // Anthropic streams that stop before message_stop: client gets an error event, not a silent cut.
+  { name: "messages.passthrough.stream.truncated_no_output", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT, { stream: true }) }], upstream: [{ status: 200, sse: anthropicSse(CHAT).slice(0, 2) }] },
+  { name: "messages.passthrough.stream.truncated_with_output", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT, { stream: true }) }], upstream: [{ status: 200, sse: anthropicSse(CHAT).slice(0, 3) }] },
+  { name: "messages.bridge.stream.truncated", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(BRIDGE_MODEL, { stream: true }) }], upstream: [{ status: 200, sse: chatSse(BRIDGE_MODEL).slice(0, 1) }] },
   { name: "messages.passthrough.timeout", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT) }], upstream: [{ throw: "timeout" }] },
   { name: "messages.bridge.non_stream.success", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(BRIDGE_MODEL) }], upstream: [{ status: 200, json: chatCompletion(BRIDGE_MODEL) }] },
   { name: "messages.bridge.stream.success", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(BRIDGE_MODEL, { stream: true }) }], upstream: [{ status: 200, sse: chatSse(BRIDGE_MODEL) }] },
@@ -386,6 +392,10 @@ const scenarios: Scenario[] = [
   { name: "responses.stream.success", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi", stream: true } }], upstream: [{ status: 200, sse: responsesSse(RESPONSES_MODEL) }] },
   { name: "responses.upstream_400", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi" } }], upstream: [upstreamError(400, "bad")] },
   { name: "responses.upstream_500", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi" } }], upstream: [upstreamError(500, "internal")] },
+  // Responses streams that stop before response.completed: error event, recorded as error;
+  // no output -> no charge, partial output -> estimated charge for what was delivered.
+  { name: "responses.stream.truncated_no_output", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi", stream: true } }], upstream: [{ status: 200, sse: responsesSse(RESPONSES_MODEL).slice(0, 1) }] },
+  { name: "responses.stream.truncated_with_output", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi", stream: true } }], upstream: [{ status: 200, sse: responsesSse(RESPONSES_MODEL).slice(0, 2) }] },
   { name: "responses.timeout", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi" } }], upstream: [{ throw: "timeout" }] },
   { name: "responses.insufficient_balance", caller: { balance: 0 }, requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi" } }], upstream: [] },
   // ---- /api/image

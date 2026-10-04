@@ -560,13 +560,15 @@ export function invokeUpstream(ctx: InferenceContext, call: UpstreamCall): Promi
     ...(call.headers || {}),
   };
   const timeout = call.timeoutMs === undefined ? UPSTREAM_TIMEOUT_MS : call.timeoutMs;
+  const clientSignal = ctx.clientSignal();
+  const signal = timeout ? AbortSignal.any([AbortSignal.timeout(timeout), clientSignal]) : clientSignal;
   return safeProviderFetch(upstreamUrl(ctx, call), {
     method: call.method || "POST",
     headers,
     ...(call.body !== undefined
       ? { body: typeof call.body === "string" ? call.body : JSON.stringify(call.body) }
       : {}),
-    ...(timeout ? { signal: AbortSignal.timeout(timeout) } : {}),
+    signal,
   }).then((response) => {
     if (response.status === 429) {
       void noteUpstreamRateLimited(ctx, response.headers.get("retry-after")).catch(() => undefined);
