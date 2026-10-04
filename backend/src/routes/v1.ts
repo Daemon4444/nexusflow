@@ -24,7 +24,7 @@ import { upstreamErrorBody } from "../services/upstream";
 import { getSupportedProtocols } from "../utils/model-protocols";
 import { getAllowedChatParameters, getModelCapabilities } from "../utils/model-capabilities";
 import { buildUpstreamChatRequest } from "../utils/chat-request";
-import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
+import { estimateStreamUsage, hasStreamedOutput, isUsageMissing } from "../utils/estimate-stream-usage";
 import { calculateOpenAiCacheAwareCost, buildApiDescription, isExplicitCacheRequested } from "../utils/cache-billing";
 import { getModelAvailabilityMap } from "../services/scheduler";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
@@ -1020,15 +1020,21 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         }
       } catch {}
 
-      // 断流兜底：上游在 usage 块发出前断开（超时/中断），按已收内容估费，不记 0
-      if (isUsageMissing(streamTokens) && fullResponse.length > 0) {
+      // 断流兜底：上游在 usage 块发出前断开（超时/中断），按已收内容估费，不记 0。
+      // 只在确实给客户产出过内容时估算；只收到 role 块不算产出。
+      const streamFailed = !streamOutcome.ok;
+      const deliveredOutput = hasStreamedOutput(fullResponse);
+      if (streamFailed && !deliveredOutput) {
+        // 中断且客户什么都没收到：不收费（即使上游报了部分 usage）。
+        streamTokens = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+      } else if (isUsageMissing(streamTokens) && deliveredOutput) {
         streamTokens = estimateStreamUsage(fullResponse, messages);
         estimatedBilling = true;
       }
+      const streamErrorCode = ctx.clientClosed ? "client_closed" : !streamOutcome.ok ? streamOutcome.code : undefined;
 
       // Log usage and bill
       const latencyMs = Date.now() - startTime;
-      const streamFailed = !streamOutcome.ok;
       const billing = await calculateOpenAiCacheAwareCost({
         userId: apiKeyRecord.user_id,
         model,
@@ -1070,8 +1076,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         estimated: estimatedBilling,
         finishReason: streamFinishReason || (streamFailed ? "interrupted" : undefined),
         clientIp,
-        errorCode: streamFailed ? streamOutcome.code : undefined,
-        errorReason: streamFailed ? streamOutcome.code : undefined,
+        errorCode: streamFailed ? streamErrorCode : undefined,
+        errorReason: streamFailed ? streamErrorCode : undefined,
         requestBody: req.body,
         responseBody: fullResponse,
         reservationId: chatReservation.id,

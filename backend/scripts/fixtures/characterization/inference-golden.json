@@ -5487,5 +5487,876 @@
     "user_id": "<user_id>"
    }
   ]
+ },
+ "v1.chat.stream.role_only_truncated": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [
+   {
+    "consecutive_failures": 1,
+    "model_id": "qwen3.8-flash",
+    "provider_id": "dashscope",
+    "status": "degraded"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 0,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "API 调用: qwen3.8-flash (0 tokens, stream)",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.000185,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": [
+     {
+      "data": {
+       "choices": [
+        {
+         "delta": {
+          "role": "assistant"
+         },
+         "index": 0
+        }
+       ],
+       "created": "<created>",
+       "id": "<id>",
+       "model": "qwen3.8-flash",
+       "object": "chat.completion.chunk"
+      }
+     },
+     {
+      "data": {
+       "error": {
+        "code": "upstream_stream_interrupted",
+        "message": "The upstream stream was interrupted before completion.",
+        "type": "server_error"
+       }
+      }
+     }
+    ],
+    "headers": {
+     "cache-control": "no-cache",
+     "content-type": "text/event-stream"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "max_tokens": 64,
+     "messages": [
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen3.8-flash",
+     "stream": true,
+     "stream_options": {
+      "include_usage": true
+     }
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "upstream_stream_interrupted",
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "openai-chat",
+    "provider_cache_mode": "implicit",
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": true,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": 0,
+    "retail_discount_rate": 1,
+    "retail_list_cost": 0,
+    "status": "error",
+    "thinking_output": false,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "messages.passthrough.stream.truncated_no_output": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [
+   {
+    "consecutive_failures": 1,
+    "model_id": "qwen3.8-flash",
+    "provider_id": "dashscope",
+    "status": "degraded"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 0,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "API 调用: qwen3.8-flash (0 tokens, stream)",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.000185,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": [
+     "event: message_start",
+     {
+      "data": {
+       "message": {
+        "content": [],
+        "id": "<id>",
+        "model": "qwen3.8-flash",
+        "role": "assistant",
+        "type": "message",
+        "usage": {
+         "input_tokens": 11,
+         "output_tokens": 0
+        }
+       },
+       "type": "message_start"
+      }
+     },
+     "event: content_block_start",
+     {
+      "data": {
+       "content_block": {
+        "text": "",
+        "type": "text"
+       },
+       "index": 0,
+       "type": "content_block_start"
+      }
+     },
+     "event: error",
+     {
+      "data": {
+       "error": {
+        "message": "The upstream stream was interrupted before completion (upstream_stream_interrupted).",
+        "type": "api_error"
+       },
+       "type": "error"
+      }
+     }
+    ],
+    "headers": {
+     "cache-control": "no-cache",
+     "content-type": "text/event-stream"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "max_tokens": 64,
+     "messages": [
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen3.8-flash",
+     "stream": true
+    },
+    "headers": {
+     "anthropic-version": "2023-06-01",
+     "content-type": "application/json",
+     "x-api-key": "<secret:cffaa902>"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/apps/anthropic/v1/messages"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "upstream_stream_interrupted",
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "anthropic-messages",
+    "provider_cache_mode": "implicit",
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": false,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": 0,
+    "retail_discount_rate": 1,
+    "retail_list_cost": 0,
+    "status": "error",
+    "thinking_output": false,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "messages.passthrough.stream.truncated_with_output": {
+  "asyncTasks": [],
+  "balanceDelta": -0.000009,
+  "providerHealth": [
+   {
+    "consecutive_failures": 1,
+    "model_id": "qwen3.8-flash",
+    "provider_id": "dashscope",
+    "status": "degraded"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 0.000009,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "API 调用: qwen3.8-flash (11 tokens, stream)",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.000185,
+    "settled_at": "<date>",
+    "status": "settled",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": [
+     "event: message_start",
+     {
+      "data": {
+       "message": {
+        "content": [],
+        "id": "<id>",
+        "model": "qwen3.8-flash",
+        "role": "assistant",
+        "type": "message",
+        "usage": {
+         "input_tokens": 11,
+         "output_tokens": 0
+        }
+       },
+       "type": "message_start"
+      }
+     },
+     "event: content_block_start",
+     {
+      "data": {
+       "content_block": {
+        "text": "",
+        "type": "text"
+       },
+       "index": 0,
+       "type": "content_block_start"
+      }
+     },
+     "event: content_block_delta",
+     {
+      "data": {
+       "delta": {
+        "text": "hi",
+        "type": "text_delta"
+       },
+       "index": 0,
+       "type": "content_block_delta"
+      }
+     },
+     "event: error",
+     {
+      "data": {
+       "error": {
+        "message": "The upstream stream was interrupted before completion (upstream_stream_interrupted).",
+        "type": "api_error"
+       },
+       "type": "error"
+      }
+     }
+    ],
+    "headers": {
+     "cache-control": "no-cache",
+     "content-type": "text/event-stream"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [
+   {
+    "actor_user_id": "<actor_user_id>",
+    "amount": 0.000009,
+    "balance_after": 99.999991,
+    "created_at": "<date>",
+    "credit_after": 0,
+    "credit_amount": 0,
+    "description": "API 调用: qwen3.8-flash (11 tokens, stream)",
+    "discount_amount_cny": null,
+    "discount_rate": null,
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "type": "consumption",
+    "user_id": "<user_id>"
+   }
+  ],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "max_tokens": 64,
+     "messages": [
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen3.8-flash",
+     "stream": true
+    },
+    "headers": {
+     "anthropic-version": "2023-06-01",
+     "content-type": "application/json",
+     "x-api-key": "<secret:cffaa902>"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/apps/anthropic/v1/messages"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0.000009,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "upstream_stream_interrupted",
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 11,
+    "protocol": "anthropic-messages",
+    "provider_cache_mode": "implicit",
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": false,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": 0,
+    "retail_discount_rate": 1,
+    "retail_list_cost": 0.000009,
+    "status": "error",
+    "thinking_output": false,
+    "total_tokens": 11,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "messages.bridge.stream.truncated": {
+  "asyncTasks": [],
+  "balanceDelta": -0.000101,
+  "providerHealth": [
+   {
+    "consecutive_failures": 1,
+    "model_id": "MiniMax/MiniMax-M3",
+    "provider_id": "dashscope",
+    "status": "degraded"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 0.000101,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "API 调用: MiniMax/MiniMax-M3 (18 tokens, stream)",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.001138,
+    "settled_at": "<date>",
+    "status": "settled",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": [
+     "event: message_start",
+     {
+      "data": {
+       "message": {
+        "content": [],
+        "id": "<id>",
+        "model": "MiniMax/MiniMax-M3",
+        "role": "assistant",
+        "stop_reason": null,
+        "stop_sequences": null,
+        "type": "message",
+        "usage": {
+         "input_tokens": 0,
+         "output_tokens": 0
+        }
+       },
+       "type": "message_start"
+      }
+     },
+     "event: content_block_start",
+     {
+      "data": {
+       "content_block": {
+        "text": "",
+        "type": "text"
+       },
+       "index": 0,
+       "type": "content_block_start"
+      }
+     },
+     "event: content_block_delta",
+     {
+      "data": {
+       "delta": {
+        "text": "hel",
+        "type": "text_delta"
+       },
+       "index": 0,
+       "type": "content_block_delta"
+      }
+     },
+     "event: content_block_stop",
+     {
+      "data": {
+       "index": 0,
+       "type": "content_block_stop"
+      }
+     },
+     "event: error",
+     {
+      "data": {
+       "error": {
+        "message": "The upstream stream was interrupted before completion (upstream_stream_interrupted).",
+        "type": "api_error"
+       },
+       "type": "error"
+      }
+     }
+    ],
+    "headers": {
+     "cache-control": "no-cache",
+     "content-type": "text/event-stream"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [
+   {
+    "actor_user_id": "<actor_user_id>",
+    "amount": 0.000101,
+    "balance_after": 99.999899,
+    "created_at": "<date>",
+    "credit_after": 0,
+    "credit_amount": 0,
+    "description": "API 调用: MiniMax/MiniMax-M3 (18 tokens, stream)",
+    "discount_amount_cny": null,
+    "discount_rate": null,
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "type": "consumption",
+    "user_id": "<user_id>"
+   }
+  ],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "max_tokens": 64,
+     "messages": [
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "MiniMax/MiniMax-M3",
+     "stream": true,
+     "stream_options": {
+      "include_usage": true
+     }
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 2,
+    "cost": 0.000101,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "upstream_stream_interrupted",
+    "estimated": true,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "MiniMax/MiniMax-M3",
+    "node_id": null,
+    "prompt_tokens": 16,
+    "protocol": "anthropic-messages",
+    "provider_cache_mode": "implicit",
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": true,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": 0,
+    "retail_discount_rate": 1,
+    "retail_list_cost": 0.000101,
+    "status": "error",
+    "thinking_output": false,
+    "total_tokens": 18,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "responses.stream.truncated_no_output": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [
+   {
+    "consecutive_failures": 1,
+    "model_id": "qwen3.8-flash",
+    "provider_id": "dashscope",
+    "status": "degraded"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 0,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "API 调用: qwen3.8-flash (0 tokens)",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.044238,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": [
+     "event: response.created",
+     {
+      "data": {
+       "response": {
+        "id": "<id>",
+        "model": "qwen3.8-flash",
+        "status": "in_progress"
+       },
+       "type": "response.created"
+      }
+     },
+     "event: error",
+     {
+      "data": {
+       "error": {
+        "code": "upstream_stream_interrupted",
+        "message": "The upstream stream was interrupted before completion.",
+        "type": "server_error"
+       },
+       "type": "error"
+      }
+     }
+    ],
+    "headers": {
+     "cache-control": "no-cache",
+     "content-type": "text/event-stream"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": "hi",
+     "model": "qwen3.8-flash",
+     "stream": true
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/responses"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "upstream_stream_interrupted",
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "openai-responses",
+    "provider_cache_mode": "implicit",
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": true,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": 0,
+    "retail_discount_rate": 1,
+    "retail_list_cost": 0,
+    "status": "error",
+    "thinking_output": false,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "responses.stream.truncated_with_output": {
+  "asyncTasks": [],
+  "balanceDelta": -0.000004,
+  "providerHealth": [
+   {
+    "consecutive_failures": 1,
+    "model_id": "qwen3.8-flash",
+    "provider_id": "dashscope",
+    "status": "degraded"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": 0.000004,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "API 调用: qwen3.8-flash (2 tokens)",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.044238,
+    "settled_at": "<date>",
+    "status": "settled",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": [
+     "event: response.created",
+     {
+      "data": {
+       "response": {
+        "id": "<id>",
+        "model": "qwen3.8-flash",
+        "status": "in_progress"
+       },
+       "type": "response.created"
+      }
+     },
+     "event: response.output_text.delta",
+     {
+      "data": {
+       "delta": "hi",
+       "type": "response.output_text.delta"
+      }
+     },
+     "event: error",
+     {
+      "data": {
+       "error": {
+        "code": "upstream_stream_interrupted",
+        "message": "The upstream stream was interrupted before completion.",
+        "type": "server_error"
+       },
+       "type": "error"
+      }
+     }
+    ],
+    "headers": {
+     "cache-control": "no-cache",
+     "content-type": "text/event-stream"
+    },
+    "status": 200
+   }
+  ],
+  "transactions": [
+   {
+    "actor_user_id": "<actor_user_id>",
+    "amount": 0.000004,
+    "balance_after": 99.999996,
+    "created_at": "<date>",
+    "credit_after": 0,
+    "credit_amount": 0,
+    "description": "API 调用: qwen3.8-flash (2 tokens)",
+    "discount_amount_cny": null,
+    "discount_rate": null,
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "type": "consumption",
+    "user_id": "<user_id>"
+   }
+  ],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": "hi",
+     "model": "qwen3.8-flash",
+     "stream": true
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/responses"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 1,
+    "cost": 0.000004,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "upstream_stream_interrupted",
+    "estimated": true,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 1,
+    "protocol": "openai-responses",
+    "provider_cache_mode": "implicit",
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": true,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": 0,
+    "retail_discount_rate": 1,
+    "retail_list_cost": 0.000004,
+    "status": "error",
+    "thinking_output": false,
+    "total_tokens": 2,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
  }
 }

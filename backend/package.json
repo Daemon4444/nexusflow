@@ -66,7 +66,8 @@
     "test:cp-change-requests": "USE_PG_MEM=true ts-node scripts/test-cp-change-requests.ts",
     "test:load-test-account": "USE_PG_MEM=true ts-node scripts/test-load-test-account.ts",
     "load-test:account": "ts-node src/cli/load-test-account.ts",
-    "test:admin-console": "USE_PG_MEM=true ts-node scripts/test-admin-console.ts"
+    "test:admin-console": "USE_PG_MEM=true ts-node scripts/test-admin-console.ts",
+    "test:stream-interruption": "USE_PG_MEM=true ts-node scripts/test-stream-interruption.ts"
   },
   "keywords": [],
   "author": "",

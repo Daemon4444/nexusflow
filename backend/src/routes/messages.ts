@@ -28,7 +28,8 @@ import {
   openAiUsageToAnthropic,
   createAnthropicStreamTranslator,
 } from "../utils/anthropic-openai-bridge";
-import { estimateStreamUsage, isUsageMissing } from "../utils/estimate-stream-usage";
+import { estimateStreamUsage, hasStreamedOutput, isUsageMissing } from "../utils/estimate-stream-usage";
+import { createOpenAiStreamState, finishOpenAiStream, observeOpenAiStreamLine } from "../utils/openai-stream-state";
 import { getBillingFailurePayload } from "../utils/billing-response";
 import { restorePublicModelAlias, rewriteUpstreamModelAliasText } from "../utils/upstream-model-aliases";
 import { InferenceContext } from "../pipeline/context";
@@ -55,6 +56,21 @@ import {
 } from "../pipeline/stages";
 
 const router = Router();
+
+/** "completed" once message_stop (or a stop_reason) arrived, "failed" on an upstream error event, else null. */
+export function anthropicStreamTerminal(fullResponse: string): "completed" | "failed" | null {
+  let terminal: "completed" | "failed" | null = null;
+  for (const line of fullResponse.split(/\r?\n/)) {
+    const event = parseSseEvent(line);
+    // message_stop is the protocol terminator; some Anthropic-compatible
+    // upstreams end after a message_delta that carries stop_reason.
+    if (event?.type === "message_stop") terminal = "completed";
+    else if (event?.type === "message_delta" && event?.delta?.stop_reason) terminal = terminal || "completed";
+    else if (event?.type === "error") terminal = "failed";
+  }
+  return terminal;
+}
+
 
 
 
@@ -469,17 +485,34 @@ router.post("/", async (req: Request, res: Response) => {
           writeSseText(typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true }));
         };
 
-        if (reader && typeof reader[Symbol.asyncIterator] === "function") {
-          for await (const chunk of reader) writeChunk(chunk);
-        } else if (reader && reader.getReader) {
-          const r = reader.getReader();
-          while (true) {
-            const { done, value } = await r.read();
-            if (done) break;
-            writeChunk(value);
+        let streamReadError: { name?: string } | null = null;
+        try {
+          if (reader && typeof reader[Symbol.asyncIterator] === "function") {
+            for await (const chunk of reader) writeChunk(chunk);
+          } else if (reader && reader.getReader) {
+            const r = reader.getReader();
+            while (true) {
+              const { done, value } = await r.read();
+              if (done) break;
+              writeChunk(value);
+            }
           }
+        } catch (streamErr: any) {
+          streamReadError = { name: typeof streamErr?.name === "string" ? streamErr.name : undefined };
         }
         writeSseText(decoder.decode(), true);
+        // An Anthropic stream is complete only with message_stop. Anything else
+        // (read error, upstream error event, early close) is an interruption.
+        const terminal = anthropicStreamTerminal(fullResponse);
+        const interrupted = streamReadError !== null || terminal !== "completed";
+        const streamErrorCode = ctx.clientClosed
+          ? "client_closed"
+          : streamReadError?.name === "AbortError" || streamReadError?.name === "TimeoutError"
+            ? "upstream_timeout"
+            : terminal === "failed" ? "upstream_stream_error" : "upstream_stream_interrupted";
+        if (interrupted && terminal !== "failed") {
+          res.write(`event: error\ndata: ${JSON.stringify({ type: "error", error: { type: "api_error", message: `The upstream stream was interrupted before completion (${streamErrorCode}).` } })}\n\n`);
+        }
         res.end();
 
         for (const line of fullResponse.split(/\r?\n/)) {
@@ -493,9 +526,16 @@ router.post("/", async (req: Request, res: Response) => {
         }
 
         // 断流兜底：上游在 message_delta（含 usage）发出前断开 → usage 全 0。
-        // 按已转发的 Anthropic SSE 估费，避免平台承担全部上游成本而记 0。
+        // 只在确实给客户产出过内容时按已转发的 SSE 估费；中断且没有任何产出则不收费
+        // （message_start 里的 input_tokens 不代表客户拿到了东西）。
         let estimatedBilling = false;
-        if (isUsageMissing({ input_tokens: inputTokens, output_tokens: outputTokens }) && fullResponse.length > 0) {
+        const deliveredOutput = hasStreamedOutput(fullResponse);
+        if (interrupted && !deliveredOutput) {
+          inputTokens = 0;
+          outputTokens = 0;
+          cacheCreationInputTokens = 0;
+          cacheReadInputTokens = 0;
+        } else if (isUsageMissing({ input_tokens: inputTokens, output_tokens: outputTokens }) && deliveredOutput) {
           const est = estimateStreamUsage(fullResponse, req.body.messages);
           inputTokens = est.prompt_tokens;
           outputTokens = est.completion_tokens;
@@ -525,7 +565,9 @@ router.post("/", async (req: Request, res: Response) => {
           completionTokens: outputTokens,
           totalTokens,
           cost: billing.finalAmount,
-          status: "success",
+          status: interrupted ? "error" : "success",
+          errorCode: interrupted ? streamErrorCode : undefined,
+          errorReason: interrupted ? streamErrorCode : undefined,
           latencyMs,
           ttftMs,
           tpotMs,
@@ -748,23 +790,43 @@ router.post("/", async (req: Request, res: Response) => {
       };
 
       const reader = response.body as any;
-      if (reader && typeof reader[Symbol.asyncIterator] === "function") {
-        for await (const chunk of reader) feed(chunk);
-      } else if (reader && reader.getReader) {
-        const r = reader.getReader();
-        while (true) {
-          const { done, value } = await r.read();
-          if (done) break;
-          feed(value);
+      let streamReadError: { name?: string; code?: string } | null = null;
+      try {
+        if (reader && typeof reader[Symbol.asyncIterator] === "function") {
+          for await (const chunk of reader) feed(chunk);
+        } else if (reader && reader.getReader) {
+          const r = reader.getReader();
+          while (true) {
+            const { done, value } = await r.read();
+            if (done) break;
+            feed(value);
+          }
         }
+      } catch (streamErr: any) {
+        streamReadError = {
+          name: typeof streamErr?.name === "string" ? streamErr.name : undefined,
+          code: typeof streamErr?.code === "string" ? streamErr.code : undefined,
+        };
       }
-      const { usage } = translator.finish();
+      // Same completion rule as /v1/chat/completions ([DONE] or a finish_reason).
+      const upstreamState = createOpenAiStreamState();
+      for (const line of rawUpstream.split("\n")) observeOpenAiStreamLine(upstreamState, line);
+      const upstreamOutcome = finishOpenAiStream(upstreamState, streamReadError);
+      const interrupted = !upstreamOutcome.ok;
+      const streamErrorCode = ctx.clientClosed ? "client_closed" : !upstreamOutcome.ok ? upstreamOutcome.code : undefined;
+      const { usage } = interrupted
+        ? translator.finishInterrupted(streamErrorCode || "upstream_stream_interrupted")
+        : translator.finish();
       res.end();
 
-      // 断流兜底：上游在末尾 usage 块发出前断开 → usage 全 0，按已收 OpenAI SSE 估费
+      // 断流兜底：上游在末尾 usage 块发出前断开 → usage 全 0。只在确实给客户产出过
+      // 内容时按已收 OpenAI SSE 估费；中断且没有任何产出则不收费。
       let estimatedBilling = false;
       let billingUsage = usage;
-      if (isUsageMissing(usage) && rawUpstream.length > 0) {
+      const deliveredOutput = hasStreamedOutput(rawUpstream);
+      if (interrupted && !deliveredOutput) {
+        billingUsage = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+      } else if (isUsageMissing(usage) && deliveredOutput) {
         const est = estimateStreamUsage(rawUpstream, req.body.messages);
         billingUsage = {
           input_tokens: est.prompt_tokens,
@@ -796,7 +858,9 @@ router.post("/", async (req: Request, res: Response) => {
         completionTokens: billingUsage.output_tokens || 0,
         totalTokens,
         cost: billing.finalAmount,
-        status: "success",
+        status: interrupted ? "error" : "success",
+        errorCode: interrupted ? streamErrorCode : undefined,
+        errorReason: interrupted ? streamErrorCode : undefined,
         latencyMs,
         ttftMs,
         tpotMs,

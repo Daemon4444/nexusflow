@@ -1,6 +1,17 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:fix: stop billing interrupted streams that delivered nothing": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "流式调用中断时不再按成功收费；客户取消请求会中止上游",
+      "points": [
+        "/v1/responses 断流且客户没收到内容时，不再按“成功”全额收取输入费（此前 3 次共多收 ¥59.17，已退款）",
+        "/v1/messages（直通与转换）补上断流检测：客户会收到错误事件，转换分支不再伪造正常结束",
+        "三个流式接口统一：没收到任何内容一律不收费，有内容才按已输出部分计费，并记为失败",
+        "客户中途断开连接时立即中止上游请求，只按已送达的部分计费"
+      ]
+    },
     "subject:Release centre: headline is the most important change": {
       "type": "improve",
       "audience": "admin",

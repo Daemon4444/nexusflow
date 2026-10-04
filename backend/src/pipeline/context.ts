@@ -52,6 +52,10 @@ export class InferenceContext {
   providerLease: ProviderRequestCapacityLease | null = null;
   actualProviderTokens = 0;
 
+  /** True once the client went away before the response finished. */
+  clientClosed = false;
+  private clientAbort: AbortController | null = null;
+
   constructor(
     readonly route: string,
     readonly req: Request,
@@ -66,6 +70,32 @@ export class InferenceContext {
   requireModel(): AIModel {
     if (!this.model) throw new Error(`${this.route}: pipeline model missing`);
     return this.model;
+  }
+
+  /**
+   * Aborts when the client disconnects before the response has finished, so
+   * the upstream call stops instead of generating (and being billed for)
+   * output nobody receives. Registered lazily by invokeUpstream.
+   */
+  clientSignal(): AbortSignal {
+    if (this.clientAbort) return this.clientAbort.signal;
+    const controller = new AbortController();
+    this.clientAbort = controller;
+    const res = this.res as Response & { writableEnded?: boolean; writableFinished?: boolean; destroyed?: boolean };
+    const abortIfUnfinished = () => {
+      // Once the handler called res.end() the response is complete from our
+      // side; a close racing the final flush is not a client cancellation.
+      if (res.writableEnded || res.writableFinished || controller.signal.aborted) return;
+      this.clientClosed = true;
+      const reason = new Error("client_closed");
+      reason.name = "ClientClosedError";
+      controller.abort(reason);
+    };
+    if (typeof res.once === "function") res.once("close", abortIfUnfinished);
+    // req.destroyed is not a disconnect signal: Node auto-destroys the request
+    // stream once its body has been read. Check the response and the socket.
+    if (res.destroyed || this.req.socket?.destroyed) abortIfUnfinished();
+    return controller.signal;
   }
 
   requireUpstream(): ResolvedUpstream {

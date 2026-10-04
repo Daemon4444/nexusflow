@@ -390,6 +390,11 @@ QPM/TPM。旧 `rate_limit` 字段在 expand/rollback 窗口内仅保留旧版本
 - Token 模型可能有输入长度分层价；
 - 缓存读、缓存写和普通输入价格不同；
 - 流式上游缺失 usage 时，只在确有输出内容时启用估算，并在遥测中标记 `estimated=true`；
+- 三个流式接口（`/v1/chat/completions`、`/v1/messages` 直通与转换、`/v1/responses`）用同一套断流规则：
+  只有收到协议终止事件（`[DONE]`/`finish_reason`、`message_stop`/`stop_reason`、`response.completed`）才算成功；
+  否则给客户补发错误事件、`usage_logs` 记 `error` 并带错误码；**中断且客户没收到任何内容（role / created /
+  message_start 不算内容）一律不收费**，有内容时才按已输出部分估算（`hasStreamedOutput`）。客户端中途断开会
+  中止上游请求（`InferenceContext.clientSignal`，错误码 `client_closed`），只按已送达的部分计费；
 - OpenAI 兼容流必须验证正常终止：上游已有 `finish_reason` 但省略 `[DONE]` 时由代理补齐；
   在完成信号前断流或收到 SSE error 时必须记录为 `error` 并保留稳定错误码，不能因为
   HTTP 头已经发送就把中断调用写成 `success`；
