@@ -299,6 +299,15 @@
         "Next 16.3 起首次访问会把预渲染页面复制到 .next/server/route-cache/,导致发布完整性校验失败并自动回滚",
         "关闭 isrFlushToDisk,页面缓存只放内存;发布目录与 SHA-256 清单保持一致,校验规则不放宽"
       ]
+    },
+    "subject:fix: load-test report counts partially billed client_closed calls": {
+      "type": "fix",
+      "audience": "internal",
+      "title": "压测对账:客户端断开的部分计费调用计入结算数",
+      "points": [
+        "客户端中途断开(client_closed)现在会按已产出部分结算预占,对账从“结算数=成功数”改为“结算数=计费调用数”",
+        "此前这类调用会让 report 误报不闭合"
+      ]
     }
   }
 }
