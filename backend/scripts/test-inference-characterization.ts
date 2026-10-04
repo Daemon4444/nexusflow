@@ -396,6 +396,11 @@ const scenarios: Scenario[] = [
   // no output -> no charge, partial output -> estimated charge for what was delivered.
   { name: "responses.stream.truncated_no_output", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi", stream: true } }], upstream: [{ status: 200, sse: responsesSse(RESPONSES_MODEL).slice(0, 1) }] },
   { name: "responses.stream.truncated_with_output", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi", stream: true } }], upstream: [{ status: 200, sse: responsesSse(RESPONSES_MODEL).slice(0, 2) }] },
+  // response.incomplete (max_output_tokens) is a normal end with usage, not an interruption.
+  { name: "responses.stream.incomplete_max_tokens", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi", stream: true, max_output_tokens: 16 } }], upstream: [{ status: 200, sse: [
+    ...responsesSse(RESPONSES_MODEL).slice(0, 2),
+    `event: response.incomplete\ndata: ${JSON.stringify({ type: "response.incomplete", response: { ...responsesBody(RESPONSES_MODEL), status: "incomplete", incomplete_details: { reason: "max_output_tokens" } } })}\n\n`,
+  ] }] },
   { name: "responses.timeout", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi" } }], upstream: [{ throw: "timeout" }] },
   { name: "responses.insufficient_balance", caller: { balance: 0 }, requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi" } }], upstream: [] },
   // ---- /api/image
