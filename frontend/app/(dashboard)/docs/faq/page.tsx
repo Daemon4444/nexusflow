@@ -68,7 +68,7 @@ const faqs = [
     questions: [
       {
         q: "应该选择哪个模型？",
-        a: "取决于您的需求：\n• 复杂推理/编程：Qwen3.8 Max / DeepSeek V4 Pro\n• 日常对话/创作：Qwen3.7 Plus / Qwen3.5 Plus\n• 高性价比需求：DeepSeek V4 Flash / Qwen Flash\n• 锁定生产行为：DeepSeek V4 Pro 0813 / Flash 0731 快照\n• 图像与视频生成：Qwen Image / Wan2.6 / Seedance 系列\n\n建议在 Playground 中试用后决定。",
+        a: "取决于您的需求：\n• 复杂推理/编程：Qwen3.8 Max / DeepSeek V4 Pro\n• 日常对话/创作：Qwen3.7 Plus / Qwen3.5 Plus\n• 高性价比需求：DeepSeek V4 Flash / Qwen Flash\n• 锁定生产行为：DeepSeek V4 Pro 0813 / Flash 0731 快照\n• 图像与视频生成：Qwen Image / Wan2.6 / Seedance 系列\n\n建议用同一个 Key 分别试调几次后再定。",
       },
       {
         q: "同一模型为什么有不同版本？",

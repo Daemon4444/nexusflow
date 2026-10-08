@@ -123,8 +123,8 @@ export default function DeepSeekIntroPage() {
             数学推理接近人类专家，代码能力业界顶尖，MoE 架构实现极致性价比。
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link href="/playground" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 12, background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", boxShadow: "0 4px 16px rgba(139,92,246,0.3)", transition: "all 0.2s" }}>
-              在 Playground 体验 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <Link href="/docs/quickstart" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 12, background: "linear-gradient(135deg, #8b5cf6, #7c3aed)", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", boxShadow: "0 4px 16px rgba(139,92,246,0.3)", transition: "all 0.2s" }}>
+              开始接入 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </Link>
             <Link href="/docs/models/deepseek" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#e2e8f0", fontSize: 14, fontWeight: 500, textDecoration: "none" }}>
               查看 API 文档
@@ -204,7 +204,6 @@ export default function DeepSeekIntroPage() {
           {[
             { href: "/docs/models/deepseek", label: "DeepSeek API 文档", desc: "查看完整的模型列表与接口参数" },
             { href: "/docs/quickstart", label: "快速开始", desc: "5 分钟完成首次 API 调用" },
-            { href: "/playground", label: "在线体验", desc: "在 Playground 中试用 DeepSeek" },
           ].map((item) => (
             <Link key={item.href} href={item.href} style={{ padding: 20, borderRadius: 14, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

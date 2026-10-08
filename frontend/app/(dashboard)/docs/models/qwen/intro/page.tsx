@@ -178,8 +178,8 @@ export default function QwenIntroPage() {
             中文能力业界领先，OpenAI / Anthropic / Responses API 三协议接入，从 ¥0.2/百万 Token 起步。
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link href="/playground" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 12, background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", boxShadow: "0 4px 16px rgba(59,130,246,0.3)", transition: "all 0.2s" }}>
-              在 Playground 体验
+            <Link href="/docs/quickstart" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 12, background: "linear-gradient(135deg, #3b82f6, #2563eb)", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", boxShadow: "0 4px 16px rgba(59,130,246,0.3)", transition: "all 0.2s" }}>
+              开始接入
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </Link>
             <Link href="/docs/models/qwen" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#e2e8f0", fontSize: 14, fontWeight: 500, textDecoration: "none", transition: "all 0.2s" }}>
@@ -272,7 +272,6 @@ export default function QwenIntroPage() {
           {[
             { href: "/docs/models/qwen", label: "Qwen API 文档", desc: "查看完整的模型列表与接口参数" },
             { href: "/docs/quickstart", label: "快速开始", desc: "5 分钟完成首次 API 调用" },
-            { href: "/playground", label: "在线体验", desc: "在 Playground 中试用 Qwen 全系列" },
           ].map((item) => (
             <Link key={item.href} href={item.href} style={{ padding: 20, borderRadius: 14, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none", transition: "all 0.2s" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

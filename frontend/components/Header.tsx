@@ -21,7 +21,7 @@ import GlobalSearch from "./GlobalSearch";
 
 const consolePaths = [
   "/dashboard", "/keys", "/billing", "/monitor", "/activity", "/settings",
-  "/rate-limits", "/tickets", "/sub-accounts", "/demo-admin", "/playground",
+  "/rate-limits", "/tickets", "/sub-accounts", "/demo-admin",
 ];
 
 export default function Header() {
@@ -37,9 +37,8 @@ export default function Header() {
   const isActive = (href: string) => href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   const mainNav = [
-    { href: "/", label: "首页" },
+    { href: "/", label: locale === "zh" ? "首页" : "Home" },
     { href: "/models", label: t("navModels") },
-    { href: "/playground", label: t("navPlayground") },
     { href: "/pricing", label: t("navPricing") },
     { href: "/docs", label: t("navDocs") },
   ];
@@ -85,7 +84,8 @@ export default function Header() {
         <GlobalSearch authenticated={Boolean(user)} />
 
         <nav className="nf-header-nav" aria-label="网站导航">
-          {mainNav.map((item) => (
+          {/* The console has its own sidebar; only keep the way out to the docs. */}
+          {(inConsole ? mainNav.filter((item) => item.href === "/docs") : mainNav).map((item) => (
             <Link key={item.href} href={item.href} className={isActive(item.href) ? "active" : ""} aria-current={isActive(item.href) ? "page" : undefined}>{item.label}</Link>
           ))}
         </nav>

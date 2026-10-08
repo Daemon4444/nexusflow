@@ -269,7 +269,7 @@ export default function SeedanceModelPage() {
           </p>
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link href="/playground" style={{
+            <Link href="/docs/quickstart" style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               padding: "13px 30px", borderRadius: 12,
               background: "linear-gradient(135deg, #818cf8, #6366f1)",
@@ -277,7 +277,7 @@ export default function SeedanceModelPage() {
               boxShadow: "0 4px 16px rgba(99,102,241,0.35)",
               transition: "all 0.2s",
             }}>
-              在 Playground 体验
+              开始接入
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </Link>
             <Link href="/docs/api/seedance" style={{

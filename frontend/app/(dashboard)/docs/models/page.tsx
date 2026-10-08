@@ -396,10 +396,10 @@ export default function ModelsOverviewPage() {
           不确定选择哪个模型？
         </h3>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 20 }}>
-          在 Playground 中免费试用各个模型，找到最适合您的方案。
+          对比各模型的能力与价格，或按快速开始用同一个 Key 逐个试调。
         </p>
         <Link
-          href="/playground"
+          href="/docs/quickstart"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -414,9 +414,9 @@ export default function ModelsOverviewPage() {
           }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="5 3 19 12 5 21 5 3"/>
+            <path d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
-          打开 Playground
+          快速开始
         </Link>
       </section>
     </div>

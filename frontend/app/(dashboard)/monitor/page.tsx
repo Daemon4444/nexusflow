@@ -5,6 +5,8 @@ import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import UserLayout from "@/components/UserLayout";
+import { LoadingState } from "@/components/AppState";
+import { KpiBand, PageHeader, Panel, Tag, formatConsoleTime } from "@/components/ConsoleUI";
 
 interface PerfOverview { avgTtft: number; minTtft: number; maxTtft: number; avgTpot: number; minTpot: number; maxTpot: number; avgLatency: number; totalRequests: number; successCount: number; errorCount: number; successRate: number; }
 interface HourlyData { hour: string; requests: number; avgTtft: number; avgTpot: number; avgLatency: number; errors: number; }
@@ -53,132 +55,143 @@ export default function MonitorPage() {
       if (rcRes.success) setRecent(rcRes.data);
       setLoadError(ovRes.success ? null : (ovRes.message || "数据更新失败"));
     } catch (e: unknown) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (signal?.aborted) return;
       console.error("Failed to load monitor data", e);
       setLoadError("数据更新失败，请稍后重试");
     }
-    finally { setDataLoading(false); }
+    finally { if (!signal?.aborted) setDataLoading(false); }
   }
 
   const maxHR = Math.max(...hourly.map(h => h.requests), 1);
   const maxHT = Math.max(...hourly.map(h => h.avgTtft), 1);
+  const ok = (status: string) => status === "success" || status === "成功";
 
   return (
     <UserLayout wide>
-      <div className="usr-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div><h1>{t("perfTitle")}</h1><p>{t("perfDesc")}</p></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={() => setAutoRefresh(!autoRefresh)} className={autoRefresh ? "btn-primary" : "btn-secondary"} style={{ padding: "6px 14px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: autoRefresh ? "#fff" : "var(--text-tertiary)", display: "inline-block" }} />
-            {autoRefresh ? t("live") : t("paused")}
-          </button>
-          <button onClick={() => { setDataLoading(true); loadAll(); }} className="btn-secondary" style={{ padding: "6px 14px", fontSize: 12 }}>{t("refresh")}</button>
-        </div>
-      </div>
+      <PageHeader
+        title={t("perfTitle")}
+        description={t("perfDesc")}
+        actions={(
+          <>
+            <button onClick={() => setAutoRefresh(!autoRefresh)} className="btn-secondary nfc-live-toggle" aria-pressed={autoRefresh}>
+              <span className={autoRefresh ? "nfc-live-dot is-live" : "nfc-live-dot"} />
+              {autoRefresh ? "每 30 秒自动刷新" : "已暂停刷新"}
+            </button>
+            <button onClick={() => { setDataLoading(true); loadAll(); }} className="btn-secondary">{t("refresh")}</button>
+          </>
+        )}
+      />
 
-      {loadError && (
-        <div style={{ margin: "0 0 12px", padding: "10px 14px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid var(--danger)", color: "var(--danger)", fontSize: 13 }}>
-          {loadError}
-        </div>
-      )}
+      {loadError && <div className="nfc-note nfc-note-danger" style={{ marginBottom: 12 }}>{loadError}</div>}
 
       {dataLoading && !overview ? (
-        <div style={{ textAlign: "center", padding: 80, color: "var(--text-tertiary)" }}>{t("loadingMetrics")}</div>
+        <LoadingState title={t("loadingMetrics")} />
       ) : (
         <>
-          <div className="usr-metric-grid monitor-metric-grid">
-            {[
-              { label: t("avgTtft"), value: `${overview?.avgTtft || 0}ms`, sub: `${overview?.minTtft || 0} – ${overview?.maxTtft || 0}ms` },
-              { label: t("avgTpot"), value: `${overview?.avgTpot || 0}ms`, sub: `${overview?.minTpot || 0} – ${overview?.maxTpot || 0}ms` },
-              { label: t("avgLatency"), value: `${overview?.avgLatency || 0}ms`, sub: t("endToEnd") },
-              { label: t("requests24h"), value: String(overview?.totalRequests || 0), sub: `${overview?.errorCount || 0} ${t("errors").toLowerCase()}` },
-              { label: t("successRate"), value: overview?.totalRequests ? `${overview.successRate ?? 0}%` : "—", sub: `${overview?.successCount || 0} / ${overview?.totalRequests || 0}` },
-              { label: t("errors"), value: String(overview?.errorCount || 0), sub: t("last24h") },
-            ].map((m) => (
-              <div key={m.label} className="usr-metric"><div className="usr-metric-label">{m.label}</div><div className="usr-metric-value">{m.value}</div><div className="usr-metric-sub">{m.sub}</div></div>
-            ))}
+          <KpiBand items={[
+            { label: t("avgTtft"), value: `${overview?.avgTtft || 0}ms`, hint: `${overview?.minTtft || 0} – ${overview?.maxTtft || 0}ms` },
+            { label: t("avgTpot"), value: `${overview?.avgTpot || 0}ms`, hint: `${overview?.minTpot || 0} – ${overview?.maxTpot || 0}ms` },
+            { label: t("avgLatency"), value: `${overview?.avgLatency || 0}ms`, hint: t("endToEnd") },
+            { label: t("requests24h"), value: String(overview?.totalRequests || 0), hint: `${overview?.errorCount || 0} 次失败` },
+            { label: t("successRate"), value: overview?.totalRequests ? `${overview.successRate ?? 0}%` : "—", hint: `${overview?.successCount || 0} / ${overview?.totalRequests || 0}` },
+          ]} />
+
+          <div className="nfc-grid-2" style={{ marginBottom: 16 }}>
+            <Panel title={t("reqPerHour")} aside={<span className="nfc-legend"><i className="is-error" />含失败</span>}>
+              <HourBars
+                hours={hourly}
+                value={(h) => h.requests}
+                max={maxHR}
+                tone={(h) => (h.errors > 0 ? "error" : undefined)}
+                title={(h) => `${h.hour} · ${h.requests} 次 · ${h.errors} 次失败`}
+                empty={t("noDataYet")}
+              />
+            </Panel>
+            <Panel title={t("ttftPerHour")} aside={<span className="nfc-legend"><i className="is-slow" />超过 2 秒</span>}>
+              <HourBars
+                hours={hourly}
+                value={(h) => h.avgTtft}
+                max={maxHT}
+                tone={(h) => (h.avgTtft > 2000 ? "slow" : undefined)}
+                title={(h) => `${h.hour} · 首字 ${h.avgTtft}ms`}
+                empty={t("noDataYet")}
+              />
+            </Panel>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-            <div className="usr-section">
-              <div className="usr-section-header"><h3>{t("reqPerHour")}</h3></div>
-              <div style={{ padding: "16px 20px" }}>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 110 }}>
-                  {hourly.length === 0 ? <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-tertiary)", fontSize: 12 }}>{t("noDataYet")}</div>
-                  : hourly.map((h, i) => (
-                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                      <span style={{ fontSize: 8.5, color: "var(--text-tertiary)" }}>{h.requests || ""}</span>
-                      <div style={{ width: "100%", height: Math.max(2, (h.requests / maxHR) * 90), background: h.errors > 0 ? "linear-gradient(180deg, #ef4444, #dc2626)" : "linear-gradient(180deg, #333, #111)", borderRadius: "3px 3px 0 0", transition: "height 0.3s" }} title={`${h.hour}: ${h.requests} req, ${h.errors} errors`} />
-                    </div>
-                  ))}
-                </div>
+          <Panel title={t("perfByModel")} aside={t("last24h")} flush>
+            {modelPerf.length === 0 ? <div className="nfc-empty">{t("noData")}</div> : (
+              <div className="nfc-table-wrap">
+                <table className="nfc-table">
+                  <thead>
+                    <tr><th>{t("model")}</th><th className="num">{t("requests")}</th><th className="num">TTFT</th><th className="num">TPOT</th><th className="num">{t("latency")}</th><th className="num">{t("success")}</th></tr>
+                  </thead>
+                  <tbody>
+                    {modelPerf.map((m) => (
+                      <tr key={m.model}>
+                        <td><code className="nfc-code">{m.model}</code></td>
+                        <td className="num">{m.requests}</td>
+                        <td className={`num${m.avgTtft > 2000 ? " nfc-warn" : ""}`}>{m.avgTtft}ms</td>
+                        <td className={`num${m.avgTpot > 50 ? " nfc-warn" : ""}`}>{m.avgTpot}ms</td>
+                        <td className="num nfc-muted">{m.avgLatency}ms</td>
+                        <td className="num"><Tag tone={m.successRate >= 99 ? "positive" : m.successRate >= 95 ? "warning" : "negative"}>{m.successRate}%</Tag></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-            <div className="usr-section">
-              <div className="usr-section-header"><h3>{t("ttftPerHour")}</h3></div>
-              <div style={{ padding: "16px 20px" }}>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 110 }}>
-                  {hourly.length === 0 ? <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-tertiary)", fontSize: 12 }}>{t("noDataYet")}</div>
-                  : hourly.map((h, i) => (
-                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                      <span style={{ fontSize: 8.5, color: "var(--text-tertiary)" }}>{h.avgTtft || ""}</span>
-                      <div style={{ width: "100%", height: Math.max(2, (h.avgTtft / maxHT) * 90), background: h.avgTtft > 2000 ? "linear-gradient(180deg, #f59e0b, #d97706)" : "linear-gradient(180deg, #6366f1, #4f46e5)", borderRadius: "3px 3px 0 0", transition: "height 0.3s" }} title={`${h.hour}: TTFT ${h.avgTtft}ms`} />
-                    </div>
-                  ))}
-                </div>
+            )}
+          </Panel>
+
+          <Panel title={t("recentRequests")} aside={t("recentReqDesc")} flush>
+            {recent.length === 0 ? <div className="nfc-empty">{t("noRequests")}</div> : (
+              <div className="nfc-table-wrap">
+                <table className="nfc-table">
+                  <thead>
+                    <tr><th>{t("txTime")}</th><th>{t("model")}</th><th>状态</th><th className="num">{t("tokens")}</th><th className="num">TTFT</th><th className="num">TPOT</th><th className="num">{t("latency")}</th></tr>
+                  </thead>
+                  <tbody>
+                    {recent.map((r, i) => (
+                      <tr key={i}>
+                        <td className="time">{formatConsoleTime(r.time, true)}</td>
+                        <td><code className="nfc-code">{r.model}</code></td>
+                        <td>{ok(r.status) ? <Tag tone="positive">成功</Tag> : <Tag tone="negative">失败</Tag>}</td>
+                        <td className="num">{r.tokens.toLocaleString()}</td>
+                        <td className={`num${r.ttft > 2000 ? " nfc-warn" : ""}`}>{r.ttft > 0 ? `${r.ttft}ms` : "–"}</td>
+                        <td className={`num${r.tpot > 50 ? " nfc-warn" : ""}`}>{r.tpot > 0 ? `${r.tpot}ms` : "–"}</td>
+                        <td className="num nfc-muted">{r.latency}ms</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </div>
-
-          <div className="usr-section" style={{ marginBottom: 20 }}>
-            <div className="usr-section-header"><div><h3>{t("perfByModel")}</h3><p>{t("last24h")}</p></div></div>
-            {modelPerf.length === 0 ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-tertiary)", fontSize: 13 }}>{t("noData")}</div> : (
-              <>
-                <div className="table-row table-head" style={{ gridTemplateColumns: "1fr 70px 90px 90px 90px 80px", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "var(--text-tertiary)", background: "var(--bg-elevated)" }}>
-                  <span>{t("model")}</span><span style={{ textAlign: "right" }}>{t("requests")}</span><span style={{ textAlign: "right" }}>TTFT</span><span style={{ textAlign: "right" }}>TPOT</span><span style={{ textAlign: "right" }}>{t("latency")}</span><span style={{ textAlign: "right" }}>{t("success")}</span>
-                </div>
-                {modelPerf.map((m) => (
-                  <div key={m.model} className="table-row" style={{ gridTemplateColumns: "1fr 70px 90px 90px 90px 80px" }}>
-                    <span style={{ fontWeight: 550, color: "var(--text-primary)", fontSize: 12.5, fontFamily: "var(--font-mono)" }}>{m.model.length > 30 ? m.model.slice(0, 30) + "..." : m.model}</span>
-                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 12.5 }}>{m.requests}</span>
-                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 12.5, color: m.avgTtft > 2000 ? "#f59e0b" : "inherit" }}>{m.avgTtft}ms</span>
-                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 12.5, color: m.avgTpot > 50 ? "#f59e0b" : "inherit" }}>{m.avgTpot}ms</span>
-                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontSize: 12.5 }}>{m.avgLatency}ms</span>
-                    <span style={{ textAlign: "right" }}><span className={m.successRate >= 99 ? "badge-success" : m.successRate >= 95 ? "badge-warning" : "badge-danger"} style={{ fontSize: 11 }}>{m.successRate}%</span></span>
-                  </div>
-                ))}
-              </>
             )}
-          </div>
+          </Panel>
 
-          <div className="usr-section">
-            <div className="usr-section-header"><div><h3>{t("recentRequests")}</h3><p>{t("recentReqDesc")}</p></div></div>
-            {recent.length === 0 ? <div style={{ textAlign: "center", padding: 48, color: "var(--text-tertiary)", fontSize: 13 }}>{t("noRequests")}</div> : (
-              <>
-                <div className="table-row table-head" style={{ gridTemplateColumns: "65px 1fr 60px 75px 75px 75px 50px", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "var(--text-tertiary)", background: "var(--bg-elevated)" }}>
-                  <span>{t("txTime")}</span><span>{t("model")}</span><span style={{ textAlign: "right" }}>{t("tokens")}</span><span style={{ textAlign: "right" }}>TTFT</span><span style={{ textAlign: "right" }}>TPOT</span><span style={{ textAlign: "right" }}>{t("latency")}</span><span style={{ textAlign: "center" }}>OK</span>
-                </div>
-                {recent.map((r, i) => (
-                  <div key={i} className="table-row" style={{ gridTemplateColumns: "65px 1fr 60px 75px 75px 75px 50px" }}>
-                    <span style={{ fontSize: 11.5, fontFamily: "var(--font-mono)", color: "var(--text-tertiary)" }}>{r.time}</span>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>{r.model.length > 28 ? r.model.slice(0, 28) + "..." : r.model}</span>
-                    <span style={{ textAlign: "right", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{r.tokens}</span>
-                    <span style={{ textAlign: "right", fontSize: 12, fontVariantNumeric: "tabular-nums", color: r.ttft > 2000 ? "#f59e0b" : "inherit" }}>{r.ttft > 0 ? `${r.ttft}ms` : "–"}</span>
-                    <span style={{ textAlign: "right", fontSize: 12, fontVariantNumeric: "tabular-nums", color: r.tpot > 50 ? "#f59e0b" : "inherit" }}>{r.tpot > 0 ? `${r.tpot}ms` : "–"}</span>
-                    <span style={{ textAlign: "right", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{r.latency}ms</span>
-                    <span style={{ textAlign: "center" }}><span style={{ width: 7, height: 7, borderRadius: "50%", display: "inline-block", background: r.status === "success" ? "#10b981" : "#ef4444" }} /></span>
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-
-          <div style={{ marginTop: 16, display: "flex", gap: 20, fontSize: 11, color: "var(--text-tertiary)" }}>
-            <span><strong>TTFT</strong> — Time to First Token</span>
-            <span><strong>TPOT</strong> — Time Per Output Token</span>
-          </div>
+          <p className="nfc-footnote"><strong>TTFT</strong> 首字延迟（Time to First Token） · <strong>TPOT</strong> 每个输出 token 的平均耗时（Time Per Output Token）</p>
         </>
       )}
     </UserLayout>
+  );
+}
+
+function HourBars({ hours, value, max, tone, title, empty }: {
+  hours: HourlyData[];
+  value: (hour: HourlyData) => number;
+  max: number;
+  tone: (hour: HourlyData) => "error" | "slow" | undefined;
+  title: (hour: HourlyData) => string;
+  empty: string;
+}) {
+  if (hours.length === 0) return <div className="nfc-empty" style={{ padding: 40 }}>{empty}</div>;
+  return (
+    <div className="nfc-hours">
+      <div className="nfc-hours-bars">
+        {hours.map((hour, index) => (
+          <span key={index} className={tone(hour) ? `is-${tone(hour)}` : undefined} style={{ height: `${Math.max(2, (value(hour) / max) * 100)}%` }} title={title(hour)} />
+        ))}
+      </div>
+      <div className="nfc-hours-axis"><span>{hours[0]?.hour}</span><span>{hours[hours.length - 1]?.hour}</span></div>
+    </div>
   );
 }

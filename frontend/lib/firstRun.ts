@@ -2,7 +2,7 @@ export interface FirstRunState {
   hasApiKey: boolean;
   hasBalance: boolean;
   hasUsage: boolean;
-  nextStep: "create-key" | "add-credit" | "copy-code" | "try-playground" | "monitor";
+  nextStep: "create-key" | "add-credit" | "copy-code" | "monitor";
   completedSteps: number;
 }
 

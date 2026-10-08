@@ -158,9 +158,10 @@ export default function SubAccountsPage() {
         setModels(((modelsRes.data || []) as ModelOption[]).map((m) => ({ id: m.id, name: m.name, provider: m.provider, category: m.category })));
       }
     } catch {
+      if (signal?.aborted) return;
       setError("无法连接服务，请稍后重试");
     } finally {
-      setDataLoading(false);
+      if (!signal?.aborted) setDataLoading(false);
     }
   }, []);
 

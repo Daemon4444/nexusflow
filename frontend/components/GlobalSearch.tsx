@@ -9,7 +9,6 @@ import type { ModelSummary } from "@/lib/models";
 const publicItems = [
   { title: "模型目录", detail: "浏览模型、能力与可用状态", href: "/models", group: "页面" },
   { title: "价格", detail: "查看 Token、图片、视频和语音计费", href: "/pricing", group: "页面" },
-  { title: "Playground", detail: "在线验证模型请求", href: "/playground", group: "页面" },
   { title: "开发者文档", detail: "快速开始、协议与参数", href: "/docs", group: "文档" },
   { title: "API 快速开始", detail: "创建第一个可运行请求", href: "/docs/quickstart", group: "文档" },
   { title: "服务状态", detail: "查看 NexusFlow 当前运行状态", href: "/status", group: "页面" },

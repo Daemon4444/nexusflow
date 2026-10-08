@@ -2,28 +2,51 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { DownloadOutlined, PlusOutlined } from "@ant-design/icons";
 import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { formatCny, formatCnyPrecise } from "@/lib/money";
 import UserLayout from "@/components/UserLayout";
-import { BalanceWarning } from "@/components/BalanceWarning";
-import SmartRecharge from "@/components/SmartRechargeRecommendation";
 import { ErrorState, LoadingState } from "@/components/AppState";
+import { PageHeader, Panel, Tag, formatConsoleTime, type TagTone } from "@/components/ConsoleUI";
 
 interface BillingSummary { balance: number; creditBalance: number; availableBalance: number; totalRecharge: number; totalConsumption: number; totalCalls: number; }
 interface Transaction { id: string; type: string; amount: number; balanceAfter: number; creditAmount: number; creditAfter: number; description: string; refId?: string | null; createdAt: string; discountRate?: number; discountAmountCny?: number; actorUserId?: string | null; actorName?: string | null; }
 type PayMethod = "mock" | "alipay";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/proxy";
+const PAGE_SIZE = 20;
+const LOW_BALANCE = 10;
 
 interface PaymentConfigStatus {
   configured: boolean;
   mockEnabled?: boolean;
 }
 
+const TX_TYPES: Record<string, { label: string; tone: TagTone }> = {
+  recharge: { label: "充值", tone: "positive" },
+  consumption: { label: "消费", tone: "neutral" },
+  refund: { label: "退款", tone: "warning" },
+  credit_adjustment: { label: "信控调整", tone: "accent" },
+  admin_adjustment: { label: "余额调整", tone: "accent" },
+};
+
+/** "API 调用: qwen3.8-max (1234 tokens, 1000 缓存, stream)" → model + compact detail. */
+function describeTransaction(tx: Transaction): { model?: string; detail: string } {
+  const match = tx.description?.match(/^API 调用:\s*(\S+)\s*\((\d+) tokens(?:,\s*(\d+) 缓存)?(?:,\s*stream)?\)/);
+  if (!match) return { detail: tx.description || "-" };
+  const [, model, total, cached] = match;
+  const tokens = Number(total).toLocaleString("zh-CN");
+  return { model, detail: cached ? `${tokens} tokens · 缓存命中 ${Number(cached).toLocaleString("zh-CN")}` : `${tokens} tokens` };
+}
+
+function isIncoming(tx: Transaction) {
+  return tx.type !== "consumption" && tx.amount > 0;
+}
+
 export default function BillingPage() {
   const { user, refreshUser } = useAuth();
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txTotal, setTxTotal] = useState(0);
@@ -82,14 +105,17 @@ export default function BillingPage() {
   useEffect(() => {
     if (!showRecharge) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !pollOrderId) {
-        setShowRecharge(false);
-        setRechargeMsg(null);
-      }
+      if (event.key === "Escape" && !pollOrderId) closeRecharge();
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [showRecharge, pollOrderId]);
+
+  // 支付跳转：后端返回 URL，直接跳转
+  useEffect(() => {
+    if (!paymentFormHtml) return;
+    window.location.href = paymentFormHtml;
+  }, [paymentFormHtml]);
 
   async function loadData(signal?: AbortSignal) {
     setDataLoading(true);
@@ -98,7 +124,7 @@ export default function BillingPage() {
       const headers = authHeaders();
       const [sRes, tRes, cRes] = await Promise.all([
         fetchAPI("/api/billing/summary", { headers, signal }),
-        fetchAPI(`/api/billing/transactions?limit=20&offset=${txOffset}`, { headers, signal }),
+        fetchAPI(`/api/billing/transactions?limit=${PAGE_SIZE}&offset=${txOffset}`, { headers, signal }),
         fetchAPI("/api/billing/payment/config", { headers, signal }),
       ]);
       if (sRes.success) setSummary(sRes.data);
@@ -108,15 +134,22 @@ export default function BillingPage() {
         setDataError(sRes.message || tRes.message || "账单数据加载失败");
       }
     } catch {
+      if (signal?.aborted) return;
       setDataError("无法连接账单服务，请稍后重试");
-    } finally { setDataLoading(false); }
+    } finally { if (!signal?.aborted) setDataLoading(false); }
   }
 
   async function loadTransactions(offset: number) {
     try {
-      const res = await fetchAPI(`/api/billing/transactions?limit=20&offset=${offset}`, { headers: authHeaders() });
+      const res = await fetchAPI(`/api/billing/transactions?limit=${PAGE_SIZE}&offset=${offset}`, { headers: authHeaders() });
       if (res.success) { setTransactions(res.data.rows); setTxTotal(res.data.total); setTxOffset(offset); }
     } catch {}
+  }
+
+  function closeRecharge() {
+    setShowRecharge(false);
+    setRechargeMsg(null);
+    setPollOrderId(null);
   }
 
   async function handleRecharge() {
@@ -191,313 +224,230 @@ export default function BillingPage() {
     }
   }
 
-  // 支付跳转：后端返回 URL，直接跳转
-  useEffect(() => {
-    if (!paymentFormHtml) return;
-    window.location.href = paymentFormHtml;
-  }, [paymentFormHtml]);
-
-  function formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleString(locale === "zh" ? "zh-CN" : "en-US", {
-      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit",
-    });
-  }
-
-  function typeLabel(type: string) {
-    switch (type) { case "recharge": return t("txTopUp"); case "consumption": return t("txUsage"); case "refund": return t("txRefund"); case "credit_adjustment": return "信控调整"; case "admin_adjustment": return "余额调整"; default: return type; }
-  }
-  function typeColor(type: string) {
-    switch (type) { case "recharge": return "#10b981"; case "consumption": return "#ef4444"; case "refund": return "#d97706"; case "credit_adjustment": return "#7c3aed"; default: return "#78716c"; }
-  }
-  function isPlaygroundTx(tx: Transaction) {
-    return tx.refId?.startsWith("playground:") || tx.description?.startsWith("Playground");
-  }
-
   const presetAmounts = [10000, 50000, 100000, 200000];
-
+  const available = summary?.availableBalance ?? ((user?.balance || 0) + (user?.creditBalance || 0));
+  const cashBalance = summary?.balance ?? user?.balance ?? 0;
+  const creditBalance = summary?.creditBalance ?? user?.creditBalance ?? 0;
   // 仅主账号、且流水里确实有子账号发起的消费时，才显示“发起账号”列（普通用户零变化）
   const showActorColumn = !isSub && transactions.some((tx) => tx.actorUserId && tx.actorUserId !== user?.id);
-  const txGridColumns = showActorColumn
-    ? "80px 1fr 120px 100px 100px 100px 150px"
-    : "80px 1fr 100px 100px 100px 150px";
-
-  const modalOverlay: React.CSSProperties = {
-    position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100,
-    display: "flex", alignItems: "flex-start", justifyContent: "center",
-    padding: 20, overflowY: "auto",
-  };
-  const modalBox: React.CSSProperties = {
-    width: "100%", maxWidth: 480, background: "var(--bg-card)", borderRadius: 14,
-    border: "1px solid var(--border)", boxShadow: "0 24px 60px rgba(0,0,0,0.28)",
-    margin: "auto", maxHeight: "90vh", overflowY: "auto",
-  };
+  const showCreditColumn = transactions.some((tx) => Number(tx.creditAfter) !== 0 || Number(tx.creditAmount) !== 0);
+  const rechargeBlocked = payMethod === "alipay" && paymentConfig?.configured === false;
+  const payMethods: { key: PayMethod; label: string; desc: string }[] = [
+    ...(process.env.NODE_ENV !== "production" && paymentConfig?.mockEnabled ? [{ key: "mock" as PayMethod, label: "开发测试", desc: "仅本地开发环境可用" }] : []),
+    { key: "alipay", label: "支付宝", desc: t("alipayDesc") },
+  ];
 
   return (
     <UserLayout>
-      <div className="usr-page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div><h1>{t("creditsTitle")}</h1><p>{t("creditsDesc")}</p></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <button className="btn-secondary" onClick={handleExportCsv} disabled={exportingCsv} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
-            {exportingCsv ? "导出中..." : "导出 CSV"}
+      <PageHeader
+        title={t("creditsTitle")}
+        description="余额、充值与每一笔消费明细"
+        actions={!isSub && (
+          <button className="btn-primary" onClick={() => setShowRecharge(true)}>
+            <PlusOutlined /> {t("topUp")}
           </button>
-          {!isSub && (
-          <button className="btn-primary" onClick={() => setShowRecharge(true)} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            {t("topUp")}
-          </button>
-          )}
-        </div>
-      </div>
-
-      <div className="usr-hero-dark">
-        {!isSub && (
-        <BalanceWarning
-          balance={summary?.availableBalance ?? ((user?.balance || 0) + (user?.creditBalance || 0))}
-          threshold={10}
-          onRecharge={() => setShowRecharge(true)}
-        />
         )}
-        {isSub ? (
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            <div>
-              <div className="usr-hero-label">{quota?.limit != null ? "剩余可用额度" : "子账号"}</div>
-              <div className="usr-hero-value">
-                {quota?.limit != null ? formatCny(Math.max(0, quota.limit - quota.used)) : "余额由主账号统一管理"}
-              </div>
-            </div>
-            <div className="usr-hero-stats">
+      />
+
+      <section className="nfc-billing-balance">
+        <div className="nfc-billing-main">
+          {isSub ? (
+            <>
+              <span>{quota?.limit != null ? "剩余可用额度" : "子账号"}</span>
+              <strong>{quota?.limit != null ? formatCny(Math.max(0, quota.limit - quota.used)) : "由主账号统一管理"}</strong>
               {quota?.limit != null && (
-                <>
-                  <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">限额{quota.period === "monthly" ? "（每月）" : "（累计）"}</div><div className="usr-hero-stat-value">{formatCny(quota.limit)}</div></div>
-                  <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">已用</div><div className="usr-hero-stat-value">{formatCny(quota.used)}</div></div>
-                </>
+                <p>限额 {formatCny(quota.limit)}{quota.period === "monthly" ? " / 月" : "（累计）"} · 已用 {formatCny(quota.used)}</p>
               )}
-            </div>
-          </div>
-        ) : (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div>
-            <div className="usr-hero-label">可用合计</div>
-            <div className="usr-hero-value">{formatCny(summary?.availableBalance ?? ((user?.balance || 0) + (user?.creditBalance || 0)))}</div>
-          </div>
-          <div className="usr-hero-stats">
-            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">余额</div><div className="usr-hero-stat-value">{formatCny(summary?.balance ?? user?.balance ?? 0)}</div></div>
-            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">信控</div><div className="usr-hero-stat-value">{formatCny(summary?.creditBalance ?? user?.creditBalance ?? 0)}</div></div>
-            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("totalSpent")}</div><div className="usr-hero-stat-value">{formatCny(summary?.totalConsumption || 0)}</div></div>
-            <div style={{ textAlign: "right" }}><div className="usr-hero-stat-label">{t("apiCalls")}</div><div className="usr-hero-stat-value">{summary?.totalCalls || 0}</div></div>
-          </div>
-        </div>
-        )}
-      </div>
-
-      <div className="usr-section" style={{ marginBottom: 20 }}>
-        <div className="usr-section-header">
-          <h3>账单导出</h3>
-          <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>按用量明细展开模型、阶梯和单价</span>
-        </div>
-        <div className="usr-section-body" style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-          <label style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>
-            开始日期
-            <input className="input" type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} style={{ width: 160, fontSize: 13 }} />
-          </label>
-          <label style={{ display: "grid", gap: 6, fontSize: 12, color: "var(--text-secondary)", fontWeight: 600 }}>
-            结束日期
-            <input className="input" type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} style={{ width: 160, fontSize: 13 }} />
-          </label>
-          <button className="btn-secondary" onClick={handleExportCsv} disabled={exportingCsv} style={{ padding: "9px 18px", fontSize: 13 }}>
-            {exportingCsv ? "正在生成" : "下载账单 CSV"}
-          </button>
-          {exportError && (
-            <span style={{ fontSize: 12, color: "var(--danger)", lineHeight: "34px" }}>{exportError}</span>
+            </>
+          ) : (
+            <>
+              <span>可用余额</span>
+              <strong className={available <= 0 ? "is-empty" : undefined}>{formatCny(available)}</strong>
+              <p>
+                现金余额 {formatCny(cashBalance)}
+                {creditBalance !== 0 && <> · 信控额度 {formatCny(creditBalance)}</>}
+              </p>
+              {available < LOW_BALANCE && (
+                <div className={`nfc-note ${available <= 0 ? "nfc-note-danger" : "nfc-note-warning"}`}>
+                  {available <= 0 ? "余额已用完，API 请求会被拒绝。" : "余额较低，可能很快影响 API 调用。"}
+                  <button className="nfc-link-button" onClick={() => setShowRecharge(true)}>立即充值</button>
+                </div>
+              )}
+            </>
           )}
         </div>
-      </div>
+        {!isSub && (
+          <dl className="nfc-billing-stats">
+            <div><dt>累计充值</dt><dd>{formatCny(summary?.totalRecharge || 0)}</dd></div>
+            <div><dt>{t("totalSpent")}</dt><dd>{formatCny(summary?.totalConsumption || 0)}</dd></div>
+            <div><dt>计费调用</dt><dd>{(summary?.totalCalls || 0).toLocaleString("zh-CN")} 次</dd></div>
+          </dl>
+        )}
+      </section>
 
-      <div className="usr-section" style={{ marginBottom: 20 }}>
-        <div className="usr-section-header">
-          <h3>企业采购与发票</h3>
-          <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>人工核验主体与消费记录</span>
-        </div>
-        <div className="usr-section-body" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <p style={{ margin: 0, maxWidth: 680, fontSize: 13, lineHeight: 1.7, color: "var(--text-secondary)" }}>
-            如需合同、对公采购或发票，请提交工单并注明公司抬头、税号、消费月份与联系人。客服确认可开票范围后会在工单中回复。
-          </p>
-          <Link className="btn-secondary" href="/tickets" style={{ padding: "9px 18px", fontSize: 13 }}>提交采购工单</Link>
-        </div>
+      {dataLoading ? (
+        <LoadingState title={t("loading")} />
+      ) : dataError ? (
+        <ErrorState title="账单加载失败" message={dataError} onAction={() => loadData()} />
+      ) : (
+        <Panel title="收支明细" aside={<span>共 {txTotal.toLocaleString("zh-CN")} 条</span>} flush>
+          {transactions.length === 0 ? (
+            <div className="nfc-empty">{t("noTransactions")}</div>
+          ) : (
+            <>
+              <div className="nfc-table-wrap">
+                <table className="nfc-table nfc-tx-table">
+                  <thead>
+                    <tr>
+                      <th>时间</th>
+                      <th>类型</th>
+                      <th>说明</th>
+                      {showActorColumn && <th>{t("txAccount")}</th>}
+                      <th className="num">金额</th>
+                      <th className="num">余额</th>
+                      {showCreditColumn && <th className="num">信控</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx) => {
+                      const kind = TX_TYPES[tx.type] || { label: tx.type, tone: "neutral" as TagTone };
+                      const { model, detail } = describeTransaction(tx);
+                      const incoming = isIncoming(tx);
+                      const discounted = tx.type !== "recharge" && tx.discountRate !== undefined && tx.discountRate < 1 && tx.discountAmountCny !== undefined;
+                      const fromPlayground = tx.refId?.startsWith("playground:") || tx.description?.startsWith("Playground");
+                      return (
+                        <tr key={tx.id}>
+                          <td className="time">{formatConsoleTime(tx.createdAt)}</td>
+                          <td><Tag tone={kind.tone}>{kind.label}</Tag></td>
+                          <td>
+                            <div className="nfc-tx-desc">
+                              {model && <code className="nfc-code">{model}</code>}
+                              <span>{detail}</span>
+                              {fromPlayground && <Tag>网页试用</Tag>}
+                            </div>
+                          </td>
+                          {showActorColumn && (
+                            <td>{tx.actorUserId && tx.actorUserId !== user?.id ? <Tag tone="accent">{tx.actorName || tx.actorUserId}</Tag> : <span className="nfc-faint">{t("txSelf")}</span>}</td>
+                          )}
+                          <td className="num">
+                            <span className={`nfc-amount ${incoming ? "nfc-amount-in" : "nfc-amount-out"}`}>
+                              {incoming ? "+" : "−"}{formatCnyPrecise(Math.abs(tx.amount))}
+                            </span>
+                            {discounted && (
+                              <small className="nfc-tx-discount">
+                                <s>{formatCnyPrecise(Math.abs(Number(tx.amount)) + (tx.discountAmountCny || 0))}</s> {Math.round((tx.discountRate || 0) * 100) / 10} 折
+                              </small>
+                            )}
+                          </td>
+                          <td className="num nfc-muted">{formatCnyPrecise(tx.balanceAfter)}</td>
+                          {showCreditColumn && <td className="num nfc-muted">{formatCnyPrecise(tx.creditAfter)}</td>}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {txTotal > PAGE_SIZE && (
+                <div className="nfc-table-foot">
+                  <span>第 {txOffset + 1}–{Math.min(txOffset + PAGE_SIZE, txTotal)} 条，共 {txTotal} 条</span>
+                  <div className="nfc-pager">
+                    <button className="btn-secondary" disabled={txOffset === 0} onClick={() => loadTransactions(Math.max(0, txOffset - PAGE_SIZE))}>{t("previous")}</button>
+                    <button className="btn-secondary" disabled={txOffset + PAGE_SIZE >= txTotal} onClick={() => loadTransactions(txOffset + PAGE_SIZE)}>{t("next")}</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </Panel>
+      )}
+
+      <div className="nfc-grid-2">
+        <Panel title="导出账单" aside="按模型、阶梯和单价展开每次调用">
+          <div className="nfc-export-row">
+            <label className="nfc-field">开始日期
+              <input className="input" type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} />
+            </label>
+            <label className="nfc-field">结束日期
+              <input className="input" type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} />
+            </label>
+            <button className="btn-secondary" onClick={handleExportCsv} disabled={exportingCsv}>
+              <DownloadOutlined /> {exportingCsv ? "正在生成…" : "下载 CSV"}
+            </button>
+          </div>
+          {exportError && <div className="nfc-note nfc-note-danger" style={{ marginTop: 12 }}>{exportError}</div>}
+        </Panel>
+        <Panel title="发票与对公采购">
+          <p className="nfc-panel-text">需要合同、对公转账或发票时，提交工单并注明公司抬头、税号、消费月份与联系人。客服核对消费记录后会在工单里回复。</p>
+          <Link className="btn-secondary" href="/tickets">提交工单</Link>
+        </Panel>
       </div>
 
       {showRecharge && !isSub && (
-        <div
-          style={modalOverlay}
-          role="presentation"
-          onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }}
-        >
-          <div style={modalBox} onClick={(e) => e.stopPropagation()} className="animate-fadeIn" role="dialog" aria-modal="true" aria-labelledby="recharge-dialog-title">
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px", borderBottom: "1px solid var(--border)", position: "sticky", top: 0, background: "var(--bg-card)", borderTopLeftRadius: 14, borderTopRightRadius: 14, zIndex: 1 }}>
+        <div className="nfc-modal-backdrop" role="presentation" onClick={closeRecharge}>
+          <div className="nfc-modal animate-fadeIn" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="recharge-dialog-title">
+            <div className="nfc-modal-head">
               <div>
-                <h3 id="recharge-dialog-title" style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{t("topUp")}</h3>
-                <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>当前可用 {formatCny(summary?.availableBalance ?? ((user?.balance || 0) + (user?.creditBalance || 0)))}</div>
+                <h3 id="recharge-dialog-title">{t("topUp")}</h3>
+                <p>当前可用 {formatCny(available)}</p>
               </div>
-              <button aria-label="关闭充值窗口" onClick={() => { setShowRecharge(false); setRechargeMsg(null); setPollOrderId(null); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--text-tertiary)", fontSize: 22, lineHeight: 1 }}>×</button>
+              <button className="nfc-modal-close" aria-label="关闭充值窗口" onClick={closeRecharge}>×</button>
             </div>
 
-            {/* Body */}
-            <div style={{ padding: "20px 22px" }}>
-              {/* Smart recommendations */}
-              {summary && (
-                <SmartRecharge
-                  stats={{
-                    monthlyCost: summary.totalConsumption,
-                    avgDailyCost: summary.totalConsumption / 30,
-                    balance: summary.availableBalance,
-                  }}
-                  onSelect={(amount) => setRechargeAmount(String(amount))}
-                  selectedAmount={rechargeAmount}
-                />
-              )}
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>{t("selectAmount")}</label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-                  {presetAmounts.map((a) => {
-                    const selected = rechargeAmount === String(a);
-                    const wan = a % 10000 === 0 ? `¥${a / 10000}万` : `¥${a.toLocaleString()}`;
-                    return (<button key={a} onClick={() => setRechargeAmount(String(a))} style={{ padding: "12px 0", borderRadius: 10, border: selected ? "2px solid var(--accent, #111)" : "1px solid var(--border)", background: selected ? "rgba(37,99,235,0.06)" : "var(--bg-card)", cursor: "pointer", fontSize: 16, fontWeight: 700, color: selected ? "var(--accent, #111)" : "var(--text-secondary)", transition: "all 0.15s", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                      <span>{wan}</span>
-                      <span style={{ fontSize: 10.5, fontWeight: 400, color: "var(--text-tertiary)" }}>¥{a.toLocaleString()}</span>
-                    </button>);
-                  })}
+            <div className="nfc-modal-body">
+              <div className="nfc-field">
+                {t("selectAmount")}
+                <div className="nfc-choices">
+                  {presetAmounts.map((a) => (
+                    <button key={a} className="nfc-choice" aria-pressed={rechargeAmount === String(a)} onClick={() => setRechargeAmount(String(a))}>
+                      <strong>¥{a / 10000} 万</strong>
+                      <small>¥{a.toLocaleString("zh-CN")}</small>
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>{t("customAmount")}</label>
-                <input className="input" type="number" placeholder={t("enterAmount")} step="0.01" min="0.01" max="200000" value={rechargeAmount} onChange={(e) => setRechargeAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRecharge()} style={{ fontSize: 13 }} />
-              </div>
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 10 }}>{t("paymentMethod")}</label>
-                <div style={{ display: "flex", gap: 10 }}>
-                  {([
-                    ...(process.env.NODE_ENV !== "production" && paymentConfig?.mockEnabled ? [{ key: "mock" as PayMethod, label: "开发测试", desc: "仅本地开发环境可用" }] : []),
-                    { key: "alipay" as PayMethod, label: "支付宝", desc: t("alipayDesc") },
-                  ]).map((pm) => (
-                    <button key={pm.key} aria-pressed={payMethod === pm.key} onClick={() => setPayMethod(pm.key)} style={{ flex: 1, padding: "12px 14px", borderRadius: 10, cursor: "pointer", border: payMethod === pm.key ? "2px solid var(--accent, #111)" : "1px solid var(--border)", background: payMethod === pm.key ? "rgba(37,99,235,0.04)" : "var(--bg-card)", textAlign: "left", fontFamily: "inherit", transition: "all 0.15s" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{pm.label}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 1 }}>{pm.desc}</div>
+              <label className="nfc-field">
+                {t("customAmount")}
+                <input className="input" type="number" placeholder={t("enterAmount")} step="0.01" min="0.01" max="200000" value={rechargeAmount} onChange={(e) => setRechargeAmount(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRecharge()} />
+              </label>
+              <div className="nfc-field">
+                {t("paymentMethod")}
+                <div className="nfc-choices" style={{ ["--nfc-choice-cols" as string]: String(payMethods.length) }}>
+                  {payMethods.map((pm) => (
+                    <button key={pm.key} className="nfc-choice" aria-pressed={payMethod === pm.key} onClick={() => setPayMethod(pm.key)}>
+                      <strong style={{ fontSize: 13 }}>{pm.label}</strong>
+                      <small>{pm.desc}</small>
                     </button>
                   ))}
                 </div>
               </div>
               {payMethod === "alipay" && paymentConfig && !paymentConfig.configured && (
-                <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--warning-bg)", border: "1px solid var(--warning-border)", color: "var(--warning)" }}>
-                  在线充值通道维护中，暂时无法创建支付订单。请稍后重试，或通过工单联系支持。
-                </div>
+                <div className="nfc-note nfc-note-warning">在线充值通道维护中，暂时无法创建支付订单。请稍后重试，或通过工单联系支持。</div>
               )}
               {payMethod === "alipay" && paymentConfig?.configured && (
-                <div style={{ marginBottom: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12, background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                  点击充值后将跳转到支付宝安全页面完成支付。
-                </div>
+                <div className="nfc-note">点击充值后会跳转到支付宝安全页面完成支付，到账后余额自动更新。</div>
               )}
+              {payMethod === "mock" && <div className="nfc-note">{t("testModeNote")}</div>}
               {rechargeMsg && (
-                <div style={{ marginBottom: 12, padding: "9px 12px", borderRadius: 7, fontSize: 12.5, background: rechargeMsg.type === "success" ? "var(--success-bg)" : "var(--danger-bg)", border: `1px solid ${rechargeMsg.type === "success" ? "var(--success-border)" : "var(--danger-border)"}`, color: rechargeMsg.type === "success" ? "var(--success)" : "var(--danger)" }}>
-                  {rechargeMsg.text}
-                </div>
-              )}
-              {payMethod === "mock" && (
-                <div style={{ fontSize: 11.5, color: "var(--text-tertiary)", padding: "8px 12px", background: "var(--bg-elevated)", borderRadius: 6 }}>{t("testModeNote")}</div>
+                <div className={`nfc-note ${rechargeMsg.type === "success" ? "nfc-note-success" : "nfc-note-danger"}`}>{rechargeMsg.text}</div>
               )}
             </div>
 
-            {/* Footer */}
-            <div style={{ padding: "16px 22px", borderTop: "1px solid var(--border)", position: "sticky", bottom: 0, background: "var(--bg-card)", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
-              <button className="btn-primary" onClick={handleRecharge} disabled={recharging || !rechargeAmount || pollOrderId !== null || (payMethod === "alipay" && paymentConfig?.configured === false)} style={{ width: "100%", padding: "12px 24px", fontSize: 14, fontWeight: 600 }}>
-                {paymentConfig?.configured === false && payMethod === "alipay" ? "充值通道维护中" : recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} ¥${rechargeAmount || "0"}`}
+            <div className="nfc-modal-foot">
+              <button className="btn-primary" onClick={handleRecharge} disabled={recharging || !rechargeAmount || pollOrderId !== null || rechargeBlocked}>
+                {rechargeBlocked ? "充值通道维护中" : recharging ? t("processing") : pollOrderId ? t("waitingPayment") : `${t("topUp")} ¥${Number(rechargeAmount || 0).toLocaleString("zh-CN")}`}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {dataLoading ? (
-        <LoadingState title={t("loading")} />
-      ) : dataError ? (
-        <ErrorState title="账单加载失败" message={dataError} onAction={loadData} />
-      ) : (
-        <div className="usr-section">
-          <div className="usr-section-header">
-            <h3>{t("transactions")}</h3>
-            <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>{txTotal} {t("records")}</span>
-          </div>
-          {transactions.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 60, color: "var(--text-tertiary)", fontSize: 13 }}>{t("noTransactions")}</div>
-          ) : (
-            <div className="tx-table">
-              <div className="table-row tx-head" style={{ gridTemplateColumns: txGridColumns, fontWeight: 600, color: "var(--text-tertiary)", fontSize: 11, textTransform: "uppercase" as const, background: "var(--bg-elevated)" }}>
-                <span>{t("txType")}</span><span>{t("txDescription")}</span>{showActorColumn && <span>{t("txAccount")}</span>}<span style={{ textAlign: "right" }}>{t("txAmount")}</span><span style={{ textAlign: "right" }}>{t("txBalance")}</span><span style={{ textAlign: "right" }}>信控</span><span style={{ textAlign: "right" }}>{t("txTime")}</span>
-              </div>
-              {transactions.map((tx) => (
-                <div key={tx.id} className="table-row tx-body-row" style={{ gridTemplateColumns: txGridColumns }}>
-                  <span data-label={t("txType")}><span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 9999, fontSize: 11, fontWeight: 500, background: `${typeColor(tx.type)}12`, color: typeColor(tx.type), border: `1px solid ${typeColor(tx.type)}25` }}>{typeLabel(tx.type)}</span></span>
-                  <span data-label={t("txDescription")} style={{ color: "var(--text-primary)", fontSize: 12.5, display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.description || "-"}</span>
-                    {isPlaygroundTx(tx) && (
-                      <span style={{ flex: "0 0 auto", padding: "2px 7px", borderRadius: 9999, fontSize: 10.5, fontWeight: 600, color: "#2563eb", background: "rgba(37, 99, 235, 0.09)", border: "1px solid rgba(37, 99, 235, 0.18)" }}>
-                        Playground
-                      </span>
-                    )}
-                  </span>
-                  {showActorColumn && (
-                    <span data-label={t("txAccount")} style={{ fontSize: 12, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {tx.actorUserId && tx.actorUserId !== user?.id ? (
-                        <span style={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "2px 7px", borderRadius: 9999, fontWeight: 600, color: "#7c3aed", background: "rgba(124, 58, 237, 0.09)", border: "1px solid rgba(124, 58, 237, 0.18)", verticalAlign: "middle" }}>
-                          {tx.actorName || tx.actorUserId}
-                        </span>
-                      ) : (
-                        <span style={{ color: "var(--text-tertiary)" }}>{t("txSelf")}</span>
-                      )}
-                    </span>
-                  )}
-                  <span data-label={t("txAmount")} style={{ textAlign: "right", color: tx.type !== "consumption" && tx.amount > 0 ? "#10b981" : "#ef4444", fontWeight: 600, fontFamily: "var(--font-mono)", fontSize: 12.5, display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                    {tx.type !== "recharge" && tx.discountRate !== undefined && tx.discountRate < 1 && tx.discountAmountCny !== undefined && (
-                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <span style={{ color: "var(--text-tertiary)", textDecoration: "line-through", fontSize: 10.5, fontWeight: 400 }}>{formatCnyPrecise(Number(tx.amount) + tx.discountAmountCny)}</span>
-                        <span style={{ fontSize: 9.5, fontWeight: 600, padding: "1px 4px", borderRadius: 3, background: "#fef3c7", color: "#b45309" }}>
-                          {Math.round(tx.discountRate * 10)}折
-                        </span>
-                      </span>
-                    )}
-                    <span>{tx.type !== "consumption" && tx.amount > 0 ? "+" : "-"}{formatCnyPrecise(Math.abs(tx.amount))}</span>
-                  </span>
-                  <span data-label={t("txBalance")} style={{ textAlign: "right", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCnyPrecise(tx.balanceAfter)}</span>
-                  <span data-label="信控" style={{ textAlign: "right", color: "#7c3aed", fontFamily: "var(--font-mono)", fontSize: 12.5 }}>{formatCnyPrecise(tx.creditAfter)}</span>
-                  <span data-label={t("txTime")} style={{ textAlign: "right", color: "var(--text-tertiary)", fontSize: 12 }}>{formatDate(tx.createdAt)}</span>
-                </div>
-              ))}
-              {txTotal > 20 && (
-                <div style={{ display: "flex", justifyContent: "center", gap: 12, padding: "14px 20px", borderTop: "1px solid var(--border)" }}>
-                  <button className="btn-secondary" style={{ padding: "6px 16px", fontSize: 12 }} disabled={txOffset === 0} onClick={() => loadTransactions(Math.max(0, txOffset - 20))}>{t("previous")}</button>
-                  <span style={{ fontSize: 12, color: "var(--text-tertiary)", lineHeight: "32px" }}>{txOffset + 1}–{Math.min(txOffset + 20, txTotal)} / {txTotal}</span>
-                  <button className="btn-secondary" style={{ padding: "6px 16px", fontSize: 12 }} disabled={txOffset + 20 >= txTotal} onClick={() => loadTransactions(txOffset + 20)}>{t("next")}</button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-      {/* 支付宝表单自动提交容器 */}
+      {/* 支付宝跳转过渡页 */}
       {paymentFormHtml && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 9999, background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ textAlign: "center", padding: 40, color: "#666" }}>
-            <div style={{ marginBottom: 16 }}>正在跳转到支付宝...</div>
-            <a
-              href={paymentFormHtml}
-              style={{ display: "inline-block", padding: "10px 24px", fontSize: 14, background: "#1677ff", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", textDecoration: "none" }}
-            >
-              如未自动跳转，点此手动前往
-            </a>
-            <div style={{ marginTop: 12 }}>
-              <button onClick={() => setPaymentFormHtml("")} style={{ fontSize: 12, color: "#999", background: "none", border: "none", cursor: "pointer" }}>取消</button>
-            </div>
+        <div className="nfc-pay-redirect">
+          <div>
+            <p>正在跳转到支付宝…</p>
+            <a className="btn-primary" href={paymentFormHtml}>如未自动跳转，点此前往</a>
+            <button className="nfc-link-button" onClick={() => setPaymentFormHtml("")}>取消</button>
           </div>
         </div>
       )}

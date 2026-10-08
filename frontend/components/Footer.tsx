@@ -6,33 +6,32 @@ export default function Footer() {
       <div className="nf-footer-inner">
         <div className="nf-footer-brand">
           <strong>NexusFlow</strong>
-          <p>Unified AI Model Gateway</p>
+          <p>一个 API，调用全部主流大模型</p>
         </div>
         <div className="nf-footer-links">
           <div className="nf-footer-col">
-            <h4>Product</h4>
-            <Link href="/models">Models</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/playground">Playground</Link>
-            <Link href="/docs">Documentation</Link>
+            <h4>产品</h4>
+            <Link href="/models">模型</Link>
+            <Link href="/pricing">定价</Link>
+            <Link href="/docs">文档</Link>
           </div>
           <div className="nf-footer-col">
-            <h4>Resources</h4>
-            <Link href="/docs/quickstart">Quickstart</Link>
-            <Link href="/docs/api/parameters">API Reference</Link>
-            <Link href="/docs/faq">FAQ</Link>
-            <Link href="/status">Service Status</Link>
+            <h4>资源</h4>
+            <Link href="/docs/quickstart">快速开始</Link>
+            <Link href="/docs/api/parameters">API 参考</Link>
+            <Link href="/docs/faq">常见问题</Link>
+            <Link href="/status">服务状态</Link>
           </div>
           <div className="nf-footer-col">
-            <h4>Legal</h4>
-            <Link href="/terms">Terms of Service</Link>
-            <Link href="/privacy">Privacy Policy</Link>
+            <h4>条款</h4>
+            <Link href="/terms">服务条款</Link>
+            <Link href="/privacy">隐私政策</Link>
           </div>
         </div>
       </div>
       <div className="nf-footer-bottom">
-        <span>&copy; {new Date().getFullYear()} NexusFlow. All rights reserved.</span>
-        <span>Usage-based AI gateway · Status verified in real time</span>
+        <span>&copy; {new Date().getFullYear()} NexusFlow</span>
+        <span>按量计费 · 服务状态实时公开</span>
       </div>
     </footer>
   );

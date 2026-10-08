@@ -53,11 +53,11 @@ export default function TicketsPage() {
         setLoadError(res.message || "加载工单失败");
       }
     } catch (e: unknown) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (signal?.aborted) return;
       console.error("Failed to load tickets");
       setLoadError("加载工单失败，请稍后重试");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }
 

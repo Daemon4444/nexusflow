@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChartOutlined,
-  CodeOutlined,
   CreditCardOutlined,
   DashboardOutlined,
   FileTextOutlined,
@@ -31,7 +30,6 @@ export default function UserSidebar({ inert = false }: { inert?: boolean }) {
   const primary: NavItem[] = [
     { href: "/dashboard", label: "概览", icon: <DashboardOutlined /> },
     { href: "/keys", label: t("sidebarApiKeys"), icon: <KeyOutlined /> },
-    { href: "/playground", label: t("navPlayground"), icon: <CodeOutlined /> },
     { href: "/rate-limits", label: t("sidebarRateLimits"), icon: <SlidersOutlined /> },
     ...(!isSub ? [{ href: "/sub-accounts", label: "子账号", icon: <TeamOutlined /> }] : []),
     { href: "/activity", label: t("sidebarActivity"), icon: <BarChartOutlined /> },
