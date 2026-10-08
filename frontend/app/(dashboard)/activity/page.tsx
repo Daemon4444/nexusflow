@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Fragment, useEffect, useState, useRef } from "react";
 import { fetchAPI } from "@/lib/api";
 import { authHeaders } from "@/lib/auth";
 import UserLayout from "@/components/UserLayout";
 import { useI18n } from "@/lib/i18n";
 import { formatCny, formatCnyPrecise } from "@/lib/money";
 import { EmptyState, ErrorState, LoadingState } from "@/components/AppState";
+import { KpiBand, PageHeader, Panel, Tag, formatConsoleTime } from "@/components/ConsoleUI";
 
 interface UsageData {
   overview: {
@@ -39,6 +40,16 @@ interface UsageData {
     cached_tokens?: number;
     cache_creation_tokens?: number;
   }[];
+}
+
+const OTHER = "__other__";
+
+/** Top five models, with the long tail folded into one row so the panel stays short. */
+function topModels(rows: UsageData["byModel"]) {
+  if (rows.length <= 6) return rows;
+  const rest = rows.slice(5);
+  const sum = (key: "requests" | "tokens" | "cost" | "percentage") => rest.reduce((total, row) => total + Number(row[key] || 0), 0);
+  return [...rows.slice(0, 5), { model: OTHER, requests: sum("requests"), tokens: sum("tokens"), cost: sum("cost"), percentage: Math.round(sum("percentage") * 10) / 10 }];
 }
 
 export default function ActivityPage() {
@@ -76,247 +87,151 @@ export default function ActivityPage() {
         setError(ovRes.message || dayRes.message || modelRes.message || recentRes.message || "用量数据加载失败");
       }
     } catch {
+      if (signal?.aborted) return;
       setError("无法连接用量服务，请稍后重试");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }
 
-  const barColors = ["#0f766e", "#0d9488", "#0891b2", "#2563eb", "#7c3aed", "#c2410c", "#64748b"];
-
   function formatTokensCompact(tokens: number): string {
     if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(2)}M`;
-    if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(2)}K`;
+    if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}K`;
     return tokens.toLocaleString();
   }
 
   const [activeTab, setActiveTab] = useState<"dashboard" | "logs">("dashboard");
+  const isSuccess = (status: string) => status === "success" || status === "成功";
 
   return (
     <UserLayout wide>
-      <div className="usr-page-header">
-        <h1>{t("activityTitle")}</h1>
-        <p>{t("activityDesc")}</p>
-      </div>
-
-      <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--border)" }}>
-        {([
-          { key: "dashboard" as const, label: "监控大盘" },
-          { key: "logs" as const, label: "日志分析" },
-        ]).map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: "10px 20px", fontSize: 13, fontFamily: "inherit",
-              fontWeight: activeTab === tab.key ? 600 : 400,
-              color: activeTab === tab.key ? "var(--text-primary)" : "var(--text-tertiary)",
-              background: "transparent", border: "none",
-              borderBottom: activeTab === tab.key ? "2px solid var(--text-primary)" : "2px solid transparent",
-              cursor: "pointer", marginBottom: -1,
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <PageHeader
+        title={t("activityTitle")}
+        description={t("activityDesc")}
+        actions={(
+          <div className="nfc-seg" role="tablist" aria-label="视图">
+            <button role="tab" aria-pressed={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")}>用量概览</button>
+            <button role="tab" aria-pressed={activeTab === "logs"} onClick={() => setActiveTab("logs")}>请求日志</button>
+          </div>
+        )}
+      />
 
       {activeTab === "dashboard" && (<>
       {loading ? (
         <LoadingState title={t("loading")} />
       ) : error ? (
-        <ErrorState title={t("failedLoad")} message={error} onAction={load} />
+        <ErrorState title={t("failedLoad")} message={error} onAction={() => load()} />
       ) : !data ? (
         <EmptyState title="暂无用量数据" />
       ) : (
         <>
-          {/* Overview Metrics */}
-          <div className="usr-metric-grid activity-metric-grid">
-            {[
-              { label: t("totalRequests"), value: data.overview.totalRequests.toLocaleString(), tint: "tint-teal", icon: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/> },
-              { label: t("totalTokens"), value: formatTokensCompact(data.overview.totalTokens), tint: "tint-orange", icon: <><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></> },
-              { label: t("totalCost"), value: formatCny(data.overview.totalCost), tint: "tint-green", icon: <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></> },
-              { label: t("activeModels"), value: data.overview.activeModels.toString(), tint: "tint-purple", icon: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></> },
-              { label: t("avgLatency"), value: data.overview.avgLatency + "s", tint: "tint-blue", icon: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></> },
-              { label: t("successRate"), value: data.overview.successRate + "%", tint: "tint-teal", icon: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></> },
-              ...(data.overview.totalCachedTokens > 0 ? [{
-                label: "缓存命中",
-                value: formatTokensCompact(data.overview.totalCachedTokens),
-                sub: data.overview.totalPromptTokens > 0
-                  ? `命中率 ${((data.overview.totalCachedTokens / data.overview.totalPromptTokens) * 100).toFixed(1)}%`
-                  : undefined,
-                tint: "tint-blue",
-                icon: <><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></>,
-              }] : []),
-            ].map((m) => (
-              <div key={m.label} className="usr-metric with-icon">
-                <div className={`usr-metric-icon ${m.tint}`}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{m.icon}</svg>
-                </div>
-                <div className="usr-metric-body">
-                  <div className="usr-metric-label">{m.label}</div>
-                  <div className="usr-metric-value">{m.value}</div>
-                  {("sub" in m && m.sub) ? (
-                    <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 2 }}>{m.sub}</div>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
+          <KpiBand items={[
+            { label: t("totalRequests"), value: data.overview.totalRequests.toLocaleString(), hint: `${data.overview.activeModels} 个模型` },
+            { label: t("totalTokens"), value: formatTokensCompact(data.overview.totalTokens), hint: data.overview.totalCachedTokens > 0 && data.overview.totalPromptTokens > 0 ? `缓存命中 ${((data.overview.totalCachedTokens / data.overview.totalPromptTokens) * 100).toFixed(1)}%` : "无缓存命中" },
+            { label: t("totalCost"), value: formatCny(data.overview.totalCost), hint: "累计" },
+            { label: t("avgLatency"), value: `${data.overview.avgLatency}s`, hint: "端到端平均" },
+            { label: t("successRate"), value: `${data.overview.successRate}%`, hint: data.overview.successRate < 95 ? "低于 95%，建议查看日志" : "运行正常" },
+          ]} />
 
-          {/* Charts Row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16, marginBottom: 20 }}>
-            {/* Daily Requests */}
-            <div className="usr-section">
-              <div className="usr-section-header"><h3>{t("dailyReq7d")}</h3></div>
-              <div style={{ padding: "16px 20px" }}>
-                {data.daily.length === 0 ? (
-                  <EmptyState compact title="最近 7 天还没有请求" message="完成一次 API 调用后，这里会显示每日请求趋势。" />
-                ) : <div style={{ display: "flex", gap: 10, alignItems: "flex-end", height: 160 }}>
+          <div className="nfc-activity-grid">
+            <Panel title={t("dailyReq7d")} aside={<span>请求数 · 费用</span>}>
+              {data.daily.length === 0 ? (
+                <EmptyState compact title="最近 7 天还没有请求" message="完成一次 API 调用后，这里会显示每日请求趋势。" />
+              ) : (
+                <div className="nfc-bars">
                   {data.daily.map((d) => {
-                    const maxReq = Math.max(...data.daily.map(x => x.requests), 1);
+                    const maxReq = Math.max(...data.daily.map((x) => x.requests), 1);
                     return (
-                      <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                        <div style={{ fontSize: 11.5, fontWeight: 500, color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
-                          {d.requests.toLocaleString()}
-                        </div>
-                        <div style={{
-                          width: "100%",
-                          height: `${Math.max(16, (d.requests / maxReq) * 120)}px`,
-                          background: "linear-gradient(180deg, #0d9488, #0891b2)",
-                          borderRadius: "5px 5px 2px 2px",
-                          transition: "height 0.5s ease",
-                        }} />
-                        <div style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{d.date}</div>
+                      <div key={d.date} className="nfc-bar" title={`${d.date} · ${d.requests} 次 · ${formatCnyPrecise(d.cost)}`}>
+                        <span className="nfc-bar-value">{d.requests.toLocaleString()}</span>
+                        <span className="nfc-bar-fill" style={{ height: `${Math.max(4, (d.requests / maxReq) * 100)}%` }} />
+                        <span className="nfc-bar-label">{d.date}</span>
+                        <span className="nfc-bar-sub">{formatCny(d.cost)}</span>
                       </div>
                     );
                   })}
-                </div>}
-              </div>
-            </div>
-
-            {/* Model Breakdown */}
-            <div className="usr-section">
-              <div className="usr-section-header"><h3>{t("modelDist")}</h3></div>
-              <div className="usr-section-body">
-                {data.byModel.length === 0 ? (
-                  <EmptyState compact title="暂无模型分布" message="调用模型后将按费用和请求量展示分布。" />
-                ) : <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {data.byModel.map((m, i) => (
-                    <div key={m.model}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 4 }}>
-                        <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>{m.model}</span>
-                        <span style={{ color: "var(--text-tertiary)", fontVariantNumeric: "tabular-nums" }}>{m.percentage}%</span>
-                      </div>
-                      <div className="progress-bar">
-                        <div
-                          className="progress-fill"
-                          style={{
-                            width: `${m.percentage * (100 / (data.byModel[0]?.percentage || 100))}%`,
-                            background: barColors[i % barColors.length],
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>}
-              </div>
-            </div>
-          </div>
-
-          {/* Daily Cost Table */}
-          <div className="usr-section" style={{ marginBottom: 16 }}>
-            <div className="usr-section-header"><h3>{t("dailyCost")}</h3></div>
-            <div>
-              <div className="table-row" style={{
-                gridTemplateColumns: "1fr 1fr 1fr 1fr",
-                  fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const,
-                  color: "var(--text-tertiary)", background: "var(--bg-elevated)",
-                }}>
-                  <span>{t("date")}</span>
-                  <span>{t("requests")}</span>
-                  <span>{t("tokens")}</span>
-                  <span>{t("cost")}</span>
                 </div>
-                {data.daily.length === 0 ? (
-                  <EmptyState compact title="暂无每日费用" message="账单产生后可在这里按天核对。" />
-                ) : data.daily.map((d) => (
-                  <div key={d.date} className="table-row" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
-                    <span style={{ color: "var(--text-primary)", fontSize: 12.5 }}>{d.date}</span>
-                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{d.requests.toLocaleString()}</span>
-                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatTokensCompact(d.tokens)}</span>
-                    <span style={{ color: "#10b981", fontWeight: 500, fontSize: 12.5, fontVariantNumeric: "tabular-nums" }}>{formatCnyPrecise(d.cost)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+              )}
+            </Panel>
 
-            {/* Recent Requests - Full Width */}
-          <div className="usr-section" style={{ marginTop: 16 }}>
-            <div className="usr-section-header"><h3>{t("recentRequests")}</h3></div>
-            <div>
-              <div className="table-row table-head" style={{
-                gridTemplateColumns: "0.7fr 1.2fr 1fr 0.8fr 0.4fr",
-                fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const,
-                color: "var(--text-tertiary)", background: "var(--bg-elevated)",
-              }}>
-                <span>{t("txTime")}</span>
-                <span>{t("model")}</span>
-                <span>{t("tokens")}</span>
-                <span>{t("cost")}</span>
-                <span>{t("status")}</span>
-              </div>
-              {data.recent.length === 0 ? (
-                <EmptyState compact title="暂无最近请求" message="首次调用成功后会显示状态、Token 和费用。" />
-              ) : data.recent.map((r, i) => {
-                const hasCacheCreation = (r.cache_creation_tokens ?? 0) > 0;
-                const hasCacheHit = (r.cached_tokens ?? 0) > 0;
-                return (
-                  <div key={i} className="table-row" style={{ gridTemplateColumns: "0.7fr 1.2fr 1fr 0.8fr 0.4fr" }}>
-                    <span style={{ color: "var(--text-tertiary)", fontFamily: "var(--font-mono)", fontSize: 11.5 }}>
-                      {r.time}
-                    </span>
-                    <span style={{ color: "var(--text-primary)", fontSize: 12.5, fontWeight: 500, display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-                      {r.model}
-                      {r.discount_rate !== undefined && r.discount_rate < 1 && (
-                        <span style={{ fontSize: 9.5, fontWeight: 600, padding: "1px 4px", borderRadius: 3, background: "#fef3c7", color: "#b45309" }}>
-                          {Math.round(r.discount_rate * 10)}折
-                        </span>
-                      )}
-                    </span>
-                    <span style={{ color: "var(--text-secondary)", fontSize: 12.5, fontVariantNumeric: "tabular-nums", display: "flex", flexDirection: "column", gap: 2 }}>
-                      <span>{r.tokens.toLocaleString()} tokens</span>
-                      {hasCacheHit && (
-                        <span style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}>
-                          <span style={{ padding: "1px 5px", borderRadius: 3, background: "#dbeafe", color: "#1d4ed8", fontWeight: 600 }}>
-                            缓存命中
-                          </span>
-                          <span style={{ color: "#1d4ed8" }}>{r.cached_tokens!.toLocaleString()} tokens (节省 {Math.round((r.cached_tokens! / r.tokens) * 100)}%)</span>
-                        </span>
-                      )}
-                      {hasCacheCreation && (
-                        <span style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}>
-                          <span style={{ padding: "1px 5px", borderRadius: 3, background: "#ffedd5", color: "#c2410c", fontWeight: 600 }}>
-                            创建缓存
-                          </span>
-                          <span style={{ color: "#c2410c" }}>{r.cache_creation_tokens!.toLocaleString()} tokens</span>
-                        </span>
-                      )}
-                    </span>
-                    <span style={{ color: "#10b981", fontSize: 12.5, fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>
-                      {formatCnyPrecise(r.cost)}
-                    </span>
-                    <span>
-                      <span style={{
-                        width: 7, height: 7, borderRadius: "50%", display: "inline-block",
-                        background: r.status === "success" || r.status === "成功" ? "#10b981" : "#ef4444",
-                      }} />
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <Panel title={t("modelDist")} aside={<span>按请求数</span>}>
+              {data.byModel.length === 0 ? (
+                <EmptyState compact title="暂无模型分布" message="调用模型后将按费用和请求量展示分布。" />
+              ) : (
+                <ul className="nfc-share">
+                  {topModels(data.byModel).map((m) => (
+                    <li key={m.model}>
+                      <div>{m.model === OTHER ? <span className="nfc-muted">其他模型</span> : <code className="nfc-code">{m.model}</code>}<span className="nfc-mono">{m.percentage}%</span></div>
+                      <span className="nfc-share-track"><span style={{ width: `${m.percentage * (100 / (data.byModel[0]?.percentage || 100))}%` }} /></span>
+                      <small>{m.requests.toLocaleString()} 次 · {formatTokensCompact(m.tokens)} tokens · {formatCny(m.cost)}</small>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
           </div>
+
+          <Panel title={t("recentRequests")} aside={<span>最近 {data.recent.length} 条</span>} flush>
+            {data.recent.length === 0 ? (
+              <EmptyState compact title="暂无最近请求" message="首次调用成功后会显示状态、Token 和费用。" />
+            ) : (
+              <div className="nfc-table-wrap">
+                <table className="nfc-table">
+                  <thead>
+                    <tr>
+                      <th>{t("txTime")}</th>
+                      <th>{t("model")}</th>
+                      <th>状态</th>
+                      <th className="num">{t("tokens")}</th>
+                      <th>缓存</th>
+                      <th className="num">延迟</th>
+                      <th className="num">{t("cost")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.recent.map((r, i) => (
+                      <tr key={i}>
+                        <td className="time">{formatConsoleTime(r.time, true)}</td>
+                        <td>
+                          <code className="nfc-code">{r.model}</code>
+                          {r.discount_rate !== undefined && r.discount_rate < 1 && <> <Tag tone="warning">{Math.round(r.discount_rate * 100) / 10} 折</Tag></>}
+                        </td>
+                        <td>{isSuccess(r.status) ? <Tag tone="positive">成功</Tag> : <Tag tone="negative">失败</Tag>}</td>
+                        <td className="num">{r.tokens.toLocaleString()}</td>
+                        <td className="nfc-muted" style={{ fontSize: 12 }}>
+                          {(r.cached_tokens ?? 0) > 0 ? `命中 ${r.cached_tokens!.toLocaleString()}（${Math.round((r.cached_tokens! / Math.max(r.tokens, 1)) * 100)}%）` : (r.cache_creation_tokens ?? 0) > 0 ? `写入 ${r.cache_creation_tokens!.toLocaleString()}` : "—"}
+                        </td>
+                        <td className="num nfc-muted">{r.latency}s</td>
+                        <td className="num">{formatCnyPrecise(r.cost)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+
+          <Panel title={t("dailyCost")} flush>
+            {data.daily.length === 0 ? (
+              <EmptyState compact title="暂无每日费用" message="账单产生后可在这里按天核对。" />
+            ) : (
+              <table className="nfc-table">
+                <thead>
+                  <tr><th>{t("date")}</th><th className="num">{t("requests")}</th><th className="num">{t("tokens")}</th><th className="num">{t("cost")}</th></tr>
+                </thead>
+                <tbody>
+                  {[...data.daily].reverse().map((d) => (
+                    <tr key={d.date}>
+                      <td className="time">{d.date}</td>
+                      <td className="num">{d.requests.toLocaleString()}</td>
+                      <td className="num nfc-muted">{formatTokensCompact(d.tokens)}</td>
+                      <td className="num">{formatCnyPrecise(d.cost)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </Panel>
         </>
       )}
       </>)}
@@ -377,91 +292,76 @@ function LogAnalysis() {
 
   return (
     <>
-      <div className="usr-section" style={{ marginBottom: 16 }}>
-        <div className="usr-section-header"><h3>搜索日志</h3></div>
-        <div className="usr-section-body">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: 10, alignItems: "end" }}>
-            <div>
-              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>Request ID</label>
-              <input value={searchLogId} onChange={(e) => setSearchLogId(e.target.value)} placeholder="输入 Request ID" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>模型</label>
-              <input value={searchModel} onChange={(e) => setSearchModel(e.target.value)} placeholder="如 qwen3.7-max" style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>开始时间</label>
-              <input type="datetime-local" value={searchFrom} onChange={(e) => setSearchFrom(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>结束时间</label>
-              <input type="datetime-local" value={searchTo} onChange={(e) => setSearchTo(e.target.value)} style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid var(--border)", fontSize: 12, fontFamily: "inherit", background: "var(--bg)" }} />
-            </div>
-            <button onClick={handleSearch} disabled={loading} style={{ padding: "8px 18px", borderRadius: 6, border: "none", background: "#111827", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", height: 34 }}>
-              {loading ? "搜索中..." : "搜索"}
-            </button>
-          </div>
+      <Panel title="搜索请求日志" aside="写入后约 1–2 分钟可查询详情；不填条件直接搜索可查看最近 50 条">
+        <div className="nfc-log-form">
+          <label className="nfc-field">Request ID
+            <input className="input" value={searchLogId} onChange={(e) => setSearchLogId(e.target.value)} placeholder="响应里的 id" />
+          </label>
+          <label className="nfc-field">模型
+            <input className="input" value={searchModel} onChange={(e) => setSearchModel(e.target.value)} placeholder="如 qwen3.8-max" />
+          </label>
+          <label className="nfc-field">开始时间
+            <input className="input" type="datetime-local" value={searchFrom} onChange={(e) => setSearchFrom(e.target.value)} />
+          </label>
+          <label className="nfc-field">结束时间
+            <input className="input" type="datetime-local" value={searchTo} onChange={(e) => setSearchTo(e.target.value)} />
+          </label>
+          <button className="btn-primary" onClick={handleSearch} disabled={loading}>{loading ? "搜索中…" : "搜索"}</button>
         </div>
-      </div>
-
-      <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 12, padding: "8px 12px", background: "var(--bg-elevated)", borderRadius: 6, border: "1px solid var(--border)" }}>
-        💡 日志写入后约 1-2 分钟才可查询详情（SLS 索引延迟）。不填条件直接搜索可查看最近 50 条记录。
-      </div>
+      </Panel>
 
       {results.length > 0 && (
-        <div className="usr-section">
-          <div className="usr-section-header"><h3>查询结果（{results.length} 条）</h3></div>
-          <div>
-            <div className="table-row" style={{ gridTemplateColumns: "1.5fr 1fr 0.6fr 0.6fr 0.6fr 1fr", fontWeight: 600, fontSize: 11, textTransform: "uppercase" as const, color: "var(--text-tertiary)", background: "var(--bg-elevated)" }}>
-              <span>Request ID</span><span>模型</span><span>Tokens</span><span>费用</span><span>状态</span><span>时间</span>
-            </div>
-            {results.map((r) => (
-              <div key={r.log_id}>
-                <div
-                  className="table-row"
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={expandedId === r.log_id}
-                  style={{ gridTemplateColumns: "1.5fr 1fr 0.6fr 0.6fr 0.6fr 1fr", cursor: "pointer" }}
-                  onClick={() => r.log_id && loadDetail(r.log_id)}
-                  onKeyDown={(event) => {
-                    if ((event.key === "Enter" || event.key === " ") && r.log_id) {
-                      event.preventDefault();
-                      loadDetail(r.log_id);
-                    }
-                  }}
-                >
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#1d4ed8", overflow: "hidden", textOverflow: "ellipsis" }}>{r.log_id?.slice(0, 12)}...</span>
-                  <span style={{ fontSize: 12, color: "var(--text-primary)", fontWeight: 500 }}>{r.model}</span>
-                  <span style={{ fontSize: 12, color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>{r.total_tokens?.toLocaleString()}</span>
-                  <span style={{ fontSize: 12, color: "#10b981", fontVariantNumeric: "tabular-nums" }}>¥{r.cost}</span>
-                  <span><span style={{ width: 7, height: 7, borderRadius: "50%", display: "inline-block", background: r.status === "success" ? "#10b981" : "#ef4444" }} /></span>
-                  <span style={{ fontSize: 11.5, color: "var(--text-tertiary)" }}>{r.time}</span>
-                </div>
-                {expandedId === r.log_id && (
-                  <div style={{ padding: "16px 20px", background: "var(--bg-elevated)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
-                    {detailLoading ? (
-                      <div style={{ color: "var(--text-tertiary)", fontSize: 13 }}>加载中...</div>
-                    ) : detail ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", marginBottom: 6 }}>REQUEST</div>
-                          <pre style={{ margin: 0, padding: 12, background: "#111827", color: "#e5e7eb", borderRadius: 6, fontSize: 11.5, lineHeight: 1.5, overflow: "auto", maxHeight: 300 }}>{formatJson(detail.request)}</pre>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", marginBottom: 6 }}>RESPONSE</div>
-                          <pre style={{ margin: 0, padding: 12, background: "#111827", color: "#e5e7eb", borderRadius: 6, fontSize: 11.5, lineHeight: 1.5, overflow: "auto", maxHeight: 300 }}>{formatJson(detail.response)}</pre>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ color: "var(--text-tertiary)", fontSize: 13 }}>{detailNote || "暂无详情数据"}</div>
+        <Panel title="查询结果" aside={<span>{results.length} 条 · 点击行查看请求与响应</span>} flush>
+          <div className="nfc-table-wrap">
+            <table className="nfc-table">
+              <thead>
+                <tr><th>Request ID</th><th>模型</th><th>状态</th><th className="num">Tokens</th><th className="num">费用</th><th>时间</th></tr>
+              </thead>
+              <tbody>
+                {results.map((r) => (
+                  <Fragment key={r.log_id}>
+                    <tr
+                      className="nfc-row-button"
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={expandedId === r.log_id}
+                      onClick={() => r.log_id && loadDetail(r.log_id)}
+                      onKeyDown={(event) => {
+                        if ((event.key === "Enter" || event.key === " ") && r.log_id) {
+                          event.preventDefault();
+                          loadDetail(r.log_id);
+                        }
+                      }}
+                    >
+                      <td><span className="nfc-mono" style={{ color: "var(--nf-accent)", fontSize: 12 }}>{r.log_id?.slice(0, 13)}…</span></td>
+                      <td><code className="nfc-code">{r.model}</code></td>
+                      <td>{r.status === "success" ? <Tag tone="positive">成功</Tag> : <Tag tone="negative">失败</Tag>}</td>
+                      <td className="num">{r.total_tokens?.toLocaleString()}</td>
+                      <td className="num">{formatCnyPrecise(Number(r.cost))}</td>
+                      <td className="time">{formatConsoleTime(r.time, true)}</td>
+                    </tr>
+                    {expandedId === r.log_id && (
+                      <tr className="nfc-log-detail">
+                        <td colSpan={6}>
+                          {detailLoading ? (
+                            <span className="nfc-faint">加载中…</span>
+                          ) : detail ? (
+                            <div className="nfc-log-panes">
+                              <div><span>REQUEST</span><pre>{formatJson(detail.request)}</pre></div>
+                              <div><span>RESPONSE</span><pre>{formatJson(detail.response)}</pre></div>
+                            </div>
+                          ) : (
+                            <span className="nfc-faint">{detailNote || "暂无详情数据"}</span>
+                          )}
+                        </td>
+                      </tr>
                     )}
-                  </div>
-                )}
-              </div>
-            ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </Panel>
       )}
     </>
   );

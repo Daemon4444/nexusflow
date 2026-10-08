@@ -86,6 +86,12 @@ const nextConfig: NextConfig = {
         destination: "/login?tab=register",
         permanent: false,
       },
+      // The web Playground was retired; keep old links landing somewhere useful.
+      {
+        source: "/playground",
+        destination: "/docs/quickstart",
+        permanent: true,
+      },
     ];
   },
   async rewrites() {

@@ -10,7 +10,8 @@ export function middleware(request: NextRequest) {
     "media-src 'self' blob: https:",
     `style-src 'self' 'unsafe-inline'`,
     "font-src 'self'",
-    `script-src 'self' 'unsafe-inline'`,
+    // next dev's React Refresh runtime evaluates strings; production never does.
+    `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self' https://openapi.alipay.com",

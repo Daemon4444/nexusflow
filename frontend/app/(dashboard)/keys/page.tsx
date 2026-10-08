@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { useAuth, authHeaders } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
@@ -7,7 +8,7 @@ import UserLayout from "@/components/UserLayout";
 import { useI18n } from "@/lib/i18n";
 import { ErrorState, LoadingState } from "@/components/AppState";
 import { getFirstRunState } from "@/lib/firstRun";
-import { getCurlExample, getJavascriptExample } from "@/components/FirstRunPanel";
+import { getCurlExample, getJavascriptExample } from "@/lib/codeExamples";
 import { KeyOutlined, PlusOutlined } from "@ant-design/icons";
 
 interface ApiKey {
@@ -17,7 +18,7 @@ interface ApiKey {
   createdAt: string;
   lastUsed: string | null;
   usageCount: number;
-  rateLimit: number;
+  rateLimit: number | null;
 }
 
 // Helper to mask API key for display
@@ -59,9 +60,10 @@ export default function KeysPage() {
         setError(res.message || "API Key 加载失败");
       }
     } catch {
+      if (signal?.aborted) return;
       setError("无法连接 Key 服务，请稍后重试");
     } finally {
-      setDataLoading(false);
+      if (!signal?.aborted) setDataLoading(false);
     }
   }
 
@@ -264,7 +266,7 @@ export default function KeysPage() {
                   </span>
                   <span style={{ fontSize: 12, color: "var(--text-tertiary)" }}>|</span>
                   <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                    {key.rateLimit} req/min
+                    {key.rateLimit != null ? `${key.rateLimit} req/min` : <Link href="/rate-limits" style={{ color: "inherit" }}>按账户限额</Link>}
                   </span>
                   <button className="btn-danger" onClick={() => setDeleteTarget(key)} style={{ fontSize: 12 }}>
                     {t("delete")}

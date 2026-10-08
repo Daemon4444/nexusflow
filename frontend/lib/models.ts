@@ -94,28 +94,6 @@ export function getRecommendedModels(models: ModelSummary[], limit = 6) {
   return [...preferred, ...featured, ...general].slice(0, limit);
 }
 
-export function pickDefaultPlaygroundModel(models: ModelSummary[], requestedModel?: string) {
-  const preferredIds = [
-    requestedModel,
-    "qwen3.8-max",
-    "qwen3.7-max",
-    "deepseek-v4-pro-0813",
-    "deepseek-v4-pro",
-    "deepseek-v4-flash",
-    "qwen3.6-max-preview",
-    "qwen3.6-plus",
-    "qwen3-max",
-    "qwen-plus",
-  ].filter(Boolean);
-  const chatModels = models.filter(
-    (model) =>
-      (!model.availability || model.availability === "available")
-      && ["大语言模型", "推理模型", "编程模型", "多模态模型"].includes(model.category)
-  );
-  const preferred = preferredIds.find((id) => chatModels.some((model) => model.id === id));
-  return preferred || chatModels[0]?.id || models[0]?.id || "";
-}
-
 function formatCompactPrice(value: number) {
   if (value === 0) return "0";
   if (value < 0.01) return value.toFixed(4);

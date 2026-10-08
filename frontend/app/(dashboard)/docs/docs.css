@@ -1,0 +1,179 @@
+/* Docs. Same rules as the pricing page: one typeface, hierarchy from size,
+   weight and whitespace, hairline separators, no ornament. Article pages
+   still carry inline styles, so the shared typography overrides them. */
+
+.docs-layout {
+  --dk-ink: var(--nf-ink);
+  --dk-muted: var(--nf-muted);
+  --dk-faint: var(--nf-faint);
+  --dk-line: var(--nf-line);
+  --dk-paper: var(--nf-paper);
+  --dk-wash: var(--nf-wash);
+  --dk-signal: var(--nfc-accent-ink);
+  --dk-code-bg: #0f1115;
+}
+
+/* ── sidebar ── */
+.docs-sidebar { width: 260px !important; background: var(--dk-paper) !important; border-right: 1px solid var(--dk-line) !important; }
+.dn-head { position: sticky; z-index: 2; top: 0; padding: 22px 16px 12px; background: var(--dk-paper); }
+.dn-title { color: var(--dk-ink); font-size: 16px; font-weight: 650; text-decoration: none; }
+.dn-filter { display: flex; align-items: center; gap: 8px; height: 34px; margin-top: 14px; padding: 0 10px; border: 1px solid var(--dk-line); border-radius: 8px; background: var(--dk-wash); color: var(--dk-faint); }
+.dn-filter input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--dk-ink); font: 13.5px var(--font-sans); }
+.dn-filter:focus-within { border-color: color-mix(in srgb, var(--dk-ink) 30%, var(--dk-line)); background: var(--dk-paper); }
+.dn-nav { padding: 0 10px 40px; }
+.dn-section { padding-top: 18px; }
+.dn-section h4 { margin: 0 0 4px; padding: 0 10px; color: var(--dk-faint); font-size: 12px; font-weight: 500; }
+.dn-caption { margin: 10px 10px 2px; color: var(--dk-faint); font-size: 11.5px; }
+.dn-link, .dn-sublink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 32px !important;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px !important;
+  background: none;
+  color: var(--dk-muted);
+  font: 14px var(--font-sans);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.dn-sublink { min-height: 30px !important; padding-left: 14px; font-size: 13.5px; }
+.dn-link:hover, .dn-sublink:hover { background: var(--dk-wash); color: var(--dk-ink); }
+.dn-link.is-active, .dn-sublink.is-active { background: var(--dk-wash); color: var(--dk-ink); font-weight: 600; }
+.dn-toggle svg { color: var(--dk-faint); transition: transform .18s; }
+.dn-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.dn-group.has-active > .dn-toggle { color: var(--dk-ink); }
+.dn-children { margin: 2px 0 6px 10px; padding-left: 4px; border-left: 1px solid var(--dk-line); }
+
+/* ── frame, progress, on-this-page ── */
+.docs-main { position: relative; overflow-x: hidden; }
+.docs-progress { position: sticky; z-index: 5; top: 0; height: 2px; margin-bottom: -2px; background: var(--dk-ink); transform-origin: 0 50%; transition: transform .1s linear; }
+.docs-frame { display: block; }
+.docs-frame.has-toc { display: grid; grid-template-columns: minmax(0, 1fr) 220px; align-items: start; }
+.docs-article { min-width: 0; }
+.docs-toc { position: sticky; top: 0; max-height: 100vh; overflow-y: auto; padding: 52px 24px 40px 0; }
+.docs-toc > span { display: block; margin-bottom: 10px; color: var(--dk-ink); font-size: 13px; font-weight: 600; }
+.docs-toc ol { margin: 0; padding: 0; list-style: none; }
+.docs-toc li a { display: block; padding: 5px 0; color: var(--dk-faint); font-size: 13px; line-height: 1.45; text-decoration: none; transition: color .15s; }
+.docs-toc li.is-h3 a { padding-left: 12px; font-size: 12.5px; }
+.docs-toc li a:hover { color: var(--dk-ink); }
+.docs-toc li.is-active a { color: var(--dk-ink); font-weight: 500; }
+.docs-toc-top { display: inline-block; margin-top: 16px; color: var(--dk-faint); font-size: 12.5px; text-decoration: none; }
+.docs-toc-top:hover { color: var(--dk-ink); }
+
+/* ── shared article typography (overrides page inline styles) ── */
+.docs-article > div:not(.dh) > h1,
+.docs-article > div:not(.dh) > div > h1 {
+  font-size: clamp(30px, 3vw, 36px) !important;
+  font-weight: 700 !important;
+  letter-spacing: -.025em !important;
+  line-height: 1.2 !important;
+}
+.docs-article > :not(.dh) h2:not([class]) {
+  margin-top: 16px !important;
+  padding-top: 28px;
+  border-top: 1px solid var(--dk-line);
+  font-size: 22px !important;
+  font-weight: 650 !important;
+  letter-spacing: -.015em !important;
+  scroll-margin-top: 16px;
+}
+.docs-article h3 { scroll-margin-top: 16px; }
+.docs-article > :not(.dh) p { line-height: 1.8; }
+.docs-article > :not(.dh) table { border-collapse: collapse !important; font-size: 13.5px !important; }
+.docs-article > :not(.dh) th {
+  background: transparent !important;
+  color: var(--dk-faint) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+.docs-article > :not(.dh) td code, .docs-article > :not(.dh) p code, .docs-article > :not(.dh) li code {
+  padding: 1px 6px !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: color-mix(in srgb, var(--dk-ink) 6%, transparent) !important;
+  color: var(--dk-ink) !important;
+  font-family: var(--font-mono) !important;
+  font-size: .88em !important;
+}
+.docs-article pre { font-family: var(--font-mono) !important; font-size: 13px !important; line-height: 1.7 !important; }
+.docs-article div[style*="#111827"], .docs-article pre[style*="#111827"] { background: var(--dk-code-bg) !important; border-radius: 10px !important; }
+
+/* ── docs home (dh-*) ── */
+.dh { max-width: 1080px; margin: 0 auto; padding: 72px 56px 96px; color: var(--dk-ink); }
+.dh-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; gap: 56px; }
+.dh-eyebrow { color: var(--dk-muted); font-size: 14px; font-weight: 500; }
+.dh-hero h1 { margin: 12px 0 18px; font-size: clamp(32px, 3.4vw, 44px); font-weight: 700; letter-spacing: -.03em; line-height: 1.2; }
+.dh-hero p { max-width: 460px; margin: 0; color: var(--dk-muted); font-size: 16px; line-height: 1.8; }
+.dh-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+.dh-actions a { display: inline-flex; align-items: center; height: 42px; padding: 0 20px; border-radius: 10px; font-size: 14px; font-weight: 600; text-decoration: none; }
+.dh-btn-primary { background: var(--dk-ink); color: var(--dk-paper); }
+.dh-btn-primary:hover { opacity: .88; }
+.dh-btn-ghost { color: var(--dk-ink); box-shadow: inset 0 0 0 1px var(--dk-line); }
+.dh-btn-ghost:hover { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dk-ink) 40%, var(--dk-line)); }
+
+.dh-section { padding-top: 80px; }
+.dh-section header { margin-bottom: 24px; }
+.dh-section h2 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+.dh-section header p { margin: 8px 0 0; color: var(--dk-muted); font-size: 15px; }
+
+.dh-protocols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.dh-protocol { display: flex; flex-direction: column; gap: 8px; padding: 24px; border: 1px solid var(--dk-line); border-radius: 14px; background: var(--dk-paper); color: inherit; text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+.dh-protocol:hover { border-color: color-mix(in srgb, var(--dk-ink) 25%, var(--dk-line)); box-shadow: 0 8px 24px -16px rgba(15,23,42,.35); }
+.dh-protocol strong { font-size: 17px; font-weight: 650; }
+.dh-protocol code { align-self: flex-start; padding: 2px 8px; border-radius: 6px; background: var(--dk-wash); color: var(--dk-muted); font: 12.5px var(--font-mono); }
+.dh-protocol p { margin: 4px 0 0; color: var(--dk-muted); font-size: 14px; line-height: 1.7; }
+.dh-arrow { margin-top: auto; padding-top: 10px; color: var(--dk-ink); font-size: 13.5px; font-weight: 500; }
+
+.dh-map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 32px; }
+.dh-map h3 { margin: 0 0 12px; font-size: 14px; font-weight: 650; }
+.dh-map ul { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.dh-map li a { display: flex; align-items: center; gap: 8px; padding: 6px 0; color: var(--dk-muted); font-size: 14px; text-decoration: none; }
+.dh-map li a:hover { color: var(--dk-ink); }
+.dh-map li em { padding: 1px 6px; border-radius: 999px; background: var(--dk-wash); color: var(--dk-muted); font-size: 11.5px; font-style: normal; }
+
+.dh-split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 56px; }
+.dh-endpoints { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--dk-line); }
+.dh-endpoints li { display: grid; grid-template-columns: 52px minmax(0, auto) 1fr; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--dk-line); }
+.dh-endpoints code { font: 13px var(--font-mono); }
+.dh-endpoints li > span:last-child { color: var(--dk-faint); font-size: 13px; text-align: right; }
+.dh-method { padding: 2px 0; border-radius: 5px; font-size: 11px; font-weight: 600; text-align: center; }
+.dh-method.is-post { background: color-mix(in srgb, var(--dk-signal) 12%, transparent); color: var(--dk-signal); }
+.dh-method.is-get { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+.dh-base { margin: 16px 0 0; color: var(--dk-muted); font-size: 13.5px; line-height: 1.8; }
+.dh-base code { padding: 1px 6px; border-radius: 4px; background: var(--dk-wash); color: var(--dk-ink); font: 12.5px var(--font-mono); }
+.dh-families { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--dk-line); }
+.dh-families a { display: grid; gap: 3px; padding: 12px 0; border-bottom: 1px solid var(--dk-line); color: inherit; text-decoration: none; }
+.dh-families strong { font-size: 15px; font-weight: 600; }
+.dh-families span { color: var(--dk-faint); font-size: 13.5px; }
+.dh-families a:hover strong { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--dk-line); }
+
+html[data-theme="dark"] .docs-layout { --dk-code-bg: #0a0c10; }
+
+@media (max-width: 1180px) {
+  .docs-frame.has-toc { grid-template-columns: minmax(0, 1fr); }
+  .docs-toc { display: none; }
+}
+@media (max-width: 900px) {
+  .dh { padding: 32px 20px 64px; }
+  .dh-hero, .dh-split { grid-template-columns: 1fr; gap: 36px; }
+  .dh-protocols { grid-template-columns: 1fr; }
+  .dh-map { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .dh-section { padding-top: 56px; }
+  .docs-sidebar { width: min(84vw, 300px) !important; }
+}
+
+/* globals.css resets `.docs-main > div` on phones; the article now sits one
+   level deeper, so point the reset at the page root instead of the frame. */
+@media (max-width: 768px) {
+  .docs-main > .docs-frame, .docs-main > .docs-progress { padding: 0 !important; max-width: none !important; }
+  .docs-article > div:not(.dh) { padding: 24px 16px 48px !important; max-width: 100% !important; }
+  .docs-article > div:not(.dh) table { display: block; overflow-x: auto; }
+}

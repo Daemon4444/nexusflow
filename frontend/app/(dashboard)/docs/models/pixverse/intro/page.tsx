@@ -108,8 +108,8 @@ export default function PixVerseIntroPage() {
             多版本灵活选择，多渠道智能路由，统一异步任务架构。
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link href="/playground" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 12, background: "linear-gradient(135deg, #0ea5e9, #0284c7)", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", boxShadow: "0 4px 16px rgba(14,165,233,0.3)" }}>
-              在 Playground 体验 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <Link href="/docs/quickstart" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 12, background: "linear-gradient(135deg, #0ea5e9, #0284c7)", color: "#fff", fontSize: 14, fontWeight: 600, textDecoration: "none", boxShadow: "0 4px 16px rgba(14,165,233,0.3)" }}>
+              开始接入 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </Link>
             <Link href="/docs/models/pixverse" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "12px 24px", borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#e2e8f0", fontSize: 14, fontWeight: 500, textDecoration: "none" }}>
               查看 API 文档
@@ -184,7 +184,7 @@ export default function PixVerseIntroPage() {
           {[
             { href: "/docs/models/pixverse", label: "PixVerse API 文档", desc: "查看完整的接入参数与能力说明" },
             { href: "/docs/api/tasks", label: "异步任务 API", desc: "任务提交与状态轮询指南" },
-            { href: "/playground", label: "在线体验", desc: "在 Playground 中试用 PixVerse" },
+            { href: "/docs/quickstart", label: "快速开始", desc: "创建 Key 并完成第一次调用" },
           ].map((item) => (
             <Link key={item.href} href={item.href} style={{ padding: 20, borderRadius: 14, border: "1px solid var(--border)", background: "var(--bg-elevated)", textDecoration: "none" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{item.label}</div>

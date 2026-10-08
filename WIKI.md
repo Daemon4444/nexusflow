@@ -187,7 +187,7 @@ selectRoute → reserveProviderCapacity → reserveBilling → invokeUpstream �
 - OpenAI 风格图片：`POST /v1/images/generations`
 - 视频别名：`POST /v1/videos/generations`
 - 通用异步任务：`POST /v1/tasks`，再轮询 `GET /v1/tasks/:id`
-- Playground 内部路由：`/api/image`、`/api/video`、`/api/playground`
+- 会话内部路由：`/api/image`、`/api/video`、`/api/playground`（网页 Playground 已于 2026-10 下线，`/api/playground` 暂留、前端不再调用）
 - 音频：`/v1/audio/*`
 - 上传：`/api/upload`；需 session 或 API Key
 
@@ -562,7 +562,6 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 - 模型目录与详情；
 - Pricing；
 - Docs；
-- Playground；
 - Dashboard、Activity、Keys、Billing、Settings；
 - Rate Limits、Tickets、Monitor、Sub Accounts；
 - Admin：用户、余额、Provider、容量、路由、模型目录、折扣、工单等。
@@ -582,11 +581,11 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
   中文说明维护在 `config/release-notes.json`（按完整提交号索引：类型、影响范围、标题、要点），随发布包上线；
   **合并面向生产的提交前在这里补一条**，没有条目的提交在发布中心按英文提交信息拆成要点显示。
 
-前端已有浅/深主题、中文优先的控制台文案和部分 i18n。不要在没有产品决策时把公开营销页整页改成单一语言。模型详情使用 catch-all 路由承接含斜杠的模型 ID。
+前端已有浅/深主题、中文优先的控制台文案和部分 i18n。控制台页面统一用 `frontend/components/ConsoleUI.tsx`（PageHeader / KpiBand / Panel / Tag / formatConsoleTime）和 `frontend/app/console.css` 的 `nfc-*` 样式（定价页为 `nfp-*`）；新页面不要再写整页内联样式或彩色描边卡片，颜色只用于表达状态。`/playground` 永久重定向到 `/docs/quickstart`。不要在没有产品决策时把公开营销页整页改成单一语言。模型详情使用 catch-all 路由承接含斜杠的模型 ID。
 
 当前主推模型和推荐顺序会随运营调整，不能从历史对话推断。以 `frontend/app/page.tsx`、`frontend/lib/models.ts` 和线上页面为准。
 
-公共站与控制台共用 `Header`。登录入口携带经过站内校验的 `returnTo`；移动文档使用抽屉目录；模型与 Playground 必须遵循运行时可用性，不能推荐或提交暂不可用模型。公告模型显示“即将上线 / 价格待公布”，所有价格组件接受 `null` 且不得用 `|| 0` 转成免费。定价与模型服务端取数统一通过 `BACKEND_URL`，避免非默认端口构建静默生成空目录。
+公共站与控制台共用 `Header`。登录入口携带经过站内校验的 `returnTo`；移动文档使用抽屉目录；模型推荐必须遵循运行时可用性，不能推荐或提交暂不可用模型。公告模型显示“即将上线 / 价格待公布”，所有价格组件接受 `null` 且不得用 `|| 0` 转成免费。定价与模型服务端取数统一通过 `BACKEND_URL`，避免非默认端口构建静默生成空目录。
 
 ## 14. 本地开发、验证与 CI
 

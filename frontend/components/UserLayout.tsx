@@ -20,10 +20,16 @@ export default function UserLayout({ children, wide }: { children: React.ReactNo
     }
   }, [loading, user, router, pathname]);
 
+  // Tell the header (menu button icon) whenever the drawer opens or closes.
+  // Done in an effect: dispatching from a state updater would update Header
+  // while UserLayout is rendering.
   useEffect(() => {
-    const publish = (open: boolean) => window.dispatchEvent(new CustomEvent("nexusflow:console-menu-state", { detail: { open } }));
-    const toggle = () => setMobileOpen((value) => { const next = !value; publish(next); return next; });
-    const close = () => { setMobileOpen(false); publish(false); };
+    window.dispatchEvent(new CustomEvent("nexusflow:console-menu-state", { detail: { open: mobileOpen } }));
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    const toggle = () => setMobileOpen((value) => !value);
+    const close = () => setMobileOpen(false);
     window.addEventListener("nexusflow:toggle-console-menu", toggle);
     window.addEventListener("nexusflow:close-console-menu", close);
     return () => {
@@ -33,7 +39,7 @@ export default function UserLayout({ children, wide }: { children: React.ReactNo
   }, []);
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 780px)");
+    const media = window.matchMedia("(max-width: 919px)");
     const update = () => { setIsMobile(media.matches); if (!media.matches) setMobileOpen(false); };
     update();
     media.addEventListener("change", update);
@@ -47,7 +53,7 @@ export default function UserLayout({ children, wide }: { children: React.ReactNo
 
   return (
     <div className={`usr-layout quiet-console-layout nf-console-shell ${mobileOpen ? "mobile-open" : ""}`}>
-      {mobileOpen && <button className="nf-console-backdrop" aria-label="关闭控制台菜单" onClick={() => { setMobileOpen(false); window.dispatchEvent(new CustomEvent("nexusflow:console-menu-state", { detail: { open: false } })); }} />}
+      {mobileOpen && <button className="nf-console-backdrop" aria-label="关闭控制台菜单" onClick={() => setMobileOpen(false)} />}
       <UserSidebar inert={isMobile && !mobileOpen} />
       <div className={wide ? "usr-content-wide" : "usr-content"}>{children}</div>
     </div>

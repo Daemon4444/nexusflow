@@ -5,9 +5,21 @@ import { useState } from "react";
 interface DocsCodeBlockProps {
   code: string;
   label?: string;
+  /** Shown in the header bar; guessed from the snippet when omitted. */
+  language?: string;
 }
 
-export default function DocsCodeBlock({ code, label = "复制" }: DocsCodeBlockProps) {
+function guessLanguage(code: string) {
+  const text = code.trim();
+  if (/^(curl|wget)\b/.test(text)) return "curl";
+  if (/^(pip|npm|pnpm|yarn|export|brew)\b/.test(text)) return "shell";
+  if (/^[{[]/.test(text)) return "json";
+  if (/^(from|import) [\w.]+ import|^import \w+$|\bdef \w+\(|print\(/m.test(text)) return "python";
+  if (/\b(const|let|await|import .* from)\b/.test(text)) return "javascript";
+  return "text";
+}
+
+export default function DocsCodeBlock({ code, label = "复制", language }: DocsCodeBlockProps) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -17,45 +29,12 @@ export default function DocsCodeBlock({ code, label = "复制" }: DocsCodeBlockP
   }
 
   return (
-    <div style={{
-      position: "relative",
-      borderRadius: 8,
-      overflow: "hidden",
-      background: "#111827",
-      border: "1px solid rgba(255,255,255,0.08)",
-    }}>
-      <button
-        type="button"
-        onClick={copy}
-        style={{
-          position: "absolute",
-          top: 8,
-          right: 8,
-          zIndex: 1,
-          padding: "4px 10px",
-          borderRadius: 5,
-          border: "1px solid rgba(255,255,255,0.16)",
-          background: copied ? "rgba(34,197,94,0.18)" : "rgba(17,24,39,0.92)",
-          color: copied ? "#86efac" : "#e5e7eb",
-          fontSize: 12,
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
-      >
-        {copied ? "已复制" : label}
-      </button>
-      <pre style={{
-        margin: 0,
-        padding: "16px 18px",
-        paddingRight: 82,
-        overflowX: "auto",
-        color: "#e5e7eb",
-        fontSize: 12.5,
-        lineHeight: 1.65,
-        fontFamily: "var(--font-mono)",
-      }}>
-        <code>{code}</code>
-      </pre>
+    <div className="dcb">
+      <div className="dcb-bar">
+        <span>{language || guessLanguage(code)}</span>
+        <button type="button" onClick={copy} className={copied ? "is-done" : undefined}>{copied ? "已复制" : label}</button>
+      </div>
+      <pre><code>{code}</code></pre>
     </div>
   );
 }

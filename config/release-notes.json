@@ -1,6 +1,19 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:feat: redesign landing, pricing, docs and console; retire web Playground": {
+      "type": "feature",
+      "audience": "customer",
+      "title": "首页、定价、文档与控制台改版；下线网页 Playground",
+      "points": [
+        "首页改为中文：NexusFlow 主标题 + 价值主张、厂商跑马灯（实时模型数）、精选模型、一行改地址的代码对比、四张带界面小样的能力卡",
+        "定价页重做：每个模型一行三个价格（输入 / 输出 / 缓存命中），阶梯价折叠展开，类别筛选与搜索，月度费用估算",
+        "文档重做：新首页与全部文档索引、侧栏筛选、文章页右侧本页目录与阅读进度，统一代码块",
+        "控制台：账单页（余额卡 + 收支明细表）、使用统计与性能监控统一样式；时间统一为本地时间，金额带千分位",
+        "网页 Playground 下线，旧链接跳转到快速开始",
+        "修复：页面偶发显示「加载失败」但数据已加载；920–1024px 宽度控制台无导航；密钥按账户限额时显示空的 req/min；深色模式强调色与顶部导航不可读"
+      ]
+    },
     "subject:fix: treat response.incomplete as a normal Responses stream end": {
       "type": "fix",
       "audience": "customer",

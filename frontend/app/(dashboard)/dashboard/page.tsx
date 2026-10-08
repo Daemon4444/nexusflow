@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import UserLayout from "@/components/UserLayout";
 import { EmptyState, ErrorState, LoadingState } from "@/components/AppState";
+import { formatConsoleTime } from "@/components/ConsoleUI";
 import { authHeaders, useAuth } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
 import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
@@ -135,9 +136,10 @@ export default function DashboardPage() {
       setRecent(recentRes.success ? recentRes.data || [] : []);
       setModels(modelsRes.success ? modelsRes.data || [] : []);
     } catch (err) {
+      if (signal?.aborted) return;
       setError(err instanceof Error ? err.message : "控制台数据加载失败");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }
 
@@ -195,7 +197,7 @@ export default function DashboardPage() {
           </div>
           <div className="quiet-heading-actions">
             <Link className="quiet-button quiet-button-primary" href="/keys">＋ 创建 API Key</Link>
-            <Link className="quiet-button" href={`/playground?model=${encodeURIComponent(defaultModel)}`}>打开 Playground ↗</Link>
+            <Link className="quiet-button" href="/docs/quickstart">接入文档 ↗</Link>
           </div>
         </section>
 
@@ -220,7 +222,7 @@ export default function DashboardPage() {
               <div className="quiet-kpi">
                 <span>今日费用</span>
                 <strong>{formatCny(today.cost)}</strong>
-                <small>累计 {formatCnyPrecise(overview.totalCost)}</small>
+                <small>累计 {formatCny(overview.totalCost)}</small>
               </div>
               <div className="quiet-kpi">
                 <span>成功率</span>
@@ -268,7 +270,7 @@ export default function DashboardPage() {
 
                 <div className="quiet-chart-summary">
                   <div><span>累计请求</span><strong>{overview.totalRequests.toLocaleString()}</strong></div>
-                  <div><span>累计费用</span><strong>{formatCnyPrecise(overview.totalCost)}</strong></div>
+                  <div><span>累计费用</span><strong>{formatCny(overview.totalCost)}</strong></div>
                   <div><span>平均延迟</span><strong>{overview.totalRequests > 0 ? `${overview.avgLatency.toLocaleString()}s` : "—"}</strong></div>
                   <div><span>Token 用量</span><strong>{formatTokens(overview.totalTokens)}</strong></div>
                 </div>
@@ -310,7 +312,7 @@ export default function DashboardPage() {
                       <tbody>
                         {recent.slice(0, 6).map((item, index) => (
                           <tr key={`${item.time}-${item.model}-${index}`}>
-                            <td>{item.time || "-"}</td>
+                            <td className="quiet-time">{item.time ? formatConsoleTime(item.time) : "-"}</td>
                             <td className="quiet-model-id">{item.model}</td>
                             <td>{item.tokens?.toLocaleString?.() || 0}</td>
                             <td>{item.latency ? `${item.latency}s` : "-"}</td>
@@ -330,7 +332,7 @@ export default function DashboardPage() {
                   <Link href="/models">查看全部</Link>
                 </div>
                 {recommendedModels.length === 0 ? (
-                  <EmptyState compact title="模型目录暂不可用" />
+                  <EmptyState compact title="暂无可推荐的模型" message="模型目录正在同步，可以先到模型页查看全部模型。" />
                 ) : (
                   <div className="quiet-table-scroll">
                     <table>

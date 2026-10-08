@@ -87,11 +87,11 @@ export default function RateLimitsPage() {
         })));
       }
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (signal?.aborted) return;
       console.error("Failed to load rate limits");
       setLoadError("加载限流配置失败，请稍后重试");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }
 

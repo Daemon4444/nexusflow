@@ -376,7 +376,6 @@ export default function ModelDetailPage() {
   const pricingType = model.pricingType || "token";
   const isUnitPriced = pricingType !== "token";
   const isAvailable = !model.availability || model.availability === "available";
-  const supportsPlayground = model.category !== "语音模型";
   const pricingPending = model.promptPrice == null || model.completionPrice == null;
   const availabilityLabel = isAvailable
     ? "可用"
@@ -439,8 +438,7 @@ export default function ModelDetailPage() {
         </Link>
       </div>
 
-      <div className="card-accent" style={{ marginBottom: 24 }}>
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: accent }} />
+      <div className="card-static" style={{ marginBottom: 24 }}>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div>
@@ -560,12 +558,12 @@ export default function ModelDetailPage() {
             <div style={{ display: "grid", gridTemplateColumns: model.cachePricing.explicitHit !== undefined ? "repeat(3, 1fr)" : "repeat(1, 1fr)", gap: 16 }}>
               <div>
                 <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>隐式缓存命中</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--success)" }}>¥{model.cachePricing.implicitHit}/M</div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.cachePricing.implicitHit}/M</div>
               </div>
               {model.cachePricing.explicitHit !== undefined && (
                 <div>
                   <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>显式缓存命中</div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: "var(--success)" }}>¥{model.cachePricing.explicitHit}/M</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.cachePricing.explicitHit}/M</div>
                 </div>
               )}
               {model.cachePricing.explicitCreation !== undefined && (
@@ -626,8 +624,8 @@ export default function ModelDetailPage() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {model.supported.map((s) => (
-            <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "var(--success-bg)", color: "var(--success)", border: "1px solid var(--success-border)" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
+            <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "var(--nf-wash)", color: "var(--nf-ink)", border: "1px solid var(--nf-line)" }}>
+              <svg style={{ color: "var(--nfc-accent-ink)" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
               {s}
             </span>
           ))}
@@ -757,12 +755,12 @@ export default function ModelDetailPage() {
       <div className="card-static">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{isAvailable && supportsPlayground ? "立即体验" : isAvailable ? "通过 API 调用" : availabilityLabel}</div>
-            <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>{isAvailable && supportsPlayground ? "在 Playground 中测试此模型" : isAvailable ? "该模型暂未接入网页 Playground，请参考上方 API 示例。" : availabilityDescription}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{isAvailable ? "通过 API 调用" : availabilityLabel}</div>
+            <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>{isAvailable ? "用控制台创建的 API Key 按上方示例调用，按实际用量计费。" : availabilityDescription}</div>
           </div>
-          {isAvailable && supportsPlayground ? (
-            <Link href={`/playground?model=${encodeURIComponent(model.id)}`} className="btn-primary" style={{ padding: "10px 20px" }}>
-              打开 Playground
+          {isAvailable ? (
+            <Link href="/keys" className="btn-primary" style={{ padding: "10px 20px" }}>
+              获取 API Key
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
             </Link>
           ) : !isAvailable ? (

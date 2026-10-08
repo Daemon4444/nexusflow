@@ -203,7 +203,7 @@ export default function HappyHorseModelPage() {
 
           {/* CTA */}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link href="/playground" style={{
+            <Link href="/docs/quickstart" style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               padding: "12px 28px", borderRadius: 12,
               background: "linear-gradient(135deg, #6366f1, #4f46e5)",
@@ -211,7 +211,7 @@ export default function HappyHorseModelPage() {
               boxShadow: "0 4px 16px rgba(99,102,241,0.3)",
               transition: "all 0.2s",
             }}>
-              在 Playground 体验
+              开始接入
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </Link>
             <Link href="/models" style={{
@@ -407,7 +407,7 @@ export default function HappyHorseModelPage() {
           {[
             { href: "/docs/api/videos", label: "视频接入文档", desc: "查看统一视频任务接入方式" },
             { href: "/docs/api/tasks", label: "异步任务 API", desc: "任务提交与状态轮询指南" },
-            { href: "/playground", label: "在线体验", desc: "在 Playground 中试用 HappyHorse" },
+            { href: "/docs/quickstart", label: "快速开始", desc: "创建 Key 并完成第一次调用" },
           ].map((item) => (
             <Link
               key={item.href}

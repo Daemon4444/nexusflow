@@ -105,11 +105,11 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
         setError(res.message || "模型服务暂时不可用，请稍后重试");
       }
     } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (signal?.aborted) return;
       setModels([]);
       setError("无法连接模型服务，请确认后端服务已启动");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }
 

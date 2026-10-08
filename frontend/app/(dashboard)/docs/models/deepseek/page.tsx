@@ -288,7 +288,7 @@ print(response.choices[0].message.content)`} />
           {[
             { href: "/docs/api/chat", label: "对话补全 API", desc: "API 调用方式" },
             { href: "/docs/models/qwen", label: "通义千问", desc: "对比通用主力模型" },
-            { href: "/playground", label: "Playground", desc: "在线体验" },
+            { href: "/keys", label: "API 密钥", desc: "创建 Key 后即可调用" },
           ].map((link) => (
             <Link key={link.href} href={link.href} style={{ padding: 16, background: "var(--bg-elevated)", borderRadius: 8, border: "1px solid var(--border)", textDecoration: "none" }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)", marginBottom: 4 }}>{link.label}</div>

@@ -2,74 +2,105 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { NexusflowLogo } from "@/components/QuadrantLogo";
 import { useEffect, useRef, useState } from "react";
 import { fetchAPI } from "@/lib/api";
 import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
 import Footer from "@/components/Footer";
+import "./home.css";
+import Header from "@/components/Header";
+import BaseUrlDiff from "@/components/BaseUrlDiff";
 
 const fallbackModelRows = [
-  { model: "Claude Sonnet 5", provider: "Anthropic via HiModels", context: "1M", price: "input ¥13.6 / output ¥68 per 1M" },
-  { model: "Qwen3.8 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
-  { model: "Kimi K3", provider: "Moonshot AI", context: "1M", price: "input ¥20 / output ¥100 per 1M" },
-  { model: "Qwen3.7 Max", provider: "Tongyi Qianwen", context: "1M", price: "input ¥12 / output ¥36 per 1M" },
-  { model: "GLM 5.3", provider: "Zhipu AI", context: "1M", price: "input ¥8 / output ¥28 per 1M" },
-  { model: "DeepSeek V4 Flash", provider: "DeepSeek", context: "1M", price: "input ¥1 / output ¥2 per 1M" },
-  { model: "DeepSeek V4 Flash 0731", provider: "DeepSeek", context: "1M", price: "input ¥1 / output ¥2 per 1M" },
-  { model: "DeepSeek V4 Pro 0813", provider: "DeepSeek", context: "1M", price: "input ¥9 / output ¥27 per 1M" },
-  { model: "Seedance 2.0", provider: "Volcengine Ark", context: "Async video", price: "from ¥0.44 / second" },
+  { id: "claude-sonnet-5", model: "Claude Sonnet 5", provider: "Anthropic", context: "1M", price: "输入 ¥13.6 · 输出 ¥68 / M" },
+  { id: "qwen3.8-max", model: "Qwen3.8 Max", provider: "通义千问", context: "1M", price: "输入 ¥12 · 输出 ¥36 / M" },
+  { id: "deepseek-v4-flash", model: "DeepSeek V4 Flash", provider: "DeepSeek", context: "1M", price: "输入 ¥1 · 输出 ¥2 / M" },
+  { id: "kimi-k3", model: "Kimi K3", provider: "月之暗面", context: "1M", price: "输入 ¥20 · 输出 ¥100 / M" },
+  { id: "glm-5.3", model: "GLM 5.3", provider: "智谱AI", context: "1M", price: "输入 ¥8 · 输出 ¥28 / M" },
+  { id: "seedance-2.0", model: "Seedance 2.0", provider: "火山方舟", context: "视频", price: "¥0.44 / 秒起" },
 ];
 
-const capabilities = [
-  {
-    title: "Unified API",
-    desc: "Use one OpenAI-compatible endpoint for chat, embeddings, image, video, Anthropic Messages and Responses API calls.",
-  },
-  {
-    title: "Billing Control",
-    desc: "Pre-call balance checks, precise micro-cost ledger entries, API key-level usage and account-level transaction history.",
-  },
-  {
-    title: "Operational Guardrails",
-    desc: "Rate limits, upload authorization, production-safe payment handling, provider routing and health monitoring foundations.",
-  },
-  {
-    title: "Developer Console",
-    desc: "Create keys, test prompts, inspect usage, monitor latency and manage tickets without switching provider dashboards.",
-  },
+/** Providers on the marquee. `match` is the provider name in the model catalog. */
+const providers = [
+  { name: "通义千问", match: "通义千问", mark: "通", color: "#615ced" },
+  { name: "DeepSeek", match: "DeepSeek", mark: "D", color: "#4d6bfe" },
+  { name: "Anthropic", match: "Anthropic", mark: "A", color: "#d97757" },
+  { name: "智谱 GLM", match: "智谱AI", mark: "智", color: "#2f54eb" },
+  { name: "月之暗面 Kimi", match: "月之暗面", mark: "K", color: "#16181d" },
+  { name: "MiniMax", match: "MiniMax", mark: "M", color: "#e5484d" },
+  { name: "火山方舟", match: "火山方舟 (Volcengine)", mark: "火", color: "#1664ff" },
+  { name: "阿里巴巴", match: "阿里巴巴 (Alibaba)", mark: "阿", color: "#ff6a00" },
+  { name: "PixVerse", match: "拍我AI (PixVerse)", mark: "P", color: "#8b5cf6" },
 ];
 
-const workflow = [
-  "Create an account and generate a one-time API key",
-  "Point your SDK to https://nexusflow.hk/v1",
-  "Choose a model per request or test in Playground",
-  "Track cost, latency, errors and rate limits in the console",
-];
+function ProviderMarquee({ counts }: { counts: Map<string, number> }) {
+  const items = providers.map((item) => ({ ...item, count: counts.get(item.match) || 0 }));
+  // Rendered twice so the track can loop seamlessly at -50%.
+  const row = (hidden: boolean) => (
+    <ul aria-hidden={hidden || undefined}>
+      {items.map((item) => (
+        <li key={item.name}>
+          <span className="nf-mark" style={{ background: item.color }}>{item.mark}</span>
+          <strong>{item.name}</strong>
+          {item.count > 0 && <em>{item.count} 个模型</em>}
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <section className="nf-marquee" aria-label="已接入的模型厂商">
+      <div className="nf-marquee-track">{row(false)}{row(true)}</div>
+    </section>
+  );
+}
+
+function brandOf(provider: string) {
+  return providers.find((item) => item.match === provider || item.name === provider || provider.includes(item.match) || item.match.includes(provider));
+}
+const brandColor = (provider: string) => brandOf(provider)?.color || "#6b7280";
+const brandMark = (provider: string) => brandOf(provider)?.mark || provider.slice(0, 1);
+const displayProvider = (provider: string) => brandOf(provider)?.name || provider;
+
+/** Fade sections up the first time they scroll into view. */
+function useReveal() {
+  useEffect(() => {
+    const nodes = [...document.querySelectorAll<HTMLElement>("[data-reveal]")];
+    // Only hide sections once JS is running, so content never depends on it.
+    document.documentElement.classList.add("nf-reveal-ready");
+    if (!("IntersectionObserver" in window)) { nodes.forEach((n) => n.classList.add("is-in")); return; }
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) { entry.target.classList.add("is-in"); observer.unobserve(entry.target); }
+      }
+    }, { rootMargin: "0px 0px -8% 0px" });
+    nodes.forEach((n) => observer.observe(n));
+    return () => observer.disconnect();
+  }, []);
+}
 
 const fallbackCarouselModels = [
-  { name: "Claude Sonnet 5", provider: "Anthropic via HiModels", ctx: "1M context", price: "In ¥13.6 · Out ¥68", badge: "Featured", tone: "orange" },
-  { name: "Qwen3.8 Max", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥12 · Out ¥36", badge: "New", tone: "blue" },
-  { name: "Kimi K3", provider: "Moonshot AI", ctx: "1M context", price: "In ¥20 · Out ¥100", badge: "New", tone: "teal" },
-  { name: "Qwen3.7 Max", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥12 · Out ¥36", badge: "Flagship", tone: "blue" },
-  { name: "Qwen3 Max", provider: "Tongyi Qianwen", ctx: "262K context", price: "In ¥2.5 · Out ¥10", badge: "Stable", tone: "blue" },
-  { name: "Qwen Long", provider: "Tongyi Qianwen", ctx: "10M context", price: "In ¥0.5 · Out ¥2", badge: "Long", tone: "teal" },
-  { name: "Qwen3.6 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥2 · Out ¥12", badge: "Popular", tone: "blue" },
-  { name: "Qwen3.5 Plus", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.8 · Out ¥4.8", badge: "Balanced", tone: "blue" },
-  { name: "Qwen3.5 Flash", provider: "Tongyi Qianwen", ctx: "1M context", price: "In ¥0.2 · Out ¥2", badge: "Fast", tone: "teal" },
-  { name: "Qwen3.5 Omni Plus", provider: "Tongyi Qianwen", ctx: "262K omni", price: "In ¥7 · Out ¥40", badge: "Omni", tone: "violet" },
-  { name: "Qwen3.5 Omni Flash", provider: "Tongyi Qianwen", ctx: "262K omni", price: "In ¥2.2 · Out ¥13.3", badge: "Omni", tone: "violet" },
-  { name: "Qwen3 VL Flash", provider: "Tongyi Qianwen", ctx: "262K vision", price: "In ¥0.15 · Out ¥1.5", badge: "Vision", tone: "violet" },
-  { name: "Qwen3 Coder Flash", provider: "Tongyi Qianwen", ctx: "1M code", price: "In ¥1 · Out ¥4", badge: "Code", tone: "slate" },
-  { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "1M context", price: "In ¥1 · Out ¥2", badge: "Fast", tone: "red" },
-  { name: "DeepSeek V4 Flash 0731", provider: "DeepSeek", ctx: "1M context", price: "In ¥1 · Out ¥2", badge: "Snapshot", tone: "red" },
-  { name: "DeepSeek V4 Pro 0813", provider: "DeepSeek", ctx: "1M context", price: "In ¥9 · Out ¥27", badge: "Snapshot", tone: "red" },
-  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "1M context", price: "In ¥12 · Out ¥24", badge: "Reasoning", tone: "red" },
-  { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K context", price: "In ¥2 · Out ¥3", badge: "General", tone: "red" },
-  { name: "GLM 5.3", provider: "Zhipu AI", ctx: "1M context", price: "In ¥8 · Out ¥28", badge: "New", tone: "violet" },
-  { name: "Text Embedding V4", provider: "Tongyi Qianwen", ctx: "8K vectors", price: "¥0.5 / 1M input", badge: "Vector", tone: "slate" },
-  { name: "Qwen Image Max", provider: "Tongyi Qianwen", ctx: "Image", price: "per image", badge: "Image", tone: "orange" },
-  { name: "PixVerse V6", provider: "PixVerse", ctx: "Async video", price: "from ¥0.15/s", badge: "Video", tone: "orange" },
-  { name: "HappyHorse 1.0", provider: "Tongyi Qianwen", ctx: "Async video", price: "from ¥0.9/s", badge: "Video", tone: "orange" },
+  { name: "Claude Sonnet 5", provider: "Anthropic", ctx: "1M 上下文", price: "输入 ¥13.6 · 输出 ¥68 / M", badge: "主推", tone: "orange" },
+  { name: "Qwen3.8 Max", provider: "通义千问", ctx: "1M 上下文", price: "输入 ¥12 · 输出 ¥36 / M", badge: "新上线", tone: "blue" },
+  { name: "Kimi K3", provider: "月之暗面", ctx: "1M 上下文", price: "输入 ¥20 · 输出 ¥100 / M", badge: "新上线", tone: "teal" },
+  { name: "Qwen3.7 Max", provider: "通义千问", ctx: "1M 上下文", price: "输入 ¥12 · 输出 ¥36 / M", badge: "旗舰", tone: "blue" },
+  { name: "Qwen3 Max", provider: "通义千问", ctx: "262K 上下文", price: "输入 ¥2.5 · 输出 ¥10 / M", badge: "稳定", tone: "blue" },
+  { name: "Qwen Long", provider: "通义千问", ctx: "10M 上下文", price: "输入 ¥0.5 · 输出 ¥2 / M", badge: "长文本", tone: "teal" },
+  { name: "Qwen3.6 Plus", provider: "通义千问", ctx: "1M 上下文", price: "输入 ¥2 · 输出 ¥12 / M", badge: "热门", tone: "blue" },
+  { name: "Qwen3.5 Plus", provider: "通义千问", ctx: "1M 上下文", price: "输入 ¥0.8 · 输出 ¥4.8 / M", badge: "均衡", tone: "blue" },
+  { name: "Qwen3.5 Flash", provider: "通义千问", ctx: "1M 上下文", price: "输入 ¥0.2 · 输出 ¥2 / M", badge: "高速", tone: "teal" },
+  { name: "Qwen3.5 Omni Plus", provider: "通义千问", ctx: "262K 全模态", price: "输入 ¥7 · 输出 ¥40 / M", badge: "全模态", tone: "violet" },
+  { name: "Qwen3.5 Omni Flash", provider: "通义千问", ctx: "262K 全模态", price: "输入 ¥2.2 · 输出 ¥13.3 / M", badge: "全模态", tone: "violet" },
+  { name: "Qwen3 VL Flash", provider: "通义千问", ctx: "262K 视觉", price: "输入 ¥0.15 · 输出 ¥1.5 / M", badge: "视觉", tone: "violet" },
+  { name: "Qwen3 Coder Flash", provider: "通义千问", ctx: "1M 编程", price: "输入 ¥1 · 输出 ¥4 / M", badge: "编程", tone: "slate" },
+  { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "1M 上下文", price: "输入 ¥1 · 输出 ¥2 / M", badge: "高速", tone: "red" },
+  { name: "DeepSeek V4 Flash 0731", provider: "DeepSeek", ctx: "1M 上下文", price: "输入 ¥1 · 输出 ¥2 / M", badge: "快照", tone: "red" },
+  { name: "DeepSeek V4 Pro 0813", provider: "DeepSeek", ctx: "1M 上下文", price: "输入 ¥9 · 输出 ¥27 / M", badge: "快照", tone: "red" },
+  { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "1M 上下文", price: "输入 ¥12 · 输出 ¥24 / M", badge: "推理", tone: "red" },
+  { name: "DeepSeek V3.2", provider: "DeepSeek", ctx: "131K 上下文", price: "输入 ¥2 · 输出 ¥3 / M", badge: "通用", tone: "red" },
+  { name: "GLM 5.3", provider: "智谱AI", ctx: "1M 上下文", price: "输入 ¥8 · 输出 ¥28 / M", badge: "新上线", tone: "violet" },
+  { name: "Text Embedding V4", provider: "通义千问", ctx: "8K 向量", price: "输入 ¥0.5 / M", badge: "向量", tone: "slate" },
+  { name: "Qwen Image Max", provider: "通义千问", ctx: "图像", price: "按张计费", badge: "图像", tone: "orange" },
+  { name: "PixVerse V6", provider: "PixVerse", ctx: "视频生成", price: "¥0.15 / 秒起", badge: "视频", tone: "orange" },
+  { name: "HappyHorse 1.0", provider: "通义千问", ctx: "视频生成", price: "¥0.9 / 秒起", badge: "视频", tone: "orange" },
 ];
 
 type CarouselModel = typeof fallbackCarouselModels[number];
@@ -82,13 +113,23 @@ function toneForCategory(category: string): CarouselModel["tone"] {
   return "blue";
 }
 
+/** formatModelPrice is shared with English pages; localise it for the Chinese landing page. */
+function chinesePrice(price: string) {
+  return price
+    .replace(/^In ¥([\d.]+) · Out ¥([\d.]+)\/M$/, "输入 ¥$1 · 输出 ¥$2 / M")
+    .replace(/^from ¥([\d.]+)\/s$/, "¥$1 / 秒起")
+    .replace(/\/image$/, " / 张")
+    .replace(/\/10k chars$/, " / 万字符")
+    .replace("Pricing pending", "价格待公布");
+}
+
 function modelToCarousel(model: ModelSummary): CarouselModel {
   return {
     name: model.name,
     provider: model.provider,
-    ctx: model.pricingType === "per-second" ? "Async video" : `${formatContextLength(model.contextLength)} context`,
-    price: formatModelPrice(model),
-    badge: model.category.replace("模型", "") || "Model",
+    ctx: model.pricingType === "per-second" ? "视频生成" : `${formatContextLength(model.contextLength)} 上下文`,
+    price: chinesePrice(formatModelPrice(model)),
+    badge: model.category.replace("模型", "") || "模型",
     tone: toneForCategory(model.category),
   };
 }
@@ -199,9 +240,9 @@ const flagshipSlides: FlagshipSlide[] = [
     glow: "rgba(251,146,60,0.24)",
     btnGradient: "linear-gradient(135deg, #fb923c, #c2410c)",
     btnShadow: "0 6px 20px rgba(194,65,12,0.4)",
-    primaryBadge: "Featured LLM",
+    primaryBadge: "主推模型",
     secondaryBadge: "首选",
-    byline: "by Anthropic · HiModels",
+    byline: "Anthropic",
     title: "Claude Sonnet 5",
     titleGradient: "linear-gradient(135deg, #fff7ed 0%, #fed7aa 48%, #fb923c 100%)",
     lead: "Claude Sonnet 5 是 NexusFlow 当前优先推荐的 Claude 模型，面向生产级对话、复杂分析与长上下文工作流——使用稳定公开 ID ",
@@ -225,9 +266,9 @@ const flagshipSlides: FlagshipSlide[] = [
     glow: "rgba(129,140,248,0.26)",
     btnGradient: "linear-gradient(135deg, #818cf8, #4338ca)",
     btnShadow: "0 6px 20px rgba(67,56,202,0.42)",
-    primaryBadge: "Flagship LLM",
+    primaryBadge: "旗舰模型",
     secondaryBadge: "最新上线",
-    byline: "by 通义千问 · 阿里云百炼",
+    byline: "通义千问",
     title: "Qwen3.8 Max",
     titleGradient: "linear-gradient(135deg, #f8fafc 0%, #c7d2fe 48%, #818cf8 100%)",
     lead: "通义千问 3.8 代旗舰：2.4 万亿参数 MoE，编程与办公能力全面跃升，可自主编程十数天交付完整项目。胜任法律、金融、设计等数百种专业任务，一次对话端到端交付生产级成果——直接调用 ",
@@ -251,9 +292,9 @@ const flagshipSlides: FlagshipSlide[] = [
     glow: "rgba(56,189,248,0.24)",
     btnGradient: "linear-gradient(135deg, #38bdf8, #0284c7)",
     btnShadow: "0 6px 20px rgba(2,132,199,0.4)",
-    primaryBadge: "Fast LLM",
+    primaryBadge: "高速模型",
     secondaryBadge: "最新上线",
-    byline: "by DeepSeek · 阿里云百炼",
+    byline: "DeepSeek",
     title: "DeepSeek V4 Flash",
     titleGradient: "linear-gradient(135deg, #f8fafc 0%, #bae6fd 48%, #38bdf8 100%)",
     lead: "高效轻量化 MoE 模型：总参 284B、激活 13B，原生支持百万超长上下文。推理速度快、延迟低、成本低，面向高并发对话、内容创作、基础 RAG 与批量任务——直接调用 ",
@@ -277,9 +318,9 @@ const flagshipSlides: FlagshipSlide[] = [
     glow: "rgba(45,212,191,0.24)",
     btnGradient: "linear-gradient(135deg, #2dd4bf, #0d9488)",
     btnShadow: "0 6px 20px rgba(13,148,136,0.4)",
-    primaryBadge: "Flagship LLM",
+    primaryBadge: "旗舰模型",
     secondaryBadge: "最新上线",
-    byline: "by 月之暗面 Moonshot AI",
+    byline: "月之暗面",
     title: "Kimi K3",
     titleGradient: "linear-gradient(135deg, #f8fafc 0%, #99f6e4 48%, #2dd4bf 100%)",
     lead: "Kimi 迄今能力最强的旗舰模型：2.8 万亿参数，基于 KDA 混合线性注意力与注意力残差架构，原生视觉理解 + 深度思考，100 万 token 上下文。面向长程编程、知识工作与推理场景——OpenAI 与 Anthropic 协议均可直接调用 ",
@@ -303,9 +344,9 @@ const flagshipSlides: FlagshipSlide[] = [
     glow: "rgba(167,139,250,0.22)",
     btnGradient: "linear-gradient(135deg, #a78bfa, #7c3aed)",
     btnShadow: "0 6px 20px rgba(124,58,237,0.4)",
-    primaryBadge: "Flagship LLM",
+    primaryBadge: "旗舰模型",
     secondaryBadge: "最新上线",
-    byline: "by 智谱AI Zhipu AI",
+    byline: "智谱AI",
     title: "GLM 5.3",
     titleGradient: "linear-gradient(135deg, #f8fafc 0%, #ddd6fe 48%, #a78bfa 100%)",
     lead: "智谱新一代旗舰：1M 无损超长上下文，三档深度思考调节，编程与复杂推理进一步增强，为长程智能体任务而生——直接调用 ",
@@ -329,9 +370,9 @@ const flagshipSlides: FlagshipSlide[] = [
     glow: "rgba(251,146,60,0.2)",
     btnGradient: "linear-gradient(135deg, #fb923c, #ea580c)",
     btnShadow: "0 6px 20px rgba(234,88,12,0.4)",
-    primaryBadge: "Video Gen",
+    primaryBadge: "视频生成",
     secondaryBadge: "4K HDR",
-    byline: "by 火山方舟 Volcengine",
+    byline: "火山方舟",
     title: "Seedance 2.0",
     titleGradient: "linear-gradient(135deg, #f8fafc 0%, #fed7aa 48%, #fb923c 100%)",
     lead: "火山引擎最新一代旗舰视频生成模型：多模态参考生视频（图 + 视频 + 音频），4K HDR 10bit 输出，有声视频自动生成，支持首尾帧图生视频与文生视频。",
@@ -404,7 +445,7 @@ function FlagshipCarousel() {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
                   <span style={{
                     padding: "6px 15px", borderRadius: 999, fontSize: 11, fontWeight: 800,
-                    letterSpacing: "0.16em", textTransform: "uppercase",
+                    letterSpacing: "0.04em",
                     background: "rgba(255,255,255,0.1)",
                     color: slide.accent, border: `1px solid ${slide.border}`,
                   }}>
@@ -520,141 +561,143 @@ export default function LandingPage() {
 
   const recommended = getRecommendedModels(models, 8);
   const modelRows = recommended.length > 0
-    ? recommended.slice(0, 5).map((model) => ({
+    ? recommended.slice(0, 6).map((model) => ({
+        id: model.id,
         model: model.name,
         provider: model.provider,
-        context: model.pricingType === "per-second" ? "Async video" : formatContextLength(model.contextLength),
-        price: formatModelPrice(model),
+        context: model.pricingType === "per-second" ? "视频" : formatContextLength(model.contextLength),
+        price: chinesePrice(formatModelPrice(model)),
       }))
     : fallbackModelRows;
   const carouselModels = recommended.length > 0
     ? recommended.concat(models.filter((model) => !recommended.some((item) => item.id === model.id)).slice(0, 12)).map(modelToCarousel)
     : fallbackCarouselModels;
-  const modelCount = models.length || 95;
+  const modelCount = models.length || 90;
+  const startHref = user ? "/dashboard" : "/login?tab=register";
+  const providerCounts = new Map<string, number>();
+  for (const model of models) providerCounts.set(model.provider, (providerCounts.get(model.provider) || 0) + 1);
+  useReveal();
 
   return (
     <>
+    <Header />
     <main id="main-content" className="nf-site">
-      <nav className="nf-nav">
-        <Link href="/" className="nf-brand" aria-label="NexusFlow home">
-          <NexusflowLogo size={15} color="var(--text-primary)" />
-        </Link>
-        <div className="nf-nav-links">
-          <Link href="/models">Models</Link>
-          <Link href="/playground">Playground</Link>
-          <Link href="/docs">Docs</Link>
-          <Link href="/pricing">Pricing</Link>
-        </div>
-        <div className="nf-nav-actions">
-          {user ? (
-            <Link href="/dashboard" className="nf-btn nf-btn-primary">Open Console</Link>
-          ) : (
-            <>
-              <Link href="/login" className="nf-btn nf-btn-secondary">Log in</Link>
-              <Link href="/login?tab=register" className="nf-btn nf-btn-primary">Start building</Link>
-            </>
-          )}
-        </div>
-      </nav>
-
       <section className="nf-hero">
         <div className="nf-hero-copy">
-          <Link href="/models/gpt-6-astra" style={{
-            display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 14,
-            padding: "6px 14px", borderRadius: 999, textDecoration: "none",
-            background: "linear-gradient(135deg, rgba(251,146,60,0.16), rgba(194,65,12,0.1))",
-            border: "1px solid rgba(251,146,60,0.38)", fontSize: 12.5, fontWeight: 600,
-            color: "var(--text-primary)",
-          }}>
-            <span style={{
-              padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 800,
-              letterSpacing: "0.08em", background: "#c2410c", color: "#fff",
-            }}>NEW</span>
-            GPT-6 Astra is live — 1.05M context · Azure AI Foundry
-            <span aria-hidden style={{ fontWeight: 700 }}>→</span>
-          </Link>
-          <div className="nf-eyebrow">One API, every leading AI model</div>
+          <div className="nf-eyebrow"><i />统一模型网关 · 按量计费</div>
           <h1>NexusFlow</h1>
+          <p className="nf-hero-tagline">一个 Key，调用所有主流模型。</p>
           <p className="nf-hero-lead">
-            Between question and answer, there is always a path. NexusFlow turns that uncertainty into one deliberate API for text, vision, image and video intelligence.
+            千问、DeepSeek、Claude、GLM、Kimi、Seedance 等 {modelCount} 个模型，兼容 OpenAI 与 Anthropic 协议。按量计费，一张账单，余额不过期。
           </p>
           <div className="nf-hero-actions">
-            <Link href={user ? "/dashboard" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">
-              {user ? "Open Console" : "Start building"}
-            </Link>
-            <Link href="/docs/quickstart" className="nf-btn nf-btn-secondary nf-btn-lg">
-              Read quickstart
-            </Link>
+            <Link href={startHref} className="nf-btn nf-btn-primary nf-btn-lg">{user ? "进入控制台" : "免费开始"}</Link>
+            <Link href="/docs/quickstart" className="nf-btn nf-btn-secondary nf-btn-lg">5 分钟快速开始</Link>
           </div>
           <div className="nf-hero-metrics">
-            <div><strong>{modelCount}+</strong><span>model options</span></div>
-            <div><strong>1M</strong><span>Claude Sonnet 5 context</span></div>
-            <div><strong>128K</strong><span>Claude Sonnet 5 max output</span></div>
+            <div><strong>{modelCount}+</strong><span>可调用模型</span></div>
+            <div><strong>3</strong><span>种兼容协议</span></div>
+            <div><strong>1</strong><span>个 Key，一张账单</span></div>
           </div>
         </div>
 
-        <div className="nf-cylinder-shell" aria-label="Unified model gateway">
+        <div className="nf-cylinder-shell" aria-label="可调用的模型">
           <CylinderCarousel items={carouselModels} />
         </div>
       </section>
 
+      <ProviderMarquee counts={providerCounts} />
+
       <FlagshipCarousel />
 
-
-      <section className="nf-section nf-section-tight">
+      <section className="nf-section" data-reveal>
         <div className="nf-section-head">
-          <span>Model access</span>
-          <h2>Every request begins as a choice</h2>
-          <p>Route requests across chat, reasoning, long-context, image and video models without multiplying accounts, keys and invoices. {catalogLive ? "The catalog below is loaded from the live model API." : "Live catalog data is temporarily unavailable; the preview below is clearly marked fallback content."}</p>
+          <h2>精选模型</h2>
+          <p>{catalogLive ? "价格实时取自模型目录，" : ""}所有模型共用同一个 Key 和余额，按请求单独选择。</p>
         </div>
         <div className="nf-model-table">
           {modelRows.map((row) => (
-            <div className="nf-model-row" key={row.model}>
+            <Link className="nf-model-row" key={row.id} href={`/models/${encodeURIComponent(row.id)}`}>
               <strong>{row.model}</strong>
-              <span>{row.provider}</span>
-              <span>{row.context}</span>
-              <span>{row.price}</span>
-            </div>
+              <span className="nf-model-provider">
+                <span className="nf-mark nf-mark-sm" style={{ background: brandColor(row.provider) }}>{brandMark(row.provider)}</span>
+                {displayProvider(row.provider)}
+              </span>
+              <span>{row.context === "视频" ? "视频生成" : `${row.context} 上下文`}</span>
+              <span className="nf-model-price">{row.price}</span>
+            </Link>
           ))}
         </div>
+        <Link href="/models" className="nf-more-link">查看全部 {modelCount} 个模型 →</Link>
       </section>
 
-      <section className="nf-section">
+      <section className="nf-section nf-switch" data-reveal>
+        <div className="nf-switch-copy">
+          <h2>换一个地址，<br />现有代码直接能用。</h2>
+          <p>不用换 SDK，不用改提示词和工具调用。把 base_url 指向 NexusFlow，换上控制台里的 Key，就能在所有模型之间切换。</p>
+          <ul>
+            <li>OpenAI SDK、LangChain、Dify 等直接兼容</li>
+            <li>Anthropic SDK 与 Claude Code 走 /v1/messages</li>
+            <li>流式输出、函数调用、上下文缓存全部支持</li>
+          </ul>
+        </div>
+        <BaseUrlDiff />
+      </section>
+
+      <section className="nf-section" data-reveal>
         <div className="nf-section-head">
-          <span>Platform</span>
-          <h2>Designed for teams, not demos</h2>
+          <h2>为生产环境准备</h2>
+          <p>不只是能调通，账、权限和问题排查都替你想好了。</p>
         </div>
-        <div className="nf-cap-grid">
-          {capabilities.map((item) => (
-            <article className="nf-cap" key={item.title}>
-              <h3>{item.title}</h3>
-              <p>{item.desc}</p>
-            </article>
-          ))}
+        <div className="nf-feature-grid">
+          <article className="nf-feature">
+            <div className="nf-feature-demo nf-demo-ledger">
+              <div><code>glm-5.2</code><span>90,499 tokens · 缓存 81,558</span><b>−¥0.477324</b></div>
+              <div><code>qwen3.8-max</code><span>29,630 tokens</span><b>−¥1.178346</b></div>
+              <div><code>deepseek-v4-flash</code><span>28,046 tokens · 缓存 21,483</span><b>−¥0.034544</b></div>
+            </div>
+            <h3>每一笔都算得清</h3>
+            <p>按请求实时结算，流水精确到 6 位小数，缓存命中与折扣单独列出，可导出对账。</p>
+          </article>
+          <article className="nf-feature">
+            <div className="nf-feature-demo nf-demo-quota">
+              <div><span>研发团队</span><em><i style={{ width: "62%" }} /></em><b>¥620 / ¥1,000</b></div>
+              <div><span>CI 测试</span><em><i style={{ width: "18%" }} /></em><b>¥36 / ¥200</b></div>
+              <div><span>外包同学</span><em><i style={{ width: "91%" }} className="is-high" /></em><b>¥455 / ¥500</b></div>
+            </div>
+            <h3>子账号与额度</h3>
+            <p>给团队成员和项目分发子账号，按月或累计设消费上限，限定可用模型，钱只在主账号。</p>
+          </article>
+          <article className="nf-feature">
+            <div className="nf-feature-demo nf-demo-log">
+              <div><span className="is-ok">200</span><code>req_9c4f…e31a</code><span>首字 312ms</span></div>
+              <div><span className="is-ok">200</span><code>req_7b10…a9d2</code><span>首字 288ms</span></div>
+              <div><span className="is-err">429</span><code>req_5e2c…04bf</code><span>限流，已重试</span></div>
+            </div>
+            <h3>每次请求可追溯</h3>
+            <p>按 Request ID 查请求与响应，首字延迟、吞吐和错误码一目了然，排查问题不用找上游。</p>
+          </article>
+          <article className="nf-feature">
+            <div className="nf-feature-demo nf-demo-proto">
+              <div><b>POST</b><code>/v1/chat/completions</code></div>
+              <div><b>POST</b><code>/v1/messages</code></div>
+              <div><b>POST</b><code>/v1/responses</code></div>
+            </div>
+            <h3>三种协议同一个 Key</h3>
+            <p>OpenAI、Anthropic、Responses 三套接口并行可用，图像和视频走统一的异步任务接口。</p>
+          </article>
         </div>
       </section>
 
-      <section className="nf-workflow">
+      <section className="nf-final" data-reveal>
         <div>
-          <span className="nf-eyebrow">Developer workflow</span>
-          <h2>Give the question a path to follow</h2>
+          <h2>5 分钟，完成第一次调用。</h2>
+          <p>注册后创建 Key，复制示例代码就能跑。不用订阅，不设最低充值。</p>
         </div>
-        <ol>
-          {workflow.map((item) => <li key={item}>{item}</li>)}
-        </ol>
-      </section>
-
-      <section className="nf-final">
-        <div>
-          <h2 className="nf-final-slogan">
-            <span>Not all answers are equal.</span>
-            <span>Choose the route before the reply.</span>
-          </h2>
-          <p>Validate in Playground, then ship through the same model names, keys and billing path in production.</p>
+        <div className="nf-final-actions">
+          <Link href={user ? "/keys" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">{user ? "创建 API Key" : "免费注册"}</Link>
+          <Link href="/status" className="nf-final-status"><i />服务状态</Link>
         </div>
-        <Link href={user ? "/keys" : "/login?tab=register"} className="nf-btn nf-btn-primary nf-btn-lg">
-          {user ? "Create API key" : "Start building"}
-        </Link>
       </section>
     </main>
     <Footer />

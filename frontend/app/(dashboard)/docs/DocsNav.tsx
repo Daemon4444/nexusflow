@@ -118,127 +118,42 @@ const helpLinks = [
   { href: "/docs/faq", label: "常见问题" },
 ];
 
-/* ── 箭头 SVG ── */
-function ChevronIcon({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{
-        transition: "transform 0.2s",
-        transform: open ? "rotate(90deg)" : "rotate(0deg)",
-      }}
-    >
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
-
 /* ── 单个模型方折叠项 ── */
-function ProviderSection({
-  provider,
-  pathname,
-  fullUrl,
-}: {
-  provider: ProviderItem;
-  pathname: string;
-  fullUrl: string;
-}) {
-  const isAnyChildActive = provider.children.some(
-    (c) => fullUrl === c.href || pathname === c.href.split("?")[0]
-  );
+function ProviderSection({ provider, fullUrl, pathname, filter }: { provider: ProviderItem; fullUrl: string; pathname: string; filter: string }) {
+  const isAnyChildActive = provider.children.some((c) => fullUrl === c.href || pathname === c.href.split("?")[0]);
   const [open, setOpen] = useState(isAnyChildActive);
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isAnyChildActive) setOpen(true);
   }, [isAnyChildActive]);
 
-  // 只有一个子项时直接作为链接
+  const children = filter ? provider.children.filter((c) => matches(`${provider.label} ${c.label}`, filter)) : provider.children;
+  if (filter && children.length === 0 && !matches(provider.label, filter)) return null;
+  const expanded = open || Boolean(filter);
+
   if (provider.children.length === 1) {
     const child = provider.children[0];
-    const isActive = fullUrl === child.href;
-    return (
-      <Link
-        href={child.href}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "8px 12px",
-          fontSize: 13,
-          color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
-          fontWeight: isActive ? 600 : 400,
-          textDecoration: "none",
-          borderRadius: 6,
-          background: isActive ? "var(--bg-elevated)" : "transparent",
-          transition: "all 0.15s",
-        }}
-      >
-        {provider.label}
-      </Link>
-    );
+    return <Link href={child.href} className={`dn-link${fullUrl === child.href ? " is-active" : ""}`}>{provider.label}</Link>;
   }
-
   return (
-    <div>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          padding: "8px 12px",
-          fontSize: 13,
-          fontWeight: isAnyChildActive ? 600 : 400,
-          color: isAnyChildActive ? "var(--text-primary)" : "var(--text-secondary)",
-          background: "transparent",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          textAlign: "left",
-          transition: "all 0.15s",
-        }}
-      >
+    <div className={`dn-group${isAnyChildActive ? " has-active" : ""}`}>
+      <button className="dn-link dn-toggle" aria-expanded={expanded} onClick={() => setOpen(!open)}>
         {provider.label}
-        <ChevronIcon open={open} />
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><polyline points="9 6 15 12 9 18" /></svg>
       </button>
-      {open && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 1, paddingLeft: 16, marginTop: 2 }}>
-          {provider.children.map((child) => {
-            const isActive = fullUrl === child.href;
-            return (
-              <Link
-                key={child.href}
-                href={child.href}
-                style={{
-                  display: "block",
-                  padding: "6px 12px",
-                  fontSize: 12,
-                  color: isActive ? "var(--text-primary)" : "var(--text-tertiary)",
-                  fontWeight: isActive ? 600 : 400,
-                  textDecoration: "none",
-                  borderRadius: 4,
-                  borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
-                  background: isActive ? "var(--bg-elevated)" : "transparent",
-                  transition: "all 0.15s",
-                }}
-              >
-                {child.label}
-              </Link>
-            );
-          })}
+      {expanded && (
+        <div className="dn-children">
+          {(children.length ? children : provider.children).map((child) => (
+            <Link key={child.href} href={child.href} className={`dn-sublink${fullUrl === child.href ? " is-active" : ""}`}>{child.label}</Link>
+          ))}
         </div>
       )}
     </div>
   );
+}
+
+function matches(text: string, filter: string) {
+  return text.toLowerCase().includes(filter.trim().toLowerCase());
 }
 
 /* ── 内部导航组件（需要 useSearchParams） ── */
@@ -246,228 +161,50 @@ function DocsNav() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const fullUrl = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : "");
+  const [filter, setFilter] = useState("");
+
+  const links = (items: { href: string; label: string }[], sub = false) => items
+    .filter((item) => !filter || matches(item.label, filter))
+    .map((item) => (
+      <Link key={item.href} href={item.href} className={`${sub ? "dn-sublink" : "dn-link"}${pathname === item.href ? " is-active" : ""}`}>{item.label}</Link>
+    ));
+
+  const section = (title: string, body: React.ReactNode) => (
+    <section className="dn-section">
+      <h4>{title}</h4>
+      {body}
+    </section>
+  );
 
   return (
-    <>
-      {/* 顶部快速入口 */}
-      <div style={{ padding: "20px 16px 12px" }}>
-        <Link href="/docs" style={{ textDecoration: "none" }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", letterSpacing: "-0.3px" }}>
-            API 文档
-          </div>
-        </Link>
-        <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 4 }}>
-          nexusflow Documentation
-        </div>
+    <div className="dn">
+      <div className="dn-head">
+        <Link href="/docs" className="dn-title">文档</Link>
+        <label className="dn-filter">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="筛选目录" aria-label="筛选文档目录" />
+        </label>
       </div>
-
-      <nav style={{ padding: "0 10px 24px" }}>
-        {/* 开始 */}
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            开始
-          </div>
-          {[
-            { href: "/docs", label: "概览" },
-            { href: "/docs/quickstart", label: "快速开始" },
-          ].map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: "block",
-                  padding: "8px 12px",
-                  fontSize: 13,
-                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
-                  fontWeight: isActive ? 600 : 400,
-                  textDecoration: "none",
-                  borderRadius: 6,
-                  background: isActive ? "var(--bg-elevated)" : "transparent",
-                  transition: "all 0.15s",
-                }}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* API 参考 */}
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            API 参考
-          </div>
-          <div style={{ padding: "6px 10px 4px", fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", marginTop: 4 }}>
-            协议
-          </div>
-          {apiProtocolLinks.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: "block",
-                  padding: "6px 12px 6px 20px",
-                  fontSize: 13,
-                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
-                  fontWeight: isActive ? 600 : 400,
-                  textDecoration: "none",
-                  borderRadius: 6,
-                  borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
-                  background: isActive ? "var(--bg-elevated)" : "transparent",
-                  transition: "all 0.15s",
-                }}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-          <div style={{ padding: "10px 10px 4px", fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)" }}>
-            通用
-          </div>
-          {apiOtherLinks.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: "block",
-                  padding: "6px 12px 6px 20px",
-                  fontSize: 13,
-                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
-                  fontWeight: isActive ? 600 : 400,
-                  textDecoration: "none",
-                  borderRadius: 6,
-                  borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
-                  background: isActive ? "var(--bg-elevated)" : "transparent",
-                  transition: "all 0.15s",
-                }}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* 模型 */}
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            模型
-          </div>
-          <Link
-            href="/docs/models"
-            style={{
-              display: "block",
-              padding: "8px 12px",
-              fontSize: 13,
-              color: pathname === "/docs/models" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontWeight: pathname === "/docs/models" ? 600 : 400,
-              textDecoration: "none",
-              borderRadius: 6,
-              background: pathname === "/docs/models" ? "var(--bg-elevated)" : "transparent",
-              transition: "all 0.15s",
-            }}
-          >
-            选型指南
-          </Link>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {providers.map((p) => (
-              <ProviderSection key={p.key} provider={p} pathname={pathname} fullUrl={fullUrl} />
-            ))}
-          </div>
-        </div>
-
-        {/* 平台能力 */}
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            平台能力
-          </div>
-          {platformLinks.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "8px 12px",
-                  fontSize: 13,
-                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
-                  fontWeight: isActive ? 600 : 400,
-                  textDecoration: "none",
-                  borderRadius: 6,
-                  background: isActive ? "var(--bg-elevated)" : "transparent",
-                  transition: "all 0.15s",
-                }}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* 帮助 */}
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ padding: "8px 10px 6px", fontSize: 11, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
-            帮助
-          </div>
-          {helpLinks.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: "block",
-                  padding: "8px 12px",
-                  fontSize: 13,
-                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
-                  fontWeight: isActive ? 600 : 400,
-                  textDecoration: "none",
-                  borderRadius: 6,
-                  background: isActive ? "var(--bg-elevated)" : "transparent",
-                  transition: "all 0.15s",
-                }}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
+      <nav className="dn-nav" aria-label="文档目录">
+        {section("开始", links([{ href: "/docs", label: "概览" }, { href: "/docs/quickstart", label: "快速开始" }]))}
+        {section("API 参考", (
+          <>
+            <div className="dn-caption">协议</div>
+            {links(apiProtocolLinks)}
+            <div className="dn-caption">通用</div>
+            {links(apiOtherLinks)}
+          </>
+        ))}
+        {section("模型", (
+          <>
+            {links([{ href: "/docs/models", label: "选型指南" }])}
+            {providers.map((p) => <ProviderSection key={p.key} provider={p} fullUrl={fullUrl} pathname={pathname} filter={filter} />)}
+          </>
+        ))}
+        {section("平台", links(platformLinks))}
+        {section("帮助", links(helpLinks))}
       </nav>
-
-      {/* Playground 链接 */}
-      <div style={{ padding: "16px", borderTop: "1px solid var(--border)" }}>
-        <Link
-          href="/playground"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "10px 14px",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "var(--accent)",
-            background: "var(--accent-bg)",
-            border: "1px solid var(--accent-border)",
-            borderRadius: 8,
-            textDecoration: "none",
-            transition: "all 0.15s",
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="5 3 19 12 5 21 5 3"/>
-          </svg>
-          打开 Playground
-        </Link>
-      </div>
-    </>
+    </div>
   );
 }
 

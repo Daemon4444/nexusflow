@@ -29,7 +29,6 @@ const routes = [
   "/tickets",
   "/activity",
   "/monitor",
-  "/playground",
   "/models/qwen3.6-plus",
 ];
 
