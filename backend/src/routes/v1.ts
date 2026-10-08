@@ -588,7 +588,7 @@ router.post("/images/generations", async (req: Request, res: Response) => {
       status: "error",
       latencyMs: Date.now() - startTime,
       reservationId: imageReservation.id,
-      errorCode: "upstream_error",
+      errorCode: ctx.failureErrorCode(),
       errorReason: String(err?.message || err),
     });
 
@@ -1337,7 +1337,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       latencyMs: Date.now() - startTime,
       clientIp,
       errorReason: String(err?.message || err),
-      errorCode: "upstream_error",
+      errorCode: ctx.failureErrorCode(),
       reservationId: chatReservation.id,
       requestBody: req.body,
       responseBody: { error: { message: String(err?.message || err) } },
@@ -1575,7 +1575,7 @@ router.post("/embeddings", async (req: Request, res: Response) => {
       status: "error",
       latencyMs: Date.now() - startTime,
       reservationId: embeddingReservation.id,
-      errorCode: "upstream_error",
+      errorCode: ctx.failureErrorCode(),
       errorReason: String(err?.message || err),
     });
 

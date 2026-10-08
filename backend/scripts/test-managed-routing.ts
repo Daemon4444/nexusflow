@@ -257,6 +257,9 @@ async function main(): Promise<void> {
   assert.equal(classifyHealthOutcome({ status: "error", errorReason: "upstream_http_403" }), "failure");
   assert.equal(classifyHealthOutcome({ status: "error", errorCode: "upstream_http_503" }), "failure");
   assert.equal(classifyHealthOutcome({ status: "error", errorCode: "upstream_timeout" }), "failure");
+  assert.equal(classifyHealthOutcome({ status: "error", errorCode: "client_closed", errorReason: "client_closed" }), "ignore");
+  assert.equal(classifyHealthOutcome({ status: "error", errorCode: "upstream_error", errorReason: "client_closed" }), "ignore");
+  assert.equal(classifyHealthOutcome({ status: "error", errorCode: "upstream_error", errorReason: "fetch failed" }), "failure");
   assert.equal(classifyHealthOutcome({ status: "error", errorCode: "upstream_task_failed", errorReason: "User has been banned" }), "failure");
 
   await ensureProvider({

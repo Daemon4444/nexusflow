@@ -58,7 +58,9 @@ type UpstreamReply =
   | { status: number; json: unknown; headers?: Record<string, string> }
   | { status: number; sse: string[]; headers?: Record<string, string> }
   | { status: number; text: string; headers?: Record<string, string> }
-  | { throw: "timeout" | "network" };
+  | { throw: "timeout" | "network" }
+  // Never answers; fails only when the request's abort signal fires.
+  | { hang: true };
 
 interface RecordedCall {
   method: string;
@@ -109,6 +111,13 @@ setOutboundTestTransport(async (url, init) => {
   const reply = upstreamQueue.shift();
   if (!reply) {
     return new Response(JSON.stringify({ error: { message: "no fake upstream reply queued" } }), { status: 599 });
+  }
+  if ("hang" in reply) {
+    const signal = init.signal;
+    return new Promise<Response>((_, reject) => {
+      if (signal?.aborted) reject(signal.reason);
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
   }
   if ("throw" in reply) {
     if (reply.throw === "timeout") throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
@@ -227,6 +236,8 @@ interface ClientRequest {
   headers?: Record<string, string>;
   body?: unknown;
   rawBody?: Buffer;
+  /** Client gives up (like an SDK timeout) after this many ms without a response. */
+  abortAfterMs?: number;
 }
 
 async function send(request: ClientRequest) {
@@ -262,7 +273,14 @@ async function send(request: ClientRequest) {
         resolve({ status: res.statusCode || 0, headers: kept, body });
       });
     });
-    req.on("error", reject);
+    req.on("error", (error: NodeJS.ErrnoException) => {
+      if (request.abortAfterMs !== undefined && error.code === "ECONNRESET") {
+        resolve({ status: 0, headers: {}, body: "<client aborted>" });
+      } else {
+        reject(error);
+      }
+    });
+    if (request.abortAfterMs !== undefined) setTimeout(() => req.destroy(), request.abortAfterMs).unref();
     if (bodyBytes) req.write(bodyBytes);
     req.end();
   });
@@ -351,6 +369,11 @@ const scenarios: Scenario[] = [
   { name: "v1.chat.upstream_500", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody() }], upstream: [upstreamError(500, "internal")] },
   { name: "v1.chat.stream.upstream_500", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody({ stream: true }) }], upstream: [upstreamError(500, "internal")] },
   { name: "v1.chat.upstream_timeout", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody() }], upstream: [{ throw: "timeout" }] },
+  // The client hangs up while the upstream is still thinking (its own SDK
+  // timeout). That says nothing about the route: logged as client_closed,
+  // nothing billed, provider_health untouched.
+  { name: "v1.chat.client_closed_before_response", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody(), abortAfterMs: 150 }], upstream: [{ hang: true }] },
+  { name: "v1.chat.network_error", requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody() }], upstream: [{ throw: "network" }] },
   { name: "v1.chat.insufficient_balance", caller: { balance: 0 }, requests: (ctx) => [{ path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody() }], upstream: [] },
   { name: "v1.chat.qpm_exceeded", caller: { qpm: 1 }, requests: (ctx) => [
     { path: "/v1/chat/completions", headers: bearer(ctx), body: chatBody() },
@@ -376,6 +399,8 @@ const scenarios: Scenario[] = [
   { name: "messages.passthrough.upstream_400", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT) }], upstream: [{ status: 400, json: { type: "error", error: { type: "invalid_request_error", message: "bad" } } }] },
   { name: "messages.passthrough.upstream_500", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT) }], upstream: [{ status: 500, json: { type: "error", error: { type: "api_error", message: "internal" } } }] },
   // Anthropic streams that stop before message_stop: client gets an error event, not a silent cut.
+  { name: "messages.passthrough.client_closed_before_response", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT), abortAfterMs: 150 }], upstream: [{ hang: true }] },
+  { name: "messages.bridge.client_closed_before_response", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(BRIDGE_MODEL), abortAfterMs: 150 }], upstream: [{ hang: true }] },
   { name: "messages.passthrough.stream.truncated_no_output", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT, { stream: true }) }], upstream: [{ status: 200, sse: anthropicSse(CHAT).slice(0, 2) }] },
   { name: "messages.passthrough.stream.truncated_with_output", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(CHAT, { stream: true }) }], upstream: [{ status: 200, sse: anthropicSse(CHAT).slice(0, 3) }] },
   { name: "messages.bridge.stream.truncated", requests: (ctx) => [{ path: "/v1/messages", headers: { "x-api-key": ctx.caller.apiKey }, body: messagesBody(BRIDGE_MODEL, { stream: true }) }], upstream: [{ status: 200, sse: chatSse(BRIDGE_MODEL).slice(0, 1) }] },
@@ -402,6 +427,7 @@ const scenarios: Scenario[] = [
     `event: response.incomplete\ndata: ${JSON.stringify({ type: "response.incomplete", response: { ...responsesBody(RESPONSES_MODEL), status: "incomplete", incomplete_details: { reason: "max_output_tokens" } } })}\n\n`,
   ] }] },
   { name: "responses.timeout", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi" } }], upstream: [{ throw: "timeout" }] },
+  { name: "responses.client_closed_before_response", requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi" }, abortAfterMs: 150 }], upstream: [{ hang: true }] },
   { name: "responses.insufficient_balance", caller: { balance: 0 }, requests: (ctx) => [{ path: "/v1/responses", headers: bearer(ctx), body: { model: RESPONSES_MODEL, input: "hi" } }], upstream: [] },
   // ---- /api/image
   { name: "image.generate.success", requests: (ctx) => [{ path: "/api/image/generate", headers: bearer(ctx), body: { model: "wan2.7-image", prompt: "a cat", size: "1024*1024" } }], upstream: [{ status: 200, json: { request_id: "up-req", output: { task_id: "up-task-1", task_status: "PENDING" } } }] },

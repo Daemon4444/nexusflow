@@ -63,6 +63,12 @@ function fakeContext(options: { socketDestroyed?: boolean; reqDestroyed?: boolea
   assert.equal(ctx.clientClosed, true);
   assert.equal((signal.reason as Error).message, "client_closed");
   assert.equal(ctx.clientSignal(), signal, "one signal per request");
+  assert.equal(ctx.failureErrorCode(), "client_closed", "an exception after a disconnect is not an upstream fault");
+}
+{
+  const { ctx } = fakeContext();
+  ctx.clientSignal();
+  assert.equal(ctx.failureErrorCode(), "upstream_error");
 }
 {
   const { ctx, res } = fakeContext();
