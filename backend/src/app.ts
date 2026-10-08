@@ -16,7 +16,6 @@ import pixverseRouter from "./routes/pixverse";
 import imageRouter from "./routes/image";
 import videoRouter from "./routes/video";
 import uploadRouter from "./routes/upload";
-import playgroundRouter from "./routes/playground";
 import authRouter from "./routes/auth";
 import billingRouter from "./routes/billing";
 import discountsRouter from "./routes/discounts";
@@ -110,7 +109,6 @@ export function createApp(): express.Express {
   app.use("/api/usage", usageRouter);
   app.use("/api/image", imageRouter);
   app.use("/api/video", videoRouter);
-  app.use("/api/playground", playgroundRouter);
   app.use("/api/upload", uploadRouter);
   app.use("/api/uploads", uploadRouter);
   app.use("/api/rate-limits", rateLimitsRouter);

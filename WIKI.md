@@ -160,7 +160,7 @@ API Key 鉴权
   → 归还 TPM 预占与 Provider 并发
 ```
 
-9 个推理入口（`v1`、`messages`、`responses`、`image`、`video`、`audio`、`tasks`、`playground`、`upload`）
+8 个推理入口（`v1`、`messages`、`responses`、`image`、`video`、`audio`、`tasks`、`upload`；`/api/playground` 已于 2026-10 删除，黄金测试断言其返回 404）
 共用 `backend/src/pipeline/` 的阶段：`authenticate → resolveModel → checkModelAccess → reserveUserQuota →
 selectRoute → reserveProviderCapacity → reserveBilling → invokeUpstream → settle → logUsage → release`（`release`
 在 `finally` 中执行，负责释放未结算预占、归还 TPM 和 Provider 租约）。各入口仍按原有顺序调用阶段、按原有协议格式
@@ -187,7 +187,7 @@ selectRoute → reserveProviderCapacity → reserveBilling → invokeUpstream �
 - OpenAI 风格图片：`POST /v1/images/generations`
 - 视频别名：`POST /v1/videos/generations`
 - 通用异步任务：`POST /v1/tasks`，再轮询 `GET /v1/tasks/:id`
-- 会话内部路由：`/api/image`、`/api/video`、`/api/playground`（网页 Playground 已于 2026-10 下线，`/api/playground` 暂留、前端不再调用）
+- 会话内部路由：`/api/image`、`/api/video`（网页 Playground 与 `/api/playground` 已于 2026-10 一并删除）
 - 音频：`/v1/audio/*`
 - 上传：`/api/upload`；需 session 或 API Key
 
@@ -583,7 +583,7 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
   中文说明维护在 `config/release-notes.json`（按完整提交号索引：类型、影响范围、标题、要点），随发布包上线；
   **合并面向生产的提交前在这里补一条**，没有条目的提交在发布中心按英文提交信息拆成要点显示。
 
-前端已有浅/深主题、中文优先的控制台文案和部分 i18n。控制台页面统一用 `frontend/components/ConsoleUI.tsx`（PageHeader / KpiBand / Panel / Tag / formatConsoleTime）和 `frontend/app/console.css` 的 `nfc-*` 样式（定价页为 `nfp-*`）；新页面不要再写整页内联样式或彩色描边卡片，颜色只用于表达状态。`/playground` 永久重定向到 `/docs/quickstart`。不要在没有产品决策时把公开营销页整页改成单一语言。模型详情使用 catch-all 路由承接含斜杠的模型 ID。
+前端已有浅/深主题、中文优先的控制台文案和部分 i18n。控制台页面统一用 `frontend/components/ConsoleUI.tsx`（PageHeader / KpiBand / Panel / Tag / formatConsoleTime）和 `frontend/app/console.css` 的 `nfc-*` 样式；定价页 `pricing/pricing.css`（`pr-*`）、文档 `docs/docs.css`（`dn-*`/`dh-*`）、首页 `app/home.css` 各自独立。视觉约定：一套无衬线字体（Inter + 苹方），数字用 tabular-nums 而非等宽或衬线字体，层级靠字号与留白，只用细分隔线，不加装饰元素；颜色只用于表达状态。`/playground` 永久重定向到 `/docs/quickstart`。2026-10 产品决定公开首页以中文为主。模型详情使用 catch-all 路由承接含斜杠的模型 ID。
 
 当前主推模型和推荐顺序会随运营调整，不能从历史对话推断。以 `frontend/app/page.tsx`、`frontend/lib/models.ts` 和线上页面为准。
 

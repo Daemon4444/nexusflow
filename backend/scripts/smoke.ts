@@ -605,29 +605,6 @@ async function smokeVideoTask(model: AIModel, body: Record<string, unknown>): Pr
   };
 }
 
-async function smokePlaygroundChat(model: AIModel): Promise<Omit<SmokeResult, "name" | "durationMs">> {
-  const result = await requestJson("/api/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: model.id,
-      messages: [{ role: "user", content: "Reply with the exact text OK." }],
-      max_tokens: 16,
-    }),
-  });
-
-  if (!result.ok || !result.json?.success) {
-    throw new Error(`status=${result.status} body=${truncate(result.text)}`);
-  }
-
-  return {
-    status: "passed",
-    route: "/api/chat/completions",
-    model: model.id,
-    detail: "playground chat ok",
-  };
-}
-
 async function smokePlaygroundImage(model: AIModel): Promise<Omit<SmokeResult, "name" | "durationMs">> {
   const result = await requestJson("/api/image/generate", {
     method: "POST",
@@ -823,7 +800,6 @@ async function main(): Promise<void> {
         size: "1280*720",
       })));
 
-    results.push(await runTest(`playground-chat-${firstChat.id}`, () => smokePlaygroundChat(firstChat)));
     results.push(await runTest(`playground-image-${firstImage.id}`, () => smokePlaygroundImage(firstImage)));
     results.push(await runTest(`playground-video-${t2vModel.id}`, () => smokePlaygroundVideo(t2vModel)));
   }

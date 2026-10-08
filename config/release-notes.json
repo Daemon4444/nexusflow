@@ -1,6 +1,15 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:chore: remove the retired /api/playground route": {
+      "type": "improve",
+      "audience": "internal",
+      "title": "删除已下线网页 Playground 的后端接口",
+      "points": [
+        "/api/playground 随网页 Playground 一并删除，减少一个按会话扣费的入口；黄金测试断言该路径返回 404",
+        "/api/image、/api/video 等公开接口不受影响"
+      ]
+    },
     "subject:fix: client disconnects no longer count as upstream faults": {
       "type": "fix",
       "audience": "internal",
