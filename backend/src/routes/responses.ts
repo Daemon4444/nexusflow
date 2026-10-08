@@ -563,7 +563,7 @@ router.post("/", async (req: Request, res: Response) => {
       status: "error",
       latencyMs: Date.now() - startTime,
       reservationId: billingReservation.id,
-      errorCode: "upstream_error",
+      errorCode: ctx.failureErrorCode(),
       errorReason: String(err?.message || err),
       requestBody: req.body,
       responseBody: { error: { message: String(err?.message || err) } },

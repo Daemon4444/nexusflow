@@ -1,6 +1,17 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:fix: client disconnects no longer count as upstream faults": {
+      "type": "fix",
+      "audience": "internal",
+      "title": "客户端主动断开不再记为上游故障、不再计入熔断",
+      "points": [
+        "非流式请求在上游返回前被客户端断开（如客户 SDK 60 秒超时）时，错误码由 upstream_error 改为 client_closed，与流式一致",
+        "client_closed 不再计入路由熔断：此前同一客户连续断开 10 次就会把该模型隔离 60 秒、影响所有客户（10-08 deepseek-v4-pro-0813 已因此累计 3 次）",
+        "真实的上游网络故障、超时、5xx/429 仍照常计入熔断；计费不变（断开前无产出仍为 0）",
+        "端到端回归新增 5 个场景：chat / messages 直通 / messages 转换 / responses 的客户端断开，以及网络故障对照"
+      ]
+    },
     "subject:feat: redesign landing, pricing, docs and console; retire web Playground": {
       "type": "feature",
       "audience": "customer",

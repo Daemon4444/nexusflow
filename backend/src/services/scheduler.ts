@@ -141,8 +141,9 @@ export type HealthOutcome = "success" | "failure" | "ignore";
 /**
  * Only provider-side faults may trip the circuit. Caller mistakes (upstream
  * 400/404/413/422...) say nothing about route health and must neither open
- * the circuit nor reset its failure streak. Auth (401/403), timeouts (408)
- * and rate limiting (429) are treated as route faults.
+ * the circuit nor reset its failure streak, and neither do client
+ * disconnects. Auth (401/403), timeouts (408) and rate limiting (429) are
+ * treated as route faults.
  */
 export function classifyHealthOutcome(params: {
   status: string;
@@ -152,6 +153,9 @@ export function classifyHealthOutcome(params: {
 }): HealthOutcome {
   if (params.status === "success" && !params.errorCode && !params.errorReason) return "success";
   if (params.errorCode === "upstream_usage_missing") return "ignore";
+  // The caller hung up (often its own timeout): the route proved nothing
+  // either way, so the streak is neither extended nor reset.
+  if (params.errorCode === "client_closed" || params.errorReason === "client_closed") return "ignore";
   let httpStatus = Number(params.httpStatus) || 0;
   if (!httpStatus) {
     const text = `${params.errorCode || ""} ${params.errorReason || ""}`;

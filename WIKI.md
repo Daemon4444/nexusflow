@@ -395,6 +395,8 @@ QPM/TPM。旧 `rate_limit` 字段在 expand/rollback 窗口内仅保留旧版本
   否则给客户补发错误事件、`usage_logs` 记 `error` 并带错误码；**中断且客户没收到任何内容（role / created /
   message_start 不算内容）一律不收费**，有内容时才按已输出部分估算（`hasStreamedOutput`）。客户端中途断开会
   中止上游请求（`InferenceContext.clientSignal`，错误码 `client_closed`），只按已送达的部分计费；
+  非流式/尚未出流时断开走 catch 分支，同样记 `client_closed`（`ctx.failureErrorCode()`）。`client_closed`
+  **不计入熔断**（`classifyHealthOutcome` 返回 ignore），避免客户自身超时把路由隔离给所有人；
 - OpenAI 兼容流必须验证正常终止：上游已有 `finish_reason` 但省略 `[DONE]` 时由代理补齐；
   在完成信号前断流或收到 SSE error 时必须记录为 `error` 并保留稳定错误码，不能因为
   HTTP 头已经发送就把中断调用写成 `success`；

@@ -56,6 +56,15 @@ export class InferenceContext {
   clientClosed = false;
   private clientAbort: AbortController | null = null;
 
+  /**
+   * error_code for a request that ended in an exception. A client disconnect
+   * aborts the upstream call too, so the exception is ours, not the
+   * provider's: record it as client_closed so it never counts as a route fault.
+   */
+  failureErrorCode(): "client_closed" | "upstream_error" {
+    return this.clientClosed ? "client_closed" : "upstream_error";
+  }
+
   constructor(
     readonly route: string,
     readonly req: Request,

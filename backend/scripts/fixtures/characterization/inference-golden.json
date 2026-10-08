@@ -6525,5 +6525,462 @@
     "user_id": "<user_id>"
    }
   ]
+ },
+ "v1.chat.client_closed_before_response": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [],
+  "reservations": [
+   {
+    "actual_amount": null,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "request_failed",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.000185,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": "<client aborted>",
+    "headers": {},
+    "status": 0
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "max_tokens": 64,
+     "messages": [
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen3.8-flash",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "client_closed",
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "openai-chat",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "error",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "messages.passthrough.client_closed_before_response": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [],
+  "reservations": [
+   {
+    "actual_amount": null,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "request_failed",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.000185,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": "<client aborted>",
+    "headers": {},
+    "status": 0
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "max_tokens": 64,
+     "messages": [
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen3.8-flash"
+    },
+    "headers": {
+     "anthropic-version": "2023-06-01",
+     "content-type": "application/json",
+     "x-api-key": "<secret:cffaa902>"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/apps/anthropic/v1/messages"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "client_closed",
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "anthropic-messages",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "error",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "messages.bridge.client_closed_before_response": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [],
+  "reservations": [
+   {
+    "actual_amount": null,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "request_failed",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.001138,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": "<client aborted>",
+    "headers": {},
+    "status": 0
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "max_tokens": 64,
+     "messages": [
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "MiniMax/MiniMax-M3"
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "client_closed",
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "MiniMax/MiniMax-M3",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "anthropic-messages",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "error",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "responses.client_closed_before_response": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [],
+  "reservations": [
+   {
+    "actual_amount": null,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "request_failed",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.044238,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": "<client aborted>",
+    "headers": {},
+    "status": 0
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "input": "hi",
+     "model": "qwen3.8-flash"
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/responses"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "client_closed",
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "openai-responses",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "error",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
+ },
+ "v1.chat.network_error": {
+  "asyncTasks": [],
+  "balanceDelta": 0,
+  "providerHealth": [
+   {
+    "consecutive_failures": 1,
+    "model_id": "qwen3.8-flash",
+    "provider_id": "dashscope",
+    "status": "degraded"
+   }
+  ],
+  "reservations": [
+   {
+    "actual_amount": null,
+    "billing_owner_id": "<billing_owner_id>",
+    "created_at": "<date>",
+    "description": "request_failed",
+    "expires_at": "<date>",
+    "id": "<id>",
+    "ref_id": "<ref_id>",
+    "reserved_amount": 0.000185,
+    "settled_at": "<date>",
+    "status": "released",
+    "user_id": "<user_id>"
+   }
+  ],
+  "responses": [
+   {
+    "body": {
+     "error": {
+      "code": "upstream_error",
+      "message": "An internal error occurred. Please try again.",
+      "type": "server_error"
+     }
+    },
+    "headers": {
+     "content-type": "application/json; charset=utf-8"
+    },
+    "status": 500
+   }
+  ],
+  "transactions": [],
+  "unusedUpstreamReplies": 0,
+  "upstreamCalls": [
+   {
+    "body": {
+     "max_tokens": 64,
+     "messages": [
+      {
+       "content": "hi",
+       "role": "user"
+      }
+     ],
+     "model": "qwen3.8-flash",
+     "stream": false
+    },
+    "headers": {
+     "authorization": "<secret:236b6cbd>",
+     "content-type": "application/json"
+    },
+    "method": "POST",
+    "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+   }
+  ],
+  "usageLogs": [
+   {
+    "api_key_id": "<api_key_id>",
+    "cache_creation_tokens": 0,
+    "cached_tokens": 0,
+    "channel_id": null,
+    "completion_tokens": 0,
+    "cost": 0,
+    "cost_version_id": null,
+    "created_at": "<date>",
+    "error_code": "upstream_error",
+    "estimated": false,
+    "http_status": null,
+    "id": "<id>",
+    "latency_ms": "<latency_ms>",
+    "log_id": "<log_id>",
+    "model": "qwen3.8-flash",
+    "node_id": null,
+    "prompt_tokens": 0,
+    "protocol": "openai-chat",
+    "provider_cache_mode": null,
+    "provider_cost": null,
+    "provider_cost_basis": null,
+    "provider_cost_resolution": "not_applicable",
+    "provider_id": "dashscope",
+    "provider_input_includes_cache": null,
+    "region": "cn-beijing",
+    "reservation_id": "<reservation_id>",
+    "retail_discount_amount": null,
+    "retail_discount_rate": null,
+    "retail_list_cost": null,
+    "status": "error",
+    "thinking_output": null,
+    "total_tokens": 0,
+    "tpot_ms": "<tpot_ms>",
+    "transaction_id": null,
+    "ttft_ms": "<ttft_ms>",
+    "user_id": "<user_id>"
+   }
+  ]
  }
 }
