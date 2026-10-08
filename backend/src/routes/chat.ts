@@ -17,7 +17,7 @@ async function hasValidCredential(req: Request): Promise<boolean> {
 }
 
 // Legacy endpoint kept only to return an explicit deprecation response.
-// Use /v1/chat/completions for API-key calls, or /api/playground/chat/completions for session playground calls.
+// Use /v1/chat/completions for API-key calls.
 router.post("/completions", async (req: Request, res: Response) => {
   if (!(await hasValidCredential(req))) {
     res.status(401).json({
@@ -30,7 +30,7 @@ router.post("/completions", async (req: Request, res: Response) => {
 
   res.status(410).json({
     success: false,
-    message: "该旧接口已停用。API 调用请使用 /v1/chat/completions，Playground 请使用 /api/playground/chat/completions。",
+    message: "该旧接口已停用。API 调用请使用 /v1/chat/completions。",
     code: "legacy_endpoint_disabled",
   });
 });

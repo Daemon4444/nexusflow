@@ -1,7 +1,7 @@
 /**
  * P2 characterization ("golden master") tests for the nine inference entry
  * routes: v1 (chat/embeddings), messages, responses, image, video, audio,
- * tasks, playground and upload.
+ * tasks and upload (the playground route is asserted to stay removed).
  *
  * Each scenario runs against the real Express application (createApp) with
  * pg-mem, a private Redis (see the -isolated wrapper) and a fake upstream
@@ -460,11 +460,8 @@ const scenarios: Scenario[] = [
     { status: 200, json: { request_id: "up-poll", output: { task_id: "up-task-3", task_status: "SUCCEEDED", video_url: "https://dashscope-result.oss-cn-beijing.aliyuncs.com/t.mp4" }, usage: { duration: 5, video_count: 1 } } },
   ] },
   { name: "tasks.list.success", requests: (ctx) => [{ method: "GET", path: "/v1/tasks", headers: bearer(ctx) }], upstream: [] },
-  // ---- /api/playground
-  { name: "playground.non_stream.success", requests: (ctx) => [{ path: "/api/playground/chat/completions", headers: { authorization: `Bearer ${ctx.caller.sessionToken}` }, body: chatBody() }], upstream: [{ status: 200, json: chatCompletion(CHAT) }] },
-  { name: "playground.stream.success", requests: (ctx) => [{ path: "/api/playground/chat/completions", headers: { authorization: `Bearer ${ctx.caller.sessionToken}` }, body: chatBody({ stream: true }) }], upstream: [{ status: 200, sse: chatSse(CHAT) }] },
-  { name: "playground.upstream_500", requests: (ctx) => [{ path: "/api/playground/chat/completions", headers: { authorization: `Bearer ${ctx.caller.sessionToken}` }, body: chatBody() }], upstream: [upstreamError(500, "internal")] },
-  { name: "playground.no_session", requests: () => [{ path: "/api/playground/chat/completions", headers: {}, body: chatBody() }], upstream: [] },
+  // ---- /api/playground (retired with the web Playground; must stay gone)
+  { name: "playground.removed", requests: (ctx) => [{ path: "/api/playground/chat/completions", headers: { authorization: `Bearer ${ctx.caller.sessionToken}` }, body: chatBody() }], upstream: [] },
   // ---- /api/upload
   { name: "upload.unauthenticated", requests: () => [{ path: "/api/upload", headers: {}, body: {} }], upstream: [] },
 ];
