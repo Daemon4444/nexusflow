@@ -30,12 +30,12 @@
   "overrides": {
     "body-parser": "2.3.0",
     "postcss": "8.5.28",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "urllib": "4.9.1",
     "next": {
       ".": "16.3.8",
       "postcss": "8.5.28",
-      "sharp": "0.35.4"
+      "sharp": "0.35.5"
     },
     "@alicloud/log@1.2.6": {
       "protobufjs": "8.7.1"
