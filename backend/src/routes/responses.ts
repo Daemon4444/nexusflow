@@ -8,6 +8,7 @@
  * - GET /v1/responses/:id/input_items - List input items
  */
 
+import { beginPayloadCapture } from "../services/payload-capture";
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
 import { getReservedOutputTokens } from "../data/models";
@@ -222,6 +223,7 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   }
   const apiKeyRecord = ctx.requireCaller().apiKey!;
+  beginPayloadCapture(ctx);
 
   const modelId = resolveModelFromBody(req.body);
   if (!modelId) {

@@ -7,6 +7,7 @@
  * (native Anthropic API, or DashScope /apps/anthropic/v1/messages).
  */
 
+import { beginPayloadCapture } from "../services/payload-capture";
 import { protocolMode } from "../config/feature-flags";
 import { Router, Request, Response } from "express";
 import {
@@ -210,6 +211,7 @@ router.post("/", async (req: Request, res: Response) => {
     });
     return;
   }
+  beginPayloadCapture(ctx);
 
   const { model: modelId, messages, stream, max_tokens, temperature, top_p, system, stop_sequences, tools } = req.body;
   // Anthropic 的显式缓存靠 messages/system 里的 cache_control 开启。
@@ -554,6 +556,7 @@ router.post("/", async (req: Request, res: Response) => {
         const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
 
         await logUsage({
+          logId,
           region: upstream.region,
           providerId: upstream.providerId,
           channelId: upstream.channelId,
@@ -638,6 +641,7 @@ router.post("/", async (req: Request, res: Response) => {
       const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false, explicitCache, thinkingOutput: hasThinkingOutput(data) });
       const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
       await logUsage({
+        logId,
         region: upstream.region,
         providerId: upstream.providerId,
         channelId: upstream.channelId,
@@ -681,6 +685,7 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     } catch (err: any) {
       await logUsage({
+        logId,
         region: upstream.region,
         providerId: upstream.providerId,
         channelId: upstream.channelId,
@@ -847,6 +852,7 @@ router.post("/", async (req: Request, res: Response) => {
       const tpotMs = (billingUsage.output_tokens || 0) > 1 ? streamDuration / (billingUsage.output_tokens - 1) : 0;
 
       await logUsage({
+        logId,
         region: upstream.region,
         providerId: upstream.providerId,
         channelId: upstream.channelId,
@@ -925,6 +931,7 @@ router.post("/", async (req: Request, res: Response) => {
     const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: true, explicitCache, thinkingOutput: hasThinkingOutput(data) });
     const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
     await logUsage({
+      logId,
       region: upstream.region,
       providerId: upstream.providerId,
       channelId: upstream.channelId,
@@ -966,6 +973,7 @@ router.post("/", async (req: Request, res: Response) => {
     return;
   } catch (err: any) {
     await logUsage({
+      logId,
       region: upstream.region,
       providerId: upstream.providerId,
       channelId: upstream.channelId,

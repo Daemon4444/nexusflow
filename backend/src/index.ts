@@ -28,6 +28,7 @@ import { controlPlaneRuntime } from "./control-plane/runtime";
 import { startQueueWorker } from "./traffic/queue";
 import { ensureRoutingDefaults } from "./services/providers";
 import { startUploadCleanupLoop } from "./services/upload-lifecycle";
+import { warmPayloadCapture } from "./services/payload-capture";
 
 let fatalExitScheduled = false;
 function scheduleFatalExit(): void {
@@ -81,6 +82,7 @@ async function start() {
     console.log(`[Quadrant API] 模型目录已加载: ${refreshed.total} 个模型 (${refreshed.overrides} 条覆盖)`);
   }
   startModelRefreshLoop();
+  await warmPayloadCapture();
   startUploadCleanupLoop();
   // Async queue (NF_TRAFFIC_MODE=enforce). Also runs in legacy/shadow, but
   // then only expires queued tasks, so a flag rollback releases their holds.

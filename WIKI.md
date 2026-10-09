@@ -495,7 +495,21 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 - `.env`、Provider Key、支付密钥不进 Git、不进日志；
 - SLS 默认只记结构化指标。只有显式设置 `SLS_LOG_FULL_CONTENT=true` 才记录脱敏和截断后的内容；
   OpenAI Chat Completions 的成功、上游 HTTP 失败和本地异常路径都必须把请求与响应交给
-  同一个脱敏器，避免开关已启用但失败日志仍只有错误摘要；
+  同一个脱敏器，避免开关已启用但失败日志仍只有错误摘要；生产已开启该开关，但每个字符串截断到
+  `SLS_CONTENT_LIMIT`（默认 16k 字符）、数组 100 项、深度 6，且日志库只保留 7 天，**不能当客户数据存档**；
+- 全文留存（数据回流）：`payload_capture_users` 控制，`user_id='*'` 行为全站开启（生产已开）；单个账号的行
+  可覆盖（`enabled=false` 排除，`archive_label` 改存档目录名，如 shaoti 为 `shaoti.chen`），判定顺序为本人行 →
+  主账号行 → `*`；存档一律归到计费主体（子账号随主账号），默认目录名为主账号 user id。覆盖
+  `/v1/chat/completions`、`/v1/messages`、`POST /v1/responses`。`backend/src/services/payload-capture.ts`
+  在鉴权后记录原始请求体与回给客户端的原始字节（含 SSE），不截断、不脱敏，按北京时间写本机
+  `NF_PAYLOAD_CAPTURE_DIR`（默认 `/var/lib/nexusflow/payload-capture/<label>/<日期>/<HH>-<节点>.jsonl`），
+  `log_id` 与 `usage_logs.log_id` 一致；写盘失败只计数、绝不影响请求。每台节点 cron 每小时跑
+  `scripts/payload-capture-upload.sh`，经 rclone crypt 远端 `nfarc:`（R2 桶 `nexusflow-archive`，口令在
+  1Password「NexusFlow R2 archive (nexusflow-archive)」，丢失即无法解密）上传
+  `<label>/capture/<日期>/<HH>-<节点>.jsonl.gz` 后删本地，迟到行另存 `-late<epoch>` 不覆盖；
+  `scripts/payload-capture-reconcile.mjs [日期]` 每日核对全站对话类 `usage_logs` 的 `log_id` 是否全部入档。
+  开关只改表（约 1 分钟生效），不发版；已产生存档的行只置 `enabled=false`，不删除。上线前的 SLS 截断版
+  （10-02~10-09）在 `_site/` 与 `shaoti.chen/sls-truncated-*`；
 - `PROVIDER_SECRET_KEY` 是否配置必须在生产变更前检查；未配置时不能假设数据库中的 Provider Key 已加密；
 - PostgreSQL/Redis 只绑定本机，3001/19999 不允许公网直连；
 - 生产 Provider 出站必须配置
@@ -520,6 +534,7 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 
 - PostgreSQL `usage_logs`：用户侧统计和结算关联数据；
 - SLS：路由、延迟、缓存、错误、断流估算等运营遥测；
+- R2 `nexusflow-archive`（rclone crypt 加密）：全站对话请求/响应全文，见第 11 节；
 - `/api/health`：进程存活；
 - `/api/version`：部署版本；
 - PM2：进程、重启、stdout/stderr；

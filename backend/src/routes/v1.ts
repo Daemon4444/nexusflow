@@ -7,6 +7,7 @@
  * - POST /v1/embeddings - Text embeddings
  */
 
+import { beginPayloadCapture } from "../services/payload-capture";
 import { controlPlaneMode, paramMode } from "../config/feature-flags";
 import { controlPlaneRuntime } from "../control-plane/runtime";
 import { displaySupportedFor, publicCapabilities } from "../control-plane/capabilities";
@@ -619,6 +620,7 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
     });
     return;
   }
+  beginPayloadCapture(ctx);
 
   const {
     model: modelId,
