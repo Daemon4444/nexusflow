@@ -1,6 +1,15 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:feat: restyle the model catalog to match pricing and docs": {
+      "type": "improve",
+      "audience": "customer",
+      "title": "模型列表页改版",
+      "points": [
+        "页头、搜索与筛选和定价页统一：等高搜索框与下拉、黑白胶囊分类",
+        "卡片精简：去掉彩色顶边和多组彩色徽章，协议改为一行文字，价格统一为黑色数字"
+      ]
+    },
     "subject:chore(deps): patch moment, multer, proxy-addr, sharp and source-map-js advisories": {
       "type": "ops",
       "audience": "internal",
