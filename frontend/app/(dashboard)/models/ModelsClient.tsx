@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { fetchAPI } from "@/lib/api";
 import Link from "next/link";
+import "./models.css";
 
 interface PricingTier {
   label: string;
@@ -39,21 +40,15 @@ export interface ModelsPageProps {
   initialError?: string;
 }
 
-const categoryColors: Record<string, string> = {
-  "大语言模型": "#2563eb", "推理模型": "#dc2626", "多模态模型": "#7c3aed",
-  "编程模型": "#0891b2", "图像生成": "#db2777", "视频生成": "#f97316",
-  "向量模型": "#0f766e", "专业模型": "#64748b", "语音模型": "#7c2d12",
-};
-
-const protocolStyles: Record<string, { label: string; tone: string }> = {
-  "openai/chat-completions": { label: "OpenAI", tone: "blue" },
-  "anthropic/messages": { label: "Anthropic", tone: "violet" },
-  "openai/responses": { label: "Responses", tone: "teal" },
-  "openai/embeddings": { label: "Embedding", tone: "teal" },
-  "openai/image-generations": { label: "Image", tone: "rose" },
-  "openai/audio-speech": { label: "TTS", tone: "orange" },
-  "openai/audio-transcriptions": { label: "ASR", tone: "orange" },
-  "nexusflow/tasks": { label: "Tasks", tone: "slate" },
+const protocolLabels: Record<string, string> = {
+  "openai/chat-completions": "OpenAI",
+  "anthropic/messages": "Anthropic",
+  "openai/responses": "Responses",
+  "openai/embeddings": "Embedding",
+  "openai/image-generations": "Image",
+  "openai/audio-speech": "TTS",
+  "openai/audio-transcriptions": "ASR",
+  "nexusflow/tasks": "Tasks",
 };
 
 function getProtocolBadges(model: AIModel) {
@@ -128,215 +123,88 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
     return n.toString();
   }
 
-  return (
-    <div className="models-page" style={{ padding: "32px 44px", fontFamily: "var(--font-sans)" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border)" }}>
-        <div className="section-label">Model Catalog</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <h1 className="page-title" style={{ margin: 0 }}>模型列表</h1>
-          {!loading && (
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--accent)", background: "var(--accent-bg)", padding: "3px 10px", borderRadius: 20, border: "1px solid var(--accent-border)" }}>
-              {models.length} 个模型
-            </span>
-          )}
-        </div>
-        <p style={{ fontSize: 13.5, color: "var(--text-secondary)", maxWidth: 720, margin: 0 }}>
-          浏览全系列 AI 模型，涵盖文本、推理、视觉、编程、图像、视频、向量等类别
-        </p>
-      </div>
+  function priceLine(model: AIModel) {
+    if (model.promptPrice == null || model.completionPrice == null) return [{ label: "价格", value: "待公布" }];
+    const unit = model.pricingType === "per-second" ? "秒" : model.pricingType === "per-10k-characters" ? "万字符" : model.pricingType === "per-image" ? "张" : null;
+    if (unit) return [{ label: "价格", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice} / ${unit}` }];
+    const from = model.tokenPricingTiers && model.tokenPricingTiers.length > 1 ? " 起" : "";
+    return [
+      { label: "输入", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}${from}` },
+      { label: "输出", value: model.completionPrice === 0 ? "免费" : `¥${model.completionPrice}${from}` },
+    ];
+  }
 
-      {/* Search & Filters */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ position: "relative", maxWidth: 300, flex: 1 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input className="input" style={{ paddingLeft: 36 }} placeholder="搜索模型..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <select className="select" style={{ minWidth: 120 }} value={selectedProvider} onChange={(e) => { setSelectedProvider(e.target.value); setSelectedCategory("全部"); }}>
-          <option value="">所有供应商</option>
+  const isMedia = (model: AIModel) => model.pricingType === "per-second" || model.pricingType === "per-image" || model.pricingType === "per-10k-characters";
+
+  return (
+    <div className="mc">
+      <header className="mc-head">
+        <h1>模型</h1>
+        <p>{models.length > 0 && !selectedProvider && selectedCategory === "全部" && !search ? `${models.length} 个模型，` : ""}一个 Key 全部可调用。文本模型价格单位为 ¥ / 百万 tokens。</p>
+      </header>
+
+      <div className="mc-toolbar">
+        <label className="mc-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input placeholder="搜索模型名称或 ID" value={search} onChange={(e) => setSearch(e.target.value)} />
+        </label>
+        <select className="mc-select" value={selectedProvider} onChange={(e) => { setSelectedProvider(e.target.value); setSelectedCategory("全部"); }} aria-label="供应商">
+          <option value="">全部厂商</option>
           {providers.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
-        <select className="select" style={{ minWidth: 120 }} value={sort} onChange={(e) => setSort(e.target.value)}>
+        <select className="mc-select" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="排序">
           <option value="">默认排序</option>
-          <option value="price-asc">价格升序</option>
-          <option value="price-desc">价格降序</option>
-          <option value="context">上下文长度</option>
+          <option value="price-asc">价格从低到高</option>
+          <option value="price-desc">价格从高到低</option>
+          <option value="context">上下文最长</option>
           <option value="name">名称</option>
         </select>
       </div>
 
-      {/* Category Pills */}
-      <div className="model-output-tabs" style={{ display: "flex", gap: 7, marginBottom: 24, flexWrap: "wrap" }}>
-        {["全部", ...visibleCategories].map((cat) => {
-          const active = selectedCategory === cat;
-          const color = cat !== "全部" ? categoryColors[cat] || "var(--accent)" : "var(--accent)";
-          const count = cat === "全部" ? models.length : categoryCounts[cat] || 0;
-          return (
-            <button key={cat} className="model-filter-pill" onClick={() => setSelectedCategory(cat)} style={{
-              padding: "6px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: active ? 650 : 560,
-              cursor: "pointer", border: "1px solid", transition: "all 0.16s", fontFamily: "inherit",
-              borderColor: active ? `${color}40` : "var(--border)",
-              background: active ? `${color}0e` : "var(--bg)",
-              color: active ? color : "var(--text-secondary)",
-              boxShadow: active ? `0 0 0 1px ${color}25` : "none",
-            }}>
-              <span>{cat}</span>
-              <span className="model-filter-count">{count}</span>
-            </button>
-          );
-        })}
+      <div className="mc-tabs" role="tablist" aria-label="模型类别">
+        {["全部", ...visibleCategories].map((cat) => (
+          <button key={cat} role="tab" aria-selected={selectedCategory === cat} onClick={() => setSelectedCategory(cat)}>
+            {cat}<span>{cat === "全部" ? models.length : categoryCounts[cat] || 0}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Grid */}
       {loading ? (
-        <div className="models-grid model-list" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))", gap: 12 }}>
-          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 185, borderRadius: 10 }} />)}
+        <div className="mc-grid">
+          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton mc-skeleton" />)}
         </div>
       ) : error ? (
-        <div className="empty-state" style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, border: "1px solid rgba(239,68,68,0.22)" }}>
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" style={{ opacity: 0.8, marginBottom: 12 }}>
-            <circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/>
-          </svg>
-          <div style={{ fontSize: 14, fontWeight: 650, color: "var(--text-primary)", marginBottom: 6 }}>模型列表加载失败</div>
-          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 14 }}>{error}</div>
-          <button
-            onClick={() => loadModels()}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 7,
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-              color: "var(--text-primary)",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            重试
-          </button>
+        <div className="mc-empty">
+          <strong>模型列表加载失败</strong>
+          <span>{error}</span>
+          <button onClick={() => loadModels()}>重试</button>
         </div>
       ) : models.length === 0 ? (
-        <div className="empty-state" style={{ background: "var(--bg-elevated)", borderRadius: 10, border: "1px solid var(--border)" }}>
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.3, marginBottom: 12 }}>
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <div style={{ fontSize: 14 }}>没有找到匹配的模型</div>
-        </div>
+        <div className="mc-empty"><strong>没有找到匹配的模型</strong><span>换个关键词或清空筛选试试。</span></div>
       ) : (
-        <div className="models-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))", gap: 12 }}>
-          {models.map((model, idx) => {
-            const accent = categoryColors[model.category] || "var(--accent)";
-            const protocolBadges = getProtocolBadges(model);
+        <div className="mc-grid">
+          {models.map((model) => {
             const isUnavailable = model.availability && model.availability !== "available";
+            const protocols = getProtocolBadges(model).map((p) => protocolLabels[p] || p);
             return (
-              <Link href={`/models/${encodeURIComponent(model.id)}`} key={model.id}
-                className={`card model-card animate-fadeIn${isUnavailable ? " is-unavailable" : ""}`}
-                style={{ animationDelay: `${idx * 20}ms`, opacity: 0, textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", borderTop: `3px solid ${accent}` }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 9, gap: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="model-card-title-row" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
-                      <span className="model-card-title" style={{ fontSize: 15, fontWeight: 550, color: "var(--text-primary)", letterSpacing: "0" }}>{model.name}</span>
-                      {model.isNew && <span className="tag tag-new" style={{ fontSize: 10 }}>NEW</span>}
-                      {model.isFeatured && <span className="tag tag-featured" style={{ fontSize: 10 }}>HOT</span>}
-                      {isUnavailable && (
-                        <span className="model-availability-badge" title={model.availabilityReason || "暂无可用渠道"}>
-                          {model.lifecycle === "announced" ? "即将上线" : "暂不可用"}
-                        </span>
-                      )}
-                    </div>
-                    <div className="model-card-meta" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{model.provider}</span>
-                      <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--text-tertiary)", flexShrink: 0 }} />
-                      <span style={{ fontSize: 10.5, fontWeight: 600, color: accent, background: `${accent}12`, padding: "1px 6px", borderRadius: 4, border: `1px solid ${accent}28` }}>{model.category}</span>
-                    </div>
+              <Link href={`/models/${encodeURIComponent(model.id)}`} key={model.id} className={`mc-card${isUnavailable ? " is-unavailable" : ""}`}>
+                <div className="mc-card-top">
+                  <div className="mc-card-title">
+                    <strong>{model.name}</strong>
+                    {model.isNew && <em className="mc-badge is-new">新</em>}
+                    {isUnavailable && (
+                      <em className="mc-badge is-off" title={model.availabilityReason || "暂无可用渠道"}>{model.lifecycle === "announced" ? "即将上线" : "暂不可用"}</em>
+                    )}
                   </div>
-                  <code style={{ fontSize: 10.5, color: "var(--text-tertiary)", background: "var(--bg-elevated)", padding: "3px 7px", borderRadius: 5, border: "1px solid var(--border)", flexShrink: 1, minWidth: 0, maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: "var(--font-mono)" }}>{model.id}</code>
+                  <code>{model.id}</code>
+                  <span className="mc-meta">{model.provider} · {model.category}</span>
                 </div>
-
-                {protocolBadges.length > 0 && (
-                  <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
-                    {protocolBadges.map((protocol) => {
-                      const style = protocolStyles[protocol] || { label: protocol, tone: "slate" };
-                      return (
-                        <span
-                          key={protocol}
-                          title={protocol}
-                          className={`model-protocol-badge tone-${style.tone}`}
-                        >
-                          {style.label}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <p className="model-card-description" style={{ fontSize: 12.5, color: "var(--text-secondary)", lineHeight: 1.65, marginBottom: 10, flex: 1, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                  {model.description}
-                </p>
-
-                {model.tags.length > 0 && (
-                  <div className="model-card-tags" style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 10 }}>
-                    {model.tags.slice(0, 4).map((tag) => (
-                      <span key={tag} style={{ padding: "2px 7px", borderRadius: 4, fontSize: 11, fontWeight: 500, color: "var(--text-tertiary)", background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>{tag}</span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="model-card-stats" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, padding: "10px 0 0", borderTop: "1px solid var(--border)" }}>
-                  {(() => {
-                    const isMedia = model.pricingType === "per-second"
-                      || model.pricingType === "per-image"
-                      || model.pricingType === "per-10k-characters";
-                    if (model.promptPrice == null || model.completionPrice == null) {
-                      return [
-                        { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
-                        { label: "价格", value: "待公布", color: "var(--warning)" },
-                        { label: "状态", value: "尚未开放", color: "var(--text-tertiary)" },
-                      ];
-                    }
-                    if (isMedia) {
-                      const unit = model.pricingType === "per-second"
-                        ? "/秒"
-                        : model.pricingType === "per-10k-characters"
-                          ? "/万字符"
-                          : "/张";
-                      return [
-                        { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
-                        { label: "价格", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}${unit}`, color: "var(--success)" },
-                        {
-                          label: "计费",
-                          value: model.pricingType === "per-second"
-                            ? "按秒"
-                            : model.pricingType === "per-10k-characters"
-                              ? "按字符"
-                              : "按张",
-                          color: "var(--warning)",
-                        },
-                      ];
-                    }
-                    if (model.tokenPricingTiers && model.tokenPricingTiers.length > 0) {
-                      return [
-                        { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
-                        { label: "首阶输入", value: `¥${model.promptPrice}/M`, color: "var(--success)" },
-                        { label: "首阶输出", value: `¥${model.completionPrice}/M`, color: "var(--warning)" },
-                      ];
-                    }
-                    return [
-                      { label: "上下文", value: formatTokens(model.contextLength), color: "var(--text-primary)" },
-                      { label: "输入", value: model.promptPrice === 0 ? "免费" : `¥${model.promptPrice}/M`, color: "var(--success)" },
-                      { label: "输出", value: model.completionPrice === 0 ? "免费" : `¥${model.completionPrice}/M`, color: "var(--warning)" },
-                    ];
-                  })().map((s) => (
-                    <div key={s.label}>
-                      <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginBottom: 3, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.04em" }}>{s.label}</div>
-                      <div style={{ fontSize: 14, fontWeight: 550, color: s.color, fontVariantNumeric: "tabular-nums" }}>{s.value}</div>
-                    </div>
-                  ))}
-                </div>
+                <p className="mc-desc">{model.description}</p>
+                {protocols.length > 0 && <span className="mc-protocols">{protocols.join(" · ")}</span>}
+                <dl className="mc-stats">
+                  {!isMedia(model) && <div><dt>上下文</dt><dd>{formatTokens(model.contextLength)}</dd></div>}
+                  {priceLine(model).map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
+                </dl>
               </Link>
             );
           })}
