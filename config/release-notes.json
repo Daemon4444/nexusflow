@@ -1,6 +1,17 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:feat: archive full request and response payloads to R2": {
+      "type": "feature",
+      "audience": "internal",
+      "title": "对话请求与响应全文留存到 R2（全站，数据回流）",
+      "points": [
+        "由 payload_capture_users 控制：'*' 行全站开启，单个账号可排除或改存档目录名，子账号归到主账号；覆盖 chat/completions、messages、responses，原始请求体与回给客户端的字节原样保存，不截断、不脱敏，log_id 与 usage_logs 一致",
+        "各节点本机按小时落盘，每小时加密上传到 R2 桶 nexusflow-archive 后删除本地；每日对账脚本核对全站对话类调用记录是否全部入档",
+        "写盘失败只计数，不影响请求；推理黄金测试全程开启留存，60 个场景结果不变，41 次对话请求逐字节一致",
+        "顺带修复：/v1/messages 部分分支写 usage_logs 时没有使用请求自身的 log_id，导致与返回给客户的 msg_ 编号对不上"
+      ]
+    },
     "subject:feat: restyle the model catalog to match pricing and docs": {
       "type": "improve",
       "audience": "customer",

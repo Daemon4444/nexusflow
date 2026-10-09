@@ -23,6 +23,7 @@ import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 
 process.env.USE_PG_MEM = "true";
@@ -40,6 +41,10 @@ process.env.ARK_API_KEY = "sk-upstream-ark-test";
 process.env.PIXVERSE_API_KEY = "sk-upstream-pixverse-test";
 process.env.UPLOAD_STORAGE = process.env.UPLOAD_STORAGE || "local";
 process.env.PUBLIC_BODY_API_KEY_CONCURRENCY = "50";
+// Payload capture is on for everyone ('*' row): the golden file must not change,
+// and each captured line must match the bytes the client sent and received.
+const CAPTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "nf-capture-"));
+process.env.NF_PAYLOAD_CAPTURE_DIR = CAPTURE_DIR;
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { createApp } = require("../src/app") as typeof import("../src/app");
@@ -47,6 +52,8 @@ const { createApp } = require("../src/app") as typeof import("../src/app");
 const { db, closeDb } = require("../src/db/client") as typeof import("../src/db/client");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { setOutboundTestTransport } = require("../src/services/outbound-url-policy") as typeof import("../src/services/outbound-url-policy");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { warmPayloadCapture } = require("../src/services/payload-capture") as typeof import("../src/services/payload-capture");
 
 const GOLDEN = path.resolve(__dirname, "fixtures/characterization/inference-golden.json");
 const UPDATE = process.argv.includes("--update");
@@ -230,6 +237,10 @@ async function tableRows(table: string, where: string, params: unknown[]): Promi
 
 let baseUrl = "";
 
+/** Raw bytes of each exchange, for the payload-capture check (not golden). */
+interface Exchange { method: string; path: string; status: number; sent: string | null; received: string }
+let exchanges: Exchange[] = [];
+
 interface ClientRequest {
   method?: string;
   path: string;
@@ -253,6 +264,7 @@ async function send(request: ClientRequest) {
       res.on("data", (chunk) => chunks.push(chunk));
       res.on("end", () => {
         const text = Buffer.concat(chunks).toString("utf8");
+        exchanges.push({ method: request.method || "POST", path: url.pathname, status: res.statusCode || 0, sent: bodyBytes ? bodyBytes.toString("utf8") : null, received: text });
         const contentType = String(res.headers["content-type"] || "");
         let body: unknown = text;
         if (contentType.includes("text/event-stream")) {
@@ -275,6 +287,7 @@ async function send(request: ClientRequest) {
     });
     req.on("error", (error: NodeJS.ErrnoException) => {
       if (request.abortAfterMs !== undefined && error.code === "ECONNRESET") {
+        exchanges.push({ method: request.method || "POST", path: url.pathname, status: 0, sent: bodyBytes ? bodyBytes.toString("utf8") : null, received: "" });
         resolve({ status: 0, headers: {}, body: "<client aborted>" });
       } else {
         reject(error);
@@ -468,12 +481,80 @@ const scenarios: Scenario[] = [
 
 // ---------------------------------------------------------------- execution
 
+const CAPTURED_PATHS = new Set(["/v1/chat/completions", "/v1/messages", "/v1/responses"]);
+let capturedRecords = 0;
+
+/**
+ * Captured lines must be the exact request and the exact response bytes of
+ * the exchanges, in order, and every successful exchange on a captured route
+ * must be present.
+ */
+function checkPayloadCapture(scenarioName: string, userId: string): Set<string> {
+  const dir = path.join(CAPTURE_DIR, userId);
+  const records: any[] = [];
+  if (fs.existsSync(dir)) {
+    for (const day of fs.readdirSync(dir).sort()) {
+      for (const file of fs.readdirSync(path.join(dir, day)).sort()) {
+        for (const line of fs.readFileSync(path.join(dir, day, file), "utf8").split("\n")) {
+          if (line) records.push(JSON.parse(line));
+        }
+      }
+    }
+  }
+  let next = 0;
+  const matched = new Set<number>();
+  for (const record of records) {
+    while (next < exchanges.length) {
+      const exchange = exchanges[next++];
+      if (!CAPTURED_PATHS.has(exchange.path) || exchange.method !== "POST") continue;
+      assert.deepEqual(record.request, exchange.sent === null ? null : JSON.parse(exchange.sent), `${scenarioName}: captured request differs`);
+      assert.equal(record.response, exchange.received, `${scenarioName}: captured response differs`);
+      assert.equal(record.http_status, exchange.status || record.http_status, `${scenarioName}: captured status differs`);
+      if (exchange.status === 0) assert.equal(record.client_closed, true, `${scenarioName}: abort not marked client_closed`);
+      assert.equal(record.user_id, userId);
+      matched.add(next - 1);
+      break;
+    }
+  }
+  assert.equal(matched.size, records.length, `${scenarioName}: ${records.length - matched.size} captured line(s) match no exchange`);
+  exchanges.forEach((exchange, index) => {
+    if (CAPTURED_PATHS.has(exchange.path) && exchange.method === "POST" && exchange.status >= 200 && exchange.status < 300) {
+      assert.ok(matched.has(index), `${scenarioName}: successful ${exchange.path} was not captured`);
+    }
+  });
+  capturedRecords += records.length;
+  return new Set(records.map((record) => record.log_id));
+}
+
+/** An opted-out account is not captured; a named one lands under its label. */
+async function checkCaptureOverrides(): Promise<void> {
+  const optedOut = await createCaller();
+  const named = await createCaller();
+  await db.execute("INSERT INTO payload_capture_users (user_id, enabled) VALUES (?, false)", [optedOut.userId]);
+  await db.execute("INSERT INTO payload_capture_users (user_id, archive_label) VALUES (?, 'named-customer')", [named.userId]);
+  await warmPayloadCapture();
+  for (const caller of [optedOut, named]) {
+    upstreamQueue = [{ status: 200, json: chatCompletion(CHAT) }];
+    const response = await send({ path: "/v1/chat/completions", headers: { authorization: `Bearer ${caller.apiKey}` }, body: chatBody() });
+    assert.equal(response.status, 200);
+  }
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.equal(fs.existsSync(path.join(CAPTURE_DIR, optedOut.userId)), false, "opted-out account was captured");
+  assert.equal(fs.existsSync(path.join(CAPTURE_DIR, named.userId)), false, "named account captured under its user id");
+  const day = fs.readdirSync(path.join(CAPTURE_DIR, "named-customer"));
+  const lines = fs.readFileSync(path.join(CAPTURE_DIR, "named-customer", day[0], fs.readdirSync(path.join(CAPTURE_DIR, "named-customer", day[0]))[0]), "utf8").trim().split("\n");
+  assert.equal(lines.length, 1);
+  assert.equal(JSON.parse(lines[0]).user_id, named.userId);
+  console.log("ok - payload capture overrides (opt-out, named archive)");
+}
+
 async function runScenario(scenario: Scenario) {
   const caller = await createCaller(scenario.caller);
   const ctx: ScenarioContext = { caller, auth: { authorization: `Bearer ${caller.apiKey}` } };
   if (scenario.setup) await scenario.setup();
   upstreamQueue = [...scenario.upstream];
   recordedCalls = [];
+  exchanges = [];
   // Each scenario starts with a closed circuit so results do not depend on
   // the order in which failure scenarios ran.
   await db.execute("DELETE FROM provider_health");
@@ -488,6 +569,14 @@ async function runScenario(scenario: Scenario) {
     await new Promise((resolve) => setTimeout(resolve, 60));
   }
   await new Promise((resolve) => setTimeout(resolve, 100));
+  const capturedIds = checkPayloadCapture(scenario.name, caller.userId);
+  const billedChats = await db.queryMany<{ log_id: string }>(
+    "SELECT log_id FROM usage_logs WHERE user_id = ? AND protocol IN ('openai-chat', 'anthropic-messages', 'openai-responses')",
+    [caller.userId]
+  );
+  for (const row of billedChats) {
+    assert.ok(capturedIds.has(row.log_id), `${scenario.name}: usage log ${row.log_id} has no captured payload`);
+  }
   const balance = await db.queryOne<{ balance: string | number }>("SELECT balance FROM users WHERE id = ?", [caller.userId]);
   const health = await db.queryMany("SELECT provider_id, model_id, status, consecutive_failures FROM provider_health ORDER BY provider_id, model_id");
   return normalise({
@@ -516,12 +605,16 @@ async function main(): Promise<void> {
   if (!address || typeof address === "string") throw new Error("no server address");
   baseUrl = `http://127.0.0.1:${address.port}`;
 
+  await db.execute("INSERT INTO payload_capture_users (user_id) VALUES ('*')");
+  await warmPayloadCapture();
+
   const results: Record<string, unknown> = {};
   try {
     for (const scenario of scenarios) {
       if (ONLY && !scenario.name.includes(ONLY)) continue;
       results[scenario.name] = await runScenario(scenario);
     }
+    if (!ONLY) await checkCaptureOverrides();
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     setOutboundTestTransport(null);
@@ -554,7 +647,8 @@ async function main(): Promise<void> {
     }
   }
   if (failures) throw new Error(`${failures} characterization scenario(s) changed`);
-  console.log(`inference characterization passed (${Object.keys(results).length} scenarios)`);
+  assert.ok(capturedRecords > 0, "payload capture recorded nothing");
+  console.log(`inference characterization passed (${Object.keys(results).length} scenarios, ${capturedRecords} captured exchanges byte-identical)`);
 }
 
 main()
