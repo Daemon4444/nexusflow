@@ -131,21 +131,30 @@ function mapStopReason(finishReason: string | null | undefined): string {
 }
 
 /**
- * OpenAI usage -> Anthropic usage（input_tokens 含缓存部分，计费函数会再拆）。
+ * OpenAI usage -> Anthropic usage。
  *
- * 同时透传 reasoning_tokens：Anthropic 的 usage 没有这一项，但计费需要它来判定
- * 本次是否走了思考模式（官方对部分模型的思考输出单独定价）。丢掉它会导致
- * 非思考请求被按思考价多收。
+ * OpenAI 的 prompt_tokens 包含缓存读/写；Anthropic 的 input_tokens、
+ * cache_creation_input_tokens、cache_read_input_tokens 三者互斥。对外必须先拆分，
+ * 否则 Anthropic SDK 按三者求和时会重复计算缓存 Token。
+ *
+ * reasoning_tokens 仅供平台内部计费判定使用。它不是 Anthropic Usage 字段，故以
+ * non-enumerable 属性保留，确保 JSON/SSE 响应不会泄露非标准字段。
  */
 export function openAiUsageToAnthropic(usage: AnyRecord | null | undefined): AnyRecord {
-  const cached = usage?.prompt_tokens_details?.cached_tokens || 0;
-  return {
-    input_tokens: usage?.prompt_tokens || 0,
-    output_tokens: usage?.completion_tokens || 0,
-    cache_creation_input_tokens: usage?.prompt_tokens_details?.cache_creation_input_tokens || 0,
+  const promptTokens = Math.max(0, Number(usage?.prompt_tokens || 0));
+  const cached = Math.max(0, Number(usage?.prompt_tokens_details?.cached_tokens || 0));
+  const cacheCreation = Math.max(0, Number(usage?.prompt_tokens_details?.cache_creation_input_tokens || 0));
+  const result = {
+    input_tokens: Math.max(0, promptTokens - cached - cacheCreation),
+    output_tokens: Math.max(0, Number(usage?.completion_tokens || 0)),
+    cache_creation_input_tokens: cacheCreation,
     cache_read_input_tokens: cached,
-    reasoning_tokens: usage?.completion_tokens_details?.reasoning_tokens || 0,
   };
+  Object.defineProperty(result, "reasoning_tokens", {
+    value: Math.max(0, Number(usage?.completion_tokens_details?.reasoning_tokens || 0)),
+    enumerable: false,
+  });
+  return result;
 }
 
 /** OpenAI 非流式响应 -> Anthropic message */
@@ -171,7 +180,7 @@ export function openAiResponseToAnthropic(data: AnyRecord, msgId: string, modelI
     model: modelId,
     content,
     stop_reason: mapStopReason(choice.finish_reason),
-    stop_sequences: null,
+    stop_sequence: null,
     usage: openAiUsageToAnthropic(data?.usage),
   };
 }
@@ -183,8 +192,8 @@ export interface StreamTranslateResult {
 
 /**
  * OpenAI SSE 流 -> Anthropic SSE 事件流的增量转换器。
- * feed() 喂入上游原始文本分片，通过 write 回调输出 Anthropic 事件；
- * finish() 关尾（补 content_block_stop / message_delta / message_stop）并返回 usage。
+ * feed() 喂入上游原始文本分片并实时输出 Anthropic 内容事件；finish() 关尾并把
+ * OpenAI 上游末块才返回的真实输入/缓存 usage 放入最终 message_delta。
  */
 export function createAnthropicStreamTranslator(msgId: string, modelId: string, write: (text: string) => void) {
   let buffer = "";
@@ -194,9 +203,11 @@ export function createAnthropicStreamTranslator(msgId: string, modelId: string, 
   let currentToolIndex: number | null = null;
   let finishReason: string | null = null;
   let usage: AnyRecord | null = null;
+  const serialize = (event: string, data: AnyRecord) =>
+    `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
   const emit = (event: string, data: AnyRecord) => {
-    write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    write(serialize(event, data));
   };
 
   const ensureStarted = () => {
@@ -206,8 +217,15 @@ export function createAnthropicStreamTranslator(msgId: string, modelId: string, 
       type: "message_start",
       message: {
         id: msgId, type: "message", role: "assistant", model: modelId, content: [],
-        stop_reason: null, stop_sequences: null,
-        usage: { input_tokens: 0, output_tokens: 0 },
+        stop_reason: null, stop_sequence: null,
+        // OpenAI 兼容流到末块才提供真实输入/缓存 usage；这里先给合法的零值，
+        // 最终 message_delta 会返回完整累计 usage，同时保持真实逐字流式。
+        usage: {
+          input_tokens: 0,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+          output_tokens: 0,
+        },
       },
     });
   };
@@ -289,7 +307,7 @@ export function createAnthropicStreamTranslator(msgId: string, modelId: string, 
       const anthropicUsage = openAiUsageToAnthropic(usage);
       emit("message_delta", {
         type: "message_delta",
-        delta: { stop_reason: mapStopReason(finishReason), stop_sequences: null },
+        delta: { stop_reason: mapStopReason(finishReason), stop_sequence: null },
         usage: anthropicUsage,
       });
       emit("message_stop", { type: "message_stop" });

@@ -218,6 +218,11 @@ Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720
 
 - “接口兼容”不等于“所有模型支持所有协议”。协议支持由模型能力和真实上游行为决定。
 - Claude `claude-*` 通过 Anthropic Messages 路径；Kimi K3 的 Messages 支持曾因上游差异走自建桥，切换逻辑由模型字段控制。
+- Anthropic 协议桥对外保持 `input_tokens`、`cache_creation_input_tokens` 与
+  `cache_read_input_tokens` 互斥，避免客户端重复求和。Kimi K3 当前只有 OpenAI 兼容
+  上游，其真实缓存 usage 到流末块才返回：桥接流优先保持实时输出，`message_start.usage`
+  使用零值，最终 `message_delta.usage` 返回真实完整累计值；禁止为追求字段位置而缓冲
+  全部内容、把流式退化成整包响应。上游开放原生 Anthropic 后应改为直通。
 - 模型 ID 可能包含 `/`，例如 `kimi/kimi-k3`。前端、Next proxy 和 Express 路径必须保留编码，不能把 `%2F` 提前拆成路径段。
 - Responses 内置工具可能产生非 Token 上游费用。默认只允许本地 `function` 类型；其它类型必须通过 `RESPONSE_ALLOWED_TOOLS` 明确放行并先确认成本模型。
 - 上游成本先使用可追溯的合同、发票、人工核验或私有折扣表价本；没有可适用价本时，使用请求结算时固化的官方原价。客户折后实付不能代替官方原价，估算请求和 Provider 不明请求仍然失败关闭。

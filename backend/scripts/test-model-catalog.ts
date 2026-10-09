@@ -4,7 +4,11 @@ import { findProvider } from "../src/services/providers";
 import { sanitizeModelDoc } from "../src/data/model-overrides";
 import { estimateStreamUsage } from "../src/utils/estimate-stream-usage";
 import { isExplicitCacheRequested } from "../src/utils/cache-billing";
-import { openAiUsageToAnthropic } from "../src/utils/anthropic-openai-bridge";
+import {
+  createAnthropicStreamTranslator,
+  openAiResponseToAnthropic,
+  openAiUsageToAnthropic,
+} from "../src/utils/anthropic-openai-bridge";
 import { hasThinkingOutput } from "../src/routes/messages";
 import {
   getAllowedChatParameters,
@@ -260,12 +264,75 @@ assert.equal(resolveCompletionPrice(tieredThinking, firstTier, true), 8, "思考
 
 // 桥必须透传 reasoning_tokens，否则 Anthropic 路径拿不到判定信号
 const bridged = openAiUsageToAnthropic({
-  prompt_tokens: 10,
+  prompt_tokens: 100,
   completion_tokens: 20,
+  prompt_tokens_details: {
+    cached_tokens: 80,
+    cache_creation_input_tokens: 15,
+  },
   completion_tokens_details: { reasoning_tokens: 7 },
 });
-assert.equal(bridged.reasoning_tokens, 7, "桥丢了 reasoning_tokens，思考价判定会失效");
+assert.deepEqual(
+  bridged,
+  {
+    input_tokens: 5,
+    output_tokens: 20,
+    cache_creation_input_tokens: 15,
+    cache_read_input_tokens: 80,
+  },
+  "桥接 usage 必须遵守 Anthropic 的互斥输入/缓存语义",
+);
+assert.equal((bridged as any).reasoning_tokens, 7, "桥丢了 reasoning_tokens，思考价判定会失效");
+assert.doesNotMatch(JSON.stringify(bridged), /reasoning_tokens/, "内部计费字段不得出现在 Anthropic 响应");
 assert.equal(openAiUsageToAnthropic({ prompt_tokens: 1, completion_tokens: 1 }).reasoning_tokens, 0);
+
+const nonStreamAnthropic = openAiResponseToAnthropic(
+  {
+    choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
+    usage: {
+      prompt_tokens: 100,
+      completion_tokens: 20,
+      prompt_tokens_details: { cached_tokens: 80, cache_creation_input_tokens: 15 },
+    },
+  },
+  "msg_test",
+  "kimi/kimi-k3",
+);
+assert.equal(nonStreamAnthropic.stop_sequence, null);
+assert.equal("stop_sequences" in nonStreamAnthropic, false);
+assert.deepEqual(nonStreamAnthropic.usage, {
+  input_tokens: 5,
+  output_tokens: 20,
+  cache_creation_input_tokens: 15,
+  cache_read_input_tokens: 80,
+});
+
+const translatedFrames: string[] = [];
+const translator = createAnthropicStreamTranslator("msg_test", "kimi/kimi-k3", (frame) => translatedFrames.push(frame));
+translator.feed([
+  'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":null}],"usage":null}',
+  'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":100,"completion_tokens":20,"prompt_tokens_details":{"cached_tokens":80,"cache_creation_input_tokens":15}}}',
+  "data: [DONE]",
+  "",
+].join("\n"));
+assert.ok(translatedFrames.length > 0, "协议桥必须保持真实逐字流式，不能等最终 usage 才吐字");
+translator.finish();
+const translatedEvents = translatedFrames.map((frame) => JSON.parse(frame.split("\ndata: ")[1]));
+assert.deepEqual(translatedEvents[0].message.usage, {
+  input_tokens: 0,
+  cache_creation_input_tokens: 0,
+  cache_read_input_tokens: 0,
+  output_tokens: 0,
+});
+assert.equal(translatedEvents[0].message.stop_sequence, null);
+const finalDelta = translatedEvents[translatedEvents.length - 2];
+assert.deepEqual(finalDelta.usage, {
+  input_tokens: 5,
+  output_tokens: 20,
+  cache_creation_input_tokens: 15,
+  cache_read_input_tokens: 80,
+});
+assert.equal(finalDelta.delta.stop_sequence, null);
 
 // ========== 思考判定不得被正文内容触发（多收） ==========
 // 曾用全文子串匹配 thinking_delta，助手正文含该字面量就会翻转计价。

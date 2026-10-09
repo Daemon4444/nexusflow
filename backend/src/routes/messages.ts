@@ -144,11 +144,11 @@ async function calculateAnthropicUsageCost(
   userId: string | null | undefined,
   model: any,
   usage: AnthropicUsage | null | undefined,
-  // Anthropic 语义(直通上游，实测含 DashScope /apps/anthropic)：input_tokens 与缓存 token 互斥；
-  // OpenAI 语义(转换桥，openAiUsageToAnthropic 产出)：input_tokens=prompt_tokens 已含缓存部分
-  // explicitCache：本次请求是否真的开启了显式缓存。协议桥会把 OpenAI 的
-  // prompt_tokens_details.cached_tokens（隐式命中）映射进 cache_read_input_tokens，
-  // 故不能仅凭该字段非零就按显式价计费，否则显式价低于隐式价的模型会少收。
+  // Anthropic 原生与转换桥的对外 usage 都保持 input_tokens 与缓存 token 互斥。
+  // inputIncludesCache 仅保留给内部原始 usage 调用方；当前 Messages 路径传入的
+  // usage 均已规范化。explicitCache 表示请求是否真的开启了显式缓存：协议桥会把
+  // OpenAI 的隐式 cached_tokens 映射进 cache_read_input_tokens，不能仅凭该字段
+  // 非零就按显式价计费，否则显式价低于隐式价的模型会少收。
   opts: { inputIncludesCache: boolean; explicitCache: boolean; thinkingOutput?: boolean }
 ) {
   const inputTokens = usage?.input_tokens || 0;
@@ -180,6 +180,13 @@ async function calculateAnthropicUsageCost(
     + (outputTokens / 1_000_000) * completionPrice;
   const discounted = await applyUserModelDiscount(userId, model.id, listAmount);
   return { ...discounted, cachedTokens: cacheReadTokens, cacheCreationTokens, thinkingOutput: isThinking };
+}
+
+function getAnthropicTotalTokens(usage: AnthropicUsage | null | undefined): number {
+  return (usage?.input_tokens || 0)
+    + (usage?.cache_creation_input_tokens || 0)
+    + (usage?.cache_read_input_tokens || 0)
+    + (usage?.output_tokens || 0);
 }
 
 function getAnthropicVersion(req: Request): string {
@@ -510,7 +517,7 @@ router.post("/", async (req: Request, res: Response) => {
           cache_creation_input_tokens: cacheCreationInputTokens,
           cache_read_input_tokens: cacheReadInputTokens,
         }, { inputIncludesCache: false, explicitCache, thinkingOutput: hasThinkingOutput(fullResponse) });
-        const totalTokens = inputTokens + outputTokens;
+        const totalTokens = inputTokens + cacheCreationInputTokens + cacheReadInputTokens + outputTokens;
         const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
         const tpotMs = outputTokens > 1 ? streamDuration / (outputTokens - 1) : 0;
 
@@ -583,7 +590,7 @@ router.post("/", async (req: Request, res: Response) => {
 
       const usage = data.usage || {};
       const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false, explicitCache, thinkingOutput: hasThinkingOutput(data) });
-      const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+      const totalTokens = getAnthropicTotalTokens(usage);
       await logUsage({
         region: upstream.region,
         providerId: upstream.providerId,
@@ -769,8 +776,8 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       const latencyMs = Date.now() - startTime;
-      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, billingUsage, { inputIncludesCache: true, explicitCache, thinkingOutput: hasThinkingOutput(rawUpstream) });
-      const totalTokens = (billingUsage.input_tokens || 0) + (billingUsage.output_tokens || 0);
+      const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, billingUsage, { inputIncludesCache: false, explicitCache, thinkingOutput: hasThinkingOutput(rawUpstream) });
+      const totalTokens = getAnthropicTotalTokens(billingUsage);
       const streamDuration = lastChunkTime > firstChunkTime ? lastChunkTime - firstChunkTime : 0;
       const tpotMs = (billingUsage.output_tokens || 0) > 1 ? streamDuration / (billingUsage.output_tokens - 1) : 0;
 
@@ -797,7 +804,7 @@ router.post("/", async (req: Request, res: Response) => {
         retailDiscountAmount: billing.discountAmount,
         thinkingOutput: billing.thinkingOutput,
         providerCacheMode: explicitCache ? "explicit" : "implicit",
-        providerInputIncludesCache: true,
+        providerInputIncludesCache: false,
         route: "anthropic-bridge",
         estimated: estimatedBilling,
         reservationId: billingReservation.id,
@@ -848,8 +855,8 @@ router.post("/", async (req: Request, res: Response) => {
 
     const anthropicResponse = openAiResponseToAnthropic(data, `msg_${logId}`, modelId);
     const usage = anthropicResponse.usage || openAiUsageToAnthropic(data?.usage);
-    const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: true, explicitCache, thinkingOutput: hasThinkingOutput(data) });
-    const totalTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+    const billing = await calculateAnthropicUsageCost(apiKeyRecord.user_id, model, usage, { inputIncludesCache: false, explicitCache, thinkingOutput: hasThinkingOutput(data) });
+    const totalTokens = getAnthropicTotalTokens(usage);
     await logUsage({
       region: upstream.region,
       providerId: upstream.providerId,
@@ -871,7 +878,7 @@ router.post("/", async (req: Request, res: Response) => {
       retailDiscountAmount: billing.discountAmount,
       thinkingOutput: billing.thinkingOutput,
       providerCacheMode: explicitCache ? "explicit" : "implicit",
-      providerInputIncludesCache: true,
+      providerInputIncludesCache: false,
       route: "anthropic-bridge",
       reservationId: billingReservation.id,
       requestBody: req.body,
