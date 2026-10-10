@@ -280,16 +280,42 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) { res.status(401).json({ success: false, message: "未登录" }); return; }
 
-  const { logId } = req.params;
+  const logId = String(req.params.logId);
   const { db } = await import("../db/client");
 
-  const row = await db.queryOne<{ user_id: string; created_at: string }>(
-    "SELECT user_id, created_at FROM usage_logs WHERE log_id = $1 AND user_id = $2",
+  const row = await db.queryOne<{ user_id: string; parent_user_id: string | null; created_at: string }>(
+    `SELECT ul.user_id, u.parent_user_id, ul.created_at
+       FROM usage_logs ul LEFT JOIN users u ON u.id = ul.user_id
+      WHERE ul.log_id = $1 AND ul.user_id = $2`,
     [logId, userId]
   );
   if (!row) {
     res.status(404).json({ success: false, code: "log_not_found", message: "日志不存在或无权限查看" });
     return;
+  }
+
+  // Full capture first: untruncated and kept permanently. SLS below only
+  // covers calls from before capture, truncated and for 7 days.
+  try {
+    const { findCapturedPayload } = await import("../services/payload-capture");
+    const captured = await findCapturedPayload({
+      logId,
+      owner: row.parent_user_id || row.user_id,
+      completedAt: new Date(row.created_at),
+    });
+    // The archive path is not an authorization boundary: re-check identity.
+    if (captured && captured.log_id === logId && captured.user_id === userId) {
+      res.json({
+        success: true,
+        data: {
+          request: typeof captured.request === "string" ? captured.request : JSON.stringify(captured.request),
+          response: captured.response,
+        },
+      });
+      return;
+    }
+  } catch {
+    console.error("[usage] captured payload lookup failed", { logId, code: "capture_lookup_failed" });
   }
 
   const { getSlsClient } = await import("../services/sls");
