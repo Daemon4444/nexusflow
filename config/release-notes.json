@@ -1,6 +1,14 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:fix: explain log details not yet uploaded instead of failing": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "最近一小时请求的日志详情给出明确提示",
+      "points": [
+        "由另一台服务器处理、尚未每小时上传的请求，详情页提示“整点后约 5 分钟可查看”，不再显示“暂时无法读取”"
+      ]
+    },
     "subject:feat: show log details from the full payload capture": {
       "type": "fix",
       "audience": "customer",

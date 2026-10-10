@@ -229,6 +229,17 @@ async function main() {
     assert.equal(events[0].userId, childRow?.user_id);
     assert.equal((await call(`/logs/${childLogId}/detail`)).status, 404);
 
+    // A call from the last hour not yet in any capture gets a clear note, not a failure.
+    const recentId = `${user}-recent`;
+    await db.execute("INSERT INTO usage_logs (user_id,log_id,model,created_at) VALUES (?,?,?,?)",
+      [user, recentId, "qa-recent-model", new Date().toISOString()]);
+    const slsCallsBeforeRecent = calls;
+    const recentDetail = await call(`/logs/${recentId}/detail`);
+    assert.equal(recentDetail.status, 200);
+    assert.equal(recentDetail.body.data, null);
+    assert.match(recentDetail.body.note, /整点后/);
+    assert.equal(calls, slsCallsBeforeRecent);
+
     // Exercise the installed Alibaba SDK without making any network request.
     const httpx = require("httpx");
     const originalRequest = httpx.request;
