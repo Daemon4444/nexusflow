@@ -10,7 +10,7 @@ import {
 import { sanitizeError } from "../utils/sanitize-error";
 import { sendAdminBillingExport } from "./admin-billing-export";
 import { getAdminUserLimitSummaries, getUserLimitsOverview } from "../data/ratelimits";
-import { getTransactions, getBillingSummary, getSubAccountBreakdown } from "../data/billing";
+import { getTransactions, getBillingSummary, getSubAccountBreakdown, getBillingDateRange } from "../data/billing";
 import { AdminAdjustmentError, applyAdminAdjustment } from "../data/admin-finance";
 import { getByModel, getOverview, getRecent, getUsageSummary } from "../data/usage";
 import {
@@ -296,22 +296,16 @@ router.get("/billing/users/:id", async (req: Request, res: Response) => {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
     const offset = Math.max(0, Number(req.query.offset) || 0);
 
-    const now = new Date();
-    const defaultStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const startDate =
-      typeof req.query.startDate === "string" && !Number.isNaN(new Date(req.query.startDate).getTime())
-        ? new Date(req.query.startDate)
-        : defaultStart;
-    const endDate =
-      typeof req.query.endDate === "string" && !Number.isNaN(new Date(req.query.endDate).getTime())
-        ? new Date(new Date(req.query.endDate).setHours(23, 59, 59, 999))
-        : now;
+    const { startDate, endDate, endExclusive } = getBillingDateRange(
+      typeof req.query.startDate === "string" ? req.query.startDate : undefined,
+      typeof req.query.endDate === "string" ? req.query.endDate : undefined,
+    );
 
     const [summary, transactions] = await Promise.all([
       getBillingSummary(userId),
       getTransactions(userId, limit, offset),
     ]);
-    const subBreakdown = user.parent_user_id ? [] : await getSubAccountBreakdown(userId, startDate, endDate);
+    const subBreakdown = user.parent_user_id ? [] : await getSubAccountBreakdown(userId, startDate, endDate, endExclusive);
 
     res.json({
       success: true,
@@ -330,7 +324,10 @@ router.get("/billing/users/:id", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: sanitizeError(error) });
+    res.status(error instanceof RangeError ? 400 : 500).json({
+      success: false,
+      message: error instanceof RangeError ? "日期范围无效" : sanitizeError(error),
+    });
   }
 });
 

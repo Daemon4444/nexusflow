@@ -31,6 +31,8 @@ interface AIModel {
   provider: string;
   category: string;
   contextLength?: number;
+  maxOutput?: number;
+  availability?: "available" | "temporarily_unavailable" | "disabled";
   promptPrice: number | null;
   completionPrice: number | null;
   pricingStatus?: "unpublished";
@@ -97,7 +99,7 @@ const CALL_STEPS = [100, 1_000, 10_000, 100_000];
 
 export default function PricingPage({ initialModels, initialError = "" }: PricingPageProps) {
   const { t } = useI18n();
-  const textModels = useMemo(() => initialModels.filter(isTextModel), [initialModels]);
+  const textModels = useMemo(() => initialModels.filter(model => isTextModel(model) && (!model.availability || model.availability === "available")), [initialModels]);
   const [category, setCategory] = useState("all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<string | null>(null);
@@ -126,12 +128,17 @@ export default function PricingPage({ initialModels, initialError = "" }: Pricin
   }, [initialModels, category, query]);
 
   const selected = textModels.find((m) => m.id === modelId) || textModels[0];
+  const exceedsContext = Boolean(selected?.contextLength && inputTokens + outputTokens > selected.contextLength);
+  const exceedsOutput = Boolean(selected?.maxOutput && outputTokens > selected.maxOutput);
+  const estimateError = exceedsContext
+    ? `输入与输出合计超出该模型 ${tokens(selected!.contextLength!)} 的上下文上限，请减少 tokens。`
+    : exceedsOutput ? `输出超出该模型 ${tokens(selected!.maxOutput!)} 的最大输出上限，请减少 tokens。` : "";
   const estimate = useMemo(() => {
-    if (!selected) return null;
+    if (!selected || estimateError) return null;
     const price = tierFor(selected, inputTokens);
     const perCall = (inputTokens * price.prompt + outputTokens * price.completion) / 1e6;
     return { perCall, monthly: perCall * calls * 30 };
-  }, [selected, inputTokens, outputTokens, calls]);
+  }, [selected, inputTokens, outputTokens, calls, estimateError]);
 
   return (
     <div className="pr">
@@ -182,6 +189,7 @@ export default function PricingPage({ initialModels, initialError = "" }: Pricin
                     <div className={`pr-row${isOpen ? " is-open" : ""}`}>
                       <Link href={`/models/${encodeURIComponent(model.id)}`} className="pr-model">
                         <strong>{model.name}</strong>
+                        {model.availability && model.availability !== "available" && <span>暂不可用</span>}
                         <span>{model.id}{model.contextLength ? ` · ${tokens(model.contextLength)} 上下文` : ""}</span>
                       </Link>
                       {!isPriced(model) ? (
@@ -248,7 +256,7 @@ export default function PricingPage({ initialModels, initialError = "" }: Pricin
       })}
       <p className="pr-unit">文本模型价格单位为 ¥ / 百万 tokens。</p>
 
-      {selected && estimate && (
+      {selected && (
         <section className="pr-estimate">
           <div className="pr-estimate-form">
             <h2>估算月度费用</h2>
@@ -263,9 +271,11 @@ export default function PricingPage({ initialModels, initialError = "" }: Pricin
             <Choice label="每天调用次数" value={calls} options={CALL_STEPS} format={(v) => v.toLocaleString("en-US")} onChange={setCalls} />
           </div>
           <div className="pr-estimate-result">
-            <span>预计每月</span>
-            <strong>{yuan(estimate.monthly, estimate.monthly < 100 ? 2 : 0)}</strong>
-            <p>单次约 {yuan(estimate.perCall, 5)}，按 30 天计，未计缓存折扣。实际以每次请求的真实用量结算。</p>
+            {estimate ? <>
+              <span>预计每月</span>
+              <strong>{yuan(estimate.monthly, estimate.monthly < 100 ? 2 : 0)}</strong>
+              <p>单次约 {yuan(estimate.perCall, 5)}，按 30 天计，未计缓存折扣。按普通输出价估算，未计思考模式额外输出、工具费用及账号折扣。上下文校验使用目录上限，具体输入和思考限制以上游模型要求为准；实际以每次请求的真实用量结算。</p>
+            </> : <p role="alert">{estimateError}</p>}
           </div>
         </section>
       )}
@@ -275,7 +285,7 @@ export default function PricingPage({ initialModels, initialError = "" }: Pricin
         <dl>
           <div><dt>计价单位</dt><dd>文本按每百万 token；图片按张；视频与语音识别按秒；语音合成按万字符。均为人民币。</dd></div>
           <div><dt>阶梯计费</dt><dd>部分模型按单次请求的输入长度分档，长 prompt 自动适用对应档位，点“阶梯价”查看每一档。</dd></div>
-          <div><dt>上下文缓存</dt><dd>隐式缓存自动生效；显式缓存命中价为输入价的 0.1 倍，创建价为 1.25 倍。详见 <Link href="/docs/context-cache">缓存文档</Link>。</dd></div>
+          <div><dt>上下文缓存</dt><dd>缓存支持与价格因模型而异。上表为隐式缓存命中价；显式缓存命中、创建及阶梯价格请查看模型详情。详见 <Link href="/docs/context-cache">缓存文档</Link>。</dd></div>
           <div><dt>Claude</dt><dd>按 Anthropic 官方美元价以 1 USD ≈ ¥6.8 折算，汇率变动时可能调整。</dd></div>
           <div><dt>失败请求</dt><dd>没有任何产出的失败请求不计费。</dd></div>
         </dl>

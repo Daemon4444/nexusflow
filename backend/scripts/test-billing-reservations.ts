@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { closeDb, db } from "../src/db/client";
 import { adminAdjustCredit, getBillingUsageExport, reserveBalance, reserveBalanceWithReason, settleReservation } from "../src/data/billing";
 import { logUsage } from "../src/data/usage";
+import { models } from "../src/data/models";
 import {
   normalizeDashScopeVideoResolution,
   normalizeDashScopeVideoSize,
@@ -183,6 +184,43 @@ async function main(): Promise<void> {
   assert.equal(nonThinkingRow.list_amount_cny, 0.0028);
   assert.equal(nonThinkingRow.discount_rate, 0.5);
   assert.equal(nonThinkingRow.discount_amount_cny, 0.0014);
+  assert.match(nonThinkingRow.pricing_note, /settlement-time snapshot/);
+  assert.match(nonThinkingRow.pricing_note, /current-catalog references, not historical pricing snapshots/);
+
+  // A later catalog edit must not relabel its reference unit prices as the
+  // historical settlement or change the saved total / discount / paid amount.
+  const currentModel = models.find(model => model.id === "qwen-plus")!;
+  const originalModel = JSON.parse(JSON.stringify(currentModel));
+  try {
+    currentModel.promptPrice *= 2;
+    currentModel.completionPrice *= 2;
+    for (const tier of currentModel.tokenPricingTiers || []) {
+      tier.promptPrice *= 2;
+      tier.completionPrice *= 2;
+    }
+    const afterPriceChange = await getBillingUsageExport("billing-pricing-evidence-user", {});
+    const changedRow = afterPriceChange.rows.find(row => row.usage_id === nonThinkingRow.usage_id)!;
+    assert.equal(changedRow.prompt_unit_price_cny_per_1m, nonThinkingRow.prompt_unit_price_cny_per_1m * 2);
+    assert.equal(changedRow.completion_unit_price_cny_per_1m, nonThinkingRow.completion_unit_price_cny_per_1m * 2);
+    assert.equal(changedRow.list_amount_cny, nonThinkingRow.list_amount_cny);
+    assert.equal(changedRow.discount_rate, nonThinkingRow.discount_rate);
+    assert.equal(changedRow.discount_amount_cny, nonThinkingRow.discount_amount_cny);
+    assert.equal(changedRow.billed_amount_cny, nonThinkingRow.billed_amount_cny);
+    assert.match(changedRow.pricing_note, /current-catalog references/);
+
+    await db.execute(
+      `INSERT INTO usage_logs (user_id,model,prompt_tokens,completion_tokens,total_tokens,cost,status)
+       VALUES (?, ?, 1000, 1000, 2000, 0.0028, 'success')`,
+      ["billing-pricing-evidence-user", "qwen-plus"],
+    );
+    const legacyExport = await getBillingUsageExport("billing-pricing-evidence-user", {});
+    const legacyRow = legacyExport.rows.find(row => row.billed_amount_cny === 0.0028)!;
+    assert.match(legacyRow.pricing_note, /cannot be reconstructed/);
+    assert.match(legacyRow.pricing_note, /current-catalog references/);
+    assert.doesNotMatch(legacyRow.pricing_note, /authoritative settlement-time snapshot/);
+  } finally {
+    Object.assign(currentModel, originalModel);
+  }
 
   const storedEvidence = await db.queryOne<{
     retail_list_cost: number;

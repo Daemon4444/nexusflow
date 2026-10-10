@@ -1,11 +1,21 @@
 import { Router, Request, Response } from "express";
-import { sanitizeError } from "../utils/sanitize-error";
 import { getOverview, getDaily, getByModel, getRecent, getUsageLogs, getPerformanceOverview, getPerformanceHourly, getPerformanceByModel, getRecentPerformance } from "../data/usage";
 import { validateSession } from "../data/users";
 import { getAdminAccessForUser } from "../data/admin-access";
-import { listUserModelDiscounts, UserModelDiscount } from "../data/user-discounts";
+import { parseUsageDate } from "../utils/usage-dates";
 
 const router = Router();
+
+function readLimit(req: Request, res: Response, fallback: number, maximum: number): number | null {
+  if (req.query.limit === undefined) return fallback;
+  const raw = req.query.limit;
+  const limit = typeof raw === "string" && /^\d+$/.test(raw) ? Number(raw) : NaN;
+  if (!Number.isSafeInteger(limit) || limit < 1) {
+    res.status(400).json({ success: false, code: "invalid_limit", message: "limit 必须为正整数" });
+    return null;
+  }
+  return Math.min(limit, maximum);
+}
 
 /** Extract session user ID from Authorization header */
 async function getSessionUserId(req: Request): Promise<string | null> {
@@ -81,7 +91,8 @@ router.get("/", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  const limit = Math.min(Number(req.query.limit) || 100, 1000);
+  const limit = readLimit(req, res, 100, 1000);
+  if (limit === null) return;
   const globalScope = shouldUseGlobalScope(req);
   const records = await getUsageLogs(limit, globalScope ? undefined : userId);
   res.json({
@@ -140,26 +151,16 @@ router.get("/by-model", async (req: Request, res: Response) => {
   });
 });
 
-function findMatchingDiscount(modelId: string, discounts: UserModelDiscount[]): UserModelDiscount | null {
-  const exact = discounts.find((d) => d.model_id === modelId && d.is_enabled);
-  if (exact) return exact;
-  const prefixMatches = discounts
-    .filter((d) => d.is_enabled && d.model_id.endsWith("*") && d.model_id !== "*" && modelId.startsWith(d.model_id.slice(0, -1)))
-    .sort((a, b) => b.model_id.length - a.model_id.length);
-  if (prefixMatches.length > 0) return prefixMatches[0];
-  const global = discounts.find((d) => d.model_id === "*" && d.is_enabled);
-  return global || null;
-}
-
 router.get("/recent", async (req: Request, res: Response) => {
   const userId = await getSessionUserId(req);
   if (!userId) {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const limit = readLimit(req, res, 50, 200);
+  if (limit === null) return;
   const globalScope = shouldUseGlobalScope(req);
-  const records = await getRecent(globalScope ? undefined : userId, limit);
+  const records = await getRecent(globalScope ? undefined : userId, limit, !globalScope);
   if (globalScope) {
     res.json({
       success: true,
@@ -172,17 +173,12 @@ router.get("/recent", async (req: Request, res: Response) => {
     });
     return;
   }
-  const discounts = await listUserModelDiscounts(userId);
-  const enriched = records.map((r: any) => {
-    const d = findMatchingDiscount(r.model, discounts);
-    const rate = d ? d.discount_rate : 1;
-    return {
-      ...r,
-      discount_rate: rate < 1 ? rate : undefined,
-      list_cost: rate < 1 && r.cost > 0 ? Math.round((r.cost / rate) * 1000000) / 1000000 : undefined,
-    };
-  });
-  res.json({ success: true, data: enriched });
+  // Only settlement-time snapshots may describe historical prices and discounts.
+  res.json({ success: true, data: records.map((record: any) => ({
+    ...record,
+    discount_rate: record.discount_rate ?? undefined,
+    list_cost: record.list_cost ?? undefined,
+  })) });
 });
 
 // ========== 性能监控端点 ==========
@@ -220,7 +216,8 @@ router.get("/monitor/recent", async (req: Request, res: Response) => {
     res.status(401).json({ success: false, message: "未登录" });
     return;
   }
-  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const limit = readLimit(req, res, 50, 200);
+  if (limit === null) return;
   const globalScope = shouldUseGlobalScope(req);
   const data = await getRecentPerformance(limit, globalScope ? undefined : userId);
   res.json({
@@ -238,7 +235,16 @@ router.get("/logs/search", async (req: Request, res: Response) => {
   if (!userId) { res.status(401).json({ success: false, message: "未登录" }); return; }
 
   const { log_id, model, from, to } = req.query;
-  const maxLimit = Math.min(Number(req.query.limit) || 50, 200);
+  const maxLimit = readLimit(req, res, 50, 200);
+  if (maxLimit === null) return;
+  const fromDate = from === undefined ? undefined : parseUsageDate(from);
+  const toDate = to === undefined ? undefined : parseUsageDate(to, true);
+  if (fromDate === null || toDate === null || (fromDate && toDate && fromDate > toDate)
+    || (log_id !== undefined && typeof log_id !== "string")
+    || (model !== undefined && typeof model !== "string")) {
+    res.status(400).json({ success: false, code: "invalid_usage_filter", message: "请使用有效日期范围；时间戳必须包含时区" });
+    return;
+  }
 
   const conditions: string[] = ["user_id = $1"];
   const params: any[] = [userId];
@@ -246,8 +252,13 @@ router.get("/logs/search", async (req: Request, res: Response) => {
 
   if (log_id) { conditions.push(`log_id = $${idx++}`); params.push(log_id); }
   if (model) { conditions.push(`model = $${idx++}`); params.push(model); }
-  if (from) { conditions.push(`created_at >= $${idx++}`); params.push(from); }
-  if (to) { conditions.push(`created_at <= $${idx++}`); params.push(to); }
+  if (fromDate) { conditions.push(`created_at >= $${idx++}`); params.push(fromDate.toISOString()); }
+  if (toDate) {
+    const dateOnly = typeof to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(to);
+    conditions.push(`created_at ${dateOnly ? "<" : "<="} $${idx++}`);
+    // PostgreSQL retains microseconds; include the complete final calendar day.
+    params.push(new Date(toDate.getTime() + (dateOnly ? 1 : 0)).toISOString());
+  }
 
   const { db } = await import("../db/client");
   const rows = await db.queryMany(
@@ -255,7 +266,7 @@ router.get("/logs/search", async (req: Request, res: Response) => {
             ROUND(cost::numeric, 6)::float as cost, latency_ms,
             COALESCE(cached_tokens, 0)::int as cached_tokens,
             COALESCE(cache_creation_tokens, 0)::int as cache_creation_tokens,
-            to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD HH24:MI:SS') as time
+            to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD"T"HH24:MI:SS.MS') || '+08:00' as time
      FROM usage_logs
      WHERE ${conditions.join(" AND ")}
      ORDER BY created_at DESC
@@ -277,14 +288,14 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
     [logId, userId]
   );
   if (!row) {
-    res.json({ success: false, message: "日志不存在或无权限查看" });
+    res.status(404).json({ success: false, code: "log_not_found", message: "日志不存在或无权限查看" });
     return;
   }
 
   const { getSlsClient } = await import("../services/sls");
   const slsClient = getSlsClient();
   if (!slsClient) {
-    res.json({ success: false, message: "SLS 未配置" });
+    res.status(503).json({ success: false, code: "log_detail_unavailable", message: "日志详情服务暂不可用，请联系支持并提供 Request ID" });
     return;
   }
 
@@ -293,18 +304,26 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
   const to = new Date(created.getTime() + 120000);
 
   try {
-    const logs = await slsClient.getLogs("nexusflow", "nexusflow", from, to, { query: `"${logId}"`, line: 1 }, { readTimeout: 10000, connectTimeout: 5000 });
-    const entry = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
+    const logs = await slsClient.getLogs("nexusflow", "nexusflow", from, to, {
+      // The production logstore has no field index on logId/userId (a field
+      // query fails), so search the full text and filter exactly below.
+      query: JSON.stringify(logId), line: 10,
+    }, { readTimeout: 10000, connectTimeout: 5000 });
+    // Search results are not an authorization boundary. Verify persisted identity
+    // fields again before exposing any content, even after an indexed search.
+    const entry = Array.isArray(logs)
+      ? logs.find(item => item?.logId === logId && item?.userId === userId) : null;
     res.json({
       success: true,
       data: entry ? {
         request: entry.request || null,
         response: entry.response || null,
       } : null,
-      note: entry ? undefined : "日志可能仍在索引中（SLS 延迟 1-2 分钟），请稍后重试",
+      note: entry ? undefined : "未找到详情：日志可能仍在索引中（约 1–2 分钟），或已超出保留期。",
     });
-  } catch (err: any) {
-    res.json({ success: false, message: "SLS 查询失败: " + err.message });
+  } catch {
+    console.error("[usage] log detail query failed", { logId, code: "sls_query_failed" });
+    res.status(503).json({ success: false, code: "log_detail_unavailable", message: "日志详情暂时无法读取，请重试；若持续失败，请联系支持并提供 Request ID" });
   }
 });
 

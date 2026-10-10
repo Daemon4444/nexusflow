@@ -3,6 +3,7 @@ import { db } from "../db/client";
 import { logToSLS } from "../services/sls";
 import { getUserById } from "./users";
 import { AIModel, calculateTokenCost, getTokenPricingTier, models, resolveCompletionPrice } from "./models";
+import { parseUsageDate, shanghaiDate } from "../utils/usage-dates";
 
 export interface Transaction {
   id: string;
@@ -98,16 +99,16 @@ function allocateCharge(balance: number, creditBalance: number, amount: number) 
   };
 }
 
-function normalizeExportDate(value: string | undefined, fallback: Date): Date {
-  if (!value) return fallback;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
-}
-
-function endOfDay(value: Date): Date {
-  const copy = new Date(value);
-  copy.setHours(23, 59, 59, 999);
-  return copy;
+/** Customer and admin reports use the same Shanghai calendar boundaries. */
+export function getBillingDateRange(start?: string, end?: string, now = new Date()) {
+  const today = shanghaiDate(now);
+  const startDate = parseUsageDate(start ?? `${today.slice(0, 7)}-01`);
+  const endDate = parseUsageDate(end ?? today, true);
+  if (!startDate || !endDate || startDate > endDate) {
+    throw new RangeError("Invalid billing date range");
+  }
+  const endExclusive = end === undefined || /^\d{4}-\d{2}-\d{2}$/.test(end);
+  return { startDate, endDate, endExclusive };
 }
 
 function money6(value: number): number {
@@ -157,6 +158,7 @@ function getModelBillingBreakdown(
   const promptAmount = (prompt / 1_000_000) * promptUnit;
   const completionAmount = (completion / 1_000_000) * completionUnit;
   const hasCache = cached > 0 || cacheCreation > 0;
+  const componentPricingNote = "Unit prices, tiers and component amounts are current-catalog references, not historical pricing snapshots.";
 
   return {
     pricingType: model?.pricingType || "token" as const,
@@ -175,16 +177,12 @@ function getModelBillingBreakdown(
     discountRate: pricingEvidence?.discountRate,
     discountAmount: pricingEvidence?.discountAmount,
     pricingNote: hasAuthoritativeListCost
-      ? "Authoritative settlement-time retail pricing snapshot"
+      ? `List total uses the authoritative settlement-time snapshot; discounts use saved evidence when available. ${componentPricingNote}`
       : cannotReconstructLegacyMode
-        ? "Legacy row predates thinking-mode pricing evidence; billed amount preserved"
-        : hasCache
-          ? "Legacy cache-aware row predates retail pricing evidence; billed amount preserved"
-      : tier
-        ? "Input-length tier selected by prompt_tokens for this request"
+        ? `Legacy row lacks settlement and thinking-mode evidence; billed amount preserved, historical list price and discount cannot be reconstructed. ${componentPricingNote}`
         : model
-          ? "Standard catalog price"
-          : "Model not found in current catalog; billed amount preserved",
+          ? `Legacy row lacks settlement pricing evidence; list total and inferred discounts are current-catalog estimates, not historical facts. Billed amount preserved. ${componentPricingNote}`
+          : "Model missing from current catalog and settlement pricing evidence unavailable; billed amount preserved. Historical list price, discount and component pricing cannot be reconstructed.",
   };
 }
 
@@ -725,7 +723,8 @@ export interface SubAccountBreakdownRow {
 export async function getSubAccountBreakdown(
   ownerId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
+  endExclusive = false
 ): Promise<SubAccountBreakdownRow[]> {
   // 家庭成员：主账号 + 全部子账号（含已删，历史要能看）
   const members = await db.queryMany<any>(
@@ -734,13 +733,14 @@ export async function getSubAccountBreakdown(
     [ownerId, ownerId]
   );
   const start = startDate.toISOString();
-  const end = endDate.toISOString();
+  const end = new Date(endDate.getTime() + (endExclusive ? 1 : 0)).toISOString();
+  const endOperator = endExclusive ? "<" : "<=";
 
   // 金额：钱都记在主账号 transactions，按 actor 分组（历史数据 actor 为 NULL = 主账号自己）
   const amounts = await db.queryMany<{ actor: string | null; amount: string | number }>(
     `SELECT COALESCE(actor_user_id, user_id) as actor, COALESCE(SUM(amount), 0) as amount
        FROM transactions
-      WHERE user_id = ? AND type = 'consumption' AND created_at >= ? AND created_at <= ?
+      WHERE user_id = ? AND type = 'consumption' AND created_at >= ? AND created_at ${endOperator} ?
       GROUP BY COALESCE(actor_user_id, user_id)`,
     [ownerId, start, end]
   );
@@ -751,7 +751,7 @@ export async function getSubAccountBreakdown(
     `SELECT ul.user_id as uid, COUNT(*) as calls, COALESCE(SUM(ul.total_tokens), 0) as tokens
        FROM usage_logs ul
        JOIN users u ON u.id = ul.user_id
-      WHERE (u.id = ? OR u.parent_user_id = ?) AND ul.created_at >= ? AND ul.created_at <= ?
+      WHERE (u.id = ? OR u.parent_user_id = ?) AND ul.created_at >= ? AND ul.created_at ${endOperator} ?
       GROUP BY ul.user_id`,
     [ownerId, ownerId, start, end]
   );
@@ -797,12 +797,12 @@ export async function getBillingSummary(userId: string) {
 export async function getMonthlyStats(userId: string) {
   return db.queryMany(
     `SELECT
-       to_char(created_at, 'YYYY-MM') as month,
+       to_char(timezone('Asia/Shanghai', created_at), 'YYYY-MM') as month,
        COALESCE(SUM(CASE WHEN type = 'recharge' THEN amount ELSE 0 END), 0)::float as recharge,
        COALESCE(SUM(CASE WHEN type = 'consumption' THEN amount ELSE 0 END), 0)::float as consumption
      FROM transactions
      WHERE user_id = ? AND created_at >= NOW() - INTERVAL '6 months'
-     GROUP BY to_char(created_at, 'YYYY-MM')
+     GROUP BY to_char(timezone('Asia/Shanghai', created_at), 'YYYY-MM')
      ORDER BY month`,
     [userId]
   );
@@ -816,13 +816,9 @@ export async function getBillingUsageExport(
   startDate: string;
   endDate: string;
 }> {
-  const now = new Date();
-  const defaultStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
-  const startDate = normalizeExportDate(params.startDate, defaultStart);
-  const endDate = endOfDay(normalizeExportDate(params.endDate, now));
-  if (startDate.getTime() > endDate.getTime()) {
-    throw new Error("startDate must be earlier than or equal to endDate");
-  }
+  const { startDate, endDate, endExclusive } = getBillingDateRange(params.startDate, params.endDate);
+  // PostgreSQL stores microseconds; <= 23:59:59.999 would omit the last 999µs.
+  const endBound = new Date(endDate.getTime() + (endExclusive ? 1 : 0));
 
   // 导出范围（spec §4.2）：主账号默认=自己+全部子账号，可用 subAccountId 过滤到某个子账号；子账号只能导出自己
   const caller = await getUserById(userId);
@@ -868,9 +864,9 @@ export async function getBillingUsageExport(
      LEFT JOIN api_keys ak ON ak.id = ul.api_key_id
      WHERE ${scopeCondition}
        AND ul.created_at >= ?
-       AND ul.created_at <= ?
+       AND ul.created_at ${endExclusive ? "<" : "<="} ?
      ORDER BY ul.created_at ASC, ul.id ASC`,
-    [...scopeParams, startDate.toISOString(), endDate.toISOString()]
+    [...scopeParams, startDate.toISOString(), endBound.toISOString()]
   );
 
   const modelById = new Map(models.map((model) => [model.id, model]));

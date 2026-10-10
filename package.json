@@ -22,6 +22,7 @@
     "reconcile:release-telemetry": "node scripts/reconcile-release-telemetry.mjs",
     "test:release-ci-gate": "bash scripts/test-release-ci-gate.sh",
     "test:backup-freshness": "bash scripts/test-backup-freshness.sh",
+    "test:backup-cron": "node scripts/test-backup-cron.mjs",
     "test:migration-ledger": "node scripts/test-migration-ledger.mjs",
     "test:load-test": "node scripts/test-load-test.mjs",
     "test:docs-index": "node scripts/check-docs-index.mjs",

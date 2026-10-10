@@ -30,6 +30,15 @@ export function getModelProtocols(model: ModelSummary) {
   return model.supportedProtocols || model.supported_protocols || [];
 }
 
+/** Only offer a copyable Chat example when the catalog and account permit it. */
+export function getDefaultChatModel(models: ModelSummary[], allowedModels?: string[] | null) {
+  return getRecommendedModels(models.filter(model =>
+    model.availability === "available" &&
+    getModelProtocols(model).includes("openai/chat-completions") &&
+    (allowedModels == null || allowedModels.includes(model.id))
+  ), 1)[0];
+}
+
 export function formatContextLength(contextLength?: number) {
   if (!contextLength) return "Async";
   if (contextLength >= 1_000_000) {

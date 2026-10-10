@@ -17,7 +17,7 @@ interface UsageData {
     totalCost: number;
     activeModels: number;
     avgLatency: number;
-    successRate: number;
+    successRate: number | null;
     totalCachedTokens: number;
   };
   daily: { date: string; requests: number; tokens: number; cost: number }[];
@@ -46,10 +46,13 @@ const OTHER = "__other__";
 
 /** Top five models, with the long tail folded into one row so the panel stays short. */
 function topModels(rows: UsageData["byModel"]) {
-  if (rows.length <= 6) return rows;
   const rest = rows.slice(5);
-  const sum = (key: "requests" | "tokens" | "cost" | "percentage") => rest.reduce((total, row) => total + Number(row[key] || 0), 0);
-  return [...rows.slice(0, 5), { model: OTHER, requests: sum("requests"), tokens: sum("tokens"), cost: sum("cost"), percentage: Math.round(sum("percentage") * 10) / 10 }];
+  const sum = (key: "requests" | "tokens" | "cost") => rest.reduce((total, row) => total + Number(row[key] || 0), 0);
+  const totalRequests = rows.reduce((total, row) => total + row.requests, 0);
+  const grouped = rows.length <= 6 ? rows : [...rows.slice(0, 5), { model: OTHER, requests: sum("requests"), tokens: sum("tokens"), cost: sum("cost"), percentage: 0 }];
+  // Recompute after grouping: summing independently rounded API percentages
+  // compounds rounding error as the number of models grows.
+  return grouped.map(row => ({ ...row, percentage: totalRequests > 0 ? Math.round(row.requests / totalRequests * 1000) / 10 : 0 }));
 }
 
 export default function ActivityPage() {
@@ -57,6 +60,7 @@ export default function ActivityPage() {
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [failedSections, setFailedSections] = useState<string[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -69,13 +73,17 @@ export default function ActivityPage() {
     setError("");
     try {
       const headers = authHeaders();
-      const [ovRes, dayRes, modelRes, recentRes] = await Promise.all([
+      const settled = await Promise.allSettled([
         fetchAPI("/api/usage/overview", { headers, signal }),
         fetchAPI("/api/usage/daily", { headers, signal }),
         fetchAPI("/api/usage/by-model", { headers, signal }),
         fetchAPI("/api/usage/recent?limit=50", { headers, signal }),
       ]);
-      // 部分接口失败时优雅降级：有任一数据即渲染，全部失败才报错
+      if (signal?.aborted) return;
+      const results = settled.map(result => result.status === "fulfilled" ? result.value : { success: false });
+      const [ovRes, dayRes, modelRes, recentRes] = results;
+      setFailedSections(["用量统计", "每日用量", "模型分布", "最近请求"].filter((_, index) => !results[index].success));
+      // Keep independent successful sections; unavailable sections must not look like zero usage.
       if (ovRes.success || dayRes.success || modelRes.success || recentRes.success) {
         setData({
           overview: ovRes.success ? ovRes.data : { totalRequests: 0, totalTokens: 0, totalPromptTokens: 0, totalCost: 0, activeModels: 0, avgLatency: 0, successRate: 0, totalCachedTokens: 0 },
@@ -102,6 +110,8 @@ export default function ActivityPage() {
 
   const [activeTab, setActiveTab] = useState<"dashboard" | "logs">("dashboard");
   const isSuccess = (status: string) => status === "success" || status === "成功";
+  const modelDistribution = data ? topModels(data.byModel) : [];
+  const largestModelShare = Math.max(...modelDistribution.map(model => model.percentage), 1);
 
   return (
     <UserLayout wide>
@@ -110,8 +120,8 @@ export default function ActivityPage() {
         description={t("activityDesc")}
         actions={(
           <div className="nfc-seg" role="tablist" aria-label="视图">
-            <button role="tab" aria-pressed={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")}>用量概览</button>
-            <button role="tab" aria-pressed={activeTab === "logs"} onClick={() => setActiveTab("logs")}>请求日志</button>
+            <button role="tab" aria-selected={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")}>用量概览</button>
+            <button role="tab" aria-selected={activeTab === "logs"} onClick={() => setActiveTab("logs")}>请求日志</button>
           </div>
         )}
       />
@@ -125,17 +135,18 @@ export default function ActivityPage() {
         <EmptyState title="暂无用量数据" />
       ) : (
         <>
-          <KpiBand items={[
-            { label: t("totalRequests"), value: data.overview.totalRequests.toLocaleString(), hint: `${data.overview.activeModels} 个模型` },
+          {failedSections.length > 0 && <div className="nf-inline-warning" role="status">{failedSections.join("、")}暂未加载。<button className="btn-secondary" onClick={() => load()}>重试</button></div>}
+          {failedSections.includes("用量统计") ? <ErrorState compact title="用量统计暂不可用" onAction={() => load()} /> : <KpiBand items={[
+            { label: t("totalRequests"), value: data.overview.totalRequests.toLocaleString(), hint: `已记录请求 · ${data.overview.activeModels} 个模型` },
             { label: t("totalTokens"), value: formatTokensCompact(data.overview.totalTokens), hint: data.overview.totalCachedTokens > 0 && data.overview.totalPromptTokens > 0 ? `缓存命中 ${((data.overview.totalCachedTokens / data.overview.totalPromptTokens) * 100).toFixed(1)}%` : "无缓存命中" },
-            { label: t("totalCost"), value: formatCny(data.overview.totalCost), hint: "累计" },
-            { label: t("avgLatency"), value: `${data.overview.avgLatency}s`, hint: "端到端平均" },
-            { label: t("successRate"), value: `${data.overview.successRate}%`, hint: data.overview.successRate < 95 ? "低于 95%，建议查看日志" : "运行正常" },
-          ]} />
+            { label: t("totalCost"), value: formatCny(data.overview.totalCost), hint: "用量记录累计，账单以账本为准" },
+            { label: t("avgLatency"), value: data.overview.totalRequests > 0 ? `${data.overview.avgLatency}s` : "—", hint: "端到端平均" },
+            { label: t("successRate"), value: data.overview.totalRequests > 0 && data.overview.successRate !== null ? `${data.overview.successRate}%` : "—", hint: data.overview.totalRequests === 0 ? "尚无请求" : (data.overview.successRate ?? 0) < 95 ? "低于 95%，建议查看日志" : "运行正常" },
+          ]} />}
 
           <div className="nfc-activity-grid">
             <Panel title={t("dailyReq7d")} aside={<span>请求数 · 费用</span>}>
-              {data.daily.length === 0 ? (
+              {failedSections.includes("每日用量") ? <ErrorState compact title="每日用量暂不可用" onAction={() => load()} /> : data.daily.length === 0 ? (
                 <EmptyState compact title="最近 7 天还没有请求" message="完成一次 API 调用后，这里会显示每日请求趋势。" />
               ) : (
                 <div className="nfc-bars">
@@ -144,7 +155,7 @@ export default function ActivityPage() {
                     return (
                       <div key={d.date} className="nfc-bar" title={`${d.date} · ${d.requests} 次 · ${formatCnyPrecise(d.cost)}`}>
                         <span className="nfc-bar-value">{d.requests.toLocaleString()}</span>
-                        <span className="nfc-bar-fill" style={{ height: `${Math.max(4, (d.requests / maxReq) * 100)}%` }} />
+                        <span className="nfc-bar-fill" style={{ height: `${d.requests > 0 ? Math.max(4, (d.requests / maxReq) * 100) : 0}%` }} />
                         <span className="nfc-bar-label">{d.date}</span>
                         <span className="nfc-bar-sub">{formatCny(d.cost)}</span>
                       </div>
@@ -155,14 +166,14 @@ export default function ActivityPage() {
             </Panel>
 
             <Panel title={t("modelDist")} aside={<span>按请求数</span>}>
-              {data.byModel.length === 0 ? (
+              {failedSections.includes("模型分布") ? <ErrorState compact title="模型分布暂不可用" onAction={() => load()} /> : data.byModel.length === 0 ? (
                 <EmptyState compact title="暂无模型分布" message="调用模型后将按费用和请求量展示分布。" />
               ) : (
                 <ul className="nfc-share">
-                  {topModels(data.byModel).map((m) => (
+                  {modelDistribution.map((m) => (
                     <li key={m.model}>
                       <div>{m.model === OTHER ? <span className="nfc-muted">其他模型</span> : <code className="nfc-code">{m.model}</code>}<span className="nfc-mono">{m.percentage}%</span></div>
-                      <span className="nfc-share-track"><span style={{ width: `${m.percentage * (100 / (data.byModel[0]?.percentage || 100))}%` }} /></span>
+                      <span className="nfc-share-track"><span style={{ width: `${m.percentage * (100 / largestModelShare)}%` }} /></span>
                       <small>{m.requests.toLocaleString()} 次 · {formatTokensCompact(m.tokens)} tokens · {formatCny(m.cost)}</small>
                     </li>
                   ))}
@@ -172,7 +183,7 @@ export default function ActivityPage() {
           </div>
 
           <Panel title={t("recentRequests")} aside={<span>最近 {data.recent.length} 条</span>} flush>
-            {data.recent.length === 0 ? (
+            {failedSections.includes("最近请求") ? <ErrorState compact title="最近请求暂不可用" onAction={() => load()} /> : data.recent.length === 0 ? (
               <EmptyState compact title="暂无最近请求" message="首次调用成功后会显示状态、Token 和费用。" />
             ) : (
               <div className="nfc-table-wrap">
@@ -212,7 +223,7 @@ export default function ActivityPage() {
           </Panel>
 
           <Panel title={t("dailyCost")} flush>
-            {data.daily.length === 0 ? (
+            {failedSections.includes("每日用量") ? <ErrorState compact title="每日用量暂不可用" onAction={() => load()} /> : data.daily.length === 0 ? (
               <EmptyState compact title="暂无每日费用" message="账单产生后可在这里按天核对。" />
             ) : (
               <table className="nfc-table">
@@ -253,36 +264,72 @@ function LogAnalysis() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailNote, setDetailNote] = useState("");
   const detailReqRef = useRef(0);
+  const [searchError, setSearchError] = useState("");
+  const [searched, setSearched] = useState(false);
+  const [detailRetryable, setDetailRetryable] = useState(true);
+  const searchReqRef = useRef(0);
 
-  async function handleSearch() {
+  useEffect(() => () => { searchReqRef.current++; detailReqRef.current++; }, []);
+
+  async function handleSearch(event?: React.FormEvent) {
+    event?.preventDefault();
+    const reqId = ++searchReqRef.current;
+    ++detailReqRef.current;
+    setExpandedId(null);
+    setResults([]);
+    setSearchError("");
+    setSearched(false);
     setLoading(true);
-    const params = new URLSearchParams();
-    if (searchLogId.trim()) params.set("log_id", searchLogId.trim());
-    if (searchModel.trim()) params.set("model", searchModel.trim());
-    if (searchFrom) params.set("from", new Date(searchFrom).toISOString());
-    if (searchTo) params.set("to", new Date(searchTo).toISOString());
-    params.set("limit", "50");
-    const res = await fetchAPI(`/api/usage/logs/search?${params}`, { headers: authHeaders() });
-    if (res.success) setResults(res.data || []);
-    setLoading(false);
+    try {
+      const from = searchFrom ? new Date(searchFrom) : null;
+      const to = searchTo ? new Date(searchTo) : null;
+      if ((from && !Number.isFinite(from.getTime())) || (to && !Number.isFinite(to.getTime())) || (from && to && from > to)) {
+        setSearchError("请输入有效时间，且开始时间不得晚于结束时间。");
+        return;
+      }
+      const params = new URLSearchParams({ limit: "50" });
+      if (searchLogId.trim()) params.set("log_id", searchLogId.trim());
+      if (searchModel.trim()) params.set("model", searchModel.trim());
+      if (from) params.set("from", from.toISOString());
+      if (to) params.set("to", to.toISOString());
+      const res = await fetchAPI(`/api/usage/logs/search?${params}`, { headers: authHeaders() });
+      if (reqId !== searchReqRef.current) return;
+      if (res.success) {
+        setResults(res.data || []);
+        setSearched(true);
+      } else {
+        setSearchError(res.message || "查询失败，请稍后重试");
+      }
+    } catch {
+      if (reqId === searchReqRef.current) setSearchError("无法连接日志服务，请稍后重试");
+    } finally {
+      if (reqId === searchReqRef.current) setLoading(false);
+    }
   }
 
-  async function loadDetail(logId: string) {
-    if (expandedId === logId) { setExpandedId(null); return; }
+  async function loadDetail(logId: string, retry = false) {
+    if (expandedId === logId && !retry) { ++detailReqRef.current; setExpandedId(null); return; }
     const reqId = ++detailReqRef.current;
     setExpandedId(logId);
     setDetailLoading(true);
     setDetail(null);
     setDetailNote("");
-    const res = await fetchAPI(`/api/usage/logs/${logId}/detail`, { headers: authHeaders() });
-    if (reqId !== detailReqRef.current) return; // 已被更新的点击取代，丢弃过期结果
-    if (res.success) {
-      setDetail(res.data);
-      if (res.note) setDetailNote(res.note);
-    } else {
-      setDetailNote(res.message || "查询失败");
+    setDetailRetryable(true);
+    try {
+      const res = await fetchAPI(`/api/usage/logs/${encodeURIComponent(logId)}/detail`, { headers: authHeaders() });
+      if (reqId !== detailReqRef.current) return;
+      if (res.success) {
+        setDetail(res.data);
+        if (res.note) setDetailNote(res.note);
+      } else {
+        setDetailNote(res.message || "查询失败");
+        setDetailRetryable(![401, 403, 404].includes(res.status));
+      }
+    } catch {
+      if (reqId === detailReqRef.current) setDetailNote("无法连接日志服务，请稍后重试");
+    } finally {
+      if (reqId === detailReqRef.current) setDetailLoading(false);
     }
-    setDetailLoading(false);
   }
 
   function formatJson(s: string | null | undefined): string {
@@ -293,7 +340,7 @@ function LogAnalysis() {
   return (
     <>
       <Panel title="搜索请求日志" aside="写入后约 1–2 分钟可查询详情；不填条件直接搜索可查看最近 50 条">
-        <div className="nfc-log-form">
+        <form className="nfc-log-form" onSubmit={handleSearch}>
           <label className="nfc-field">Request ID
             <input className="input" value={searchLogId} onChange={(e) => setSearchLogId(e.target.value)} placeholder="响应里的 id" />
           </label>
@@ -306,8 +353,11 @@ function LogAnalysis() {
           <label className="nfc-field">结束时间
             <input className="input" type="datetime-local" value={searchTo} onChange={(e) => setSearchTo(e.target.value)} />
           </label>
-          <button className="btn-primary" onClick={handleSearch} disabled={loading}>{loading ? "搜索中…" : "搜索"}</button>
-        </div>
+          <button className="btn-primary" type="submit" disabled={loading}>{loading ? "搜索中…" : "搜索"}</button>
+        </form>
+        <p className="nfc-faint">时间筛选与日志时间使用浏览器本地时区；每日用量按北京时间统计。</p>
+        {searchError && <p role="alert">{searchError}</p>}
+        {searched && results.length === 0 && <EmptyState compact title="没有匹配的请求" message="可调整模型、Request ID 或时间范围后重新搜索。" />}
       </Panel>
 
       {results.length > 0 && (
@@ -351,7 +401,7 @@ function LogAnalysis() {
                               <div><span>RESPONSE</span><pre>{formatJson(detail.response)}</pre></div>
                             </div>
                           ) : (
-                            <span className="nfc-faint">{detailNote || "暂无详情数据"}</span>
+                            <div role="status"><span className="nfc-faint">{detailNote || "暂无详情数据"}</span> {detailRetryable && <button className="btn-secondary" onClick={() => loadDetail(r.log_id, true)}>重试</button>}</div>
                           )}
                         </td>
                       </tr>

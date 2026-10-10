@@ -57,6 +57,8 @@ export function Tag({ tone = "neutral", children }: { tone?: TagTone; children: 
 
 /** Local time as "10-08 14:23" (adds the year only when it differs). */
 export function formatConsoleTime(value: string | number | Date, withSeconds = false) {
+  // Older servers return a display label without a year. Do not parse it as 2001.
+  if (typeof value === "string" && /^\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/.test(value)) return value;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value || "-");
   const pad = (n: number) => String(n).padStart(2, "0");

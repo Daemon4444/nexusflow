@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { ErrorState, LoadingState } from "@/components/AppState";
 import { getFirstRunState } from "@/lib/firstRun";
 import { getCurlExample, getJavascriptExample } from "@/lib/codeExamples";
+import { getDefaultChatModel, type ModelSummary } from "@/lib/models";
 import { KeyOutlined, PlusOutlined } from "@ant-design/icons";
 
 interface ApiKey {
@@ -39,15 +40,35 @@ export default function KeysPage() {
   const [createdKey, setCreatedKey] = useState<ApiKey | null>(null);
   const [error, setError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null);
+  const [models, setModels] = useState<ModelSummary[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(true);
+  const [modelsError, setModelsError] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     const controller = new AbortController();
     loadKeys(controller.signal);
+    loadModels(controller.signal);
     return () => controller.abort();
   }, [user]);
 
   useEffect(() => () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current); }, []);
+
+  async function loadModels(signal?: AbortSignal) {
+    setModelsLoading(true);
+    setModelsError(false);
+    setModels([]);
+    try {
+      const res = await fetchAPI("/api/models", { signal });
+      if (signal?.aborted) return;
+      if (res.success) setModels(res.data || []);
+      else setModelsError(true);
+    } catch {
+      if (!signal?.aborted) setModelsError(true);
+    } finally {
+      if (!signal?.aborted) setModelsLoading(false);
+    }
+  }
 
   async function loadKeys(signal?: AbortSignal) {
     setDataLoading(true);
@@ -133,7 +154,11 @@ export default function KeysPage() {
     balance: (user?.balance || 0) + (user?.creditBalance || 0),
     recentUsageCount: keys.reduce((sum, item) => sum + (item.usageCount || 0), 0),
   });
-  const exampleModel = "qwen-plus";
+  const exampleModel = getDefaultChatModel(models, user?.allowedModels)?.id;
+  const exampleUnavailable = <p role="status">
+    {modelsLoading ? "正在查询可用模型…" : modelsError ? "模型目录暂不可用，恢复后将显示调用示例。" : "当前账号暂无可用的 Chat Completions 模型，请查看模型权限与接入文档。"}
+    {!modelsLoading && <button className="btn-secondary" onClick={() => loadModels()} style={{ marginLeft: 8 }}>重新查询</button>}
+  </p>;
 
   return (
     <UserLayout>
@@ -212,6 +237,7 @@ export default function KeysPage() {
               </button>
             </div>
             <div className="key-next-call">
+              {exampleModel ? <>
               <div className="key-next-call-head">
                 <strong>下一步：复制请求并完成第一次调用</strong>
                 <span>默认模型 {exampleModel}</span>
@@ -221,6 +247,7 @@ export default function KeysPage() {
                 <summary>JavaScript 示例</summary>
                 <pre>{getJavascriptExample(createdKey.key, exampleModel)}</pre>
               </details>
+              </> : exampleUnavailable}
             </div>
           </div>
         </div>
@@ -230,7 +257,7 @@ export default function KeysPage() {
       {dataLoading ? (
         <LoadingState title={t("loading")} compact />
       ) : error ? (
-        <ErrorState title="API Key 加载失败" message={error} onAction={loadKeys} compact />
+        <ErrorState title="API Key 加载失败" message={error} onAction={() => loadKeys()} compact />
       ) : keys.length === 0 ? (
         <div className="usr-section nf-empty-state">
           <span className="nf-empty-state-icon"><KeyOutlined /></span>
@@ -306,11 +333,13 @@ export default function KeysPage() {
           </div>
           <div className="usr-section-body">
             <div className="key-next-call" style={{ marginTop: 0 }}>
+              {exampleModel ? <>
               <pre>{getCurlExample("sk-air-...", exampleModel)}</pre>
               <details>
                 <summary>JavaScript 示例</summary>
                 <pre>{getJavascriptExample("sk-air-...", exampleModel)}</pre>
               </details>
+              </> : exampleUnavailable}
             </div>
           </div>
         </div>

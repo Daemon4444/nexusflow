@@ -17,7 +17,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/AppState";
 import { formatConsoleTime } from "@/components/ConsoleUI";
 import { authHeaders, useAuth } from "@/lib/auth";
 import { fetchAPI } from "@/lib/api";
-import { formatContextLength, formatModelPrice, getRecommendedModels, ModelSummary } from "@/lib/models";
+import { formatContextLength, formatModelPrice, getRecommendedModels, getDefaultChatModel, ModelSummary } from "@/lib/models";
 import { formatCny, formatCnyPrecise } from "@/lib/money";
 
 interface ApiKeyInfo {
@@ -45,6 +45,7 @@ interface UsageOverview {
 
 interface DailyUsage {
   date: string;
+  fullDate?: string;
   requests: number;
   tokens: number;
   cost: number;
@@ -99,6 +100,7 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [copied, setCopied] = useState(false);
+  const [failedSections, setFailedSections] = useState<string[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -113,7 +115,7 @@ export default function DashboardPage() {
     setWarning("");
     try {
       const headers = authHeaders();
-      const [keyRes, billingRes, overviewRes, dailyRes, recentRes, modelsRes] = await Promise.all([
+      const settled = await Promise.allSettled([
         fetchAPI("/api/keys", { headers, signal }),
         fetchAPI("/api/billing/summary", { headers, signal }),
         fetchAPI("/api/usage/overview", { headers, signal }),
@@ -122,7 +124,10 @@ export default function DashboardPage() {
         fetchAPI("/api/models", { signal }),
       ]);
 
-      const results = [keyRes, billingRes, overviewRes, dailyRes, recentRes, modelsRes];
+      if (signal?.aborted) return;
+      const results = settled.map(result => result.status === "fulfilled" ? result.value : { success: false });
+      const [keyRes, billingRes, overviewRes, dailyRes, recentRes, modelsRes] = results;
+      setFailedSections(["API Key", "余额", "累计用量", "每日用量", "最近请求", "模型目录"].filter((_, index) => !results[index].success));
       if (!results.some((result) => result.success)) {
         throw new Error("控制台数据加载失败");
       }
@@ -143,40 +148,47 @@ export default function DashboardPage() {
     }
   }
 
-  const recommendedModels = useMemo(() => getRecommendedModels(models, 5), [models]);
-  const defaultModel = recommendedModels[0]?.id || models[0]?.id || "qwen-plus";
+  const allowedModels = useMemo(() => models.filter(model => user?.allowedModels == null || user.allowedModels.includes(model.id)), [models, user?.allowedModels]);
+  const recommendedModels = useMemo(() => getRecommendedModels(allowedModels, 5), [allowedModels]);
+  const defaultModel = getDefaultChatModel(models, user?.allowedModels)?.id;
+  const hasSuccessfulRequest = (overview.totalRequests > 0 && (overview.successRate ?? 0) > 0) || recent.some(item => item.status === "成功" || item.status === "success");
   const balance = summary?.availableBalance ?? ((user?.balance ?? 0) + (user?.creditBalance ?? 0));
-  const today = daily[daily.length - 1] || { requests: 0, cost: 0, tokens: 0, date: "" };
+  const todayKey = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const today = daily.find(day => day.fullDate === todayKey || (!day.fullDate && day.date === todayKey.slice(5))) || { requests: 0, cost: 0, tokens: 0, date: "" };
   const code = `curl -X POST https://nexusflow.hk/v1/chat/completions \\
   -H "Authorization: Bearer $NEXUSFLOW_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"model":"${defaultModel}","messages":[{"role":"user","content":"Say hello"}]}'`;
 
   async function copyCode() {
-    await navigator.clipboard.writeText(code);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setWarning("复制失败，请选中示例后手动复制。");
+    }
   }
 
   const steps = [
     {
       label: "创建 API Key",
-      help: keys.length > 0 ? "API Key 已创建；完整密钥只在创建时显示" : "为第一次请求创建安全凭据",
+      help: failedSections.includes("API Key") ? "API Key 数据暂不可用" : keys.length > 0 ? "API Key 已创建；完整密钥只在创建时显示" : "为第一次请求创建安全凭据",
       done: keys.length > 0,
       href: "/keys",
       action: keys.length > 0 ? "查看密钥" : "创建密钥",
     },
     {
       label: "充值余额",
-      help: balance > 0 ? "工作区已有可用额度" : "调用付费模型前请先充值",
-      done: balance > 0,
+      help: failedSections.includes("余额") ? "余额数据暂不可用" : balance > 0 ? "工作区已有可用额度" : "调用付费模型前请先充值",
+      done: !failedSections.includes("余额") && balance > 0,
       href: "/billing",
       action: "前往充值",
     },
     {
       label: "发起首次请求",
-      help: recent.length > 0 ? "API 连接已验证" : "设置 NEXUSFLOW_API_KEY 后运行下方命令",
-      done: recent.length > 0,
+      help: hasSuccessfulRequest ? "已有成功调用" : "设置 NEXUSFLOW_API_KEY 后运行下方命令",
+      done: hasSuccessfulRequest,
     },
     {
       label: "查看用量",
@@ -204,25 +216,25 @@ export default function DashboardPage() {
         {loading ? (
           <LoadingState title="正在加载控制台" />
         ) : error ? (
-          <ErrorState title="控制台加载失败" message={error} onAction={loadDashboard} />
+          <ErrorState title="控制台加载失败" message={error} onAction={() => loadDashboard()} />
         ) : (
           <>
-            {warning && <div className="nf-inline-warning" role="status">{warning}</div>}
+            {warning && <div className="nf-inline-warning" role="status">{warning} <button className="btn-secondary" onClick={() => loadDashboard()}>重试</button></div>}
             <section className="quiet-kpi-band" aria-label="Workspace metrics">
               <div className="quiet-kpi">
                 <span>可用余额</span>
-                <strong>{formatCny(balance)}</strong>
+                <strong>{failedSections.includes("余额") ? "—" : formatCny(balance)}</strong>
                 <small>工作区可用额度</small>
               </div>
               <div className="quiet-kpi">
                 <span>今日请求</span>
-                <strong>{today.requests.toLocaleString()}</strong>
-                <small>累计 {overview.totalRequests.toLocaleString()} 次</small>
+                <strong>{failedSections.includes("每日用量") ? "—" : today.requests.toLocaleString()}</strong>
+                <small>{failedSections.includes("累计用量") ? "累计用量暂不可用" : `累计 ${overview.totalRequests.toLocaleString()} 次`}</small>
               </div>
               <div className="quiet-kpi">
                 <span>今日费用</span>
-                <strong>{formatCny(today.cost)}</strong>
-                <small>累计 {formatCny(overview.totalCost)}</small>
+                <strong>{failedSections.includes("每日用量") ? "—" : formatCny(today.cost)}</strong>
+                <small>{failedSections.includes("累计用量") ? "累计费用暂不可用" : `累计 ${formatCny(overview.totalCost)}`}</small>
               </div>
               <div className="quiet-kpi">
                 <span>成功率</span>
@@ -244,7 +256,7 @@ export default function DashboardPage() {
                   <span className="quiet-range-label">最近 7 天</span>
                 </div>
 
-                {daily.length === 0 ? (
+                {failedSections.includes("每日用量") ? <ErrorState compact title="每日用量暂不可用" onAction={() => loadDashboard()} /> : daily.length === 0 ? (
                   <EmptyState compact title="还没有用量趋势" message="完成第一次 API 调用后，这里会显示真实请求和费用。" />
                 ) : (
                   <div className="quiet-chart-wrap">
@@ -268,12 +280,12 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <div className="quiet-chart-summary">
+                {!failedSections.includes("累计用量") && <div className="quiet-chart-summary">
                   <div><span>累计请求</span><strong>{overview.totalRequests.toLocaleString()}</strong></div>
                   <div><span>累计费用</span><strong>{formatCny(overview.totalCost)}</strong></div>
                   <div><span>平均延迟</span><strong>{overview.totalRequests > 0 ? `${overview.avgLatency.toLocaleString()}s` : "—"}</strong></div>
                   <div><span>Token 用量</span><strong>{formatTokens(overview.totalTokens)}</strong></div>
-                </div>
+                </div>}
               </div>
 
               <div className="quiet-start-panel">
@@ -288,10 +300,10 @@ export default function DashboardPage() {
                     {step.href && <Link href={step.href}>{step.action}</Link>}
                   </div>
                 ))}
-                <div className="quiet-code-sample">
+                {defaultModel ? <div className="quiet-code-sample">
                   <code>{code}</code>
                   <button onClick={copyCode} aria-label="复制 cURL">{copied ? "已复制" : "复制"}</button>
-                </div>
+                </div> : <p>暂无可用的 Chat Completions 模型，请查看接入文档选择协议。</p>}
               </div>
             </section>
 
@@ -301,7 +313,7 @@ export default function DashboardPage() {
                   <h2>最近请求</h2>
                   <Link href="/activity">查看全部</Link>
                 </div>
-                {recent.length === 0 ? (
+                {failedSections.includes("最近请求") ? <ErrorState compact title="最近请求暂不可用" onAction={() => loadDashboard()} /> : recent.length === 0 ? (
                   <EmptyState compact title="还没有调用记录" message="完成一次请求后，这里会显示最新状态。" />
                 ) : (
                   <div className="quiet-table-scroll">
@@ -331,7 +343,7 @@ export default function DashboardPage() {
                   <h2>推荐模型</h2>
                   <Link href="/models">查看全部</Link>
                 </div>
-                {recommendedModels.length === 0 ? (
+                {failedSections.includes("模型目录") ? <ErrorState compact title="模型目录暂不可用" onAction={() => loadDashboard()} /> : recommendedModels.length === 0 ? (
                   <EmptyState compact title="暂无可推荐的模型" message="模型目录正在同步，可以先到模型页查看全部模型。" />
                 ) : (
                   <div className="quiet-table-scroll">

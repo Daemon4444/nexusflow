@@ -442,9 +442,14 @@ On 2026-09-26 the replacement was installed as `/etc/cron.d/nexusflow-db-backup`
 on the main node (the older crontab entry, which lacked `PATH` and silently
 stopped producing dumps, was removed) and one run under a cron-equivalent
 `env -i` environment produced a 19 MB dump that passed the offsite full
-restore. The installed line loads `/etc/nexusflow/backup-release.env` before
-running the script; the repository template does not yet do this and fails
-without `NEXUSFLOW_BACKUP_RESTORE_VERIFY_HOST`.
+restore. The installed line was reported to load `/etc/nexusflow/backup-release.env`
+before running the script. The 2026-10-09 local QA correction also makes the
+repository template source and export that configuration, failing closed if it
+is missing. Prepare the environment file as root:root 0600 and compare the
+installed cron before adopting the template. Read-only production metadata on
+2026-10-09 confirmed that the main-node installed cron references that file and
+its ownership/mode is root:root 0600. This QA did not read configuration values,
+install cron, run a backup, or independently verify backup/restore correctness.
 
 ### Daily backup cron installation (operator task, not automated)
 

@@ -27,6 +27,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  authError: string;
   login: (email: string, code: string, challengeToken: string) => Promise<{ success: boolean; message: string }>;
   loginWithPassword: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   loginWithUsername: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
@@ -37,6 +38,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  authError: "",
   login: async () => ({ success: false, message: "" }),
   loginWithPassword: async () => ({ success: false, message: "" }),
   loginWithUsername: async () => ({ success: false, message: "" }),
@@ -70,27 +72,32 @@ export function authHeaders(): Record<string, string> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
 
   const refreshUser = useCallback(async () => {
+    setAuthError("");
     const token = getToken();
     if (!token) {
       setUser(null);
       setLoading(false);
       return;
     }
+    setLoading(true);
     try {
       const res = await fetchAPI("/api/auth/me", {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (getToken() !== token) return;
       if (res.success) {
         setUser(res.data);
-      } else {
+      } else if (res.status === 401) {
         clearToken();
         setUser(null);
+      } else {
+        setAuthError("暂时无法验证登录状态，请重试。");
       }
     } catch {
-      clearToken();
-      setUser(null);
+      if (getToken() === token) setAuthError("无法连接登录服务，请检查网络后重试。");
     } finally {
       setLoading(false);
     }
@@ -107,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, code, challengeToken }),
       });
       if (res.success) {
+        setAuthError("");
         setToken(res.data.token);
         setUser(res.data.user);
         return { success: true, message: res.message };
@@ -124,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
       if (res.success) {
+        setAuthError("");
         setToken(res.data.token);
         setUser(res.data.user);
         return { success: true, message: res.message };
@@ -141,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ username, password }),
       });
       if (res.success) {
+        setAuthError("");
         setToken(res.data.token);
         setUser(res.data.user);
         return { success: true, message: res.message };
@@ -162,11 +172,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {}
     }
     clearToken();
+    setAuthError("");
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithPassword, loginWithUsername, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, authError, login, loginWithPassword, loginWithUsername, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
