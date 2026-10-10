@@ -1,6 +1,16 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:feat: show log details from the full payload capture": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "请求日志详情可查看完整请求与响应",
+      "points": [
+        "使用统计 → 请求日志里点开一条请求，现在从全文留存读取完整请求与响应（不截断）；10-09 22:44 之前的请求仍尝试 SLS",
+        "读取前后两次校验归属：只能看到自己（含本人子账号调用）的请求",
+        "刚发生的请求若落在另一台节点、尚未每小时上传，约一小时后可查"
+      ]
+    },
     "subject:fix: console usage stats, dates, examples and billing date ranges": {
       "type": "fix",
       "audience": "customer",

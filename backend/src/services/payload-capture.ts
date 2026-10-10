@@ -15,7 +15,8 @@ import path from "path";
 import { db } from "../db/client";
 import type { InferenceContext } from "../pipeline/context";
 
-const CAPTURE_DIR = process.env.NF_PAYLOAD_CAPTURE_DIR || "/var/lib/nexusflow/payload-capture";
+/** Read at use so tests can point it elsewhere after import. */
+const captureDir = () => process.env.NF_PAYLOAD_CAPTURE_DIR || "/var/lib/nexusflow/payload-capture";
 const REFRESH_MS = 60_000;
 const NODE_ID = process.env.NEXUSFLOW_NODE_ID || process.env.HOSTNAME || "node";
 /** Spool directory names come from the DB; keep them path-safe. */
@@ -157,6 +158,105 @@ export function beginPayloadCapture(ctx: InferenceContext): void {
     };
     // The request is already serialized: splice it in instead of re-encoding.
     const line = JSON.stringify(record).replace('"request":"__REQUEST__"', () => `"request":${request}`) + "\n";
-    appendLine(path.join(CAPTURE_DIR, label, day, `${hour}-${NODE_ID}.jsonl`), line);
+    appendLine(path.join(captureDir(), label, day, `${hour}-${NODE_ID}.jsonl`), line);
   });
+}
+
+// ---------------------------------------------------------------- lookup
+
+const remote = () => process.env.NF_PAYLOAD_CAPTURE_REMOTE || "nfarc:";
+const rclone = () => process.env.RCLONE_BIN || "rclone";
+const LOOKUP_TIMEOUT_MS = 30_000;
+
+export interface CapturedPayload {
+  log_id: string;
+  user_id: string | null;
+  request: unknown;
+  response: string;
+  http_status?: number;
+  client_closed?: boolean;
+}
+
+/** Archive directory of a billing owner, whether or not capture is still on. */
+async function archiveLabel(owner: string): Promise<string> {
+  if (Date.now() - loadedAt > REFRESH_MS) await (loading || (loading = refresh()));
+  const label = rules.get(owner)?.label || owner;
+  return SAFE_LABEL.test(label) ? label : owner;
+}
+
+/**
+ * Reads JSON lines and resolves with the record whose log_id matches. Lines
+ * are prefix-checked before parsing: hourly files hold multi-MB prompts.
+ */
+async function scanLines(input: NodeJS.ReadableStream, logId: string): Promise<CapturedPayload | null> {
+  const prefix = `{"log_id":${JSON.stringify(logId)},`;
+  const { createInterface } = await import("readline");
+  const lines = createInterface({ input, crlfDelay: Infinity });
+  try {
+    for await (const line of lines) {
+      if (line.startsWith(prefix)) return JSON.parse(line) as CapturedPayload;
+    }
+    return null;
+  } finally {
+    lines.close();
+  }
+}
+
+async function scanRemote(object: string, logId: string): Promise<CapturedPayload | null> {
+  const { spawn } = await import("child_process");
+  const { createGunzip } = await import("zlib");
+  const child = spawn(rclone(), ["cat", object], { stdio: ["ignore", "pipe", "ignore"] });
+  const timer = setTimeout(() => child.kill("SIGKILL"), LOOKUP_TIMEOUT_MS);
+  const gunzip = createGunzip();
+  gunzip.on("error", () => gunzip.end());
+  try {
+    return await scanLines(child.stdout.pipe(gunzip), logId);
+  } finally {
+    clearTimeout(timer);
+    if (child.exitCode === null) child.kill("SIGKILL");
+  }
+}
+
+async function listRemote(dir: string): Promise<string[]> {
+  const { execFile } = await import("child_process");
+  return new Promise((resolve) => {
+    execFile(rclone(), ["lsf", "--files-only", dir], { timeout: LOOKUP_TIMEOUT_MS }, (err, stdout) => {
+      resolve(err ? [] : stdout.split("\n").filter(Boolean));
+    });
+  });
+}
+
+/**
+ * Finds the captured request/response of one call: this node's unshipped
+ * spool first, then the hourly archives in R2. A record is filed under the
+ * hour its request started, so the hour of completion and the one before are
+ * both searched. Returns null when nothing matches (other node's unshipped
+ * hour, capture off at the time, or older than capture).
+ */
+export async function findCapturedPayload(params: {
+  logId: string;
+  owner: string;
+  completedAt: Date;
+}): Promise<CapturedPayload | null> {
+  const label = await archiveLabel(params.owner);
+  const end = params.completedAt.getTime();
+  const slots = new Map<string, { day: string; hour: string }>();
+  for (const ms of [end, end - 30 * 60_000]) {
+    const slot = beijingParts(ms);
+    slots.set(`${slot.day}/${slot.hour}`, slot);
+  }
+  for (const { day, hour } of slots.values()) {
+    const localDir = path.join(captureDir(), label, day);
+    const local = await fs.promises.readdir(localDir).catch(() => [] as string[]);
+    for (const file of local.filter((name) => name.startsWith(`${hour}-`) && /\.jsonl(\.sealed)?$/.test(name))) {
+      const hit = await scanLines(fs.createReadStream(path.join(localDir, file)), params.logId).catch(() => null);
+      if (hit) return hit;
+    }
+    const remoteDir = `${remote()}${label}/capture/${day}/`;
+    for (const file of (await listRemote(remoteDir)).filter((name) => name.startsWith(`${hour}-`))) {
+      const hit = await scanRemote(remoteDir + file, params.logId).catch(() => null);
+      if (hit) return hit;
+    }
+  }
+  return null;
 }

@@ -508,6 +508,7 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
   1Password「NexusFlow R2 archive (nexusflow-archive)」，丢失即无法解密）上传
   `<label>/capture/<日期>/<HH>-<节点>.jsonl.gz` 后删本地，迟到行另存 `-late<epoch>` 不覆盖；
   `scripts/payload-capture-reconcile.mjs [日期]` 每日核对全站对话类 `usage_logs` 的 `log_id` 是否全部入档。
+  控制台“请求日志”详情（`GET /api/usage/logs/:logId/detail`）先从全文留存读（本机未上传的 spool，再 R2 小时档，按完成时刻及前 30 分钟两个小时槽查找），SQL 归属 + 记录 `log_id`/`user_id` 双重校验，查不到再退回 SLS（服务器 AK 只写，生产上 SLS 回退通常 503）；另一节点当前小时的调用在上传前查不到。
   开关只改表（约 1 分钟生效），不发版；已产生存档的行只置 `enabled=false`，不删除。上线前的 SLS 截断版
   （10-02~10-09）在 `_site/` 与 `shaoti.chen/sls-truncated-*`；
 - `PROVIDER_SECRET_KEY` 是否配置必须在生产变更前检查；未配置时不能假设数据库中的 Provider Key 已加密；

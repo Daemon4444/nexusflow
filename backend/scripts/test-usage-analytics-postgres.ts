@@ -182,6 +182,38 @@ async function main() {
     mode = "match";
     assert.equal((await call(detailPath)).status, 200, "retry rechecks ownership and recovers");
 
+    // Full capture is read before SLS, and its identity is re-checked.
+    const fs = require("node:fs") as typeof import("node:fs");
+    const os = require("node:os") as typeof import("node:os");
+    const path = require("node:path") as typeof import("node:path");
+    const captureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "nf-capture-lookup-"));
+    process.env.NF_PAYLOAD_CAPTURE_DIR = captureRoot;
+    process.env.RCLONE_BIN = "/nonexistent/rclone";
+    const ownedRow = await db.queryOne<{ created_at: string }>("SELECT created_at FROM usage_logs WHERE log_id = ?", [ownedId]);
+    const startedIso = new Date(new Date(ownedRow!.created_at).getTime() + 8 * 3600_000).toISOString();
+    const spoolDir = path.join(captureRoot, user, startedIso.slice(0, 10));
+    const spoolFile = path.join(spoolDir, `${startedIso.slice(11, 13)}-test-node.jsonl`);
+    fs.mkdirSync(spoolDir, { recursive: true });
+    const captureLine = (owner: string, body: string) => JSON.stringify({
+      log_id: ownedId, user_id: owner, request: { messages: [{ role: "user", content: body }] }, response: "data: CAPTURED\n\n",
+    }) + "\n";
+    fs.writeFileSync(spoolFile, captureLine(other, "FOREIGN CAPTURE"));
+    const callsBeforeForeign = calls;
+    const foreignCapture = await call(detailPath);
+    assert.equal(foreignCapture.status, 200);
+    assert.equal(foreignCapture.body.data.request, "SYNTHETIC OWN BODY", "foreign capture falls back to SLS");
+    assert.equal(calls, callsBeforeForeign + 1);
+    fs.writeFileSync(spoolFile, captureLine(user, "OWN CAPTURE"));
+    const callsBeforeOwn = calls;
+    const ownCapture = await call(detailPath);
+    assert.equal(ownCapture.status, 200);
+    assert.match(ownCapture.body.data.request, /OWN CAPTURE/);
+    assert.equal(ownCapture.body.data.response, "data: CAPTURED\n\n");
+    assert.equal(calls, callsBeforeOwn, "SLS is not queried when the capture has the call");
+    fs.rmSync(captureRoot, { recursive: true, force: true });
+    delete process.env.NF_PAYLOAD_CAPTURE_DIR;
+    delete process.env.RCLONE_BIN;
+
     // The child is the consumption actor in both stores; paying parent is not
     // substituted into either identity field and cannot read its child's body.
     await db.execute("UPDATE users SET parent_user_id = ? WHERE id = ?", [user, other]);
@@ -221,7 +253,7 @@ async function main() {
       if (originalKey === undefined) delete process.env.SLS_ACCESS_KEY_ID; else process.env.SLS_ACCESS_KEY_ID = originalKey;
       if (originalSecret === undefined) delete process.env.SLS_ACCESS_KEY_SECRET; else process.env.SLS_ACCESS_KEY_SECRET = originalSecret;
     }
-    console.log("PASS: real PostgreSQL totals/success/long tail/precision/isolation; Shanghai seven-day and date filters; timestamps; historical discounts; HTTP limits; auth/global denial; SLS exact owner binding, child actor identity, redaction, status and retry; installed SDK query/upload HTTPS and array contract (network stubbed)");
+    console.log("PASS: real PostgreSQL totals/success/long tail/precision/isolation; Shanghai seven-day and date filters; timestamps; historical discounts; HTTP limits; auth/global denial; full-capture lookup with identity re-check, SLS exact owner binding, child actor identity, redaction, status and retry; installed SDK query/upload HTTPS and array contract (network stubbed)");
   } finally {
     sls.getSlsClient = originalClient;
     if (server) await new Promise<void>((resolve, reject) => server!.close(error => error ? reject(error) : resolve()));
