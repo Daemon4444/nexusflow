@@ -1,6 +1,20 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:fix: console usage stats, dates, examples and billing date ranges": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "控制台用量统计、日期与示例修复",
+      "points": [
+        "使用统计：总请求改为全部已记录请求（含失败和免费），模型分布不再只取前 10，合计与总请求一致",
+        "最近请求不再显示成 2001 年；“今日请求”在今天没有调用时显示 0，七日图按北京时间补零",
+        "控制台和 API Key 页的示例只选当前可用、支持 Chat Completions、且账号有权使用的模型（不再用仅支持 Messages 的 Claude）",
+        "账单导出与分账按北京时间自然日取数，修复每日前 8 小时被漏掉的问题；历史折扣只展示结算时快照，不再用当前折扣重算",
+        "费用估算器拦截超出模型上下文/最大输出的组合；手机上长模型 ID 不再被裁切；工具调用示例 JSON 补全",
+        "日志详情：先校验归属再返回内容，SLS 改走 HTTPS，失败返回通用错误不暴露云端信息",
+        "网络失败、空账号、登录服务临时故障时保留会话并可重试"
+      ]
+    },
     "subject:feat: archive full request and response payloads to R2": {
       "type": "feature",
       "audience": "internal",

@@ -19,6 +19,7 @@ function getClient() {
       accessKeyId: ak,
       accessKeySecret: sk,
       region: process.env.SLS_REGION || "cn-beijing",
+      use_https: true,
     });
     console.log("[SLS] Client initialized");
   }

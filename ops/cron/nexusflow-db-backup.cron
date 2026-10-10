@@ -15,7 +15,9 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 MAILTO=""
 
 # 03:30 Asia/Shanghai host time: encrypted dump + offsite full-restore gate.
-30 3 * * * root mkdir -p /var/log/nexusflow && /root/distiny/nexusflow/scripts/daily-db-backup.sh >> /var/log/nexusflow/db-backup.log 2>&1
+# Install /etc/nexusflow/backup-release.env as root:root 0600 first; it supplies
+# the required offsite verifier configuration. Missing configuration fails closed.
+30 3 * * * root umask 077; mkdir -p /var/log/nexusflow && { set -a && . /etc/nexusflow/backup-release.env && set +a && /root/distiny/nexusflow/scripts/daily-db-backup.sh; } >> /var/log/nexusflow/db-backup.log 2>&1
 
 # 09:10: alarm if the newest verified encrypted dump is older than 26 hours.
 10 9 * * * root /root/distiny/nexusflow/scripts/check-backup-freshness.sh >> /var/log/nexusflow/db-backup.log 2>&1

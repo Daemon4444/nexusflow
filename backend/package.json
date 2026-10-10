@@ -9,6 +9,7 @@
     "test": "echo \"Use npm run test:smoke\" && exit 1",
     "test:smoke": "ts-node scripts/smoke.ts",
     "test:billing": "USE_PG_MEM=true ts-node scripts/test-billing-reservations.ts",
+    "test:billing-reporting:postgres": "ts-node scripts/test-billing-reporting-postgres.ts",
     "test:large-json-auth": "USE_PG_MEM=true ts-node scripts/test-large-json-auth.ts",
     "test:request-body-admission": "ts-node scripts/test-request-body-admission-isolated.ts",
     "test:auth-password-security": "USE_PG_MEM=true ts-node scripts/test-auth-password-security.ts",
@@ -67,7 +68,8 @@
     "test:load-test-account": "USE_PG_MEM=true ts-node scripts/test-load-test-account.ts",
     "load-test:account": "ts-node src/cli/load-test-account.ts",
     "test:admin-console": "USE_PG_MEM=true ts-node scripts/test-admin-console.ts",
-    "test:stream-interruption": "USE_PG_MEM=true ts-node scripts/test-stream-interruption.ts"
+    "test:stream-interruption": "USE_PG_MEM=true ts-node scripts/test-stream-interruption.ts",
+    "test:usage-analytics:postgres": "ts-node scripts/test-usage-analytics-postgres.ts"
   },
   "keywords": [],
   "author": "",

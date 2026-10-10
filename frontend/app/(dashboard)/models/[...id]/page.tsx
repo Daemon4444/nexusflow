@@ -170,7 +170,7 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
           "required": ["city"]
         }
       }
-    }` : ""}
+    }]` : ""}
   }'`,
         note: supportsVision
           ? "支持流式输出和常用采样参数；视觉模型可在 messages 中传入图片内容。"
@@ -328,25 +328,31 @@ export default function ModelDetailPage() {
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
     async function loadModel() {
       setLoading(true);
       setLoadError("");
+      setModel(null);
       try {
         // catch-all：params.id 为 string[]（多段，如 ["kimi","kimi-k3"]）或 string（单段）
         const rawId = Array.isArray(params.id) ? params.id.join("/") : (params.id as string);
-        const res = await fetchAPI(`/api/models/${encodeURIComponent(decodeURIComponent(rawId || ""))}`);
+        const decodedId = decodeURIComponent(rawId || "");
+        const res = await fetchAPI(`/api/models/${encodeURIComponent(decodedId)}`, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         if (res.success) {
           setModel(res.data);
         } else {
           setLoadError(res.message || "模型信息加载失败，请稍后重试");
         }
       } catch {
+        if (controller.signal.aborted) return;
         setLoadError("模型服务暂时不可用，请稍后重试");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     loadModel();
+    return () => controller.abort();
   }, [params.id]);
 
   function formatTokens(n: number) {
@@ -440,21 +446,21 @@ export default function ModelDetailPage() {
 
       <div className="card-static" style={{ marginBottom: 24 }}>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{model.name}</h1>
               {model.isNew && <span className="tag tag-new">NEW</span>}
               {model.isFeatured && <span className="tag tag-featured">HOT</span>}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>{model.provider}</span>
               <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--text-tertiary)" }} />
               <span style={{ fontSize: 13, fontWeight: 600, color: accent, background: `${accent}15`, padding: "3px 10px", borderRadius: 6 }}>{model.category}</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: isAvailable ? "var(--success)" : "var(--warning)", background: isAvailable ? "var(--success-bg)" : "var(--warning-bg)", border: `1px solid ${isAvailable ? "var(--success-border)" : "var(--warning-border)"}`, padding: "3px 9px", borderRadius: 999 }}>{availabilityLabel}</span>
             </div>
           </div>
-          <code style={{ fontSize: 13, color: "var(--text-tertiary)", background: "var(--bg-elevated)", padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>
+          <code style={{ maxWidth: "100%", overflowWrap: "anywhere", fontSize: 13, color: "var(--text-tertiary)", background: "var(--bg-elevated)", padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>
             {model.id}
           </code>
         </div>

@@ -140,7 +140,7 @@ export default function ModelsPage({ initialModels, initialProviders, initialCat
     <div className="mc">
       <header className="mc-head">
         <h1>模型</h1>
-        <p>{models.length > 0 && !selectedProvider && selectedCategory === "全部" && !search ? `${models.length} 个模型，` : ""}一个 Key 全部可调用。文本模型价格单位为 ¥ / 百万 tokens。</p>
+        <p>{models.length > 0 && !selectedProvider && selectedCategory === "全部" && !search ? `${models.length} 个模型，` : ""}一个 Key 按模型能力与可用状态调用。文本模型价格单位为 ¥ / 百万 tokens。</p>
       </header>
 
       <div className="mc-toolbar">

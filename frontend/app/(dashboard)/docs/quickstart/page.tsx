@@ -280,7 +280,7 @@ export default function QuickstartPage() {
       <section style={{ marginBottom: 36, padding: 16, background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 8 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 }}>💡 省钱提示：上下文缓存</div>
         <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.7, margin: 0 }}>
-          对于重复的 system prompt 或长文档上下文，可启用 <code>enable_context_caching: true</code>（OpenAI 协议）或 <code>cache_control</code> 注解（Anthropic 协议），缓存命中部分仅按 10% 输入价计费。详见 <Link href="/docs/api/chat" style={{ color: "#1d4ed8" }}>计费说明</Link>。
+          对于重复的 system prompt 或长文档上下文，可按模型能力使用隐式或显式缓存。支持的参数、缓存命中与创建价格因模型而异，请以模型详情为准。详见 <Link href="/docs/context-cache" style={{ color: "#1d4ed8" }}>计费说明</Link>。
         </p>
       </section>
 
@@ -290,7 +290,7 @@ export default function QuickstartPage() {
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
-            { href: "/docs/models", label: "浏览模型", desc: "查看全部 45+ 可用模型" },
+            { href: "/docs/models", label: "浏览模型", desc: "查看当前模型目录与可用状态" },
             { href: "/docs/multi-protocol", label: "三协议接入", desc: "OpenAI / Anthropic / Responses 兼容说明" },
             { href: "/docs/api/tasks", label: "异步任务", desc: "图像 / 视频统一任务接口" },
             { href: "/docs/api/limits", label: "限流与并发", desc: "查看高并发下的限制与优化建议" },

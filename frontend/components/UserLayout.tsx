@@ -5,20 +5,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useAuth } from "@/lib/auth";
 import UserSidebar from "./UserSidebar";
+import { ErrorState } from "./AppState";
 
 export default function UserLayout({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
-  const { user, loading } = useAuth();
+  const { user, loading, authError, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !authError && !user) {
       const returnTo = pathname && pathname !== "/login" ? pathname : "/dashboard";
       router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
     }
-  }, [loading, user, router, pathname]);
+  }, [loading, authError, user, router, pathname]);
 
   // Tell the header (menu button icon) whenever the drawer opens or closes.
   // Done in an effect: dispatching from a state updater would update Header
@@ -49,6 +50,7 @@ export default function UserLayout({ children, wide }: { children: React.ReactNo
   if (loading) {
     return <div className="nf-auth-loading"><LoadingOutlined spin /><span>正在恢复登录状态…</span></div>;
   }
+  if (authError) return <ErrorState title="登录状态暂不可用" message={authError} onAction={refreshUser} />;
   if (!user) return null;
 
   return (

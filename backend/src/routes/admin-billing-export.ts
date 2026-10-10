@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getBillingUsageExport } from "../data/billing";
 import { getUserById } from "../data/users";
 import { sanitizeError } from "../utils/sanitize-error";
+import { shanghaiDate } from "../utils/usage-dates";
 
 /**
  * Per-customer billing CSV (one row per usage record with the price
@@ -101,11 +102,14 @@ export async function sendAdminBillingExport(req: Request, res: Response): Promi
     }));
 
     const csv = "\uFEFF" + usageRowsToCsv(rows);
-    const filename = `nexusflow-admin-user-${userId}-billing-${exportData.startDate.slice(0, 10)}-to-${exportData.endDate.slice(0, 10)}.csv`;
+    const filename = `nexusflow-admin-user-${userId}-billing-${shanghaiDate(new Date(exportData.startDate))}-to-${shanghaiDate(new Date(exportData.endDate))}.csv`;
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(csv);
   } catch (error) {
-    res.status(500).json({ success: false, message: sanitizeError(error) });
+    res.status(error instanceof RangeError ? 400 : 500).json({
+      success: false,
+      message: error instanceof RangeError ? "日期范围无效" : sanitizeError(error),
+    });
   }
 }

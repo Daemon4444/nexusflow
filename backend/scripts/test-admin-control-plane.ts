@@ -545,7 +545,8 @@ async function main() {
     const ownRecent = await call("/api/usage/recent", "sess-local-test");
     assert.equal(ownRecent.status, 200);
     assert(ownRecent.body.data.length > 0);
-    assert.equal(ownRecent.body.data[0].discount_rate, 0.5);
+    assert.equal(ownRecent.body.data[0].discount_rate, undefined,
+      "legacy rows without a settlement snapshot must not inherit the current discount");
 
     await db.execute(
       "UPDATE usage_logs SET provider_cost = 1, estimated = FALSE WHERE status = 'success'"

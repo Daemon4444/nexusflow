@@ -1,6 +1,7 @@
 import { db } from "../db/client";
 import { logToSLS } from "../services/sls";
 import { randomUUID } from "crypto";
+import { fillUsageDays, shanghaiDate } from "../utils/usage-dates";
 import { classifyHealthOutcome, recordFailure, recordSuccess } from "../services/scheduler";
 import {
   applyRetailListPriceFallback,
@@ -296,7 +297,7 @@ export async function getOverview(userId?: string) {
   const { clause, params } = userFilter(userId);
   const row = await db.queryOne<any>(
     `SELECT
-      SUM(CASE WHEN status = 'success' AND cost > 0 THEN 1 ELSE 0 END) as "totalRequests",
+      COUNT(*) as "totalRequests",
       COALESCE(SUM(total_tokens), 0) as "totalTokens",
       COALESCE(SUM(prompt_tokens), 0) as "totalPromptTokens",
       COALESCE(SUM(cost), 0) as "totalCost",
@@ -322,19 +323,24 @@ export async function getOverview(userId?: string) {
 
 export async function getDaily(userId?: string) {
   const { and, params } = userFilter(userId);
-  return db.queryMany(
+  const now = new Date();
+  const today = shanghaiDate(now);
+  const todayStart = new Date(`${today}T00:00:00+08:00`).getTime();
+  const rows = await db.queryMany<any>(
     `SELECT
-      to_char(timezone('Asia/Shanghai', created_at), 'MM-DD') as date,
+      to_char(timezone('Asia/Shanghai', created_at), 'YYYY-MM-DD') as "fullDate",
       COUNT(*)::int as requests,
       COALESCE(SUM(total_tokens), 0)::double precision as tokens,
-      ROUND(COALESCE(SUM(cost), 0)::numeric, 2)::float as cost
+      ROUND(COALESCE(SUM(cost), 0)::numeric, 6)::float as cost
     FROM usage_logs
-    WHERE created_at >= NOW() - INTERVAL '7 days'
+    WHERE created_at >= ?
+      AND created_at < ?
       ${and}
-    GROUP BY to_char(timezone('Asia/Shanghai', created_at), 'YYYY-MM-DD'), to_char(timezone('Asia/Shanghai', created_at), 'MM-DD')
-    ORDER BY date`,
-    params
+    GROUP BY to_char(timezone('Asia/Shanghai', created_at), 'YYYY-MM-DD')
+    ORDER BY "fullDate"`,
+    [new Date(todayStart - 6 * 86400000).toISOString(), new Date(todayStart + 86400000).toISOString(), ...params]
   );
+  return fillUsageDays(rows, now);
 }
 
 export async function getByModel(userId?: string) {
@@ -348,8 +354,7 @@ export async function getByModel(userId?: string) {
     FROM usage_logs
     ${clause}
     GROUP BY model
-    ORDER BY requests DESC
-    LIMIT 10`,
+    ORDER BY requests DESC, model`,
     params
   );
   const total = rows.reduce((sum, row) => sum + Number(row.requests || 0), 0) || 1;
@@ -362,15 +367,16 @@ export async function getByModel(userId?: string) {
   }));
 }
 
-export async function getRecent(userId?: string, limit: number = 20) {
+export async function getRecent(userId?: string, limit: number = 20, includePricingEvidence = false) {
   const { clause, params } = userFilter(userId);
   return db.queryMany(
     `SELECT
       log_id,
-      to_char(timezone('Asia/Shanghai', created_at), 'MM-DD HH24:MI') as time,
+      to_char(timezone('Asia/Shanghai', created_at), 'YYYY-MM-DD\"T\"HH24:MI:SS.MS') || '+08:00' as time,
       model,
       total_tokens as tokens,
       ROUND(cost::numeric, 6)::float as cost,
+      ${includePricingEvidence ? 'retail_list_cost::float as list_cost, retail_discount_rate::float as discount_rate,' : ''}
       CASE WHEN status = 'success' THEN '成功' ELSE '失败' END as status,
       ROUND((latency_ms / 1000.0)::numeric, 1)::float as latency,
       COALESCE(cached_tokens, 0)::int as cached_tokens,

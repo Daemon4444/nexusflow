@@ -1,8 +1,8 @@
 import { Router, Request, Response } from "express";
 import { sanitizeError } from "../utils/sanitize-error";
+import { shanghaiDate } from "../utils/usage-dates";
 import { validateSession, getUserById } from "../data/users";
-import { recharge, getTransactions, getBillingSummary, getMonthlyStats, getBillingUsageExport, getSubAccountBreakdown } from "../data/billing";
-import { listUserModelDiscounts, UserModelDiscount } from "../data/user-discounts";
+import { recharge, getTransactions, getBillingSummary, getMonthlyStats, getBillingUsageExport, getSubAccountBreakdown, getBillingDateRange } from "../data/billing";
 import {
   createPagePayment,
   createQrPayment,
@@ -107,36 +107,17 @@ router.get("/transactions", async (req: Request, res: Response) => {
   const userId = await requireAuth(req, res);
   if (!userId) return;
 
-  const limit = Math.min(Number(req.query.limit) || 20, 100);
-  const offset = Number(req.query.offset) || 0;
-
-  const { rows, total } = await getTransactions(userId, limit, offset);
-  const discounts = await listUserModelDiscounts(userId);
-
-  function findDiscount(desc: string): UserModelDiscount | null {
-    const m = desc.match(/[:：]\s*([a-zA-Z0-9\-_.]+)/);
-    if (!m) return null;
-    const modelId = m[1];
-    const exact = discounts.find((d) => d.model_id === modelId && d.is_enabled);
-    if (exact) return exact;
-    const prefixMatches = discounts
-      .filter((d) => d.is_enabled && d.model_id.endsWith("*") && d.model_id !== "*" && modelId.startsWith(d.model_id.slice(0, -1)))
-      .sort((a, b) => b.model_id.length - a.model_id.length);
-    if (prefixMatches.length > 0) return prefixMatches[0];
-    const global = discounts.find((d) => d.model_id === "*" && d.is_enabled);
-    return global || null;
+  const limit = req.query.limit === undefined ? 20 : Number(req.query.limit);
+  const offset = req.query.offset === undefined ? 0 : Number(req.query.offset);
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100
+    || !Number.isSafeInteger(offset) || offset < 0) {
+    res.status(400).json({ success: false, message: "分页参数无效", code: "invalid_pagination" });
+    return;
   }
 
+  const { rows, total } = await getTransactions(userId, limit, offset);
+
   const enriched = rows.map((r) => {
-    let discountRate: number | undefined;
-    let discountAmountCny: number | undefined;
-    if (r.type === "consumption" && r.discount_rate === null) {
-      const d = findDiscount(r.description || "");
-      if (d && d.discount_rate < 1) {
-        discountRate = d.discount_rate;
-        discountAmountCny = Math.round(((Number(r.amount) / discountRate) - Number(r.amount)) * 1_000_000) / 1_000_000;
-      }
-    }
     return {
       id: r.id,
       type: r.type,
@@ -149,8 +130,9 @@ router.get("/transactions", async (req: Request, res: Response) => {
       createdAt: r.created_at,
       actorUserId: r.actor_user_id || null,
       actorName: r.actor_username || r.actor_nickname || null,
-      discountRate: r.discount_rate !== null && r.discount_rate !== undefined ? Number(r.discount_rate) : discountRate,
-      discountAmountCny: r.discount_amount_cny !== null && r.discount_amount_cny !== undefined ? Number(r.discount_amount_cny) : discountAmountCny,
+      // Current account discounts cannot reconstruct historical settlement facts.
+      discountRate: r.discount_rate != null ? Number(r.discount_rate) : undefined,
+      discountAmountCny: r.discount_amount_cny != null ? Number(r.discount_amount_cny) : undefined,
     };
   });
 
@@ -221,12 +203,15 @@ router.get("/export.csv", async (req: Request, res: Response) => {
     }));
 
     const csv = "\uFEFF" + toCsv(rows);
-    const filename = `nexusflow-billing-${exportData.startDate.slice(0, 10)}-to-${exportData.endDate.slice(0, 10)}.csv`;
+    const filename = `nexusflow-billing-${shanghaiDate(new Date(exportData.startDate))}-to-${shanghaiDate(new Date(exportData.endDate))}.csv`;
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(csv);
   } catch (error) {
-    res.status(500).json({ success: false, message: sanitizeError(error) });
+    res.status(error instanceof RangeError ? 400 : 500).json({
+      success: false,
+      message: error instanceof RangeError ? "日期范围无效" : sanitizeError(error),
+    });
   }
 });
 
@@ -241,16 +226,20 @@ router.get("/sub-breakdown", async (req: Request, res: Response) => {
     return;
   }
 
-  const now = new Date();
-  const defaultStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const startDate = typeof req.query.startDate === "string" && !Number.isNaN(new Date(req.query.startDate).getTime())
-    ? new Date(req.query.startDate)
-    : defaultStart;
-  const endDate = typeof req.query.endDate === "string" && !Number.isNaN(new Date(req.query.endDate).getTime())
-    ? new Date(new Date(req.query.endDate).setHours(23, 59, 59, 999))
-    : now;
+  let range;
+  try {
+    range = getBillingDateRange(
+      typeof req.query.startDate === "string" ? req.query.startDate : undefined,
+      typeof req.query.endDate === "string" ? req.query.endDate : undefined,
+    );
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+    res.status(400).json({ success: false, message: "日期范围无效" });
+    return;
+  }
+  const { startDate, endDate } = range;
 
-  const rows = await getSubAccountBreakdown(userId, startDate, endDate);
+  const rows = await getSubAccountBreakdown(userId, startDate, endDate, range.endExclusive);
   res.json({
     success: true,
     data: { rows, startDate: startDate.toISOString(), endDate: endDate.toISOString() },

@@ -568,11 +568,12 @@ export default function LandingPage() {
         context: model.pricingType === "per-second" ? "视频" : formatContextLength(model.contextLength),
         price: chinesePrice(formatModelPrice(model)),
       }))
-    : fallbackModelRows;
+    : catalogLive ? [] : fallbackModelRows;
   const carouselModels = recommended.length > 0
-    ? recommended.concat(models.filter((model) => !recommended.some((item) => item.id === model.id)).slice(0, 12)).map(modelToCarousel)
-    : fallbackCarouselModels;
-  const modelCount = models.length || 90;
+    ? recommended.concat(models.filter((model) => model.availability === "available" && !recommended.some((item) => item.id === model.id)).slice(0, 12)).map(modelToCarousel)
+    : catalogLive ? [] : fallbackCarouselModels;
+  const modelCount = catalogLive ? models.length : null;
+  const availableCount = catalogLive ? models.filter(model => model.availability === "available").length : null;
   const startHref = user ? "/dashboard" : "/login?tab=register";
   const providerCounts = new Map<string, number>();
   for (const model of models) providerCounts.set(model.provider, (providerCounts.get(model.provider) || 0) + 1);
@@ -588,14 +589,14 @@ export default function LandingPage() {
           <h1>NexusFlow</h1>
           <p className="nf-hero-tagline">一个 Key，调用所有主流模型。</p>
           <p className="nf-hero-lead">
-            千问、DeepSeek、Claude、GLM、Kimi、Seedance 等 {modelCount} 个模型，兼容 OpenAI 与 Anthropic 协议。按量计费，一张账单，余额不过期。
+            千问、DeepSeek、Claude、GLM、Kimi、Seedance 等{modelCount === null ? "主流" : ` ${modelCount} 个已收录`}模型，兼容 OpenAI 与 Anthropic 协议。按量计费，一张账单，余额不过期。
           </p>
           <div className="nf-hero-actions">
             <Link href={startHref} className="nf-btn nf-btn-primary nf-btn-lg">{user ? "进入控制台" : "免费开始"}</Link>
             <Link href="/docs/quickstart" className="nf-btn nf-btn-secondary nf-btn-lg">5 分钟快速开始</Link>
           </div>
           <div className="nf-hero-metrics">
-            <div><strong>{modelCount}+</strong><span>可调用模型</span></div>
+            <div><strong>{availableCount ?? "—"}</strong><span>当前可调用模型</span></div>
             <div><strong>3</strong><span>种兼容协议</span></div>
             <div><strong>1</strong><span>个 Key，一张账单</span></div>
           </div>
@@ -628,7 +629,7 @@ export default function LandingPage() {
             </Link>
           ))}
         </div>
-        <Link href="/models" className="nf-more-link">查看全部 {modelCount} 个模型 →</Link>
+        <Link href="/models" className="nf-more-link">查看{modelCount === null ? "模型目录" : `全部 ${modelCount} 个模型`} →</Link>
       </section>
 
       <section className="nf-section nf-switch" data-reveal>
