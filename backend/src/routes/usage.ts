@@ -317,6 +317,12 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
   } catch {
     console.error("[usage] captured payload lookup failed", { logId, code: "capture_lookup_failed" });
   }
+  // A call from the current hour served by the other node is only in its
+  // local spool until the hourly upload (:05); say so instead of failing.
+  if (Date.now() - new Date(row.created_at).getTime() < 75 * 60_000) {
+    res.json({ success: true, data: null, note: "该请求由另一台服务器处理，详情每小时整点后约 5 分钟上传，届时可查看。" });
+    return;
+  }
 
   const { getSlsClient } = await import("../services/sls");
   const slsClient = getSlsClient();
