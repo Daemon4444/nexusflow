@@ -188,7 +188,7 @@ const CAPACITY_RESERVATION_RETRY_DELAYS_MS = [0, 50, 150, 350, 750] as const;
  * slides, so a short wait turns most bursts into a brief delay instead of a
  * 503 the client has to retry. NF_PROVIDER_CAPACITY_WAIT_MS=0 disables it.
  */
-function capacityWaitBudgetMs(): number {
+export function capacityWaitBudgetMs(): number {
   const raw = Number(process.env.NF_PROVIDER_CAPACITY_WAIT_MS ?? 20_000);
   return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 120_000) : 0;
 }
@@ -289,7 +289,8 @@ export function releaseConcurrency(providerId: string, modelId: string): void {
 export async function acquireProviderCapacity(
   route: ProviderCapacityRoute,
   modelId: string,
-  estimatedTokens = 0
+  estimatedTokens = 0,
+  waitDeadline = Date.now() + capacityWaitBudgetMs()
 ): Promise<ProviderCapacityAcquireResult> {
   if (!route.managed) {
     recordRequest(route.providerId, modelId, "capacity-lease", 0);
@@ -309,76 +310,41 @@ export async function acquireProviderCapacity(
     allowed: false,
     reason: "redis_unavailable",
   };
-  const reservationId = uuidv4();
-  const reservationStartedAt = Date.now();
   let reservationAttempts = 0;
-  for (const delayMs of CAPACITY_RESERVATION_RETRY_DELAYS_MS) {
-    if (delayMs > 0) await wait(delayMs);
-    reservationAttempts++;
-    try {
-      reservation = await reserveProviderCapacityAsync({
-        providerId: route.providerId,
-        modelId,
-        estimatedTokens,
-        reservationId,
-        reservationStartedAt,
-        limits: {
-          rpm: route.rpm || 0,
-          tpm: route.tpm || 0,
-          dailyLimit: route.dailyLimit || 0,
-          concurrentLimit: route.concurrentLimit || 0,
-        },
-      });
-    } catch (error) {
-      console.error(
-        "[scheduler] managed provider capacity reservation attempt failed:",
-        error instanceof Error ? error.message : String(error)
-      );
-      reservation = { allowed: false, reason: "redis_unavailable" };
+  let uncertaintyRetries = 0;
+  // Retry an ambiguous Redis acknowledgement with the SAME lease identity.
+  // Only a definite denial permits a new identity and a fresh window clock.
+  const attempt = async (): Promise<ProviderCapacityReservation> => {
+    let reservation: ProviderCapacityReservation = { allowed: false, reason: "redis_unavailable" };
+    const reservationId = uuidv4();
+    const reservationStartedAt = Date.now();
+    for (const delayMs of CAPACITY_RESERVATION_RETRY_DELAYS_MS) {
+      if (delayMs > 0) { uncertaintyRetries++; await wait(delayMs); }
+      reservationAttempts++;
+      try {
+        reservation = await reserveProviderCapacityAsync({
+          providerId: route.providerId, modelId, estimatedTokens,
+          reservationId, reservationStartedAt,
+          limits: {
+            rpm: route.rpm || 0, tpm: route.tpm || 0,
+            dailyLimit: route.dailyLimit || 0, concurrentLimit: route.concurrentLimit || 0,
+          },
+        });
+      } catch {
+        reservation = { allowed: false, reason: "redis_unavailable" };
+      }
+      if (reservation.allowed || !["redis_unavailable", "redis_state_invalid"].includes(reservation.reason)) break;
     }
-    if (
-      reservation.allowed
-      || (reservation.reason !== "redis_unavailable" && reservation.reason !== "redis_state_invalid")
-    ) {
-      break;
-    }
-  }
-
-  // Capacity (not store) exhaustion: wait for leases to free up within budget.
-  const waitBudgetMs = capacityWaitBudgetMs();
+    return reservation;
+  };
+  reservation = await attempt();
+  const waitStarted = Date.now();
   let waitedMs = 0;
-  while (
-    !reservation.allowed
-    && reservation.reason !== "redis_unavailable"
-    && reservation.reason !== "redis_state_invalid"
-    && waitedMs < waitBudgetMs
-  ) {
-    const step = Math.min(CAPACITY_WAIT_STEP_MS, waitBudgetMs - waitedMs);
-    await wait(step);
-    waitedMs += step;
-    try {
-      reservation = await reserveProviderCapacityAsync({
-        providerId: route.providerId,
-        modelId,
-        estimatedTokens,
-        reservationId,
-        reservationStartedAt,
-        limits: {
-          rpm: route.rpm || 0,
-          tpm: route.tpm || 0,
-          dailyLimit: route.dailyLimit || 0,
-          concurrentLimit: route.concurrentLimit || 0,
-        },
-      });
-    } catch (error) {
-      console.error(
-        "[scheduler] managed provider capacity wait attempt failed:",
-        error instanceof Error ? error.message : String(error)
-      );
-      reservation = { allowed: false, reason: "redis_unavailable" };
-    }
-    // Daily quota does not free up within seconds.
-    if (!reservation.allowed && reservation.reason === "daily") break;
+  while (!reservation.allowed && ["rpm", "tpm", "concurrency"].includes(reservation.reason)
+    && Date.now() < waitDeadline) {
+    await wait(Math.min(CAPACITY_WAIT_STEP_MS, waitDeadline - Date.now()));
+    reservation = await attempt();
+    waitedMs = Date.now() - waitStarted;
   }
   if (reservation.allowed && waitedMs > 0) {
     logToSLS({
@@ -391,7 +357,7 @@ export async function acquireProviderCapacity(
     });
   }
 
-  if (reservation.allowed && reservationAttempts > 1) {
+  if (reservation.allowed && uncertaintyRetries > 0) {
     logToSLS({
       status: "warning",
       model: modelId,

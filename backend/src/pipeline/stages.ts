@@ -29,6 +29,7 @@ import { checkConsumerLimitsAsync } from "../services/rate-limiter";
 import { getRequestedRegion, resolveUpstream, resolveUpstreamFromControlPlane, type ResolvedUpstream, type ResolveUpstreamResult } from "../services/upstream";
 import {
   acquireProviderCapacity,
+  capacityWaitBudgetMs,
   releaseProviderCapacity,
   type ProviderCapacityAcquireResult,
 } from "../services/scheduler";
@@ -254,7 +255,9 @@ export async function selectRoute(
   ctx: InferenceContext
 ): Promise<Extract<ResolveUpstreamResult, { ok: false }> | null> {
   const caller = ctx.requireCaller();
+  ctx.providerCapacityWaitDeadline ??= Date.now() + capacityWaitBudgetMs();
   const result = await resolveUpstream(ctx.modelId, {
+    waitDeadline: ctx.providerCapacityWaitDeadline,
     region: getRequestedRegion(ctx.req),
     userId: caller.userId,
   });
@@ -308,6 +311,7 @@ async function failoverToRouteWithCapacity(ctx: InferenceContext, first: Resolve
       region: getRequestedRegion(ctx.req),
       userId,
       excludeProviders: tried,
+      waitDeadline: ctx.providerCapacityWaitDeadline,
     });
     if (!next.ok) return first;
     logToSLS({ status: "info", model: ctx.modelId, providerId: next.upstream.providerId, errorCode: "capacity_failover", errorReason: `from ${current.providerId}` });
@@ -382,7 +386,7 @@ export async function reserveProviderCapacity(
   if (mode === "enforce" && snapshot && ctx.requireUpstream().managed) {
     return reserveTrafficEnforced(ctx, estimatedTokens, snapshot, overflow);
   }
-  const capacity = await acquireProviderCapacity(ctx.requireUpstream(), ctx.modelId, estimatedTokens);
+  const capacity = await acquireProviderCapacity(ctx.requireUpstream(), ctx.modelId, estimatedTokens, ctx.providerCapacityWaitDeadline);
   if (mode === "shadow" && snapshot && ctx.upstream?.managed) {
     const upstream = ctx.upstream;
     const userId = ctx.caller?.userId ?? null;
@@ -465,7 +469,7 @@ async function reserveTrafficEnforced(
   const route = controlPlaneRouteFor(snapshot, ctx.modelId, upstream.providerId);
   if (!route) {
     // Not a control-plane route (e.g. a legacy-only provider): legacy limiter.
-    const capacity = await acquireProviderCapacity(upstream, ctx.modelId, estimatedTokens);
+    const capacity = await acquireProviderCapacity(upstream, ctx.modelId, estimatedTokens, ctx.providerCapacityWaitDeadline);
     if (!capacity.ok) return capacity;
     ctx.providerLease = capacity.lease;
     return null;

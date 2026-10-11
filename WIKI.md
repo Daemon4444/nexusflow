@@ -184,6 +184,8 @@ selectRoute → reserveProviderCapacity → reserveBilling → invokeUpstream �
 
 Provider 容量（`provider_capacity`，60 s 滑动窗口）预占时输出部分最多按 `CAPACITY_OUTPUT_RESERVATION_TOKENS = 4096` 计（`pipeline/stages.ts`；余额与账户 TPM 预占仍按上面的完整输出预留），结束按实际 usage 结算。2026-10-10 回放 shaoti 的 flash 流量：旧算法预占是实际的 1.92 倍（agent 普遍带 `max_tokens=64000`、实际输出几百）。容量满时不再立即 503：`acquireProviderCapacity` 在 `NF_PROVIDER_CAPACITY_WAIT_MS`（默认 20000，0 关闭，上限 120000）内每 500 ms 重试，在途租约释放或窗口滑动即放行（日配额不等）；放行记 SLS `provider_capacity_waited`，最终拒绝记 SLS `status=rejected`（含 userId/model/errorReason）并打 `[capacity] rejected` 日志——这类拒绝发生在计费前，`usage_logs` 里没有。
 
+2026-10-11 本地修复（基于线上 `7f288cc`，尚未发布）：短时容量等待覆盖选路和预占，两阶段共享截止时间；明确拒绝后的下一次预占使用新租约 ID 与当前窗口时间，Redis 回执不确定时仍复用同一 ID/时间做幂等恢复。日配额不等，权限、健康和 Redis 不可验证状态不绕过。详见 [四项回归记录](docs/records/2026-10-11-log-capacity-fixes.md)。
+
 ### 6.2 图像、视频、语音与异步任务
 
 - OpenAI 风格图片：`POST /v1/images/generations`
@@ -511,6 +513,7 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
   `<label>/capture/<日期>/<HH>-<节点>.jsonl.gz` 后删本地，迟到行另存 `-late<epoch>` 不覆盖；
   `scripts/payload-capture-reconcile.mjs [日期]` 每日核对全站对话类 `usage_logs` 的 `log_id` 是否全部入档。
   控制台“请求日志”详情（`GET /api/usage/logs/:logId/detail`）先从全文留存读（本机未上传的 spool，再 R2 小时档，按完成时刻及前 30 分钟两个小时槽查找），SQL 归属 + 记录 `log_id`/`user_id` 双重校验，查不到再退回 SLS（服务器 AK 只写，生产上 SLS 回退通常 503）；另一节点当前小时的调用在上传前查不到。
+  2026-10-11 本地修复（未部署）：归档查找共用 8 秒 I/O 预算，捕获并回收 rclone 子进程与流；明确区分空目录/未命中和读取失败。近期请求也尝试 SLS，匹配内容显示可能截断提示；两路成功但未命中才返回空详情，归档读取失败且无合格 SLS 内容时返回可重试 503，不再无证据归因为另一节点待上传。SQL owner 和双来源记录身份校验不变。
   开关只改表（约 1 分钟生效），不发版；已产生存档的行只置 `enabled=false`，不删除。上线前的 SLS 截断版
   （10-02~10-09）在 `_site/` 与 `shaoti.chen/sls-truncated-*`；
 - `PROVIDER_SECRET_KEY` 是否配置必须在生产变更前检查；未配置时不能假设数据库中的 Provider Key 已加密；

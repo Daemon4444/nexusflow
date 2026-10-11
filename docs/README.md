@@ -53,6 +53,7 @@
 | 文档 | 状态 | 内容 |
 |---|---|---|
 | [records/2026-09-26-production-load-test.md](records/2026-09-26-production-load-test.md) | 快照 | 生产压测：单账号 48 rps 上限、行锁瓶颈、对账 |
+| [records/2026-10-11-log-capacity-fixes.md](records/2026-10-11-log-capacity-fixes.md) | 本地修复，未部署 | 归档子进程错误、近期日志回退、满载选路与滑动窗口等待回归 |
 | [records/2026-10-09-independent-qa.md](records/2026-10-09-independent-qa.md) | 快照 | 独立审查未提交控制台修复、隔离 PostgreSQL/浏览器验证与未部署边界 |
 | [records/kimi-k3-jaway-migration-record.md](records/kimi-k3-jaway-migration-record.md) | 快照 | Kimi K3 切换 jaway 上游 |
 | [records/qwen3.8-max-onboarding-record.md](records/qwen3.8-max-onboarding-record.md) | 快照 | qwen3.8-max 接入与计费修正 |

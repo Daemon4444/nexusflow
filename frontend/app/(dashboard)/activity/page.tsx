@@ -339,7 +339,7 @@ function LogAnalysis() {
 
   return (
     <>
-      <Panel title="搜索请求日志" aside="写入后约 1–2 分钟可查询详情；不填条件直接搜索可查看最近 50 条">
+      <Panel title="搜索请求日志" aside="详情可能延迟归档；不填条件直接搜索可查看最近 50 条">
         <form className="nfc-log-form" onSubmit={handleSearch}>
           <label className="nfc-field">Request ID
             <input className="input" value={searchLogId} onChange={(e) => setSearchLogId(e.target.value)} placeholder="响应里的 id" />
@@ -396,9 +396,12 @@ function LogAnalysis() {
                           {detailLoading ? (
                             <span className="nfc-faint">加载中…</span>
                           ) : detail ? (
-                            <div className="nfc-log-panes">
-                              <div><span>REQUEST</span><pre>{formatJson(detail.request)}</pre></div>
-                              <div><span>RESPONSE</span><pre>{formatJson(detail.response)}</pre></div>
+                            <div className="nfc-log-content">
+                              {detailNote && <p role="status" className="nfc-faint">{detailNote}</p>}
+                              <div className="nfc-log-panes">
+                                <div><span>REQUEST</span><pre>{formatJson(detail.request)}</pre></div>
+                                <div><span>RESPONSE</span><pre>{formatJson(detail.response)}</pre></div>
+                              </div>
                             </div>
                           ) : (
                             <div role="status"><span className="nfc-faint">{detailNote || "暂无详情数据"}</span> {detailRetryable && <button className="btn-secondary" onClick={() => loadDetail(r.log_id, true)}>重试</button>}</div>

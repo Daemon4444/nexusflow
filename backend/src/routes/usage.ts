@@ -294,8 +294,9 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
     return;
   }
 
-  // Full capture first: untruncated and kept permanently. SLS below only
-  // covers calls from before capture, truncated and for 7 days.
+  let captureFailed = false;
+  // Full capture first; SLS can also supply recent calls while the archive
+  // is pending or unavailable. SLS content may be truncated and expires.
   try {
     const { findCapturedPayload } = await import("../services/payload-capture");
     const captured = await findCapturedPayload({
@@ -315,17 +316,20 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
       return;
     }
   } catch {
+    captureFailed = true;
     console.error("[usage] captured payload lookup failed", { logId, code: "capture_lookup_failed" });
   }
-  // A call from the current hour served by the other node is only in its
-  // local spool until the hourly upload (:05); say so instead of failing.
-  if (Date.now() - new Date(row.created_at).getTime() < 75 * 60_000) {
-    res.json({ success: true, data: null, note: "该请求由另一台服务器处理，详情每小时整点后约 5 分钟上传，届时可查看。" });
-    return;
-  }
-
+  // A recent call served by the other node is only in that node's spool until
+  // the hourly upload (:05). If the archive simply has no copy yet and SLS has
+  // nothing usable (production's key cannot read SLS), say when to come back.
+  const pendingUpload = !captureFailed && Date.now() - new Date(row.created_at).getTime() < 75 * 60_000;
+  const pendingUploadNote = "该请求由另一台服务器处理，详情每小时整点后约 5 分钟上传，届时可查看。";
   const { getSlsClient } = await import("../services/sls");
   const slsClient = getSlsClient();
+  if (!slsClient && pendingUpload) {
+    res.json({ success: true, data: null, note: pendingUploadNote });
+    return;
+  }
   if (!slsClient) {
     res.status(503).json({ success: false, code: "log_detail_unavailable", message: "日志详情服务暂不可用，请联系支持并提供 Request ID" });
     return;
@@ -345,16 +349,21 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
     // fields again before exposing any content, even after an indexed search.
     const entry = Array.isArray(logs)
       ? logs.find(item => item?.logId === logId && item?.userId === userId) : null;
+    if (!entry && captureFailed) {
+      res.status(503).json({ success: false, code: "log_detail_unavailable", message: "日志详情暂时无法读取，请重试；若持续失败，请联系支持并提供 Request ID" });
+      return;
+    }
     res.json({
       success: true,
       data: entry ? {
         request: entry.request || null,
         response: entry.response || null,
       } : null,
-      note: entry ? undefined : "未找到详情：日志可能仍在索引中（约 1–2 分钟），或已超出保留期。",
+      note: entry ? "以下为 SLS 日志内容，可能经过截断；完整归档暂未读取到。" : pendingUpload ? pendingUploadNote : "暂未找到详情：可能尚未归档或索引、未开启内容采集，或已超出日志保留期，请稍后重试。",
     });
   } catch {
     console.error("[usage] log detail query failed", { logId, code: "sls_query_failed" });
+    if (pendingUpload) { res.json({ success: true, data: null, note: pendingUploadNote }); return; }
     res.status(503).json({ success: false, code: "log_detail_unavailable", message: "日志详情暂时无法读取，请重试；若持续失败，请联系支持并提供 Request ID" });
   }
 });

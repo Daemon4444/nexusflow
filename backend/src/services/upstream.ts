@@ -18,6 +18,7 @@ import {
   type ProviderChannel,
 } from "../data/provider-channels";
 import {
+  capacityWaitBudgetMs,
   getManagedRouteCount,
   selectFromRouteRows,
   selectProviderDetailed,
@@ -112,7 +113,8 @@ function finalizeResolvedUpstream(
  */
 async function selectManaged(
   modelId: string,
-  select: () => Promise<ProviderSelectionResult>
+  select: () => Promise<ProviderSelectionResult>,
+  waitDeadline = Date.now() + capacityWaitBudgetMs()
 ): Promise<{ ok: true; endpoint: ProviderEndpoint } | Extract<ResolveUpstreamResult, { ok: false }>> {
   let selection: ProviderSelectionResult | null = null;
   let selectionAttempts = 0;
@@ -130,12 +132,22 @@ async function selectManaged(
     }
     if (selection.ok || selection.reason !== "capacity_state_unavailable") break;
   }
+  // Selection itself filters full routes, before the reservation stage runs.
+  // Re-evaluate only temporary capacity denials; policy, health, daily quota
+  // and unverifiable Redis state must continue to fail closed.
+  while (selection && !selection.ok && selection.reason === "capacity_exhausted"
+    && ["rpm", "tpm", "concurrency"].some(key => selection && !selection.ok && selection.filters[`capacity_limit:${key}`] > 0)
+    && Date.now() < waitDeadline) {
+    await wait(Math.min(500, waitDeadline - Date.now()));
+    selectionAttempts++;
+    selection = await select();
+  }
   if (selection?.ok && selectionAttempts > 1) {
     logToSLS({
       status: "warning",
       model: modelId,
-      errorCode: "provider_capacity_state_recovered",
-      errorReason: "managed_provider_selection_recovered_after_retry",
+      errorCode: firstTransientFilters ? "provider_capacity_state_recovered" : "provider_capacity_waited",
+      errorReason: firstTransientFilters ? "managed_provider_selection_recovered_after_retry" : "managed_provider_selection_admitted_after_wait",
       attempts: selectionAttempts,
       routeFilters: firstTransientFilters || {},
     });
@@ -177,7 +189,7 @@ async function selectManaged(
 
 export async function resolveUpstream(
   modelId: string,
-  options: { region?: string; userId?: string | null } = {}
+  options: { region?: string; userId?: string | null; waitDeadline?: number } = {}
 ): Promise<ResolveUpstreamResult> {
   if (controlPlaneMode() === "enforce") {
     const snapshot = controlPlaneRuntime.get();
@@ -193,7 +205,7 @@ export async function resolveUpstream(
 export async function resolveUpstreamFromControlPlane(
   modelId: string,
   snapshot: LoadedControlPlane,
-  options: { region?: string; userId?: string | null; excludeProviders?: Set<string> } = {}
+  options: { region?: string; userId?: string | null; waitDeadline?: number; excludeProviders?: Set<string> } = {}
 ): Promise<ResolveUpstreamResult> {
   let candidates = (snapshot.routesByModel.get(modelId) || []).filter((route) => {
     const account = snapshot.accounts.get(route.account_id);
@@ -244,18 +256,18 @@ export async function resolveUpstreamFromControlPlane(
       is_enabled: true,
     });
   }
-  const selected = await selectManaged(modelId, () => selectFromRouteRows(modelId, rows, { userId: options.userId }));
+  const selected = await selectManaged(modelId, () => selectFromRouteRows(modelId, rows, { userId: options.userId }), options.waitDeadline);
   if (!selected.ok) return selected;
   return resolveManagedUpstream(modelId, selected.endpoint, options.region, upstreamIds.get(selected.endpoint.providerId));
 }
 
 async function resolveUpstreamLegacy(
   modelId: string,
-  options: { region?: string; userId?: string | null } = {}
+  options: { region?: string; userId?: string | null; waitDeadline?: number } = {}
 ): Promise<ResolveUpstreamResult> {
   const managedRouteCount = await getManagedRouteCount(modelId);
   if (managedRouteCount > 0) {
-    const selected = await selectManaged(modelId, () => selectProviderDetailed(modelId, { userId: options.userId }));
+    const selected = await selectManaged(modelId, () => selectProviderDetailed(modelId, { userId: options.userId }), options.waitDeadline);
     if (!selected.ok) return selected;
     return resolveManagedUpstream(modelId, selected.endpoint, options.region);
   }

@@ -142,7 +142,10 @@ async function main() {
 
     let calls = 0;
     let mode = "match";
-    const ownedId = `${user}-0`;
+    let ownedId = `${user}-0`;
+    const captureModule = require("../src/services/payload-capture");
+    const realLookup = captureModule.findCapturedPayload;
+    captureModule.findCapturedPayload = async () => null;
     sls.getSlsClient = () => mode === "unconfigured" ? null : {
       getLogs: async (_project: string, _store: string, _from: Date, _to: Date, options: { query: string }) => {
         calls++;
@@ -182,6 +185,7 @@ async function main() {
     mode = "match";
     assert.equal((await call(detailPath)).status, 200, "retry rechecks ownership and recovers");
 
+    captureModule.findCapturedPayload = realLookup;
     // Full capture is read before SLS, and its identity is re-checked.
     const fs = require("node:fs") as typeof import("node:fs");
     const os = require("node:os") as typeof import("node:os");
@@ -229,16 +233,31 @@ async function main() {
     assert.equal(events[0].userId, childRow?.user_id);
     assert.equal((await call(`/logs/${childLogId}/detail`)).status, 404);
 
-    // A call from the last hour not yet in any capture gets a clear note, not a failure.
+    // Recent requests still fall back to SLS; failures are not invented upload delays.
     const recentId = `${user}-recent`;
     await db.execute("INSERT INTO usage_logs (user_id,log_id,model,created_at) VALUES (?,?,?,?)",
       [user, recentId, "qa-recent-model", new Date().toISOString()]);
+    ownedId = recentId;
+    captureModule.findCapturedPayload = async () => { throw new Error("SYNTHETIC_SECRET_CAPTURE"); };
     const slsCallsBeforeRecent = calls;
+    mode = "match";
     const recentDetail = await call(`/logs/${recentId}/detail`);
     assert.equal(recentDetail.status, 200);
-    assert.equal(recentDetail.body.data, null);
-    assert.match(recentDetail.body.note, /整点后/);
-    assert.equal(calls, slsCallsBeforeRecent);
+    assert.equal(recentDetail.body.data.request, "SYNTHETIC OWN BODY");
+    assert.match(recentDetail.body.note, /SLS.*截断/);
+    assert.equal(calls, slsCallsBeforeRecent + 1);
+    for (mode of ["empty", "error", "unconfigured", "foreign", "wrong-id", "missing-identity"]) {
+      const response = await call(`/logs/${recentId}/detail`);
+      assert.equal(response.status, 503, `unavailable archive and ${mode} SLS`);
+      assert.doesNotMatch(JSON.stringify(response.body), /SYNTHETIC_SECRET|另一台服务器/);
+    }
+    captureModule.findCapturedPayload = async () => null;
+    mode = "empty";
+    const absent = await call(`/logs/${recentId}/detail`);
+    assert.equal(absent.status, 200);
+    assert.equal(absent.body.data, null);
+    assert.doesNotMatch(absent.body.note, /另一台服务器|整点后/);
+    captureModule.findCapturedPayload = realLookup;
 
     // Exercise the installed Alibaba SDK without making any network request.
     const httpx = require("httpx");

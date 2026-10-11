@@ -155,6 +155,49 @@ async function main(): Promise<void> {
   const channelOnlyTpmEventsKey =
     "provider-capacity:v2:tpm-events:provider:managed-channel-only:channel-only-model";
 
+  // Route selection must wait too: full routes never reach acquisition.
+  const { reserveProviderCapacityAsync, releaseProviderCapacityAsync } = await import("../src/services/rate-limiter");
+  await upsertCapacity("managed-channel-only", "channel-only-model", {
+    rpm_limit: 0, tpm_limit: 0, daily_limit: 0, concurrent_limit: 1, weight: 100, is_enabled: true,
+  });
+  const held = await reserveProviderCapacityAsync({ providerId: "managed-channel-only", modelId: "channel-only-model",
+    limits: { rpm: 0, tpm: 0, dailyLimit: 0, concurrentLimit: 1 }, estimatedTokens: 0 });
+  assert(held.allowed);
+  process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "0";
+  assert.equal((await resolveUpstream("channel-only-model")).ok, false);
+  process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "1200";
+  const freed = new Promise<void>((resolve, reject) => setTimeout(() => {
+    releaseProviderCapacityAsync({ providerId: "managed-channel-only", modelId: "channel-only-model", leaseId: held.leaseId, actualTokens: 0 }).then(resolve, reject);
+  }, 100));
+  assert.equal((await resolveUpstream("channel-only-model")).ok, true, "route becomes selectable within wait budget");
+  await freed;
+  process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "0";
+
+  const { resolveUpstreamFromControlPlane } = await import("../src/services/upstream");
+  const snapshot = {
+    accounts: new Map([["qa-account", { status: "active", legacy_provider_id: "managed-channel-only", base_url: "https://channel-only.example.invalid/v1" }]]),
+    routesByModel: new Map([["channel-only-model", [{ id: "qa-route", account_id: "qa-account", status: "active", upstream_model_id: "channel-only-model", rpm: 0, tpm: 0, daily: 0, concurrency: 1, weight: 100, priority: 1 }]]]),
+  } as any;
+  const cpHeld = await reserveProviderCapacityAsync({ providerId: "managed-channel-only", modelId: "channel-only-model",
+    limits: { rpm: 0, tpm: 0, dailyLimit: 0, concurrentLimit: 1 }, estimatedTokens: 0 });
+  assert(cpHeld.allowed);
+  process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "1200";
+  const cpFreed = new Promise<void>((resolve, reject) => setTimeout(() => {
+    releaseProviderCapacityAsync({ providerId: "managed-channel-only", modelId: "channel-only-model", leaseId: cpHeld.leaseId, actualTokens: 0 }).then(resolve, reject);
+  }, 100));
+  assert.equal((await resolveUpstreamFromControlPlane("channel-only-model", snapshot)).ok, true);
+  await cpFreed;
+  await upsertCapacity("managed-channel-only", "channel-only-model", {
+    rpm_limit: 0, tpm_limit: 0, daily_limit: 1, concurrent_limit: 1, weight: 100, is_enabled: true,
+  });
+  const dailyStart = Date.now();
+  assert.equal((await resolveUpstream("channel-only-model")).ok, false);
+  assert(Date.now() - dailyStart < 400, "daily-only selection rejection must not wait");
+  await upsertCapacity("managed-channel-only", "channel-only-model", {
+    rpm_limit: 0, tpm_limit: 0, daily_limit: 0, concurrent_limit: 1, weight: 100, is_enabled: true,
+  });
+  process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "0";
+
   // A single inconsistent Redis read must recover inside the bounded retry
   // budget without bypassing the cross-node capacity truth source.
   await redis.set(channelOnlyTpmEventsKey, "wrong-type");

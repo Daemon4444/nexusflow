@@ -247,3 +247,15 @@ test('model catch-all params preserve slash IDs whether Next supplies encoded or
     assert.match(text(h.render()), /MiniMax\/MiniMax-M3/);
   }
 });
+
+
+test('SLS truncation notice is visible alongside returned log content', async () => {
+  const h = harness('app/(dashboard)/activity/page.tsx', { exports: ['LogAnalysis'], fetchAPI: async path => path.endsWith('/detail')
+    ? { success: true, data: { request: 'synthetic request', response: 'synthetic response' }, note: 'SLS 内容可能截断' }
+    : { success: true, data: [{ log_id: 'synthetic-log', model: 'synthetic', status: 'success', time: '2026-10-11T00:00:00Z', total_tokens: 1, cost: 0 }] } });
+  await find(h.render('LogAnalysis'), node => node.type === 'form').props.onSubmit();
+  await find(h.render('LogAnalysis'), node => node.type === 'tr' && node.props?.onClick).props.onClick();
+  const tree = h.render('LogAnalysis');
+  assert.match(text(tree), /synthetic request/);
+  assert.match(text(tree), /SLS 内容可能截断/);
+});

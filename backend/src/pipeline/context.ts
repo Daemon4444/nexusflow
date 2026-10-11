@@ -49,6 +49,7 @@ export class InferenceContext {
   /** Once true, the reservation is settled by the handler, never released. */
   billableResponseReceived = false;
 
+  providerCapacityWaitDeadline?: number;
   providerLease: ProviderRequestCapacityLease | null = null;
   actualProviderTokens = 0;
 
