@@ -1,6 +1,16 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:chore: delist deepseek-v4-flash after the upstream retired it": {
+      "type": "improve",
+      "audience": "customer",
+      "title": "下架 DeepSeek V4 Flash（上游已下线）",
+      "points": [
+        "百炼已下线 deepseek-v4-flash 稳定模型 ID（10-11 起调用返回 Model not exist），本站同步下架",
+        "替代：轻量任务用 deepseek-v4.1-flash（输入 ¥1 / 输出 ¥4），需要锁定行为用 deepseek-v4-flash-0731（输入 ¥1 / 输出 ¥2）",
+        "首页、文档与示例代码改用 DeepSeek V4.1 Flash"
+      ]
+    },
     "subject:fix: tell customers why the upstream rejected their request": {
       "type": "fix",
       "audience": "customer",

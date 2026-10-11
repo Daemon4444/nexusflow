@@ -17,7 +17,7 @@ const modelLimits = [
   { model: "MiniMax/MiniMax-M3", maxInput: "1M", maxOutput: "512K", contextWindow: "1M" },
   { model: "deepseek-v4-pro", maxInput: "1M", maxOutput: "384K", contextWindow: "1M" },
   { model: "deepseek-v4-pro-0813", maxInput: "1M", maxOutput: "384K", contextWindow: "1M" },
-  { model: "deepseek-v4-flash", maxInput: "1M", maxOutput: "384K", contextWindow: "1M" },
+  { model: "deepseek-v4.1-flash", maxInput: "1M", maxOutput: "384K", contextWindow: "1M" },
   { model: "deepseek-v4-flash-0731", maxInput: "1M", maxOutput: "384K", contextWindow: "1M" },
   { model: "deepseek-r1", maxInput: "128K", maxOutput: "16K", contextWindow: "128K" },
   { model: "deepseek-v3", maxInput: "128K", maxOutput: "8K", contextWindow: "128K" },

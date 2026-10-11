@@ -68,15 +68,15 @@ const faqs = [
     questions: [
       {
         q: "应该选择哪个模型？",
-        a: "取决于您的需求：\n• 复杂推理/编程：Qwen3.8 Max / DeepSeek V4 Pro\n• 日常对话/创作：Qwen3.7 Plus / Qwen3.5 Plus\n• 高性价比需求：DeepSeek V4 Flash / Qwen Flash\n• 锁定生产行为：DeepSeek V4 Pro 0813 / Flash 0731 快照\n• 图像与视频生成：Qwen Image / Wan2.6 / Seedance 系列\n\n建议用同一个 Key 分别试调几次后再定。",
+        a: "取决于您的需求：\n• 复杂推理/编程：Qwen3.8 Max / DeepSeek V4 Pro\n• 日常对话/创作：Qwen3.7 Plus / Qwen3.5 Plus\n• 高性价比需求：DeepSeek V4.1 Flash / Qwen Flash\n• 锁定生产行为：DeepSeek V4 Pro 0813 / Flash 0731 快照\n• 图像与视频生成：Qwen Image / Wan2.6 / Seedance 系列\n\n建议用同一个 Key 分别试调几次后再定。",
       },
       {
         q: "同一模型为什么有不同版本？",
-        a: "稳定模型 ID 会跟随供应商持续更新，适合希望自动获得改进的业务；带日期的快照用于锁定行为和回归结果。DeepSeek 当前同时公开 deepseek-v4-pro-0813 与 deepseek-v4-flash-0731，两者均为独立直传百炼的固定快照；稳定版则使用 deepseek-v4-pro 与 deepseek-v4-flash。",
+        a: "稳定模型 ID 会跟随供应商持续更新，适合希望自动获得改进的业务；带日期的快照用于锁定行为和回归结果。DeepSeek 当前同时公开 deepseek-v4-pro-0813 与 deepseek-v4-flash-0731，两者均为独立直传百炼的固定快照；稳定版为 deepseek-v4-pro；百炼已于 2026-10 下线 deepseek-v4-flash 稳定 ID，轻量任务请用 deepseek-v4.1-flash，需要锁定行为用 deepseek-v4-flash-0731。",
       },
       {
         q: "可以同时使用多个模型吗？",
-        a: "可以。您可以在同一个应用中调用任意多个模型，只需在请求中指定不同的 model ID。例如用 Qwen3 Max 做复杂推理，用 DeepSeek V4 Flash 做轻量任务以节省成本。",
+        a: "可以。您可以在同一个应用中调用任意多个模型，只需在请求中指定不同的 model ID。例如用 Qwen3 Max 做复杂推理，用 DeepSeek V4.1 Flash 做轻量任务以节省成本。",
       },
     ],
   },

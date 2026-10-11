@@ -47,7 +47,7 @@ const client = new OpenAI({
 });
 
 const reply = await client.chat.completions.create({
-  model: "deepseek-v4-flash",
+  model: "deepseek-v4.1-flash",
   messages: [{ role: "user", content: "你好" }],
 });
 console.log(reply.choices[0].message.content);`,
@@ -60,7 +60,7 @@ console.log(reply.choices[0].message.content);`,
       [["});"]],
       [],
       [["const", "k"], [" reply = "], ["await", "k"], [" client.chat.completions."], ["create", "f"], ["({"]],
-      [["  model", "p"], [": "], ['"deepseek-v4-flash"', "s"], [","]],
+      [["  model", "p"], [": "], ['"deepseek-v4.1-flash"', "s"], [","]],
       [["  messages", "p"], [": [{ role: "], ['"user"', "s"], [", content: "], ['"你好"', "s"], [" }],"]],
       [["});"]],
       [["console", "f"], [".log(reply.choices["], ["0", "n"], ["].message.content);"]],

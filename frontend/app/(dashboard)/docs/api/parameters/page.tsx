@@ -53,7 +53,7 @@ const thinkingSupport = [
   ["qwen-math-plus", "未按思考开关处理", "不要传", "线上验证：true/false 都未返回 reasoning_content。"],
   ["deepseek-r1", "仅思考", "false 不能关闭", "线上验证：true/false 都返回 reasoning_content。"],
   ["deepseek-v3.2", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
-  ["deepseek-v4-flash", "混合思考", "支持 true / false", "开启后返回 reasoning_content，关闭后直接生成答案。"],
+  ["deepseek-v4.1-flash", "混合思考", "支持 true / false", "开启后返回 reasoning_content，关闭后直接生成答案。"],
   ["deepseek-v4-flash-0731", "混合思考", "支持 true / false", "0731 固定快照；开启后返回 reasoning_content。"],
   ["deepseek-v4-pro", "混合思考", "支持 true / false", "线上验证：true 返回 reasoning_content；false 不返回。"],
   ["deepseek-v4-pro-0813", "混合思考", "支持 true / false", "百炼 0813 快照线上验证：false 返回直答；V4 混合思考参数规则与正式版一致。"],
