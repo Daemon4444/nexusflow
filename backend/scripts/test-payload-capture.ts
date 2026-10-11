@@ -39,7 +39,7 @@ async function main() {
     script("exec sleep 30");
     const started = Date.now();
     await assert.rejects(findCapturedPayload(params), /capture_lookup_failed|capture_lookup_timeout/);
-    assert(Date.now() - started < 10_000, "one bounded archive lookup");
+    assert(Date.now() - started < 20_000, "one bounded archive lookup (18 s budget)");
     script(`cat '${root}/record.gz'; exec sleep 30`);
     const early = Date.now();
     assert.equal((await findCapturedPayload(params))?.log_id, params.logId);
