@@ -182,6 +182,17 @@ export function isRouteQuarantined(
   return now - lastFailure < circuitParams().cooldownMs;
 }
 const CAPACITY_RESERVATION_RETRY_DELAYS_MS = [0, 50, 150, 350, 750] as const;
+/**
+ * How long a request waits for managed capacity (rpm/tpm/concurrency) before
+ * it is rejected. In-flight leases free up as calls finish and the 60 s window
+ * slides, so a short wait turns most bursts into a brief delay instead of a
+ * 503 the client has to retry. NF_PROVIDER_CAPACITY_WAIT_MS=0 disables it.
+ */
+function capacityWaitBudgetMs(): number {
+  const raw = Number(process.env.NF_PROVIDER_CAPACITY_WAIT_MS ?? 20_000);
+  return Number.isFinite(raw) && raw > 0 ? Math.min(raw, 120_000) : 0;
+}
+const CAPACITY_WAIT_STEP_MS = 500;
 const concurrentRequests = new Map<string, number>();
 
 function wait(ms: number): Promise<void> {
@@ -331,6 +342,53 @@ export async function acquireProviderCapacity(
     ) {
       break;
     }
+  }
+
+  // Capacity (not store) exhaustion: wait for leases to free up within budget.
+  const waitBudgetMs = capacityWaitBudgetMs();
+  let waitedMs = 0;
+  while (
+    !reservation.allowed
+    && reservation.reason !== "redis_unavailable"
+    && reservation.reason !== "redis_state_invalid"
+    && waitedMs < waitBudgetMs
+  ) {
+    const step = Math.min(CAPACITY_WAIT_STEP_MS, waitBudgetMs - waitedMs);
+    await wait(step);
+    waitedMs += step;
+    try {
+      reservation = await reserveProviderCapacityAsync({
+        providerId: route.providerId,
+        modelId,
+        estimatedTokens,
+        reservationId,
+        reservationStartedAt,
+        limits: {
+          rpm: route.rpm || 0,
+          tpm: route.tpm || 0,
+          dailyLimit: route.dailyLimit || 0,
+          concurrentLimit: route.concurrentLimit || 0,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "[scheduler] managed provider capacity wait attempt failed:",
+        error instanceof Error ? error.message : String(error)
+      );
+      reservation = { allowed: false, reason: "redis_unavailable" };
+    }
+    // Daily quota does not free up within seconds.
+    if (!reservation.allowed && reservation.reason === "daily") break;
+  }
+  if (reservation.allowed && waitedMs > 0) {
+    logToSLS({
+      status: "warning",
+      model: modelId,
+      providerId: route.providerId,
+      errorCode: "provider_capacity_waited",
+      errorReason: "managed_provider_capacity_admitted_after_wait",
+      waitedMs,
+    });
   }
 
   if (reservation.allowed && reservationAttempts > 1) {

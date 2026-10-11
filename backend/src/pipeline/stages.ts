@@ -358,12 +358,25 @@ export type CapacityFailure = Extract<ProviderCapacityAcquireResult, { ok: false
  * route/pool/fair-share rules whose would-be decision is logged; enforce →
  * the multi-scope reservation with failover (chat) or queueing (async).
  */
+/**
+ * Output tokens counted against upstream capacity before the call. Clients
+ * routinely send max_tokens far above what they use (64k agents, 16k default
+ * reservation); reserving all of it made the 60 s window look ~2x fuller than
+ * real traffic and rejected calls the upstream would have served. The lease is
+ * settled with actual usage when the call ends.
+ */
+export const CAPACITY_OUTPUT_RESERVATION_TOKENS = 4_096;
+
 export async function reserveProviderCapacity(
   ctx: InferenceContext,
   estimatedTokens: number,
-  options: { overflow?: OverflowBehavior } = {}
+  options: { overflow?: OverflowBehavior; outputReservation?: number } = {}
 ): Promise<CapacityFailure | null> {
   const overflow = options.overflow ?? "failover";
+  if (options.outputReservation && options.outputReservation > CAPACITY_OUTPUT_RESERVATION_TOKENS
+    && estimatedTokens >= options.outputReservation) {
+    estimatedTokens = Math.max(1, estimatedTokens - options.outputReservation + CAPACITY_OUTPUT_RESERVATION_TOKENS);
+  }
   const mode = trafficMode();
   const snapshot = mode === "legacy" ? null : controlPlaneRuntime.get();
   if (mode === "enforce" && snapshot && ctx.requireUpstream().managed) {
@@ -380,7 +393,22 @@ export async function reserveProviderCapacity(
       return [{ route: ctx.route, model: ctx.modelId, providerId: upstream.providerId, legacy, enforce: decision.decision, scope: decision.scope }];
     });
   }
-  if (!capacity.ok) return capacity;
+  if (!capacity.ok) {
+    // Rejected before billing, so no usage row exists: record who and what.
+    logToSLS({
+      status: "rejected",
+      route: ctx.route,
+      model: ctx.modelId,
+      providerId: ctx.upstream?.providerId,
+      userId: ctx.caller?.userId ?? undefined,
+      apiKeyId: ctx.caller?.apiKeyId ?? undefined,
+      errorCode: capacity.code,
+      errorReason: capacity.reason,
+      estimatedTokens,
+    });
+    console.warn("[capacity] rejected", JSON.stringify({ model: ctx.modelId, code: capacity.code, reason: capacity.reason, userId: ctx.caller?.userId ?? null }));
+    return capacity;
+  }
   ctx.providerLease = capacity.lease;
   return null;
 }

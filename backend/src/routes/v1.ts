@@ -13,7 +13,7 @@ import { controlPlaneRuntime } from "../control-plane/runtime";
 import { displaySupportedFor, publicCapabilities } from "../control-plane/capabilities";
 import { BILLING_GUARDED_PARAMS, guardedParamsRequested } from "../control-plane/params";
 import { Router, Request, Response } from "express";
-import { models } from "../data/models";
+import { getReservedOutputTokens, models } from "../data/models";
 import { validateApiKey } from "../data/apikeys";
 import { logUpstreamFailure, logUsage } from "../data/usage";
 import { BillingReservationFailureReason, settleReservation } from "../data/billing";
@@ -843,7 +843,9 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
   // 预占的 TPM（reserveTpm 已 INCRBY estimatedChatTokens）必须在所有出口恰好归还一次。
   // 正常路径 reconcileTokens 后置标记；异常/上游错误路径由 release（finally）兜底释放。
   try {
-    const capacityFailure = await reserveProviderCapacity(ctx, estimatedChatTokens);
+    const capacityFailure = await reserveProviderCapacity(ctx, estimatedChatTokens, {
+      outputReservation: getReservedOutputTokens(model, requestedOutputTokens),
+    });
     if (capacityFailure) {
       res.status(capacityHttpStatus(res, capacityFailure)).json({
         error: { message: capacityFailure.message, type: capacityErrorType(capacityFailure, "server_error"), code: capacityFailure.code },

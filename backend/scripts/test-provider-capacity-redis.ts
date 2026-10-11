@@ -239,6 +239,30 @@ async function main(): Promise<void> {
     assert.equal(Number(await redis.get(tpmTotalKey)), 35);
     assert.equal(await redis.zcard(concurrencyKey), 0);
 
+    // Exhausted capacity waits for a lease to free instead of failing at once,
+    // and still fails promptly when waiting is disabled.
+    await clearCounters();
+    const oneSlot = { providerId: runId, managed: true, rpm: 100, tpm: 10_000, dailyLimit: 100, concurrentLimit: 1 };
+    const holder = await acquireProviderCapacity(oneSlot, modelId, 10);
+    assert.equal(holder.ok, true);
+    if (!holder.ok) throw new Error("expected the first lease");
+    process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "0";
+    const immediate = await acquireProviderCapacity(oneSlot, modelId, 10);
+    assert.equal(immediate.ok, false, "no wait budget: rejected immediately");
+    process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "5000";
+    const waitStarted = Date.now();
+    setTimeout(() => {
+      void releaseProviderCapacityAsync({ providerId: runId, modelId, leaseId: holder.lease.leaseId!, actualTokens: 10 });
+    }, 700);
+    const waited = await acquireProviderCapacity(oneSlot, modelId, 10);
+    const waitedMs = Date.now() - waitStarted;
+    assert.equal(waited.ok, true, "admitted once the in-flight lease was released");
+    assert.ok(waitedMs >= 600 && waitedMs < 4000, `waited ${waitedMs}ms`);
+    if (waited.ok) {
+      await releaseProviderCapacityAsync({ providerId: runId, modelId, leaseId: waited.lease.leaseId!, actualTokens: 10 });
+    }
+    delete process.env.NF_PROVIDER_CAPACITY_WAIT_MS;
+
     // Alibaba Cloud Redis proxy rejects SET ... KEEPTTL inside EVAL even
     // though standalone Redis versions may accept it. Exercise a populated
     // rolling window while rejecting that syntax so production-compatible

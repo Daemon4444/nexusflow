@@ -41,6 +41,8 @@ process.env.ARK_API_KEY = "sk-upstream-ark-test";
 process.env.PIXVERSE_API_KEY = "sk-upstream-pixverse-test";
 process.env.UPLOAD_STORAGE = process.env.UPLOAD_STORAGE || "local";
 process.env.PUBLIC_BODY_API_KEY_CONCURRENCY = "50";
+// Capacity rejections stay immediate here; the wait is covered by test-provider-capacity-redis.
+process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "0";
 // Payload capture is on for everyone ('*' row): the golden file must not change,
 // and each captured line must match the bytes the client sent and received.
 const CAPTURE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "nf-capture-"));
