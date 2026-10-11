@@ -8,6 +8,7 @@
  * - GET /v1/responses/:id/input_items - List input items
  */
 
+import { redactUpstreamMessage, upstreamClientErrorMessage } from "../services/upstream-errors";
 import { beginPayloadCapture } from "../services/payload-capture";
 import { Router, Request, Response } from "express";
 import { randomUUID } from "crypto";
@@ -429,7 +430,8 @@ router.post("/", async (req: Request, res: Response) => {
       let upstreamErrorBody: any = null;
       try {
         upstreamErrorBody = await response.json() as any;
-        errMsg = upstreamErrorBody?.error?.message || errMsg;
+        errMsg = upstreamClientErrorMessage(response.status, upstreamErrorBody, { publicModelId: modelId, upstreamModelId: upstream.upstreamModelId })
+          || (upstreamErrorBody?.error?.message ? redactUpstreamMessage(upstreamErrorBody.error.message, modelId, upstream.upstreamModelId) : errMsg);
       } catch {}
       await logUpstreamFailure({
         logId,

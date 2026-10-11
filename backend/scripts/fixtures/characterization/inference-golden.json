@@ -1829,8 +1829,8 @@
    {
     "body": {
      "error": {
-      "message": "Upstream provider rejected the request.",
-      "type": "api_error"
+      "message": "bad",
+      "type": "invalid_request_error"
      },
      "type": "error"
     },

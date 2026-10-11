@@ -70,7 +70,8 @@
     "test:admin-console": "USE_PG_MEM=true ts-node scripts/test-admin-console.ts",
     "test:stream-interruption": "USE_PG_MEM=true ts-node scripts/test-stream-interruption.ts",
     "test:usage-analytics:postgres": "ts-node scripts/test-usage-analytics-postgres.ts",
-    "test:payload-capture": "ts-node scripts/test-payload-capture.ts"
+    "test:payload-capture": "ts-node scripts/test-payload-capture.ts",
+    "test:upstream-errors": "ts-node scripts/test-upstream-errors.ts"
   },
   "keywords": [],
   "author": "",

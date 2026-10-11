@@ -495,7 +495,7 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 
 - 所有管理写接口显式 `requireAdmin`；
 - 所有用户资源按 owner 校验，失败关闭；
-- 外部错误经 `sanitizeUpstreamError`；
+- 外部错误经 `sanitizeUpstreamError`；上游返回的 4xx（400/404/409/413/415/422）说明的是客户自己的请求，经 `services/upstream-errors.ts` 脱敏后透传（上游模型 ID→公开 ID，去掉请求 ID、URL、密钥样式串、邮箱、长数字，限 300 字），识别 OpenAI/Anthropic `error.message` 与百炼原生顶层 `{code,message}`；401/403/429/5xx 仍是通用文案。上游原始错误体记入 `logUpstreamFailure` 的 responseBody（SLS）；
 - `.env`、Provider Key、支付密钥不进 Git、不进日志；
 - SLS 默认只记结构化指标。只有显式设置 `SLS_LOG_FULL_CONTENT=true` 才记录脱敏和截断后的内容；
   OpenAI Chat Completions 的成功、上游 HTTP 失败和本地异常路径都必须把请求与响应交给

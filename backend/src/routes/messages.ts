@@ -7,6 +7,7 @@
  * (native Anthropic API, or DashScope /apps/anthropic/v1/messages).
  */
 
+import { parseUpstreamErrorBody, redactUpstreamMessage, upstreamClientErrorMessage } from "../services/upstream-errors";
 import { beginPayloadCapture } from "../services/payload-capture";
 import { protocolMode } from "../config/feature-flags";
 import { Router, Request, Response } from "express";
@@ -408,13 +409,15 @@ router.post("/", async (req: Request, res: Response) => {
 
       if (stream) {
         if (!response.ok) {
-          await response.text();
+          const upstreamError = parseUpstreamErrorBody(await response.text());
           const authorizationFailure = response.status === 401 || response.status === 403;
+          const clientMessage = authorizationFailure ? null
+            : upstreamClientErrorMessage(response.status, upstreamError, { publicModelId: modelId, upstreamModelId: upstream.upstreamModelId });
           const message = authorizationFailure
             ? "Upstream provider authorization failed."
             : response.status === 429
               ? "Upstream provider rate limit exceeded."
-              : "Upstream provider rejected the request.";
+              : clientMessage || "Upstream provider rejected the request.";
           await logUpstreamFailure({
             logId,
             apiKeyId: apiKeyRecord.id,
@@ -426,15 +429,15 @@ router.post("/", async (req: Request, res: Response) => {
             protocol: "anthropic-messages",
             latencyMs: Date.now() - startTime,
             httpStatus: response.status,
-            errorReason: `upstream_http_${response.status}`,
+            errorReason: clientMessage || `upstream_http_${response.status}`,
             reservationId: billingReservation.id,
             requestBody: req.body,
-            responseBody: { status: response.status },
+            responseBody: { status: response.status, upstream: upstreamError },
           });
           res.status(response.status).json({
             type: "error",
             error: {
-              type: authorizationFailure ? "authentication_error" : "api_error",
+              type: authorizationFailure ? "authentication_error" : clientMessage ? "invalid_request_error" : "api_error",
               message,
             },
           });
@@ -606,12 +609,15 @@ router.post("/", async (req: Request, res: Response) => {
       const data: any = await response.json();
       restorePublicModelAlias(data, modelId);
       if (!response.ok) {
+        const upstreamError = data;
         const authorizationFailure = response.status === 401 || response.status === 403;
+        const clientMessage = authorizationFailure ? null
+          : upstreamClientErrorMessage(response.status, upstreamError, { publicModelId: modelId, upstreamModelId: upstream.upstreamModelId });
         const message = authorizationFailure
           ? "Upstream provider authorization failed."
           : response.status === 429
             ? "Upstream provider rate limit exceeded."
-            : "Upstream provider rejected the request.";
+            : clientMessage || "Upstream provider rejected the request.";
         await logUpstreamFailure({
           logId,
           apiKeyId: apiKeyRecord.id,
@@ -623,15 +629,15 @@ router.post("/", async (req: Request, res: Response) => {
           protocol: "anthropic-messages",
           latencyMs: Date.now() - startTime,
           httpStatus: response.status,
-          errorReason: `upstream_http_${response.status}`,
+          errorReason: clientMessage || `upstream_http_${response.status}`,
           reservationId: billingReservation.id,
           requestBody: req.body,
-          responseBody: { status: response.status },
+          responseBody: { status: response.status, upstream: upstreamError },
         });
         res.status(response.status).json({
           type: "error",
           error: {
-            type: authorizationFailure ? "authentication_error" : "api_error",
+            type: authorizationFailure ? "authentication_error" : clientMessage ? "invalid_request_error" : "api_error",
             message,
           },
         });
@@ -743,8 +749,10 @@ router.post("/", async (req: Request, res: Response) => {
       if (!response.ok) {
         const errText = await response.text();
         // 上游 4xx 的错误说明对客户端有用（参数错/超长等），透传摘要；5xx 才收敛为通用文案
-        let upstreamMsg = "Upstream API error";
-        try { upstreamMsg = JSON.parse(errText)?.error?.message || upstreamMsg; } catch { /* 保持通用文案 */ }
+        const upstreamError = parseUpstreamErrorBody(errText);
+        const rawMsg = (upstreamError as any)?.error?.message;
+        const upstreamMsg = upstreamClientErrorMessage(response.status, upstreamError, { publicModelId: modelId, upstreamModelId: upstream.upstreamModelId })
+          || (typeof rawMsg === "string" && rawMsg ? redactUpstreamMessage(rawMsg, modelId, upstream.upstreamModelId) : "Upstream API error");
         await logUpstreamFailure({
           logId,
           apiKeyId: apiKeyRecord.id,
@@ -900,7 +908,8 @@ router.post("/", async (req: Request, res: Response) => {
 
     const data: any = await response.json();
     if (!response.ok) {
-      const upstreamMsg = typeof data?.error?.message === "string" && data.error.message ? data.error.message : "Upstream API error";
+      const upstreamMsg = upstreamClientErrorMessage(response.status, data, { publicModelId: modelId, upstreamModelId: upstream.upstreamModelId })
+        || (typeof data?.error?.message === "string" && data.error.message ? redactUpstreamMessage(data.error.message, modelId, upstream.upstreamModelId) : "Upstream API error");
       await logUpstreamFailure({
         logId,
         apiKeyId: apiKeyRecord.id,

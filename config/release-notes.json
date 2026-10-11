@@ -1,6 +1,17 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:fix: tell customers why the upstream rejected their request": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "请求参数被上游拒绝时返回具体原因",
+      "points": [
+        "上游因请求参数拒绝（400/422 等）时，返回脱敏后的具体原因，例如“max_output_tokens 至少为 16”“messages 里不能有 system 角色”，不再只有“Upstream API error / Upstream provider rejected the request.”",
+        "支持百炼原生错误格式（顶层 code/message）；Anthropic 协议的 400 改为 invalid_request_error 类型",
+        "脱敏：上游模型 ID 换成公开 ID，去掉请求 ID、链接、密钥样式字符串、邮箱和长数字；鉴权、限流和 5xx 仍返回通用提示",
+        "上游原始错误体写入日志，便于排查（此前 Messages 接口只记录了状态码）"
+      ]
+    },
     "subject:fix: capacity wait reaches full routes, fresh window clock, safe archive reads": {
       "type": "fix",
       "audience": "customer",
