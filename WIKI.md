@@ -182,6 +182,8 @@ selectRoute → reserveProviderCapacity → reserveBilling → invokeUpstream �
 
 余额与 Provider TPM 预占的输出 token 估算由 `getReservedOutputTokens`（`backend/src/data/models.ts`）决定：请求显式传 `max_tokens` 按其值（截断到 `maxOutput`）；未传时回退到模型 `defaultOutputReservation`，再回退到全局缺省 `DEFAULT_OUTPUT_RESERVATION_TOKENS = 16384`（同样不超过 `maxOutput`）。禁止回退到 `maxOutput` 峰值：kimi-k3 等大输出模型（maxOutput 1,048,576 > 路由 TPM 上限 1,000,000）会让不带 `max_tokens` 的请求被 `provider_capacity_exhausted` 必然拒绝，并把余额预占放大到实际用量的数百倍。
 
+Provider 容量（`provider_capacity`，60 s 滑动窗口）预占时输出部分最多按 `CAPACITY_OUTPUT_RESERVATION_TOKENS = 4096` 计（`pipeline/stages.ts`；余额与账户 TPM 预占仍按上面的完整输出预留），结束按实际 usage 结算。2026-10-10 回放 shaoti 的 flash 流量：旧算法预占是实际的 1.92 倍（agent 普遍带 `max_tokens=64000`、实际输出几百）。容量满时不再立即 503：`acquireProviderCapacity` 在 `NF_PROVIDER_CAPACITY_WAIT_MS`（默认 20000，0 关闭，上限 120000）内每 500 ms 重试，在途租约释放或窗口滑动即放行（日配额不等）；放行记 SLS `provider_capacity_waited`，最终拒绝记 SLS `status=rejected`（含 userId/model/errorReason）并打 `[capacity] rejected` 日志——这类拒绝发生在计费前，`usage_logs` 里没有。
+
 ### 6.2 图像、视频、语音与异步任务
 
 - OpenAI 风格图片：`POST /v1/images/generations`

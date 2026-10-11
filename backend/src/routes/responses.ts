@@ -397,7 +397,7 @@ router.post("/", async (req: Request, res: Response) => {
   // 预占的 TPM 必须在所有出口恰好归还一次；billAndLog 内 reconcile 后置 true，
   // 上游错误/异常路径由 release（finally）兜底释放。
   try {
-    const capacityFailure = await reserveProviderCapacity(ctx, estimatedTokens);
+    const capacityFailure = await reserveProviderCapacity(ctx, estimatedTokens, { outputReservation: estimatedOutputTokens });
     if (capacityFailure) {
       res.status(capacityHttpStatus(res, capacityFailure)).json({
         error: {

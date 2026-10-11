@@ -373,7 +373,9 @@ router.post("/", async (req: Request, res: Response) => {
   };
 
   try {
-  const capacityFailure = await reserveProviderCapacity(ctx, reservedMessageTokens);
+  const capacityFailure = await reserveProviderCapacity(ctx, reservedMessageTokens, {
+    outputReservation: getReservedOutputTokens(model, req.body.max_tokens),
+  });
   if (capacityFailure) {
     res.status(capacityHttpStatus(res, capacityFailure)).json({
       type: "error",

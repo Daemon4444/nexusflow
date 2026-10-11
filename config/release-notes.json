@@ -1,6 +1,17 @@
 {
   "_readme": "发布中心的中文变更说明，按完整提交号索引；合并前还不知道最终提交号时，可用 \"subject:提交标题\" 作为键。type: feature 新功能 / fix 修复 / improve 改进 / ops 运维 / docs 文档 / internal 内部。audience: customer 客户可见 / admin 仅后台 / internal 仅内部。新提交合并前在这里补一条；没有条目的提交在发布中心按英文提交信息显示。",
   "notes": {
+    "subject:fix: wait for provider capacity and reserve expected output, not max_tokens": {
+      "type": "fix",
+      "audience": "customer",
+      "title": "模型容量满时排队等待，不再直接返回 503",
+      "points": [
+        "上游容量（每分钟 token/请求/并发）暂满时，请求最多排队 20 秒等待空位，而不是立即返回 503 让客户端重试",
+        "容量预占的输出部分按最多 4096 token 估算（结束按实际用量结算），不再把 max_tokens=64000 整个算进去；回放 10-10 流量，旧算法预占是实际用量的约 2 倍",
+        "每次容量拒绝写入日志（客户、模型、原因），便于监控；此前这类拒绝发生在计费前、账单里看不到",
+        "10-10 下午 deepseek-v4-flash 有约 40 次请求被平台容量保护拒绝，当天已临时把该模型上限从 120 万调到 300 万 token/分钟"
+      ]
+    },
     "subject:fix: explain log details not yet uploaded instead of failing": {
       "type": "fix",
       "audience": "customer",
