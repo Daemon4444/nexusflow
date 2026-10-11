@@ -7,6 +7,7 @@
  * - POST /v1/embeddings - Text embeddings
  */
 
+import { redactUpstreamMessage, upstreamClientErrorMessage } from "../services/upstream-errors";
 import { beginPayloadCapture } from "../services/payload-capture";
 import { controlPlaneMode, paramMode } from "../config/feature-flags";
 import { controlPlaneRuntime } from "../control-plane/runtime";
@@ -862,7 +863,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         let upstreamErrorBody: any = null;
         try {
           upstreamErrorBody = await response.json() as any;
-          upstreamMsg = upstreamErrorBody?.error?.message || upstreamMsg;
+          upstreamMsg = upstreamClientErrorMessage(response.status, upstreamErrorBody, { publicModelId: modelId, upstreamModelId: upstream.upstreamModelId })
+            || (upstreamErrorBody?.error?.message ? redactUpstreamMessage(upstreamErrorBody.error.message, modelId, upstream.upstreamModelId) : upstreamMsg);
         } catch { /* non-JSON response, use default */ }
         await logUpstreamFailure({
           logId,
@@ -1108,7 +1110,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
         let upstreamErrorBody: any = null;
         try {
           upstreamErrorBody = await response.json() as any;
-          upstreamMsg = upstreamErrorBody?.error?.message || upstreamMsg;
+          upstreamMsg = upstreamClientErrorMessage(response.status, upstreamErrorBody, { publicModelId: modelId, upstreamModelId: upstream.upstreamModelId })
+            || (upstreamErrorBody?.error?.message ? redactUpstreamMessage(upstreamErrorBody.error.message, modelId, upstream.upstreamModelId) : upstreamMsg);
         } catch { /* non-JSON response, use default */ }
         await logUpstreamFailure({
           logId,
@@ -1248,7 +1251,8 @@ router.post("/chat/completions", async (req: Request, res: Response) => {
       logToSLS({ logId, apiKeyId: apiKeyRecord.id, userId: apiKeyRecord.user_id, model: modelId, status: "error", errorReason: `upstream_${response.status}: ${data.error?.message || "Upstream API error"}`, clientIp, latencyMs: Date.now() - startTime });
       res.status(response.status).json({
         error: {
-          message: data.error?.message || "Upstream API error",
+          message: upstreamClientErrorMessage(response.status, data, { publicModelId: modelId, upstreamModelId: upstream.upstreamModelId })
+            || (data.error?.message ? redactUpstreamMessage(data.error.message, modelId, upstream.upstreamModelId) : "Upstream API error"),
           type: "upstream_error",
           code: data.error?.code || "upstream_error",
         },
@@ -1521,7 +1525,8 @@ router.post("/embeddings", async (req: Request, res: Response) => {
       });
       res.status(response.status).json({
         error: {
-          message: data.error?.message || "Upstream API error",
+          message: upstreamClientErrorMessage(response.status, data, { publicModelId: modelId, upstreamModelId: upstream.upstreamModelId })
+            || (data.error?.message ? redactUpstreamMessage(data.error.message, modelId, upstream.upstreamModelId) : "Upstream API error"),
           type: "upstream_error",
           code: data.error?.code || "upstream_error",
         },
