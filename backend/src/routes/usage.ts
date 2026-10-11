@@ -320,10 +320,11 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
     console.error("[usage] captured payload lookup failed", { logId, code: "capture_lookup_failed" });
   }
   // A recent call served by the other node is only in that node's spool until
-  // the hourly upload (:05). If the archive simply has no copy yet and SLS has
-  // nothing usable (production's key cannot read SLS), say when to come back.
+  // the hourly upload (:05). When the archive simply has no copy yet and SLS
+  // cannot be read at all (production's key is write-only), answer "retry
+  // shortly" instead of a 503 that reads like an outage.
   const pendingUpload = !captureFailed && Date.now() - new Date(row.created_at).getTime() < 75 * 60_000;
-  const pendingUploadNote = "该请求由另一台服务器处理，详情每小时整点后约 5 分钟上传，届时可查看。";
+  const pendingUploadNote = "暂未找到详情：最近的请求可能尚未归档（每小时归档一次），请稍后重试。";
   const { getSlsClient } = await import("../services/sls");
   const slsClient = getSlsClient();
   if (!slsClient && pendingUpload) {
@@ -359,7 +360,7 @@ router.get("/logs/:logId/detail", async (req: Request, res: Response) => {
         request: entry.request || null,
         response: entry.response || null,
       } : null,
-      note: entry ? "以下为 SLS 日志内容，可能经过截断；完整归档暂未读取到。" : pendingUpload ? pendingUploadNote : "暂未找到详情：可能尚未归档或索引、未开启内容采集，或已超出日志保留期，请稍后重试。",
+      note: entry ? "以下为 SLS 日志内容，可能经过截断；完整归档暂未读取到。" : "暂未找到详情：可能尚未归档或索引、未开启内容采集，或已超出日志保留期，请稍后重试。",
     });
   } catch {
     console.error("[usage] log detail query failed", { logId, code: "sls_query_failed" });

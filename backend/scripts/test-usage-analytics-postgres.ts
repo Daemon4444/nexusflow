@@ -257,6 +257,15 @@ async function main() {
     assert.equal(absent.status, 200);
     assert.equal(absent.body.data, null);
     assert.doesNotMatch(absent.body.note, /另一台服务器|整点后/);
+    // Archive has no copy yet and SLS cannot be read (production): a recent
+    // call gets "retry shortly", not a 503; an old one still reports 503.
+    for (mode of ["error", "unconfigured"]) {
+      const pending = await call(`/logs/${recentId}/detail`);
+      assert.equal(pending.status, 200, `recent call, ${mode} SLS`);
+      assert.equal(pending.body.data, null);
+      assert.match(pending.body.note, /尚未归档/);
+      assert.doesNotMatch(JSON.stringify(pending.body), /SYNTHETIC_SECRET|另一台服务器/);
+    }
     captureModule.findCapturedPayload = realLookup;
 
     // Exercise the installed Alibaba SDK without making any network request.
