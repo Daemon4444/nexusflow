@@ -175,6 +175,7 @@ jobs:
           PG_PASSWORD: nexusflow_ci
           PG_DATABASE: nexusflow_ci_test
           NODE_ENV: test
+      - run: npm --workspace backend run test:payload-capture
       - run: npm --workspace backend run test:provider-capacity-redis
         env:
           REDIS_HOST: 127.0.0.1

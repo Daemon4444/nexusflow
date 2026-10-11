@@ -304,6 +304,61 @@ async function main(): Promise<void> {
     await release(dailyTwo);
     assert.equal(Number(await redis.get(dailyKey)), 2);
 
+    // Sliding RPM/TPM windows must advance while the scheduler is waiting.
+    process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "1200";
+    for (const dimension of ["rpm", "tpm"] as const) {
+      await clearCounters();
+      const limits = { ...unlimited, [dimension]: 1 };
+      const old = track(await reserveProviderCapacityAsync({ providerId: runId, modelId,
+        limits, estimatedTokens: 1, reservationStartedAt: Date.now() - 59_800 }));
+      await release(old, 1);
+      const admitted = await acquireProviderCapacity({ providerId: runId, managed: true, ...limits }, modelId, 1);
+      assert.equal(admitted.ok, true, `${dimension} expires during wait`);
+      if (admitted.ok) {
+        leaseKeys.add(`${capacityV2Prefix}:lease:${admitted.lease.leaseId}`);
+        await releaseProviderCapacityAsync({ providerId: runId, modelId, leaseId: admitted.lease.leaseId!, actualTokens: 0 });
+      }
+    }
+    // Lost acknowledgement after a wait must recover the same committed lease.
+    await clearCounters();
+    const held = await reserve({ ...unlimited, concurrentLimit: 1 });
+    const deadlineStart = Date.now();
+    const expired = await acquireProviderCapacity({ providerId: runId, managed: true, concurrentLimit: 1 }, modelId, 1, Date.now() - 1);
+    assert.equal(expired.ok, false);
+    assert(Date.now() - deadlineStart < 400, "selection and reservation must share one wait budget");
+    const originalWaitEval = redis.eval.bind(redis);
+    let lostAck = false;
+    (redis as any).eval = async (...args: any[]) => {
+      const result: any = await (originalWaitEval as any)(...args);
+      if (!lostAck && args[1] === 7 && Array.isArray(result) && Number(result[0]) === 1) {
+        lostAck = true;
+        throw new Error("synthetic lost acknowledgement after commit");
+      }
+      return result;
+    };
+    const freed = new Promise<void>((resolve, reject) => setTimeout(() => { release(held).then(resolve, reject); }, 100));
+    try {
+      const admitted = await acquireProviderCapacity({ providerId: runId, managed: true, concurrentLimit: 1 }, modelId, 1);
+      await freed;
+      assert.equal(admitted.ok, true);
+      assert.equal(lostAck, true);
+      assert.equal(await getProviderConcurrencyAsync(runId, modelId), 1);
+      const usage = await getProviderUsageStatsAsync(runId, modelId);
+      assert.equal(usage.rpm, 2, "held request plus exactly one new request");
+      if (admitted.ok) {
+        leaseKeys.add(`${capacityV2Prefix}:lease:${admitted.lease.leaseId}`);
+        await releaseProviderCapacityAsync({ providerId: runId, modelId, leaseId: admitted.lease.leaseId!, actualTokens: 0 });
+      }
+    } finally { (redis as any).eval = originalWaitEval; }
+    await clearCounters();
+    const dailyHeld = await reserve({ ...unlimited, dailyLimit: 1 });
+    await release(dailyHeld);
+    const dailyStart = Date.now();
+    const dailyDenied = await acquireProviderCapacity({ providerId: runId, managed: true, dailyLimit: 1 }, modelId);
+    assert.equal(dailyDenied.ok, false);
+    assert(Date.now() - dailyStart < 400, "daily quota must not wait");
+    process.env.NF_PROVIDER_CAPACITY_WAIT_MS = "0";
+
     // Invalid Redis state and a thrown Redis command both fail closed.
     await clearCounters();
     await redis.set(tpmEventsKey, "wrong-type");

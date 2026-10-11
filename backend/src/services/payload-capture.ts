@@ -166,7 +166,9 @@ export function beginPayloadCapture(ctx: InferenceContext): void {
 
 const remote = () => process.env.NF_PAYLOAD_CAPTURE_REMOTE || "nfarc:";
 const rclone = () => process.env.RCLONE_BIN || "rclone";
-const LOOKUP_TIMEOUT_MS = 30_000;
+// Whole-lookup budget. Production reads of an hourly R2 archive took 8–10 s
+// (2026-10-10); 18 s still leaves the SLS fallback inside the 30 s console timeout.
+const LOOKUP_TIMEOUT_MS = 18_000;
 
 export interface CapturedPayload {
   log_id: string;
@@ -202,26 +204,46 @@ async function scanLines(input: NodeJS.ReadableStream, logId: string): Promise<C
   }
 }
 
-async function scanRemote(object: string, logId: string): Promise<CapturedPayload | null> {
+async function scanRemote(object: string, logId: string, deadline: number): Promise<CapturedPayload | null> {
   const { spawn } = await import("child_process");
   const { createGunzip } = await import("zlib");
+  const { pipeline } = await import("stream/promises");
   const child = spawn(rclone(), ["cat", object], { stdio: ["ignore", "pipe", "ignore"] });
-  const timer = setTimeout(() => child.kill("SIGKILL"), LOOKUP_TIMEOUT_MS);
   const gunzip = createGunzip();
-  gunzip.on("error", () => gunzip.end());
+  // Attach immediately: spawn failures emit 'error', not a rejected Promise.
+  const closed = new Promise<void>((resolve, reject) => {
+    child.once("error", (error) => { gunzip.destroy(error); reject(error); });
+    child.once("close", (code) => code === 0 ? resolve() : reject(new Error("capture_reader_failed")));
+  });
+  const transfer = pipeline(child.stdout, gunzip);
+  // Both promises can reject before scanLines finishes or during early cleanup.
+  void closed.catch(() => {});
+  void transfer.catch(() => {});
+  const timer = setTimeout(() => {
+    gunzip.destroy(new Error("capture_lookup_timeout"));
+    child.kill("SIGKILL");
+  }, Math.max(1, deadline - Date.now()));
   try {
-    return await scanLines(child.stdout.pipe(gunzip), logId);
+    const hit = await scanLines(gunzip, logId);
+    if (!hit) await Promise.all([transfer, closed]);
+    return hit;
   } finally {
     clearTimeout(timer);
+    child.stdout.destroy();
+    gunzip.destroy();
     if (child.exitCode === null) child.kill("SIGKILL");
+    await Promise.allSettled([transfer, closed]);
   }
 }
 
-async function listRemote(dir: string): Promise<string[]> {
+async function listRemote(dir: string, deadline: number): Promise<string[]> {
   const { execFile } = await import("child_process");
-  return new Promise((resolve) => {
-    execFile(rclone(), ["lsf", "--files-only", dir], { timeout: LOOKUP_TIMEOUT_MS }, (err, stdout) => {
-      resolve(err ? [] : stdout.split("\n").filter(Boolean));
+  return new Promise((resolve, reject) => {
+    execFile(rclone(), ["lsf", "--files-only", dir], { timeout: Math.max(1, deadline - Date.now()), killSignal: "SIGKILL" }, (err, stdout) => {
+      // rclone exit 3 means the archive directory does not exist yet.
+      if (err?.code === 3) resolve([]);
+      else if (err) reject(new Error("capture_listing_failed"));
+      else resolve(stdout.split("\n").filter(Boolean));
     });
   });
 }
@@ -238,6 +260,8 @@ export async function findCapturedPayload(params: {
   owner: string;
   completedAt: Date;
 }): Promise<CapturedPayload | null> {
+  const deadline = Date.now() + LOOKUP_TIMEOUT_MS;
+  let lookupFailed = false;
   const label = await archiveLabel(params.owner);
   const end = params.completedAt.getTime();
   const slots = new Map<string, { day: string; hour: string }>();
@@ -247,16 +271,27 @@ export async function findCapturedPayload(params: {
   }
   for (const { day, hour } of slots.values()) {
     const localDir = path.join(captureDir(), label, day);
-    const local = await fs.promises.readdir(localDir).catch(() => [] as string[]);
+    if (Date.now() >= deadline) throw new Error("capture_lookup_timeout");
+    const local = await fs.promises.readdir(localDir).catch((error) => {
+      if (error.code !== "ENOENT") lookupFailed = true;
+      return [] as string[];
+    });
     for (const file of local.filter((name) => name.startsWith(`${hour}-`) && /\.jsonl(\.sealed)?$/.test(name))) {
-      const hit = await scanLines(fs.createReadStream(path.join(localDir, file)), params.logId).catch(() => null);
+      const input = fs.createReadStream(path.join(localDir, file));
+      const timer = setTimeout(() => input.destroy(new Error("capture_lookup_timeout")), Math.max(1, deadline - Date.now()));
+      const hit = await scanLines(input, params.logId).catch((error) => {
+        if (error.code !== "ENOENT") lookupFailed = true;
+        return null;
+      }).finally(() => { clearTimeout(timer); input.destroy(); });
       if (hit) return hit;
     }
     const remoteDir = `${remote()}${label}/capture/${day}/`;
-    for (const file of (await listRemote(remoteDir)).filter((name) => name.startsWith(`${hour}-`))) {
-      const hit = await scanRemote(remoteDir + file, params.logId).catch(() => null);
+    for (const file of (await listRemote(remoteDir, deadline).catch(() => { lookupFailed = true; return []; })).filter((name) => name.startsWith(`${hour}-`))) {
+      if (Date.now() >= deadline) throw new Error("capture_lookup_timeout");
+      const hit = await scanRemote(remoteDir + file, params.logId, deadline).catch(() => { lookupFailed = true; return null; });
       if (hit) return hit;
     }
   }
+  if (lookupFailed) throw new Error("capture_lookup_failed");
   return null;
 }
