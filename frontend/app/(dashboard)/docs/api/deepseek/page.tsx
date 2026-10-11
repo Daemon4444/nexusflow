@@ -12,7 +12,6 @@ const models = [
   { id: "deepseek-v4-pro-0813", category: "推理模型", context: "1M", input: 9, output: 27, desc: "V4 Pro 0813 快照；闲时调度 ¥4.5/¥13.5 尚未开放" },
   { id: "deepseek-v4-pro", category: "推理模型", context: "1M", input: 12, output: 24, desc: "V4 旗舰推理模型" },
   { id: "deepseek-v4.1-flash", category: "大语言模型", context: "1M", input: 1, output: 4, desc: "V4.1 Flash；官方峰谷价忙时 ¥2/¥8、闲时 ¥1/¥4，平台按闲时平价结算" },
-  { id: "deepseek-v4-flash", category: "大语言模型", context: "1M", input: 1, output: 2, desc: "高效轻量 MoE，低延迟、高并发" },
   { id: "deepseek-v4-flash-0731", category: "大语言模型", context: "1M", input: 1, output: 2, desc: "V4 Flash 0731 固定快照，独立同名直传" },
   { id: "deepseek-v3.2", category: "大语言模型", context: "128K", input: 2, output: 3, desc: "V3.2 通用模型" },
   { id: "deepseek-r1", category: "推理模型", context: "128K", input: 4, output: 16, desc: "R1 推理模型" },
@@ -24,7 +23,7 @@ const curlExamples: Record<TabKey, string> = {
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "deepseek-v4-flash",
+    "model": "deepseek-v4.1-flash",
     "messages": [
       {"role": "user", "content": "用 Python 写一个快速排序"}
     ],
@@ -52,7 +51,7 @@ client = OpenAI(
 )
 
 response = client.chat.completions.create(
-    model="deepseek-v4-flash",
+    model="deepseek-v4.1-flash",
     messages=[
         {"role": "user", "content": "用 Python 写一个快速排序"}
     ],
@@ -95,7 +94,7 @@ const protocolCurlExamples = [
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "deepseek-v4-flash",
+    "model": "deepseek-v4.1-flash",
     "messages": [
       {"role": "user", "content": "只回复 OK"}
     ],
@@ -110,7 +109,7 @@ const protocolCurlExamples = [
   -H "anthropic-version: 2023-06-01" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "model": "deepseek-v4-flash",
+    "model": "deepseek-v4.1-flash",
     "max_tokens": 8,
     "messages": [
       {"role": "user", "content": "只回复 OK"}

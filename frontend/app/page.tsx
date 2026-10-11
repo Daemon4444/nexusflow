@@ -13,7 +13,7 @@ import BaseUrlDiff from "@/components/BaseUrlDiff";
 const fallbackModelRows = [
   { id: "claude-sonnet-5", model: "Claude Sonnet 5", provider: "Anthropic", context: "1M", price: "输入 ¥13.6 · 输出 ¥68 / M" },
   { id: "qwen3.8-max", model: "Qwen3.8 Max", provider: "通义千问", context: "1M", price: "输入 ¥12 · 输出 ¥36 / M" },
-  { id: "deepseek-v4-flash", model: "DeepSeek V4 Flash", provider: "DeepSeek", context: "1M", price: "输入 ¥1 · 输出 ¥2 / M" },
+  { id: "deepseek-v4.1-flash", model: "DeepSeek V4.1 Flash", provider: "DeepSeek", context: "1M", price: "输入 ¥1 · 输出 ¥4 / M" },
   { id: "kimi-k3", model: "Kimi K3", provider: "月之暗面", context: "1M", price: "输入 ¥20 · 输出 ¥100 / M" },
   { id: "glm-5.3", model: "GLM 5.3", provider: "智谱AI", context: "1M", price: "输入 ¥8 · 输出 ¥28 / M" },
   { id: "seedance-2.0", model: "Seedance 2.0", provider: "火山方舟", context: "视频", price: "¥0.44 / 秒起" },
@@ -91,7 +91,7 @@ const fallbackCarouselModels = [
   { name: "Qwen3.5 Omni Flash", provider: "通义千问", ctx: "262K 全模态", price: "输入 ¥2.2 · 输出 ¥13.3 / M", badge: "全模态", tone: "violet" },
   { name: "Qwen3 VL Flash", provider: "通义千问", ctx: "262K 视觉", price: "输入 ¥0.15 · 输出 ¥1.5 / M", badge: "视觉", tone: "violet" },
   { name: "Qwen3 Coder Flash", provider: "通义千问", ctx: "1M 编程", price: "输入 ¥1 · 输出 ¥4 / M", badge: "编程", tone: "slate" },
-  { name: "DeepSeek V4 Flash", provider: "DeepSeek", ctx: "1M 上下文", price: "输入 ¥1 · 输出 ¥2 / M", badge: "高速", tone: "red" },
+  { name: "DeepSeek V4.1 Flash", provider: "DeepSeek", ctx: "1M 上下文", price: "输入 ¥1 · 输出 ¥4 / M", badge: "高速", tone: "red" },
   { name: "DeepSeek V4 Flash 0731", provider: "DeepSeek", ctx: "1M 上下文", price: "输入 ¥1 · 输出 ¥2 / M", badge: "快照", tone: "red" },
   { name: "DeepSeek V4 Pro 0813", provider: "DeepSeek", ctx: "1M 上下文", price: "输入 ¥9 · 输出 ¥27 / M", badge: "快照", tone: "red" },
   { name: "DeepSeek V4 Pro", provider: "DeepSeek", ctx: "1M 上下文", price: "输入 ¥12 · 输出 ¥24 / M", badge: "推理", tone: "red" },
@@ -285,7 +285,7 @@ const flagshipSlides: FlagshipSlide[] = [
     ],
   },
   {
-    key: "deepseek-v4-flash",
+    key: "deepseek-v4.1-flash",
     accent: "#7dd3fc",
     border: "rgba(56,189,248,0.3)",
     gradient: "linear-gradient(135deg, #030712 0%, #071b2b 48%, #0c4a6e 100%)",
@@ -295,18 +295,18 @@ const flagshipSlides: FlagshipSlide[] = [
     primaryBadge: "高速模型",
     secondaryBadge: "最新上线",
     byline: "DeepSeek",
-    title: "DeepSeek V4 Flash",
+    title: "DeepSeek V4.1 Flash",
     titleGradient: "linear-gradient(135deg, #f8fafc 0%, #bae6fd 48%, #38bdf8 100%)",
-    lead: "高效轻量化 MoE 模型：总参 284B、激活 13B，原生支持百万超长上下文。推理速度快、延迟低、成本低，面向高并发对话、内容创作、基础 RAG 与批量任务——直接调用 ",
-    modelCode: "deepseek-v4-flash",
-    sub: "支持混合思考、Function Calling、联网搜索与上下文缓存。输入 ¥1/M、输出 ¥2/M、缓存命中输入低至 ¥0.2/M。",
-    primaryHref: "/models/deepseek-v4-flash",
-    primaryLabel: "了解 DeepSeek V4 Flash",
+    lead: "高效轻量化 MoE 模型，原生支持百万超长上下文。推理速度快、延迟低、成本低，面向高并发对话、内容创作、基础 RAG 与批量任务——直接调用 ",
+    modelCode: "deepseek-v4.1-flash",
+    sub: "支持混合思考、Function Calling 与上下文缓存。输入 ¥1/M、输出 ¥4/M、缓存命中输入低至 ¥0.2/M。",
+    primaryHref: "/models/deepseek-v4.1-flash",
+    primaryLabel: "了解 DeepSeek V4.1 Flash",
     docsHref: "/docs/api/deepseek",
     stats: [
-      { v: "284B", l: "MoE 总参数" },
-      { v: "13B", l: "单次激活参数" },
       { v: "1M", l: "Token 上下文窗口" },
+      { v: "384K", l: "最大输出长度" },
+      { v: "¥1/M", l: "输入价格" },
       { v: "¥0.2/M", l: "缓存命中输入价" },
     ],
   },
@@ -655,7 +655,7 @@ export default function LandingPage() {
             <div className="nf-feature-demo nf-demo-ledger">
               <div><code>glm-5.2</code><span>90,499 tokens · 缓存 81,558</span><b>−¥0.477324</b></div>
               <div><code>qwen3.8-max</code><span>29,630 tokens</span><b>−¥1.178346</b></div>
-              <div><code>deepseek-v4-flash</code><span>28,046 tokens · 缓存 21,483</span><b>−¥0.034544</b></div>
+              <div><code>deepseek-v4.1-flash</code><span>28,046 tokens · 缓存 21,483</span><b>−¥0.034544</b></div>
             </div>
             <h3>每一笔都算得清</h3>
             <p>按请求实时结算，流水精确到 6 位小数，缓存命中与折扣单独列出，可导出对账。</p>

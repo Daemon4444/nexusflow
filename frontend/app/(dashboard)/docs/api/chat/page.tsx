@@ -32,7 +32,7 @@ const requestHeaders = [
 
 /* ── Request parameters ── */
 const requestParams: { name: string; type: string; required: boolean; default?: string; desc: string; link?: string }[] = [
-  { name: "model", type: "string", required: true, desc: "模型 ID。例如 qwen3.5-plus、deepseek-v4-flash 等。", link: "/docs/models" },
+  { name: "model", type: "string", required: true, desc: "模型 ID。例如 qwen3.5-plus、deepseek-v4.1-flash 等。", link: "/docs/models" },
   { name: "messages", type: "array", required: true, desc: "对话消息数组。每条消息包含 role（system / user / assistant / tool）和 content 字段。content 可以是字符串或内容数组；多模态内容是否可用取决于模型能力。" },
   { name: "stream", type: "boolean", required: false, default: "false", desc: "是否启用流式输出。启用后以 SSE（Server-Sent Events）格式逐 token 返回。" },
   { name: "temperature", type: "number", required: false, default: "1.0", desc: "采样温度，范围 [0, 2)。值越高输出越随机，值越低越确定。建议与 top_p 二选一调节。" },
