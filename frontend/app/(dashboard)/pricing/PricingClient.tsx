@@ -283,7 +283,7 @@ export default function PricingPage({ initialModels, initialError = "" }: Pricin
       <section className="pr-notes">
         <h2>计费说明</h2>
         <dl>
-          <div><dt>计价单位</dt><dd>文本按每百万 token；图片按张；视频与语音识别按秒；语音合成按万字符。均为人民币。</dd></div>
+          <div><dt>计价单位</dt><dd>文本按每百万 token；图片按张；视频与语音识别（Qwen3 ASR）按秒，Qwen-Audio 3.1 ASR 按 token；语音合成按万字符。均为人民币。</dd></div>
           <div><dt>阶梯计费</dt><dd>部分模型按单次请求的输入长度分档，长 prompt 自动适用对应档位，点“阶梯价”查看每一档。</dd></div>
           <div><dt>上下文缓存</dt><dd>缓存支持与价格因模型而异。上表为隐式缓存命中价；显式缓存命中、创建及阶梯价格请查看模型详情。详见 <Link href="/docs/context-cache">缓存文档</Link>。</dd></div>
           <div><dt>Claude</dt><dd>按 Anthropic 官方美元价以 1 USD ≈ ¥6.8 折算，汇率变动时可能调整。</dd></div>

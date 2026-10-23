@@ -24,7 +24,7 @@
 
 NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 
-- **94 个可计费静态模型（2026-09-24 校准）**：`gpt-6-astra` 通过 Azure AI Foundry East US 2 deployment 提供 Chat Completions 与 Responses，运行时数量以 API 与数据库覆盖层为准
+- **95 个可计费静态模型（2026-10-24 校准）**：`gpt-6-astra` 通过 Azure AI Foundry East US 2 deployment 提供 Chat Completions 与 Responses，运行时数量以 API 与数据库覆盖层为准
 - **OpenAI 协议兼容**: 支持 OpenAI Chat Completions、Embeddings、Image Generations 协议
 - **多协议支持**: 同时支持 Anthropic Messages 和 OpenAI Responses API 协议
 - **统一计费**: 按 Token 或按生成数量计费，价格透明
@@ -42,10 +42,10 @@ NexusFlow 是一个统一的 AI 模型路由平台，提供以下功能：
 | 编程模型 | 4 | 代码生成、代码补全 |
 | 专业模型 | 2 | 翻译、意图识别 |
 | 向量模型 | 2 | 文本嵌入、语义搜索 |
-| 语音模型 | 2 | 语音识别、语音合成 |
+| 语音模型 | 3 | 语音识别、语音合成 |
 | 图像生成 | 3 | 文生图、图像编辑 |
 | 视频生成 | 25 | 文生视频、图生视频、视频编辑 |
-| **总计** | **94** | 94 个可计费静态模型；运行时以 API 与数据库覆盖层为准 |
+| **总计** | **95** | 95 个可计费静态模型；运行时以 API 与数据库覆盖层为准 |
 
 ---
 
@@ -233,6 +233,7 @@ Claude 请求使用服务端管理的 HiModels Provider 配置；客户端只需
 | 模型 ID | 名称 | 类型 | 价格 | 支持功能 |
 |---------|------|------|------|----------|
 | `qwen3-asr-flash` | Qwen3 ASR Flash | 语音识别 | ¥0.23/秒 | 11语言识别、情感识别、说话人分离 |
+| `qwen-audio-3.1-asr-flash` | Qwen-Audio 3.1 ASR Flash | 语音识别 | 输入 ¥0.8/M、输出 ¥2.7/M token | 多语种与中文方言识别、上下文增强（prompt）、标点与文本规整；`/v1/audio/transcriptions` + `file_url`，单文件 ≤5 分钟 |
 | `qwen3-tts-flash` | Qwen3 TTS Flash | 语音合成 | ¥0.8/万字符 | 非实时语音合成、多语言多音色 |
 
 语音模型通过 DashScope 专用 API 调用，暂不支持 OpenAI 兼容协议。Playground 语音模型交互界面即将上线。
@@ -492,7 +493,7 @@ Authorization: Bearer YOUR_API_KEY
 ## 更新日期
 
 文档更新时间: 2026-09-24（HiModels AWS 上游模型已验证）
-模型数据来源: `backend/src/data/models.ts`（94 个可计费静态条目）+ `/api/models` 公共目录 + 数据库覆盖层
+模型数据来源: `backend/src/data/models.ts`（95 个可计费静态条目）+ `/api/models` 公共目录 + 数据库覆盖层
 
 ---
 

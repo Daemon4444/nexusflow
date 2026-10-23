@@ -6,8 +6,11 @@ import {
   QWEN3_TTS_HTTP_UPSTREAM_MODEL,
   calculateAsrCost,
   calculateTtsCost,
+  QWEN_AUDIO_31_ASR_FLASH_ID,
+  calculateTokenAsrCost,
   qwen3AsrPricePerSecond,
   qwen3TtsPricePer10kCharacters,
+  qwenAudio31AsrTokenPrices,
 } from "../src/services/audio-pricing";
 
 assert.equal(QWEN3_ASR_MAX_SECONDS, 300);
@@ -31,6 +34,19 @@ assert.throws(
   /finite non-negative/,
   "unknown billing units must never silently become zero"
 );
+
+// qwen-audio-3.1-asr-flash: token-billed, 0.8 in / 2.7 out per million tokens (cn-beijing).
+assert.deepEqual(qwenAudio31AsrTokenPrices("cn-beijing"), { input: 0.8, output: 2.7 });
+assert.deepEqual(qwenAudio31AsrTokenPrices("ap-southeast-1"), { input: 1.094, output: 3.427 });
+// vinput's published sample: 997 in / 89 out tokens = ¥0.0010379 at console price.
+assert.ok(Math.abs(calculateTokenAsrCost(997, 89, qwenAudio31AsrTokenPrices("cn-beijing")) - 0.0010379) < 1e-12);
+assert.throws(() => qwenAudio31AsrTokenPrices("us-east-1"), AudioPricingUnavailableError);
+assert.throws(() => calculateTokenAsrCost(Number.NaN, 1, { input: 0.8, output: 2.7 }), /finite non-negative/);
+const asr31 = models.find((model) => model.id === QWEN_AUDIO_31_ASR_FLASH_ID);
+assert.equal(asr31?.category, "语音模型");
+assert.equal(asr31?.promptPrice, 0.8);
+assert.equal(asr31?.completionPrice, 2.7);
+assert.ok(!asr31?.pricingType || asr31.pricingType === "token");
 
 const asr = models.find((model) => model.id === "qwen3-asr-flash");
 assert.equal(asr?.pricingType, "per-second");

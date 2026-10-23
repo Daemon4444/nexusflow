@@ -303,17 +303,23 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
       });
     }
     if (model.id.toLowerCase().includes("asr")) {
+      const tokenBilledAsr = model.id === "qwen-audio-3.1-asr-flash";
       examples.push({
         id: "openai/audio-transcriptions",
         label: "OpenAI Audio Transcriptions (ASR)",
         endpoint: "/v1/audio/transcriptions",
         filename: "openai-asr.sh",
-        params: ["model", "file_url", "response_format"],
+        params: tokenBilledAsr
+          ? ["model", "file_url", "language", "prompt", "format", "response_format"]
+          : ["model", "file_url", "response_format"],
         code: `curl https://nexusflow.hk/v1/audio/transcriptions \\
   -H "Authorization: Bearer $API_KEY" \\
-  -F "model=${model.id}" \\
+  -F "model=${model.id}" \\${tokenBilledAsr ? `
+  -F "language=zh" \\` : ""}
   -F "file_url=https://example.com/audio.wav"`,
-        note: "file_url 指向公网可访问的音频文件 URL。返回 { text: '...' } 转录结果。",
+        note: tokenBilledAsr
+          ? "file_url 指向公网可访问的音频文件 URL（单文件不超过 5 分钟）。language 可选，为语种提示（如 zh、en、yue，最多 4 个，逗号分隔）；prompt 可选，提供专有名词等上下文以提升识别。返回 { text, usage }，按输入音频 token 与输出文本 token 计费。"
+          : "file_url 指向公网可访问的音频文件 URL。返回 { text: '...' } 转录结果。",
       });
     }
   }
