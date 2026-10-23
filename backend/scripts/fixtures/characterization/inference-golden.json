@@ -6286,7 +6286,11 @@
   "responses": [
    {
     "body": {
-     "error": "An internal error occurred. Please try again."
+     "error": {
+      "code": "upstream_asr_error",
+      "message": "file not found or access denied",
+      "type": "invalid_request_error"
+     }
     },
     "headers": {
      "content-type": "application/json; charset=utf-8"
