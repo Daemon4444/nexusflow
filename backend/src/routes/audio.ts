@@ -19,6 +19,7 @@ import { checkRPMFailClosed } from "../services/rate-limiter";
 import { upstreamErrorBody, type ResolvedUpstream } from "../services/upstream";
 import { safeExternalResourceFetch } from "../services/outbound-url-policy";
 import { sanitizeUpstreamError } from "../utils/sanitize-error";
+import { parseUpstreamErrorBody, upstreamClientErrorMessage } from "../services/upstream-errors";
 import { sendBillingReservationFailure } from "../utils/billing-response";
 import {
   AudioPricingUnavailableError,
@@ -681,11 +682,22 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     if (!upstreamResp.ok) {
       const errBody = await upstreamResp.text();
       const sanitized = sanitizeUpstreamError(errBody);
-      await recordAudioFailure(failureContext, sanitized || "Upstream ASR error", {
+      // Token ASR clients need the reason for a rejected clip (unreachable URL, unsupported audio).
+      const detail = tokenAsr
+        ? upstreamClientErrorMessage(upstreamResp.status, parseUpstreamErrorBody(errBody), {
+            publicModelId: modelId,
+            upstreamModelId: upstream.upstreamModelId,
+          })
+        : null;
+      await recordAudioFailure(failureContext, detail || sanitized || "Upstream ASR error", {
         httpStatus: upstreamResp.status,
         errorCode: "upstream_asr_error",
       });
-      res.status(upstreamResp.status >= 500 ? 502 : upstreamResp.status).json({ error: sanitized });
+      res.status(upstreamResp.status >= 500 ? 502 : upstreamResp.status).json({
+        error: detail
+          ? { message: detail, type: "invalid_request_error", code: "upstream_asr_error" }
+          : sanitized,
+      });
       return;
     }
 
