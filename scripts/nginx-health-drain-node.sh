@@ -171,8 +171,8 @@ location = /v1/audio/transcriptions {
     client_max_body_size 1m;
     client_body_timeout 10s;
     client_body_buffer_size 128k;
-    limit_conn nexusflow_audio_transcription_conn 2;
-    limit_req zone=nexusflow_audio_transcription_rate burst=2 nodelay;
+    limit_conn nexusflow_audio_transcription_conn_v2 500;
+    limit_req zone=nexusflow_audio_transcription_rate_v2 burst=2000 nodelay;
     limit_conn_status 429;
     limit_req_status 429;
     proxy_request_buffering off;
@@ -267,8 +267,8 @@ EOF
 render_audio_guard_config() {
   cat <<'EOF'
 # Managed by NexusFlow release tooling. Included once in nginx http context.
-limit_conn_zone $binary_remote_addr zone=nexusflow_audio_transcription_conn:10m;
-limit_req_zone $binary_remote_addr zone=nexusflow_audio_transcription_rate:10m rate=6r/m;
+limit_conn_zone $binary_remote_addr zone=nexusflow_audio_transcription_conn_v2:10m;
+limit_req_zone $binary_remote_addr zone=nexusflow_audio_transcription_rate_v2:10m rate=1000r/s;
 # Authenticated customer quotas live in the application and are keyed by
 # account/model plus an optional API-key override. IP remains only a coarse
 # edge fuse, deliberately well above normal paid-plan throughput so NATs and
@@ -343,9 +343,9 @@ validate_config_file() {
     die "audio ingress request-body cap is missing"
   grep -F 'client_body_timeout 10s;' "$DRAIN_CONFIG" >/dev/null ||
     die "audio ingress slow-client timeout is missing"
-  grep -F 'limit_conn nexusflow_audio_transcription_conn 2;' "$DRAIN_CONFIG" >/dev/null ||
+  grep -F 'limit_conn nexusflow_audio_transcription_conn_v2 500;' "$DRAIN_CONFIG" >/dev/null ||
     die "audio ingress connection limit is missing"
-  grep -F 'limit_req zone=nexusflow_audio_transcription_rate burst=2 nodelay;' "$DRAIN_CONFIG" >/dev/null ||
+  grep -F 'limit_req zone=nexusflow_audio_transcription_rate_v2 burst=2000 nodelay;' "$DRAIN_CONFIG" >/dev/null ||
     die "audio ingress request-rate limit is missing"
   grep -F 'location = /v1/chat/completions {' "$DRAIN_CONFIG" >/dev/null ||
     die "large chat ingress policy is missing"

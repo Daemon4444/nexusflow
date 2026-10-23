@@ -146,8 +146,12 @@ split `/v1` ingress by exact contract:
 - `/v1/chat/completions`, `/v1/responses`, and `/v1/messages`: 50 MiB,
   30-second inter-read timeout and a deliberately high per-IP edge fuse;
 - `/v1/embeddings`: 8 MiB and a 15-second inter-read timeout;
-- `/v1/audio/transcriptions`: 1 MiB, 10-second inter-read timeout, two
-  concurrent requests and 6 requests/minute with a burst of two;
+- `/v1/audio/transcriptions`: 1 MiB, 10-second inter-read timeout and the
+  same coarse per-IP edge fuse as chat (1000 r/s, burst 2000, 500 concurrent).
+  The endpoint takes only small fields plus `file_url` (no upload bytes, auth
+  runs before the body is read), so the old 6 requests/minute fuse from the
+  file-upload era capped every customer at 6 RPM (changed 2026-10-24 for
+  qwen-audio-3.1-asr-flash at 5000 RPM);
 - every other `/v1/` route: the existing prefix location keeps its proxy
   behavior while the managed snippet enforces 1 MiB and a 10-second inter-read
   timeout.
