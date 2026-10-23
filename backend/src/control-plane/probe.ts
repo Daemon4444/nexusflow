@@ -35,6 +35,10 @@ export interface ProbeResult {
   usage: unknown;
 }
 
+const NATIVE_ASR_PREFIX = "qwen-audio-";
+// Alibaba's public 2-second sample clip ("关于使用阿里云").
+const ASR_SAMPLE_URL = "https://dashscope.oss-cn-beijing.aliyuncs.com/audios/welcome.mp3";
+
 // 1×1 transparent PNG.
 const TINY_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
@@ -55,6 +59,12 @@ export function planProbes(snapshot: LoadedControlPlane, filter: { modelId?: str
       const account = snapshot.accounts.get(route.account_id);
       if (route.status !== "active" || !account || account.status !== "active") continue;
       for (const protocol of model.protocols) {
+        // Token-billed native ASR (qwen-audio-3.x) has a fixed one-clip probe.
+        if (protocol === "openai.audio.transcriptions" && route.native_protocols.includes(protocol)
+          && route.upstream_model_id.startsWith(NATIVE_ASR_PREFIX)) {
+          plans.push({ route, account, model, protocol, capability: "text" });
+          continue;
+        }
         if (!CHAT_PROTOCOLS.has(protocol) || !route.native_protocols.includes(protocol)) continue;
         const capabilities: ProbeCapability[] = ["text"];
         if (model.capabilities.tools.supported) capabilities.push("tools");
@@ -80,6 +90,19 @@ function authHeaders(account: CpAccount, apiKey: string, protocol: CpProtocol): 
 export function buildProbeRequest(plan: ProbePlan): { url: string; body: Record<string, unknown> } {
   const { account, route, protocol, capability, model } = plan;
   const upstreamModel = route.upstream_model_id;
+  if (protocol === "openai.audio.transcriptions") {
+    const nativeBase = (account.native_base_url || account.base_url || "").replace(/\/$/, "").replace(/\/compatible-mode\/v1$/, "");
+    return {
+      url: nativeBase.endsWith("/api/v1")
+        ? `${nativeBase}/services/aigc/multimodal-generation/generation`
+        : `${nativeBase}/api/v1/services/aigc/multimodal-generation/generation`,
+      body: {
+        model: upstreamModel,
+        input: { messages: [{ role: "user", content: [{ type: "input_audio", input_audio: { data: ASR_SAMPLE_URL } }] }] },
+        parameters: { format: "mp3" },
+      },
+    };
+  }
   const thinking = capability === "thinking_on" ? true : capability === "thinking_off" ? false : null;
   if (protocol === "anthropic.messages") {
     const base = (account.anthropic_base_url || account.base_url || "").replace(/\/$/, "");
@@ -137,6 +160,11 @@ export function judgeProbe(plan: ProbePlan, httpStatus: number, data: any): { ok
   if (httpStatus < 200 || httpStatus >= 300) {
     const message = data?.error?.message || data?.message || `HTTP ${httpStatus}`;
     return { ok: false, error: String(message).slice(0, 300) };
+  }
+  if (plan.protocol === "openai.audio.transcriptions") {
+    return typeof data?.output?.text === "string" && data.output.text.length > 0
+      ? { ok: true, error: null }
+      : { ok: false, error: "no transcript in the response" };
   }
   if (plan.capability === "tools") {
     const called = !!data?.choices?.[0]?.message?.tool_calls?.length
