@@ -221,7 +221,7 @@ Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720
 
 - “接口兼容”不等于“所有模型支持所有协议”。协议支持由模型能力和真实上游行为决定。
 - 五个 Claude 公共 ID 保持稳定无后缀：`claude-haiku-4-5`、`claude-sonnet-4-6`、`claude-sonnet-5`、`claude-opus-4-8`、`claude-opus-5`。它们通过 HiModels 原生 Anthropic Messages 兼容上游映射到对应的 `*-aws` 模型，不是 NexusFlow 直连 Anthropic 官方 API；凭据只能通过 root-only `himodels-control` 轮换，缺少数据库受管路由时失败关闭。
-- Kimi K3 的 Messages 支持曾因上游差异走自建桥，切换逻辑由模型字段控制；`kimi-k3` 自 2026-08-09 起使用 Jaway K3 专线上游，OpenAI Chat 与 Anthropic Messages 均原生直通，非标准 HTTPS 端口必须同时命中主机和精确端点白名单。
+- Kimi K3 的 Messages 支持曾因上游差异走自建桥，切换逻辑由模型字段控制；`kimi-k3` 自 2026-08-09 起使用 Jaway K3 专线上游，**2026-10-23 起切换回百炼（dashscope）受管路由**（Jaway 渠道自 10-19 起持续上游 401，路由已禁用但保留行，防止 `ensureRoutingDefaults` 重启补种）。OpenAI Chat 走 `/compatible-mode/v1`、Anthropic Messages 走百炼 `/apps/anthropic/v1` 端点直通（上游模型 ID 均为裸 `kimi-k3`，两协议已真实探测验证）；Provider 成本按 `kimi-k3` 成本行（¥14.4/¥72 每百万 token，source=manual）解析。
 - 模型 ID 可能包含 `/`，例如 `MiniMax/MiniMax-M3`。前端、Next proxy 和 Express 路径必须保留编码，不能把 `%2F` 提前拆成路径段。
 - Responses 内置工具可能产生非 Token 上游费用。默认只允许本地 `function` 类型；其它类型必须通过 `RESPONSE_ALLOWED_TOOLS` 明确放行并先确认成本模型。
 - `deepseek-v4-flash`（稳定 ID）2026-10-11 下架：百炼在 10-10 下午至 10-11 上午之间下线了该上游 ID（模型列表只剩 `deepseek-v4-flash-0731` 与 `deepseek-v4.1-flash`，两种协议均返回 Model not exist/404），通过 `model_overrides` disable；前端首页/文档改为 V4.1 Flash。若百炼恢复，删除该覆盖行即可重新上架。
