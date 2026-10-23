@@ -772,6 +772,20 @@ const staticModels: AIModel[] = [
     supported: ["语音转文本"]
   },
   {
+    id: "qwen-audio-3.1-asr-flash",
+    name: "Qwen-Audio 3.1 ASR Flash",
+    provider: "通义千问",
+    description: "Qwen-Audio 3.1 代非实时短语音识别模型，支持多语种及多地区中文方言，具备上下文增强、标点预测与文本规整能力。通过 OpenAI 兼容的 /v1/audio/transcriptions 调用（传入 file_url），按输入音频 token 与输出文本 token 计费。",
+    contextLength: 8192,
+    promptPrice: 0.8,
+    completionPrice: 2.7,
+    category: "语音模型",
+    tags: ["语音识别", "ASR", "多语言", "方言", "非实时"],
+    isNew: true,
+    maxOutput: 1024,
+    supported: ["语音转文本"]
+  },
+  {
     id: "qwen3-tts-flash",
     name: "Qwen3 TTS Flash",
     provider: "通义千问",

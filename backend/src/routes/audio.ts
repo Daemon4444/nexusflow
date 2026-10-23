@@ -23,6 +23,11 @@ import { sendBillingReservationFailure } from "../utils/billing-response";
 import {
   AudioPricingUnavailableError,
   QWEN3_ASR_MAX_SECONDS,
+  QWEN_AUDIO_31_ASR_FLASH_ID,
+  QWEN_AUDIO_31_ASR_MAX_INPUT_TOKENS,
+  QWEN_AUDIO_31_ASR_MAX_OUTPUT_TOKENS,
+  calculateTokenAsrCost,
+  qwenAudio31AsrTokenPrices,
   QWEN3_TTS_HTTP_UPSTREAM_MODEL,
   calculateAsrCost,
   calculateTtsCost,
@@ -467,6 +472,63 @@ function parseAudioTranscriptionFields(
   audioTranscriptionFields(req, res, next);
 }
 
+const ASR_AUDIO_FORMATS = new Set([
+  "wav", "mp3", "m4a", "aac", "flac", "ogg", "opus", "amr", "wma", "webm", "3gp", "mp4", "pcm",
+]);
+// Tokens counted against upstream capacity before the call; settled with actual usage after.
+const TOKEN_ASR_CAPACITY_ESTIMATE = 1024;
+
+function asArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string" && value.trim()) return value.split(",");
+  return [];
+}
+
+/**
+ * Native DashScope request for the token-billed qwen-audio-3.x ASR models.
+ * The upstream only requires a non-empty `format` (the container is sniffed),
+ * so it is derived from the URL extension and defaults to wav.
+ */
+function buildTokenAsrRequest(
+  modelId: string,
+  fileUrl: string,
+  body: Record<string, unknown>
+): { ok: true; body: Record<string, unknown> } | { ok: false; message: string } {
+  let format = typeof body.format === "string" ? body.format.trim().toLowerCase() : "";
+  if (!format) {
+    try {
+      const ext = new URL(fileUrl).pathname.split(".").pop()?.toLowerCase() || "";
+      format = ASR_AUDIO_FORMATS.has(ext) ? ext : "wav";
+    } catch {
+      format = "wav";
+    }
+  }
+  if (!/^[a-z0-9]{1,8}$/.test(format)) return { ok: false, message: "'format' must be a short audio container name such as wav or mp3." };
+
+  const hints = [...asArray(body.language_hints), ...asArray(body.language)]
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+  if (hints.some((hint) => !/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(hint))) {
+    return { ok: false, message: "'language' / 'language_hints' must be language codes such as zh, en or yue." };
+  }
+  if (hints.length > 4) return { ok: false, message: "At most 4 language hints are supported." };
+
+  const parameters: Record<string, unknown> = { format };
+  if (hints.length) parameters.language_hints = [...new Set(hints)];
+  const sampleRate = body.sample_rate == null ? NaN : Number(body.sample_rate);
+  if (Number.isFinite(sampleRate) && sampleRate >= 8000 && sampleRate <= 96000) {
+    parameters.sample_rate = String(Math.trunc(sampleRate));
+  }
+
+  // OpenAI's `prompt` is context to bias recognition; the upstream takes it as a system message.
+  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+  if (prompt.length > 2000) return { ok: false, message: "'prompt' must be at most 2000 characters." };
+  const messages: Array<Record<string, unknown>> = [];
+  if (prompt) messages.push({ role: "system", content: [{ text: prompt }] });
+  messages.push({ role: "user", content: [{ type: "input_audio", input_audio: { data: fileUrl } }] });
+  return { ok: true, body: { model: modelId, input: { messages }, parameters } };
+}
+
 router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Request, res: Response) => {
   const ctx = new InferenceContext("audio.transcriptions", req, res);
   const startTime = ctx.startTime;
@@ -516,6 +578,20 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
       return;
     }
 
+    // Validate model-specific parameters before any route, capacity or billing state is taken.
+    const tokenAsr = modelId === QWEN_AUDIO_31_ASR_FLASH_ID;
+    let nativeAsrBody: Record<string, unknown> | null = null;
+    if (tokenAsr) {
+      const built = buildTokenAsrRequest(modelId, fileUrl, (req.body || {}) as Record<string, unknown>);
+      if (!built.ok) {
+        res.status(400).json({
+          error: { message: built.message, type: "invalid_request_error", code: "invalid_asr_parameter" },
+        });
+        return;
+      }
+      nativeAsrBody = built.body;
+    }
+
     // 5. Provider route
     const routeFailure = await selectRoute(ctx);
     if (routeFailure) {
@@ -524,9 +600,11 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     }
     const upstream = ctx.requireUpstream();
     const upstreamApiKey = upstream.apiKey;
-    let pricePerSecond: number;
+    let pricePerSecond = 0;
+    let tokenPrices = { input: 0, output: 0 };
     try {
-      pricePerSecond = qwen3AsrPricePerSecond(upstream.region);
+      if (tokenAsr) tokenPrices = qwenAudio31AsrTokenPrices(upstream.region);
+      else pricePerSecond = qwen3AsrPricePerSecond(upstream.region);
     } catch (error) {
       if (!(error instanceof AudioPricingUnavailableError)) throw error;
       res.status(503).json({
@@ -541,7 +619,10 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     // qwen3-asr-flash's verified synchronous HTTP limit is five minutes.
     // Reserve that documented maximum because a URL does not expose duration
     // before the upstream decodes it; actual seconds are authoritative.
-    const estimatedCost = calculateAsrCost(QWEN3_ASR_MAX_SECONDS, pricePerSecond);
+    // qwen-audio-3.1-asr-flash is token-billed: hold the model's full context budget.
+    const estimatedCost = tokenAsr
+      ? calculateTokenAsrCost(QWEN_AUDIO_31_ASR_MAX_INPUT_TOKENS, QWEN_AUDIO_31_ASR_MAX_OUTPUT_TOKENS, tokenPrices)
+      : calculateAsrCost(QWEN3_ASR_MAX_SECONDS, pricePerSecond);
     const { finalAmount: discountedCost } = await applyUserModelDiscount(
       caller.user_id,
       modelId,
@@ -565,7 +646,7 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     };
 
     // 6. Build DashScope ASR request
-    const dashScopeBody = {
+    let dashScopeBody: Record<string, unknown> = {
       model: modelId,
       input: {
         messages: [
@@ -576,9 +657,10 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
         ],
       },
     };
+    if (nativeAsrBody) dashScopeBody = nativeAsrBody;
 
     // 7. Call DashScope
-    const capacityFailure = await reserveProviderCapacity(ctx, QWEN3_ASR_MAX_SECONDS);
+    const capacityFailure = await reserveProviderCapacity(ctx, tokenAsr ? TOKEN_ASR_CAPACITY_ESTIMATE : QWEN3_ASR_MAX_SECONDS);
     if (capacityFailure) {
       res.status(capacityHttpStatus(res, capacityFailure)).json({
         error: { message: capacityFailure.message, type: capacityErrorType(capacityFailure, "server_error"), code: capacityFailure.code },
@@ -608,6 +690,75 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
     }
 
     const result = (await upstreamResp.json()) as Record<string, any>;
+    if (tokenAsr) {
+      // Token-billed native ASR: output.text + usage{duration,input_tokens,output_tokens}.
+      const text = typeof result?.output?.text === "string" ? result.output.text : "";
+      const usage = (result?.usage || {}) as Record<string, number>;
+      const inputTokens = Number(usage.input_tokens);
+      const outputTokens = Number(usage.output_tokens ?? 0);
+      const audioSeconds = Number(usage.duration ?? usage.seconds ?? 0);
+      if (!Number.isFinite(inputTokens) || inputTokens <= 0 || !Number.isFinite(outputTokens) || outputTokens < 0) {
+        await recordAudioFailure(
+          failureContext,
+          "Upstream ASR returned missing token usage.",
+          { httpStatus: 502, errorCode: "upstream_usage_missing" }
+        );
+        res.status(502).json({
+          error: {
+            message: "Upstream ASR returned no auditable token usage.",
+            type: "server_error",
+            code: "upstream_usage_missing",
+          },
+        });
+        return;
+      }
+      upstreamFlowCompleted = true;
+      const cost = calculateTokenAsrCost(inputTokens, outputTokens, tokenPrices);
+      const { finalAmount } = await applyUserModelDiscount(caller.user_id, modelId, cost);
+      const transaction = await settleReservation(
+        billingReservation.id,
+        finalAmount,
+        `ASR: ${modelId} (${inputTokens} in / ${outputTokens} out tokens)`
+      );
+      if (finalAmount > 0 && !transaction) {
+        throw new Error("ASR billing settlement did not create a transaction");
+      }
+      const totalTokens = inputTokens + outputTokens;
+      await logUsage({
+        region: upstream.region,
+        providerId: upstream.providerId,
+        channelId: upstream.channelId,
+        protocol: "openai-audio-transcriptions",
+        apiKeyId: caller.id,
+        userId: caller.user_id,
+        model: modelId,
+        promptTokens: inputTokens,
+        completionTokens: outputTokens,
+        totalTokens,
+        cost: finalAmount,
+        status: "success",
+        latencyMs: Date.now() - startTime,
+        providerUnits: Number.isFinite(audioSeconds) ? audioSeconds : 0,
+        reservationId: billingReservation.id,
+        transactionId: transaction?.id || null,
+      });
+      ctx.actualProviderTokens = totalTokens;
+      ctx.billableResponseReceived = true;
+      res.json({
+        text,
+        usage: {
+          type: "tokens",
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          total_tokens: totalTokens,
+          seconds: Number.isFinite(audioSeconds) ? audioSeconds : 0,
+        },
+        ...(req.body.response_format === "verbose_json"
+          ? { language: "unknown", duration: Number.isFinite(audioSeconds) ? audioSeconds : 0, segments: [] }
+          : {}),
+      });
+      return;
+    }
     const content = result?.output?.choices?.[0]?.message?.content;
     const text = Array.isArray(content) ? content.map((c: any) => c.text || "").join("") : "";
     const usage = (result?.usage || {}) as Record<string, number>;
