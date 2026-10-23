@@ -309,8 +309,8 @@ audio_http_policy="$FIXTURE/audio-http-policy.conf"
 grep -Fx 'location = /v1/audio/transcriptions {' "$audio_server_policy" >/dev/null
 grep -Fx '    client_max_body_size 1m;' "$audio_server_policy" >/dev/null
 grep -Fx '    client_body_timeout 10s;' "$audio_server_policy" >/dev/null
-grep -Fx '    limit_conn nexusflow_audio_transcription_conn 2;' "$audio_server_policy" >/dev/null
-grep -Fx '    limit_req zone=nexusflow_audio_transcription_rate burst=2 nodelay;' \
+grep -Fx '    limit_conn nexusflow_audio_transcription_conn_v2 500;' "$audio_server_policy" >/dev/null
+grep -Fx '    limit_req zone=nexusflow_audio_transcription_rate_v2 burst=2000 nodelay;' \
   "$audio_server_policy" >/dev/null
 for location in \
   'location = /v1/chat/completions {' \
@@ -345,9 +345,9 @@ grep -Fx 'location = /api/upload {' "$audio_server_policy" >/dev/null
 grep -Fx '    limit_conn nexusflow_upload_conn 2;' "$audio_server_policy" >/dev/null
 grep -Fx 'location ^~ /api/uploads/ {' "$audio_server_policy" >/dev/null
 grep -Fx '    limit_rate 10m;' "$audio_server_policy" >/dev/null
-grep -Fx 'limit_conn_zone $binary_remote_addr zone=nexusflow_audio_transcription_conn:10m;' \
+grep -Fx 'limit_conn_zone $binary_remote_addr zone=nexusflow_audio_transcription_conn_v2:10m;' \
   "$audio_http_policy" >/dev/null
-grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_audio_transcription_rate:10m rate=6r/m;' \
+grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_audio_transcription_rate_v2:10m rate=1000r/s;' \
   "$audio_http_policy" >/dev/null
 grep -Fx 'limit_req_zone $binary_remote_addr zone=nexusflow_v1_large_edge_rate_v3:10m rate=1000r/s;' \
   "$audio_http_policy" >/dev/null
