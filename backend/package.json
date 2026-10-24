@@ -71,7 +71,8 @@
     "test:stream-interruption": "USE_PG_MEM=true ts-node scripts/test-stream-interruption.ts",
     "test:usage-analytics:postgres": "ts-node scripts/test-usage-analytics-postgres.ts",
     "test:payload-capture": "ts-node scripts/test-payload-capture.ts",
-    "test:upstream-errors": "ts-node scripts/test-upstream-errors.ts"
+    "test:upstream-errors": "ts-node scripts/test-upstream-errors.ts",
+    "test:audio-stream": "ts-node scripts/test-audio-stream-isolated.ts"
   },
   "keywords": [],
   "author": "",
@@ -95,6 +96,7 @@
     "sharp": "^0.35.5",
     "undici": "^7.30.0",
     "uuid": "^14.0.0",
+    "ws": "^8.22.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -103,6 +105,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^25.5.0",
     "@types/pg": "^8.11.10",
+    "@types/ws": "^8.18.2",
     "nodemon": "^3.1.11",
     "pg-mem": "^3.0.14",
     "redis-memory-server": "^0.17.0",

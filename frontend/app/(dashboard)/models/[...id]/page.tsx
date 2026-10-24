@@ -302,7 +302,52 @@ function getProtocolExamples(model: AIModel): ProtocolExample[] {
         note: "返回音频二进制数据。voice 支持 alloy/ash/nova/echo/sage/shimmer 等，也可传上游原生音色名。",
       });
     }
-    if (model.id.toLowerCase().includes("asr")) {
+    if (model.id.toLowerCase().includes("asr") && model.id.endsWith("-streaming")) {
+      examples.push({
+        id: "nexusflow/asr-websocket",
+        label: "WebSocket 实时语音识别",
+        endpoint: "wss://nexusflow.hk/api-ws/v1/inference",
+        filename: "asr-websocket.py",
+        params: ["model", "parameters.format", "parameters.sample_rate", "parameters.language_hints", "input.context"],
+        code: `import asyncio, json, uuid, websockets  # pip install websockets
+
+async def main():
+    task_id = str(uuid.uuid4())
+    async with websockets.connect(
+        "wss://nexusflow.hk/api-ws/v1/inference",
+        additional_headers={"Authorization": "Bearer " + API_KEY},
+    ) as ws:
+        await ws.send(json.dumps({
+            "header": {"action": "run-task", "task_id": task_id, "streaming": "duplex"},
+            "payload": {
+                "task_group": "audio", "task": "asr", "function": "recognition",
+                "model": "${model.id}",
+                "parameters": {"format": "pcm", "sample_rate": 16000},
+                "input": {},
+            },
+        }))
+        while json.loads(await ws.recv())["header"]["event"] != "task-started":
+            pass
+        async def send_audio():
+            with open("audio.pcm", "rb") as f:  # 16 kHz 单声道 16-bit PCM
+                while chunk := f.read(3200):
+                    await ws.send(chunk)
+                    await asyncio.sleep(0.1)
+            await ws.send(json.dumps({"header": {"action": "finish-task", "task_id": task_id, "streaming": "duplex"}, "payload": {"input": {}}}))
+        asyncio.create_task(send_audio())
+        async for raw in ws:
+            msg = json.loads(raw)
+            if msg["header"]["event"] == "result-generated":
+                sentence = msg["payload"]["output"]["sentence"]
+                print(("[final] " if sentence.get("sentence_end") else "[partial] ") + sentence["text"])
+            elif msg["header"]["event"] in ("task-finished", "task-failed"):
+                print(msg["header"]["event"], msg["payload"].get("usage", ""))
+                break
+
+asyncio.run(main())`,
+        note: "协议与百炼 DashScope 实时语音识别一致：先发 run-task，等 task-started 后推送单声道音频帧，最后发 finish-task。单个连接最长 30 分钟、费用上限约 10 分钟音频，超过会自动结束任务，重连即可继续。按累计 token 计费，连接中途断开也会结算已识别部分。",
+      });
+    } else if (model.id.toLowerCase().includes("asr")) {
       const tokenBilledAsr = model.id === "qwen-audio-3.1-asr-flash";
       examples.push({
         id: "openai/audio-transcriptions",

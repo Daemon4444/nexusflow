@@ -51,9 +51,9 @@ async function main(): Promise<void> {
   const base = run.content;
 
   // ------------------------------------------------ backfill + shadow diff
-  assert.equal(base.models.length, 95);
+  assert.equal(base.models.length, 96);
   assert.equal(base.accounts.length, 8);
-  assert.equal(base.routes.length, 101);
+  assert.equal(base.routes.length, 102);
   assert.deepEqual(run.comparison.modelDiffs, [], "legacy catalog and backfill agree on every model and price");
   assert.deepEqual(run.comparison.routeDiffs, [], "legacy enabled routes and backfill agree (orphans explained)");
   assert.equal(run.report.skippedOrphanRoutes.length, 5);

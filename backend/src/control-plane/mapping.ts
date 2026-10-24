@@ -17,6 +17,7 @@ export const LEGACY_TO_CP_PROTOCOL: Record<SupportedProtocol, CpProtocol> = {
   "openai/audio-speech": "openai.audio.speech",
   "openai/audio-transcriptions": "openai.audio.transcriptions",
   "nexusflow/tasks": "nexusflow.tasks",
+  "nexusflow/asr-websocket": "nexusflow.asr.websocket",
 };
 
 export const CP_TO_LEGACY_PROTOCOL: Record<CpProtocol, SupportedProtocol> = Object.fromEntries(

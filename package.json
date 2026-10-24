@@ -29,7 +29,7 @@
     "test:release-history": "node scripts/test-release-history.mjs"
   },
   "overrides": {
-    "body-parser": "2.3.0",
+    "body-parser": "2.4.0",
     "postcss": "8.5.28",
     "sharp": "0.35.5",
     "urllib": "4.9.1",

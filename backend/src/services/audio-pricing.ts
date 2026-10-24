@@ -19,6 +19,14 @@ export const QWEN_AUDIO_31_ASR_FLASH_ID = "qwen-audio-3.1-asr-flash";
 export const QWEN_AUDIO_31_ASR_MAX_INPUT_TOKENS = 7168;
 export const QWEN_AUDIO_31_ASR_MAX_OUTPUT_TOKENS = 1024;
 
+export const QWEN_AUDIO_31_ASR_STREAMING_ID = "qwen-audio-3.1-asr-flash-streaming";
+
+// qwen-audio-3.1-asr-flash-streaming (WebSocket): 百炼 model page, checked 2026-10-24.
+const QWEN_AUDIO_31_ASR_STREAMING_CNY_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
+  "cn-beijing": { input: 6, output: 4.5 },
+  "ap-southeast-1": { input: 6.781, output: 5.104 },
+};
+
 const QWEN_AUDIO_31_ASR_CNY_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
   "cn-beijing": { input: 0.8, output: 2.7 },
   "ap-southeast-1": { input: 1.094, output: 3.427 },
@@ -70,6 +78,12 @@ export function qwenAudio31AsrTokenPrices(region: string): { input: number; outp
   if (!price || ![price.input, price.output].every((v) => Number.isFinite(v) && v >= 0)) {
     throw new AudioPricingUnavailableError(region, QWEN_AUDIO_31_ASR_FLASH_ID);
   }
+  return price;
+}
+
+export function qwenAudio31AsrStreamingPrices(region: string): { input: number; output: number } {
+  const price = QWEN_AUDIO_31_ASR_STREAMING_CNY_PER_MILLION_TOKENS[region];
+  if (!price) throw new AudioPricingUnavailableError(region, QWEN_AUDIO_31_ASR_STREAMING_ID);
   return price;
 }
 

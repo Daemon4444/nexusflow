@@ -17,6 +17,7 @@ export const CP_PROTOCOLS = [
   "openai.audio.speech",
   "openai.audio.transcriptions",
   "nexusflow.tasks",
+  "nexusflow.asr.websocket",
 ] as const;
 export type CpProtocol = (typeof CP_PROTOCOLS)[number];
 
