@@ -7,6 +7,8 @@ import { useState } from "react";
 const API_BASE = "https://nexusflow.hk";
 
 const models = [
+  { id: "kimi-k3.1-pro", context: "1M", input: 13, output: 68, desc: "K3.1 Pro 新一代旗舰，3 万亿级参数，原生视觉理解，始终开启思考（reasoning_effort 低/高/最大），代码、3D 创作与金融研究显著提升，缓存命中 ¥1.3/M" },
+  { id: "kimi-k3.1-pro-highspeed", context: "1M", input: 26, output: 136, desc: "K3.1 Pro 高速版，能力一致、输出速度约 2-3 倍，缓存命中 ¥1.3/M" },
   { id: "kimi-k3", context: "1M", input: 20, output: 100, desc: "K3 最强旗舰，2.8万亿参数，原生视觉理解+深度思考，缓存命中 ¥2/M" },
   { id: "kimi-k2.7-code", context: "256K", input: 6.5, output: 27, desc: "K2.7 编程模型，支持文本/图片/视频输入，长程编程与智能体工具调用" },
   { id: "kimi/kimi-k2.7-code-highspeed", context: "256K", input: 13, output: 54, desc: "K2.7 Code 高速版，能力对齐标准版，输出速度显著提升" },
@@ -85,7 +87,7 @@ export default function KimiApiPage() {
           Kimi 系列模型 API
         </h1>
         <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.8, maxWidth: 720, margin: 0 }}>
-          月之暗面 Kimi 系列模型，擅长长文本理解、多轮对话和创意写作。最新旗舰 Kimi K3 原生支持视觉理解与深度思考，拥有 100 万 token 上下文窗口。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Responses API 协议调用。
+          月之暗面 Kimi 系列模型，擅长长文本理解、多轮对话和创意写作。最新旗舰 Kimi K3.1 Pro 与 K3 原生支持视觉理解与深度思考，拥有 100 万 token 上下文窗口。本文示例默认使用 OpenAI Chat Completions；同一模型 ID 也可按模型支持情况通过 Anthropic Messages 或 Responses API 协议调用。
         </p>
       </div>
 

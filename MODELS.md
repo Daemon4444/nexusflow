@@ -160,9 +160,10 @@ Claude 请求使用服务端管理的 HiModels Provider 配置；客户端只需
 | `kimi-k2.5` | Kimi K2.5 | 262K | 96K | ¥4/M | ¥21/M | 长文本理解 |
 | `kimi-k2.6` | Kimi K2.6 | 262K | 96K | ¥6.5/M | ¥27/M | 旗舰长文本 |
 | `kimi-k2-thinking` | Kimi K2 Thinking | 262K | 96K | ¥4/M | ¥16/M | Agentic 思考模型 |
+| `kimi-k3.1-pro` | Kimi K3.1 Pro | **1M** | **1M** | ¥13/M (缓存命中 ¥1.3/M) | ¥68/M | 新一代旗舰、3万亿级参数、原生视觉、始终思考(reasoning_effort)；**渠道待接入，无路由时不可调用** |
+| `kimi-k3.1-pro-highspeed` | Kimi K3.1 Pro 高速版 | **1M** | **1M** | ¥26/M (缓存命中 ¥1.3/M) | ¥136/M | 同上，输出约 2-3 倍速度；**渠道待接入** |
 | `kimi-k3` | Kimi K3 | **1M** | **1M** | ¥20/M (缓存命中 ¥2/M) | ¥100/M | 最强旗舰、2.8万亿参数、原生视觉理解、深度思考、开源 |
 
-**预告（`announcedModels`，未开放、不可调用、不计费）**：`kimi-k3.1-pro`、`kimi-k3.1-pro-highspeed`（2026-10-23/24 发布，1M 上下文）。价格待渠道确认后填写，当前为 `null`。
 
 ### MiniMax 系列
 

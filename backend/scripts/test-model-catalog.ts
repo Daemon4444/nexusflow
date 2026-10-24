@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { calculateTokenCost, getReservedOutputTokens, getStaticModels, getTokenPricingTier, resolveCachePricing, resolveCompletionPrice } from "../src/data/models";
-import { findProvider } from "../src/services/providers";
+import { findProvider, isKimiK31Model, legacyRoutedProviderId } from "../src/services/providers";
 import { sanitizeModelDoc } from "../src/data/model-overrides";
 import { estimateStreamUsage } from "../src/utils/estimate-stream-usage";
 import { isExplicitCacheRequested } from "../src/utils/cache-billing";
@@ -691,4 +691,15 @@ for (const [id, expected] of [["wan2.7-image", 0.2], ["wan2.7-image-pro", 0.5]] 
   const entry = models.find((model) => model.id === id);
   assert.ok(entry);
   assert.equal(estimateAsyncCost(entry, { n: 2 }), expected * 2, `${id} 图片按张计费`);
+}
+
+// Kimi K3.1 Pro（2026-10-24 上线）：价格来自官方定价页；渠道到位前不得路由到 DashScope。
+{
+  const pro = models.find((model) => model.id === "kimi-k3.1-pro")!;
+  const fast = models.find((model) => model.id === "kimi-k3.1-pro-highspeed")!;
+  assert.deepEqual([pro.promptPrice, pro.completionPrice, pro.cacheReadPrice], [13, 68, 1.3]);
+  assert.deepEqual([fast.promptPrice, fast.completionPrice, fast.cacheReadPrice], [26, 136, 1.3]);
+  assert.equal(legacyRoutedProviderId("kimi-k3.1-pro"), null, "K3.1 渠道到位前必须无路由");
+  assert.equal(legacyRoutedProviderId("kimi-k3.1-pro-highspeed"), null);
+  assert.equal(isKimiK31Model("kimi-k3.1-pro"), true);
 }
