@@ -53,11 +53,11 @@ const MAX_CLIENT_FRAME_BYTES = 1 << 20;
 const MAX_QUEUED_BYTES = 4 << 20;
 const MAX_CONNECTIONS_PER_USER = 100;
 const MAX_CONNECTIONS_TOTAL = 2_000;
-// Upper bound of one session's spend: ~10 minutes of audio (≈45 input tokens/s,
+// Upper bound of one session's spend: ~5 minutes of audio (≈45 input tokens/s,
 // ≈5 output tokens/s at the listed price). Reached → the task is ended cleanly
 // and the client reconnects to continue.
-const SESSION_BUDGET_INPUT_TOKENS = 27_000;
-const SESSION_BUDGET_OUTPUT_TOKENS = 3_000;
+const SESSION_BUDGET_INPUT_TOKENS = 13_500;
+const SESSION_BUDGET_OUTPUT_TOKENS = 1_500;
 const CAPACITY_ESTIMATE_TOKENS = 2_000;
 const PROTOCOL = "dashscope-asr-websocket";
 
