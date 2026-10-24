@@ -33,6 +33,8 @@ export interface ModelCapabilities {
 }
 
 const ALWAYS_THINKING_MODELS = new Set([
+  "kimi-k3.1-pro",
+  "kimi-k3.1-pro-highspeed",
   "qwq-plus",
   "deepseek-r1",
   "MiniMax-M2.1",
@@ -166,6 +168,8 @@ const EXPLICIT_CONTEXT_CACHE_MODELS = new Set([
 ]);
 
 const IMPLICIT_CONTEXT_CACHE_MODELS = new Set([
+  "kimi-k3.1-pro",
+  "kimi-k3.1-pro-highspeed",
   "gpt-6-astra",
   "qwen3.8-max",
   "qwen3.8-flash",

@@ -7,7 +7,7 @@
  * 保证存量部署行为不变。
  */
 
-import { findProvider, getResolvedProviderApiKey, isHiModelsPublicModel } from "./providers";
+import { findProvider, getResolvedProviderApiKey, isHiModelsPublicModel, isKimiK31Model } from "./providers";
 import {
   channelAllowsModel,
   getProviderChannelConfig,
@@ -276,7 +276,7 @@ async function resolveUpstreamLegacy(
   // provider_capacity yet. Once a managed route exists it is authoritative,
   // so disabled/unhealthy routes can never silently fall back to environment
   // variables and bypass the control plane.
-  if (modelId === "gpt-6-astra" || isHiModelsPublicModel(modelId)) {
+  if (modelId === "gpt-6-astra" || isHiModelsPublicModel(modelId) || isKimiK31Model(modelId)) {
     return {
       ok: false,
       status: 503,

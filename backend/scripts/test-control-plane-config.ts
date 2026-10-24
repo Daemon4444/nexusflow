@@ -51,7 +51,7 @@ async function main(): Promise<void> {
   const base = run.content;
 
   // ------------------------------------------------ backfill + shadow diff
-  assert.equal(base.models.length, 96);
+  assert.equal(base.models.length, 98);
   assert.equal(base.accounts.length, 8);
   assert.equal(base.routes.length, 102);
   assert.deepEqual(run.comparison.modelDiffs, [], "legacy catalog and backfill agree on every model and price");
@@ -85,9 +85,11 @@ async function main(): Promise<void> {
 
   // ---------------------------------------------------- validation checks
   const fixed = clone(base);
-  fixed.models = fixed.models.filter((model: any) => !model.id.startsWith("seedance"));
-  fixed.routes = fixed.routes.filter((route: any) => !route.model_id.startsWith("seedance"));
-  assert.deepEqual(checksOf(fixed), [], "baseline without the Seedance finding is clean");
+  // Kimi K3.1 is catalogued ahead of its channel (no route by design, fail-closed) — same class of finding.
+  const unrouted = (id: string) => id.startsWith("seedance") || id.startsWith("kimi-k3.1-");
+  fixed.models = fixed.models.filter((model: any) => !unrouted(model.id));
+  fixed.routes = fixed.routes.filter((route: any) => !unrouted(route.model_id));
+  assert.deepEqual(checksOf(fixed), [], "baseline without the Seedance/K3.1 findings is clean");
 
   {
     const content: any = clone(fixed);

@@ -114,11 +114,17 @@ export function getProviderApiKey(provider: ProviderConfig): string {
  * Kept as one function so the control-plane backfill and catalog tooling
  * reproduce exactly the legacy branching.
  */
+export function isKimiK31Model(modelId: string): boolean {
+  return modelId === "kimi-k3.1-pro" || modelId === "kimi-k3.1-pro-highspeed";
+}
+
 export function legacyRoutedProviderId(
   modelId: string,
   options: { jawayK3Available: boolean } = { jawayK3Available: true }
 ): string | null {
   if (modelId === "kimi-k3") return options.jawayK3Available ? "jawayid-k3" : null;
+  // K3.1 走用户自备的专属渠道，渠道到位前没有路由，失败关闭，不得落到 DashScope。
+  if (isKimiK31Model(modelId)) return null;
   if (isHiModelsPublicModel(modelId)) return "himodels";
   if (modelId === "gpt-6-astra") return "azure-ai-foundry";
   if (modelId.startsWith("seedance-")) return "volcengine-ark";

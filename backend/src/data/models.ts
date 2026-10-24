@@ -1768,6 +1768,38 @@ const staticModels: AIModel[] = [
     supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "结构化输出", "前缀续写", "批量推理", "上下文缓存"]
   },
   {
+    id: "kimi-k3.1-pro",
+    name: "Kimi K3.1 Pro",
+    provider: "月之暗面",
+    description: "Kimi 迄今能力最强的旗舰模型，3 万亿级参数，基于 K3 后训练，原生视觉理解、始终开启思考（支持 reasoning_effort 低/高/最大三档）、100 万 token 上下文。代码、3D 创作、金融研究与建模、长程 Agent 能力显著提升，适合 Claude Code、Codex 等编程 Agent 与深度推理场景。",
+    contextLength: 1048576,
+    promptPrice: 13,
+    completionPrice: 68,
+    cacheReadPrice: 1.3,
+    category: "大语言模型",
+    tags: ["旗舰", "推理", "长程编程", "视觉理解", "思考模式", "百万上下文", "开源"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 1048576,
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "结构化输出", "上下文缓存"]
+  },
+  {
+    id: "kimi-k3.1-pro-highspeed",
+    name: "Kimi K3.1 Pro 高速版",
+    provider: "月之暗面",
+    description: "Kimi K3.1 Pro 的高速版，能力一致，输出速度约 2-3 倍，输入输出按两倍价计费，缓存命中价不变。",
+    contextLength: 1048576,
+    promptPrice: 26,
+    completionPrice: 136,
+    cacheReadPrice: 1.3,
+    category: "大语言模型",
+    tags: ["旗舰", "推理", "高速", "视觉理解", "思考模式", "百万上下文", "开源"],
+    isFeatured: true,
+    isNew: true,
+    maxOutput: 1048576,
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "结构化输出", "上下文缓存"]
+  },
+  {
     id: "kimi-k2.7-code",
     name: "Kimi K2.7 Code",
     provider: "月之暗面",
@@ -1920,40 +1952,7 @@ const staticModels: AIModel[] = [
   },
 ];
 
-const announcedModels: AnnouncedAIModel[] = [
-  {
-    id: "kimi-k3.1-pro",
-    name: "Kimi K3.1 Pro",
-    provider: "月之暗面",
-    description: "月之暗面 2026-10-23/24 发布的新一代旗舰，基于 Kimi K3 后训练，3 万亿级参数 MoE，原生视觉理解、100 万 token 上下文，编程、3D 创作与长程工具任务显著增强。",
-    contextLength: 1048576,
-    promptPrice: null,
-    completionPrice: null,
-    lifecycle: "announced",
-    pricingStatus: "unpublished",
-    category: "大语言模型",
-    tags: ["旗舰", "推理", "长程编程", "视觉理解", "思考模式", "百万上下文", "开源"],
-    isNew: true,
-    maxOutput: 1048576,
-    supported: ["文本", "图像输入", "函数调用", "思考模式", "结构化输出", "上下文缓存"],
-  },
-  {
-    id: "kimi-k3.1-pro-highspeed",
-    name: "Kimi K3.1 Pro 高速版",
-    provider: "月之暗面",
-    description: "Kimi K3.1 Pro 的高速版本，能力一致，输出速度约 2-3 倍，按两倍价格计费。",
-    contextLength: 1048576,
-    promptPrice: null,
-    completionPrice: null,
-    lifecycle: "announced",
-    pricingStatus: "unpublished",
-    category: "大语言模型",
-    tags: ["旗舰", "推理", "高速", "视觉理解", "思考模式", "百万上下文", "开源"],
-    isNew: true,
-    maxOutput: 1048576,
-    supported: ["文本", "图像输入", "函数调用", "思考模式", "结构化输出", "上下文缓存"],
-  },
-];
+const announcedModels: AnnouncedAIModel[] = [];
 
 export function getAnnouncedModels(): AnnouncedAIModel[] {
   return announcedModels.map((model) => ({ ...model }));
