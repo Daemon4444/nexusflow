@@ -207,6 +207,7 @@ export const REF: Record<string, Ref> = {
   "MiniMax-M2.1": { ctx: 204800, maxOut: 32768, in: 2.1, out: 8.4, cache: 0.42 },
   "MiniMax-M2.5": { ctx: 196608, maxOut: 32768, in: 2.1, out: 8.4, cache: 0.42 },
   "MiniMax/MiniMax-M2.7": { ctx: 196608, maxOut: 32768, in: 2.1, out: 8.4, cache: 0.42 },
+  "qwen-audio-3.1-asr-flash-streaming": { ctx: 8192, maxOut: 1024, in: 6, out: 4.5 },
   "qwen-audio-3.1-asr-flash": { ctx: 8192, maxOut: 1024, in: 0.8, out: 2.7 },
   "text-embedding-v4": { in: 0.5 },
   "text-embedding-v3": { in: 0.5 },

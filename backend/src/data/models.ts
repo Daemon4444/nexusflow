@@ -786,6 +786,20 @@ const staticModels: AIModel[] = [
     supported: ["语音转文本"]
   },
   {
+    id: "qwen-audio-3.1-asr-flash-streaming",
+    name: "Qwen-Audio 3.1 ASR Flash Streaming",
+    provider: "通义千问",
+    description: "Qwen-Audio 3.1 代实时语音识别模型，通过 WebSocket 边说边识别，返回中间结果与句末结果（含字级时间戳），支持多语种与中文方言、热词与上下文增强。按输入音频 token 与输出文本 token 计费；连接地址 wss://nexusflow.hk/api-ws/v1/inference，协议与百炼 DashScope 实时语音识别一致。",
+    contextLength: 8192,
+    promptPrice: 6,
+    completionPrice: 4.5,
+    category: "语音模型",
+    tags: ["语音识别", "ASR", "实时", "WebSocket", "多语言", "方言"],
+    isNew: true,
+    maxOutput: 1024,
+    supported: ["实时语音转文本"]
+  },
+  {
     id: "qwen3-tts-flash",
     name: "Qwen3 TTS Flash",
     provider: "通义千问",

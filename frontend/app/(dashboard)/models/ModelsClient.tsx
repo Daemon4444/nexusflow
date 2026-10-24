@@ -48,6 +48,7 @@ const protocolLabels: Record<string, string> = {
   "openai/image-generations": "Image",
   "openai/audio-speech": "TTS",
   "openai/audio-transcriptions": "ASR",
+  "nexusflow/asr-websocket": "ASR · WebSocket",
   "nexusflow/tasks": "Tasks",
 };
 

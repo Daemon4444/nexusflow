@@ -27,6 +27,7 @@ import { controlPlaneMode } from "./config/feature-flags";
 import { controlPlaneRuntime } from "./control-plane/runtime";
 import { startQueueWorker } from "./traffic/queue";
 import { ensureRoutingDefaults } from "./services/providers";
+import { attachAsrStreamServer } from "./routes/audio-stream";
 import { startUploadCleanupLoop } from "./services/upload-lifecycle";
 import { warmPayloadCapture } from "./services/payload-capture";
 
@@ -88,9 +89,10 @@ async function start() {
   // then only expires queued tasks, so a flag rollback releases their holds.
   startQueueWorker();
 
-  app.listen(PORT, HOST, () => {
+  const server = app.listen(PORT, HOST, () => {
     console.log(`[Quadrant API] 服务已启动: http://${HOST}:${PORT}`);
   });
+  attachAsrStreamServer(server);
 }
 
 start().catch((error) => {

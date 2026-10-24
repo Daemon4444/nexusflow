@@ -312,7 +312,10 @@ grep -Fx '    client_body_timeout 10s;' "$audio_server_policy" >/dev/null
 grep -Fx '    limit_conn nexusflow_audio_transcription_conn_v2 500;' "$audio_server_policy" >/dev/null
 grep -Fx '    limit_req zone=nexusflow_audio_transcription_rate_v2 burst=2000 nodelay;' \
   "$audio_server_policy" >/dev/null
+grep -Fx '    proxy_set_header Upgrade $http_upgrade;' "$audio_server_policy" >/dev/null
 for location in \
+  'location = /api-ws/v1/inference {' \
+  'location = /v1/audio/transcriptions/stream {' \
   'location = /v1/chat/completions {' \
   'location = /v1/responses {' \
   'location = /v1/messages {' \
@@ -324,8 +327,8 @@ test "$(grep -Fxc '    client_max_body_size 8m;' "$audio_server_policy")" -eq 1
 test "$(grep -Fxc '    client_max_body_size 1m;' "$audio_server_policy")" -eq 2
 test "$(grep -Fxc '    client_max_body_size 101m;' "$audio_server_policy")" -eq 1
 test "$(grep -Fxc '    proxy_request_buffering off;' "$audio_server_policy")" -eq 7
-test "$(grep -Fxc '    proxy_buffering off;' "$audio_server_policy")" -eq 7
-test "$(grep -Fxc '    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;' "$audio_server_policy")" -eq 7
+test "$(grep -Fxc '    proxy_buffering off;' "$audio_server_policy")" -eq 9
+test "$(grep -Fxc '    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;' "$audio_server_policy")" -eq 9
 test "$(grep -Fxc 'client_max_body_size 1m;' "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf")" -eq 1
 test "$(grep -Fxc 'client_body_timeout 10s;' "$REPOSITORY_ROOT/ops/nginx/nexusflow-v1-location.conf")" -eq 1
 grep -Fx 'limit_conn nf_v1_edge_conn_v2 500;' \

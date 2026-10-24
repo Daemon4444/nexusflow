@@ -9,6 +9,7 @@ export type SupportedProtocol =
   | "openai/image-generations"
   | "openai/audio-speech"
   | "openai/audio-transcriptions"
+  | "nexusflow/asr-websocket"
   | "nexusflow/tasks";
 
 // 百炼 OpenAI Responses API 官方支持列表（华北 2），仅包含本平台在售模型。
@@ -81,6 +82,9 @@ export function getSupportedProtocols(
     const id = model.id.toLowerCase();
     if (id.includes("tts")) {
       return ["openai/audio-speech"];
+    }
+    if (id.includes("asr") && id.endsWith("-streaming")) {
+      return ["nexusflow/asr-websocket"];
     }
     if (id.includes("asr")) {
       return ["openai/audio-transcriptions"];

@@ -188,6 +188,45 @@ location = /v1/audio/transcriptions {
     proxy_pass http://127.0.0.1:3001;
 }
 
+# Real-time ASR over WebSocket (the backend authenticates the key in the
+# upgrade request and relays to Bailian). Sessions last up to 30 minutes.
+location = /api-ws/v1/inference {
+    limit_conn nexusflow_audio_transcription_conn_v2 500;
+    limit_req zone=nexusflow_audio_transcription_rate_v2 burst=2000 nodelay;
+    limit_conn_status 429;
+    limit_req_status 429;
+    proxy_buffering off;
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 1900s;
+    proxy_read_timeout 1900s;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
+    proxy_pass http://127.0.0.1:3001;
+}
+location = /v1/audio/transcriptions/stream {
+    limit_conn nexusflow_audio_transcription_conn_v2 500;
+    limit_req zone=nexusflow_audio_transcription_rate_v2 burst=2000 nodelay;
+    limit_conn_status 429;
+    limit_req_status 429;
+    proxy_buffering off;
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 1900s;
+    proxy_read_timeout 1900s;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;
+    proxy_pass http://127.0.0.1:3001;
+}
+
 # Public Next proxy aliases must never become a second path to /v1. They would
 # bypass the backend-edge body and concurrency contracts.
 location = /proxy/v1 { return 404; }
@@ -347,6 +386,10 @@ validate_config_file() {
     die "audio ingress connection limit is missing"
   grep -F 'limit_req zone=nexusflow_audio_transcription_rate_v2 burst=2000 nodelay;' "$DRAIN_CONFIG" >/dev/null ||
     die "audio ingress request-rate limit is missing"
+  grep -F 'location = /api-ws/v1/inference {' "$DRAIN_CONFIG" >/dev/null ||
+    die "ASR WebSocket ingress policy is missing from the server include"
+  grep -F 'location = /v1/audio/transcriptions/stream {' "$DRAIN_CONFIG" >/dev/null ||
+    die "ASR WebSocket alias ingress policy is missing from the server include"
   grep -F 'location = /v1/chat/completions {' "$DRAIN_CONFIG" >/dev/null ||
     die "large chat ingress policy is missing"
   grep -F 'location = /v1/responses {' "$DRAIN_CONFIG" >/dev/null ||
@@ -361,9 +404,9 @@ validate_config_file() {
     die "embedding request-body cap is missing"
   test "$(grep -Fxc '    proxy_request_buffering off;' "$DRAIN_CONFIG")" -eq 7 ||
     die "managed ingress routes must stream only after application admission"
-  test "$(grep -Fxc '    proxy_buffering off;' "$DRAIN_CONFIG")" -eq 7 ||
+  test "$(grep -Fxc '    proxy_buffering off;' "$DRAIN_CONFIG")" -eq 9 ||
     die "managed ingress routes must preserve streaming"
-  test "$(grep -Fxc '    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;' "$DRAIN_CONFIG")" -eq 7 ||
+  test "$(grep -Fxc '    proxy_set_header X-Forwarded-Proto $nf_forwarded_proto;' "$DRAIN_CONFIG")" -eq 9 ||
     die "managed ingress routes must preserve the trusted forwarded protocol"
   for blocked_alias in \
     'location = /proxy/v1 { return 404; }' \
