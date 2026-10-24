@@ -193,6 +193,7 @@ Provider 容量（`provider_capacity`，60 s 滑动窗口）预占时输出部�
 - 通用异步任务：`POST /v1/tasks`，再轮询 `GET /v1/tasks/:id`
 - 会话内部路由：`/api/image`、`/api/video`（网页 Playground 与 `/api/playground` 已于 2026-10 一并删除）
 - 音频：`/v1/audio/*`
+- 实时语音识别 WebSocket：`wss://nexusflow.hk/api-ws/v1/inference`（别名 `/v1/audio/transcriptions/stream`），模型 `qwen-audio-3.1-asr-flash-streaming`，协议同百炼 DashScope（run-task / task-started / 二进制音频 / result-generated / finish-task / task-finished）。网关鉴权后中继到百炼，按上游累计 token 计费（断线也结算已识别部分）；单会话预扣约 5 分钟额度并以此为上限，最长 30 分钟，每用户 ≤100 连接。实现 `backend/src/routes/audio-stream.ts`，nginx 升级路由由 `scripts/nginx-health-drain-node.sh` 管理（改后须在两个节点重跑 `install-nginx-health-drain.sh`）。非流式 `qwen-audio-3.1-asr-flash`（HTTP，¥0.8/¥2.7 每百万 token，百炼默认 600 RPM）不支持 WebSocket。
 - 上传：`/api/upload`；需 session 或 API Key
 
 Wan 视频公开参数支持 `size`，也支持 `resolution + ratio`。`1280x720` 会规范化为 DashScope 要求的 `1280*720`；不支持的分辨率/比例组合必须在创建任务和预占计费前返回 400。文档、Playground、通用任务和 smoke 应使用同一契约。

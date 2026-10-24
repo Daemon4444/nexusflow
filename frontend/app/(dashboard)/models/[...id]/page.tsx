@@ -345,7 +345,7 @@ async def main():
                 break
 
 asyncio.run(main())`,
-        note: "协议与百炼 DashScope 实时语音识别一致：先发 run-task，等 task-started 后推送单声道音频帧，最后发 finish-task。单个连接最长 30 分钟、费用上限约 10 分钟音频，超过会自动结束任务，重连即可继续。按累计 token 计费，连接中途断开也会结算已识别部分。",
+        note: "协议与百炼 DashScope 实时语音识别一致：先发 run-task，等 task-started 后推送单声道音频帧，最后发 finish-task。单个连接最长 30 分钟、费用上限约 5 分钟音频，超过会自动结束任务，重连即可继续。按累计 token 计费，连接中途断开也会结算已识别部分。",
       });
     } else if (model.id.toLowerCase().includes("asr")) {
       const tokenBilledAsr = model.id === "qwen-audio-3.1-asr-flash";
