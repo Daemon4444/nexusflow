@@ -693,6 +693,18 @@ router.post("/transcriptions", parseAudioTranscriptionFields, async (req: Reques
         httpStatus: upstreamResp.status,
         errorCode: "upstream_asr_error",
       });
+      if (tokenAsr && upstreamResp.status === 429) {
+        // The provider's own per-model rate limit: say so (and when to retry) instead of the generic masked 429.
+        res.setHeader("Retry-After", "1");
+        res.status(429).json({
+          error: {
+            message: "The upstream speech model is rate limited right now. Retry shortly.",
+            type: "rate_limit_error",
+            code: "upstream_rate_limited",
+          },
+        });
+        return;
+      }
       res.status(upstreamResp.status >= 500 ? 502 : upstreamResp.status).json({
         error: detail
           ? { message: detail, type: "invalid_request_error", code: "upstream_asr_error" }
