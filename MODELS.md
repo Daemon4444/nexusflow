@@ -162,6 +162,8 @@ Claude 请求使用服务端管理的 HiModels Provider 配置；客户端只需
 | `kimi-k2-thinking` | Kimi K2 Thinking | 262K | 96K | ¥4/M | ¥16/M | Agentic 思考模型 |
 | `kimi-k3` | Kimi K3 | **1M** | **1M** | ¥20/M (缓存命中 ¥2/M) | ¥100/M | 最强旗舰、2.8万亿参数、原生视觉理解、深度思考、开源 |
 
+**预告（`announcedModels`，未开放、不可调用、不计费）**：`kimi-k3.1-pro`、`kimi-k3.1-pro-highspeed`（2026-10-23/24 发布，1M 上下文）。价格待渠道确认后填写，当前为 `null`。
+
 ### MiniMax 系列
 
 | 模型 ID | 名称 | 上下文窗口 | 最大输出 | 输入价格 | 输出价格 | 特性 |

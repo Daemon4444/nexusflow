@@ -1920,7 +1920,40 @@ const staticModels: AIModel[] = [
   },
 ];
 
-const announcedModels: AnnouncedAIModel[] = [];
+const announcedModels: AnnouncedAIModel[] = [
+  {
+    id: "kimi-k3.1-pro",
+    name: "Kimi K3.1 Pro",
+    provider: "月之暗面",
+    description: "月之暗面 2026-10-23/24 发布的新一代旗舰，基于 Kimi K3 后训练，3 万亿级参数 MoE，原生视觉理解、100 万 token 上下文，编程、3D 创作与长程工具任务显著增强。",
+    contextLength: 1048576,
+    promptPrice: null,
+    completionPrice: null,
+    lifecycle: "announced",
+    pricingStatus: "unpublished",
+    category: "大语言模型",
+    tags: ["旗舰", "推理", "长程编程", "视觉理解", "思考模式", "百万上下文", "开源"],
+    isNew: true,
+    maxOutput: 1048576,
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "结构化输出", "上下文缓存"],
+  },
+  {
+    id: "kimi-k3.1-pro-highspeed",
+    name: "Kimi K3.1 Pro 高速版",
+    provider: "月之暗面",
+    description: "Kimi K3.1 Pro 的高速版本，能力一致，输出速度约 2-3 倍，按两倍价格计费。",
+    contextLength: 1048576,
+    promptPrice: null,
+    completionPrice: null,
+    lifecycle: "announced",
+    pricingStatus: "unpublished",
+    category: "大语言模型",
+    tags: ["旗舰", "推理", "高速", "视觉理解", "思考模式", "百万上下文", "开源"],
+    isNew: true,
+    maxOutput: 1048576,
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "结构化输出", "上下文缓存"],
+  },
+];
 
 export function getAnnouncedModels(): AnnouncedAIModel[] {
   return announcedModels.map((model) => ({ ...model }));
