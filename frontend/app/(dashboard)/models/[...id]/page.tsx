@@ -10,91 +10,8 @@ import { fetchAPI } from "@/lib/api";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
-interface TokenPricingTier {
-  label: string;
-  maxTokens: number;
-  promptPrice: number;
-  completionPrice: number;
-  cacheReadPrice?: number;
-  cacheReadExplicitPrice?: number;
-}
-
-/** 后端已解析的缓存价，与实扣路径同源；前端只渲染，不重算倍率。仅隐式缓存的模型（MiniMax/kimi）无显式字段。 */
-interface CachePricing {
-  implicitHit: number;
-  explicitHit?: number;
-  explicitCreation?: number;
-  tiers?: {
-    label: string;
-    implicitHit: number;
-    explicitHit?: number;
-    explicitCreation?: number;
-  }[];
-}
-
-/** 后端已解析的思考模式输出价，仅在官方单独定价时返回。 */
-interface ThinkingPricing {
-  completionPrice: number;
-  thinkingCompletionPrice: number;
-  tiers?: { label: string; completionPrice: number; thinkingCompletionPrice: number }[];
-}
-
-interface UnitPricingTier {
-  label: string;
-  price: number;
-}
-
-interface AIModel {
-  id: string;
-  name: string;
-  provider: string;
-  description: string;
-  contextLength: number;
-  promptPrice: number | null;
-  completionPrice: number | null;
-  lifecycle?: "announced";
-  pricingStatus?: "unpublished";
-  pricingType?: "token" | "per-image" | "per-second" | "per-10k-characters";
-  pricingTiers?: UnitPricingTier[];
-  tokenPricingTiers?: TokenPricingTier[];
-  cachePricing?: CachePricing | null;
-  thinkingPricing?: ThinkingPricing | null;
-  alternatePricingModes?: Array<{
-    id: string;
-    label: string;
-    promptPrice: number;
-    completionPrice: number;
-    availability: "available" | "announced";
-    note?: string;
-  }>;
-  category: string;
-  tags: string[];
-  isNew?: boolean;
-  isFeatured?: boolean;
-  maxOutput: number;
-  supported: string[];
-  supportedProtocols?: string[];
-  supported_protocols?: string[];
-  capabilities?: {
-    model_type: string;
-    supports_tools: boolean;
-    supports_vision: boolean;
-    supports_video_input: boolean;
-    supports_audio_input: boolean;
-    supports_audio_output: boolean;
-    thinking_mode: "mixed" | "always" | "none" | "unknown";
-    thinking_default: boolean | null;
-    supports_enable_thinking: boolean;
-    supports_thinking_budget: boolean;
-    supports_preserve_thinking: boolean;
-    supports_search: boolean;
-    supports_parallel_tool_calls: boolean;
-    supports_context_caching?: boolean;
-  };
-  allowed_parameters?: string[];
-  availability?: "available" | "temporarily_unavailable" | "disabled";
-  availabilityReason?: string | null;
-}
+import { type AIModel, getModelGuidance } from "@/lib/model-detail";
+import ModelCostEstimator from "@/components/ModelCostEstimator";
 
 interface ProtocolExample {
   id: string;
@@ -484,6 +401,7 @@ export default function ModelDetailPage() {
     : model.description;
   const price = (value: number | null | undefined) => value == null ? "待公布" : `¥${value}`;
 
+  const guidance = getModelGuidance(model);
   const sectionLinks = [
     { id: "nmd-overview", label: "服务概览", icon: <ApiOutlined /> },
     { id: "nmd-pricing", label: "定价", icon: <DollarOutlined /> },
@@ -509,8 +427,8 @@ export default function ModelDetailPage() {
       {!isAvailable && <p className="nmd-notice" role="status">{availabilityDescription}</p>}
       <dl className="nmd-specs">
         <div><dt>{isUnitPriced ? "起步价格" : "输入 / 输出价格"}</dt><dd>{pricingPending ? "待公布" : isUnitPriced ? price(unitPrice) : `${price(model.promptPrice)} / ${price(model.completionPrice)}`}<small>/ {pricingUnit}{model.tokenPricingTiers?.length ? " · 首阶" : ""}</small></dd></div>
-        {model.contextLength > 0 && <div><dt>上下文窗口</dt><dd title={`${model.contextLength.toLocaleString()} tokens`}>{formatTokens(model.contextLength)}<small>tokens</small></dd></div>}
-        {model.maxOutput > 0 && <div><dt>最大输出</dt><dd title={`${model.maxOutput.toLocaleString()} tokens`}>{formatTokens(model.maxOutput)}<small>tokens</small></dd></div>}
+        {!isUnitPriced && model.contextLength > 0 && <div><dt>上下文窗口</dt><dd title={`${model.contextLength.toLocaleString()} tokens`}>{formatTokens(model.contextLength)}<small>tokens</small></dd></div>}
+        {!isUnitPriced && model.maxOutput > 0 && <div><dt>最大输出</dt><dd title={`${model.maxOutput.toLocaleString()} tokens`}>{formatTokens(model.maxOutput)}<small>tokens</small></dd></div>}
         <div><dt>模型类型</dt><dd>{model.category}</dd></div>
       </dl>
       <div className="nmd-layout">
@@ -519,6 +437,10 @@ export default function ModelDetailPage() {
           <section id="nmd-overview" className="nmd-section" aria-labelledby="nmd-overview-title">
             <h2 id="nmd-overview-title">服务概览</h2>
             <p className="nmd-section-description">通过 NexusFlow 统一接入，使用同一套 API Key 与账户余额。</p>
+            <div className="nmd-guidance">
+              <div><h3>适合做什么</h3><ul>{guidance.uses.map(item => <li key={item}>{item}</li>)}</ul></div>
+              <div><h3>输入与使用限制</h3><ul>{guidance.limits.map(item => <li key={item}>{item}</li>)}</ul></div>
+            </div>
             <div className="nmd-service-table-wrap"><table className="nmd-service-table"><thead><tr><th>接入服务</th><th>输入 / {pricingUnit}</th>{!isUnitPriced && <th>输出 / {pricingUnit}</th>}<th>状态</th></tr></thead><tbody><tr><th scope="row">NexusFlow<span>统一 API 网关</span></th><td>{price(isUnitPriced ? unitPrice : model.promptPrice)}{model.tokenPricingTiers?.length ? " 起" : ""}</td>{!isUnitPriced && <td>{price(model.completionPrice)}{model.tokenPricingTiers?.length ? " 起" : ""}</td>}<td><span className={`nmd-status ${isAvailable ? "is-available" : "is-unavailable"}`}><i aria-hidden="true" />{availabilityLabel}</span></td></tr></tbody></table></div>
             <div className="nmd-protocol-list"><span>支持协议</span>{protocolExamples.length ? protocolExamples.map(example => <a href="#nmd-integration" key={example.id} onClick={() => setActiveProtocol(example.id)}>{example.label.replace("OpenAI Chat Completions", "Chat Completions").replace("Anthropic Messages", "Messages").replace("OpenAI Responses", "Responses")}</a>) : <span>暂无接入示例</span>}</div>
           </section>
@@ -548,6 +470,7 @@ export default function ModelDetailPage() {
             {!!model.thinkingPricing.tiers?.length && <details className="nmd-details"><summary>查看思考模式阶梯</summary>{model.thinkingPricing.tiers.map(tier => <div className="nmd-tier" key={tier.label}><h3>{tier.label}</h3><div className="nmd-price-line"><span>非思考 / 思考</span><strong>{price(tier.completionPrice)} / {price(tier.thinkingCompletionPrice)}</strong></div></div>)}</details>}
           </div>}
           {!!model.alternatePricingModes?.length && <details className="nmd-details"><summary>其它定价模式</summary>{model.alternatePricingModes.map(mode => <div className="nmd-tier" key={mode.id}><h3>{mode.label}</h3><div className="nmd-price-line"><span>输入 / 输出</span><strong>{price(mode.promptPrice)} / {price(mode.completionPrice)}</strong></div><p className="nmd-note">{mode.availability === "available" ? "可用" : "官方已公布，暂未开放"}{mode.note ? `。${mode.note}` : ""}</p></div>)}</details>}
+          <ModelCostEstimator key={model.id} model={model} />
           <Link href="/pricing" className="nmd-pricing-link">查看全部模型定价 <span aria-hidden="true">↗</span></Link>
         </section>
           <section id="nmd-capabilities" className="nmd-section" aria-labelledby="nmd-capabilities-title">

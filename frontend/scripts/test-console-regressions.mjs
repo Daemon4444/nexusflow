@@ -49,7 +49,7 @@ function harness(relativePath, { exports = [], fetchAPI = async () => ({ success
     const source = fs.readFileSync(path.join(root, relative), 'utf8') + (extra.length ? `\nexport { ${extra.join(',')} };` : '');
     const code = ts.transpileModule(source, { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
     const compiledModule = { exports: {} };
-    const localRequire = id => mocks[id] || (id === '@/lib/models' ? load('lib/models.ts') : id === '@/lib/money' ? load('lib/money.ts') : id === '@/lib/firstRun' ? load('lib/firstRun.ts') : id === '@/lib/codeExamples' ? load('lib/codeExamples.ts') : id === '@/components/ConsoleUI' ? load('components/ConsoleUI.tsx') : new Proxy({}, { get: (_, name) => `${id}/${String(name)}` }));
+    const localRequire = id => mocks[id] || (id === '@/lib/model-detail' ? load('lib/model-detail.ts') : id === '@/lib/models' ? load('lib/models.ts') : id === '@/lib/money' ? load('lib/money.ts') : id === '@/lib/firstRun' ? load('lib/firstRun.ts') : id === '@/lib/codeExamples' ? load('lib/codeExamples.ts') : id === '@/components/ConsoleUI' ? load('components/ConsoleUI.tsx') : new Proxy({}, { get: (_, name) => `${id}/${String(name)}` }));
     vm.runInNewContext(code, { module: compiledModule, exports: compiledModule.exports, require: localRequire, AbortController, URLSearchParams, Date, console, IntersectionObserver: class { observe() {} disconnect() {} }, document: { querySelectorAll: () => [] }, window: {}, navigator: {}, localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }, setTimeout }, { filename: relative });
     return compiledModule.exports;
   }
@@ -259,4 +259,42 @@ test('SLS truncation notice is visible alongside returned log content', async ()
   const tree = h.render('LogAnalysis');
   assert.match(text(tree), /synthetic request/);
   assert.match(text(tree), /SLS 内容可能截断/);
+});
+
+test('detail estimate selects tiers on total input and accounts for cache creation and thinking', () => {
+  const { estimateModelCost } = harness('lib/model-detail.ts').mod;
+  const m = model('tiered', { contextLength:1000000, maxOutput:32768, tokenPricingTiers:[{label:'first',maxTokens:131072,promptPrice:.8,completionPrice:2,thinkingCompletionPrice:8},{label:'second',maxTokens:262144,promptPrice:2.4,completionPrice:20,thinkingCompletionPrice:24}], cachePricing:{implicitHit:.16,explicitHit:.08,explicitCreation:1,tiers:[{label:'first',implicitHit:.16,explicitHit:.08,explicitCreation:1},{label:'second',implicitHit:.48,explicitHit:.24,explicitCreation:3}]}});
+  const v = {input:131072,output:1000,cached:0,created:0,cacheMode:'implicit',thinking:false,quantity:1,specification:0,audioInput:0,audioOutput:0};
+  assert.equal(estimateModelCost(m,v).total,.106858);
+  const high = estimateModelCost(m,{...v,input:131073,cached:100000,created:10000,cacheMode:'explicit',thinking:true});
+  assert.equal(high.tier,'second');
+  assert.equal(high.total,.128575);
+  assert.match(estimateModelCost(m,{...v,cached:131000,created:100}).error,/不能超过/);
+  assert.match(estimateModelCost(m,{...v,input:999999}).error,/上下文/);
+  assert.match(estimateModelCost(m,{...v,output:32769}).error,/输出超过/);
+  assert.match(estimateModelCost(m,{...v,input:NaN}).error,/非负整数/);
+  assert.match(estimateModelCost({...m,promptPrice:null},v).error,/待公布/);
+  assert.match(estimateModelCost({...m,cachePricing:null},{...v,cached:1}).error,/未公布/);
+});
+
+test('detail estimate handles media units, audio modalities and zero prices', () => {
+  const { estimateModelCost } = harness('lib/model-detail.ts').mod;
+  const v={input:10000,output:1000,cached:0,created:0,cacheMode:'implicit',thinking:false,quantity:1000,specification:0,audioInput:0,audioOutput:0};
+  assert.equal(estimateModelCost(model('tts',{pricingType:'per-10k-characters',promptPrice:.8}),v).total,.08);
+  assert.equal(estimateModelCost(model('asr',{pricingType:'per-second',promptPrice:.00022}),{...v,quantity:60}).total,.0132);
+  assert.equal(estimateModelCost(model('image',{pricingType:'per-image',pricingTiers:[{label:'HD',price:.2}]}),{...v,quantity:3}).total,.6);
+  const omni = model('omni',{contextLength:262144,audioInputPrice:53,audioOutputPrice:213,promptPrice:7,completionPrice:40});
+  assert.equal(estimateModelCost(omni,{...v,audioInput:2000,audioOutput:500}).total,.2685);
+  assert.equal(estimateModelCost(model('free',{contextLength:20000,promptPrice:0,completionPrice:0}),v).total,0);
+  assert.match(estimateModelCost(model('video',{pricingType:'per-second',maxOutput:15,capabilities:{model_type:'video'}}),{...v,quantity:16}).error,/15/);
+});
+
+test('detail guidance respects deployed modality, thinking and task types', () => {
+  const { getModelGuidance } = harness('lib/model-detail.ts').mod;
+  const plain=model('plain',{description:'文本模型',tags:[],capabilities:{model_type:'chat',supports_tools:false,supports_vision:false,thinking_mode:'always'}});
+  assert.match(getModelGuidance(plain).limits.join(' '),/未声明工具调用/);
+  assert.match(getModelGuidance(plain).limits.join(' '),/不能关闭/);
+  assert.ok(!getModelGuidance(plain).uses.join(' ').includes('截图'));
+  assert.match(getModelGuidance({...plain,capabilities:{model_type:'embedding'}}).uses.join(' '),/向量/);
+  assert.match(getModelGuidance({...plain,id:'wan2.6-i2v',capabilities:{model_type:'video'}}).uses.join(' '),/起始画面/);
 });
