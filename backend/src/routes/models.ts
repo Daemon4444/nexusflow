@@ -118,7 +118,8 @@ function buildThinkingPricing(model: AIModel) {
  */
 function buildCachePricing(model: AIModel, supportsCaching: boolean, supportsExplicit: boolean) {
   if (!supportsCaching) return null;
-  const base = resolveCachePricing(model);
+  // 分档模型的顶层缓存价展示首档（与「输入 · 首阶」口径一致），不能退回倍率默认值。
+  const base = resolveCachePricing(model, model.tokenPricingTiers?.[0]);
   if (!supportsExplicit) {
     return {
       implicitHit: money6(base.implicitHit),

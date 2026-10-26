@@ -703,3 +703,11 @@ for (const [id, expected] of [["wan2.7-image", 0.2], ["wan2.7-image-pro", 0.5]] 
   assert.equal(legacyRoutedProviderId("kimi-k3.1-pro-highspeed"), null);
   assert.equal(isKimiK31Model("kimi-k3.1-pro"), true);
 }
+
+// 分档模型的顶层缓存价必须取首档（qwen3.8-flash 首档 0.1/0.1，而非倍率默认 0.16/0.08）。
+{
+  const flash38 = models.find((model) => model.id === "qwen3.8-flash")!;
+  const first = resolveCachePricing(flash38, flash38.tokenPricingTiers?.[0]);
+  assert.equal(first.implicitHit, 0.1);
+  assert.equal(first.explicitHit, 0.1);
+}
