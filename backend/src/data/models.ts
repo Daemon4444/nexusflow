@@ -204,7 +204,7 @@ const staticModels: AIModel[] = [
     promptPrice: 0.8,
     completionPrice: 2.7,
     tokenPricingTiers: [
-      { label: "0<Token≤1M", maxTokens: 1000000, promptPrice: 0.8, completionPrice: 2.7, cacheReadPrice: 0.16, cacheReadExplicitPrice: 0.08 },
+      { label: "0<Token≤1M", maxTokens: 1000000, promptPrice: 0.8, completionPrice: 2.7, cacheReadPrice: 0.1, cacheReadExplicitPrice: 0.1 },
     ],
     category: "多模态模型",
     tags: ["极速", "低成本", "多模态", "视觉理解", "思考模式", "编程", "百万上下文"],
@@ -305,7 +305,7 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "函数调用", "内置工具", "思考模式"]
+    supported: ["文本", "图像输入", "函数调用", "内置工具", "思考模式"]
   },
   {
     id: "qwen3.5-plus",
@@ -325,7 +325,7 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "函数调用", "思考模式"]
+    supported: ["文本", "图像输入", "函数调用", "思考模式"]
   },
   {
     id: "qwen3.7-flash",
@@ -362,7 +362,7 @@ const staticModels: AIModel[] = [
     tags: ["极速", "低成本", "百万上下文"],
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "函数调用", "思考模式"]
+    supported: ["文本", "图像输入", "函数调用", "思考模式"]
   },
   {
     id: "qwen3.5-flash",
@@ -381,7 +381,7 @@ const staticModels: AIModel[] = [
     tags: ["极速", "低成本", "百万上下文"],
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "函数调用", "思考模式"]
+    supported: ["文本", "图像输入", "函数调用", "思考模式"]
   },
   {
     id: "qwen-plus",
@@ -480,7 +480,7 @@ const staticModels: AIModel[] = [
     tags: ["开源", "MoE", "轻量", "编程", "思考模式"],
     isNew: true,
     maxOutput: 65536,
-    supported: ["文本", "函数调用", "思考模式"]
+    supported: ["文本", "图像输入", "函数调用", "思考模式"]
   },
   {
     id: "qwen3-32b",
@@ -1429,7 +1429,7 @@ const staticModels: AIModel[] = [
     isNew: true,
     maxOutput: 393216,
     defaultOutputReservation: 16384,
-    supported: ["文本", "函数调用", "思考模式", "联网搜索", "上下文缓存"]
+    supported: ["文本", "图像输入", "函数调用", "思考模式", "联网搜索", "上下文缓存"]
   },
   {
     id: "deepseek-v4-pro-0813",
@@ -1730,7 +1730,7 @@ const staticModels: AIModel[] = [
     category: "大语言模型",
     tags: ["长文本", "多轮对话", "中文优化"],
     maxOutput: 98304,
-    supported: ["文本", "函数调用"]
+    supported: ["文本", "图像输入", "函数调用"]
   },
   {
     id: "kimi-k2.6",
@@ -1747,7 +1747,7 @@ const staticModels: AIModel[] = [
     isFeatured: true,
     isNew: true,
     maxOutput: 98304,
-    supported: ["文本", "函数调用"]
+    supported: ["文本", "图像输入", "函数调用"]
   },
   {
     id: "kimi-k3",
