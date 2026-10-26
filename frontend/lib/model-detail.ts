@@ -88,11 +88,23 @@ export interface AIModel {
 }
 
 
+/** 价格统一至少两位小数（¥12.00、¥1.50、¥0.022），表格里小数点才能对齐。 */
+function compactTokens(n: number) {
+  if (n >= 1_000_000) return `${+(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1000) return `${Math.round(n / 1000)}K`;
+  return String(n);
+}
+
+export function formatPrice(value: number) {
+  const decimals = Math.max(2, (String(value).split('.')[1] || '').length);
+  return value.toFixed(decimals);
+}
+
 /** Recommendations are derived from this deployment's catalog, not vendor-wide claims. */
 export function getModelGuidance(model: AIModel) {
   const c = model.capabilities;
   const type = c?.model_type;
-  const evidence = [model.id, model.description, ...(model.tags || [])].join(' ');
+  const evidence = [model.id, ...(model.tags || [])].join(' ');
   const uses: string[] = [];
   const limits: string[] = [];
   if (type === 'embedding') {
@@ -125,15 +137,17 @@ export function getModelGuidance(model: AIModel) {
     if (/翻译|qwen-mt/.test(evidence)) uses.push('翻译产品说明、客服内容与多语言文档，并在提示中提供术语表。');
     else if (/意图|intent-detect/.test(evidence)) uses.push('识别客服请求意图，把咨询分配到订单、退款或技术支持流程。');
     else if (/数学|math/.test(evidence)) uses.push('拆解数学题、核对推导过程，并生成公式与解题说明。');
-    if (/编程|代码|coder|Coding/.test(evidence)) uses.push('结合源码与报错定位问题、修改函数、补充测试或规划重构。');
+    if (model.category === '编程模型' || /编程|代码|coder|code/i.test(evidence)) uses.push('结合源码与报错定位问题、修改函数、补充测试或规划重构。');
     if (c?.supports_vision) uses.push('读取截图、图表与文档页面图片，提取信息或解释视觉内容。');
+    if (c?.supports_audio_output && uses.length < 3) uses.push('语音对话与音频回复：输入文字、图片、音频或视频，直接得到语音输出。');
     if (model.contextLength >= 128000 && uses.length < 3) uses.push('把多份文档的正文放入同一上下文，提取条款、汇总要点并交叉核对。');
     if (!uses.length) uses.push('整理文本、提取业务字段，或结合已有资料生成多轮问答回复。');
     if (c?.supports_tools && uses.length < 3) uses.push('为业务工具生成调用参数，串联查询与多步骤处理流程。');
     const modalities = ['文本', ...(c?.supports_vision ? ['图片'] : []), ...(c?.supports_audio_input ? ['音频'] : []), ...(c?.supports_video_input ? ['视频'] : [])];
-    limits.push(`当前接入声明支持${modalities.join('、')}输入。PDF、Word、Excel 等文件建议先提取正文${c?.supports_vision ? '，扫描件可转为页面图片' : ''}；未确认直接文件上传能力。`);
-    limits.push(c?.supports_tools ? '支持工具调用；工具由你的应用执行，模型本身不会替你运行代码或操作业务系统。' : '当前接入未声明工具调用支持。');
-    limits.push(c?.thinking_mode === 'always' ? '思考始终开启，不能关闭；输出预算需包含思考 Token。' : c?.thinking_mode === 'mixed' ? `思考模式可切换${c.thinking_default == null ? '' : `，默认${c.thinking_default ? '开启' : '关闭'}`}；开启后输出预算需包含思考 Token。` : '当前接入未声明可切换的思考模式。');
+    if (model.contextLength > 0) limits.push(`上下文窗口 ${compactTokens(model.contextLength)} Token${model.maxOutput > 0 ? `，单次最长输出 ${compactTokens(model.maxOutput)} Token` : ''}。`);
+    limits.push(`输入支持${modalities.join('、')}${c?.supports_audio_output ? '，可输出音频' : ''}。PDF、Word、Excel 请先提取正文${c?.supports_vision ? '，扫描件转为页面图片' : ''}；暂不支持直接上传文件。`);
+    limits.push(c?.supports_tools ? '支持工具调用；工具由你的应用执行，模型不会自行运行代码。' : '不支持工具调用。');
+    limits.push(c?.thinking_mode === 'always' ? '思考始终开启、不能关闭，输出预算包含思考 Token。' : c?.thinking_mode === 'mixed' ? `思考模式可切换${c.thinking_default == null ? '' : `，默认${c.thinking_default ? '开启' : '关闭'}`}；开启后输出预算包含思考 Token。` : '不支持思考模式。');
   }
   if (model.availability && model.availability !== 'available') limits.unshift('当前未开放调用；以下用途仅供选型参考。');
   return { uses: uses.slice(0, 3), limits };
