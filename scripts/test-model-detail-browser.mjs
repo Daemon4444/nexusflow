@@ -15,7 +15,34 @@ function fill(selector, value) {
   browser('press', 'Backspace');
   if (value) browser('type', selector, value);
 }
-const ids = ['qwen3.8-max', 'qwen3.7-plus', 'qwen3-asr-flash', 'kimi-k3.1-pro', 'MiniMax/MiniMax-M3', 'qwen-plus', 'qwen3.5-omni-plus', 'text-embedding-v4', 'qwen3-tts-flash', 'wan2.6-t2v', 'wan2.7-image'];
+const catalog = await (await fetch(`${base}/proxy/api/models`, { signal: AbortSignal.timeout(30000) })).json();
+if (!catalog.success || !Array.isArray(catalog.data) || !catalog.data.length) throw new Error('Full catalog unavailable');
+const ids = catalog.data.map(model => model.id);
+if (new Set(ids).size !== ids.length) throw new Error('Duplicate model IDs in catalog');
+console.log(`Full catalog coverage: ${ids.length} models`);
+function verifyEstimate() {
+  return check(`(async () => {
+    const id = document.querySelector('.nmd-model-id code').textContent;
+    const {data:m} = await (await fetch('/proxy/api/models/' + encodeURIComponent(id))).json();
+    const fields = [...document.querySelectorAll('.nmd-estimator input[role="spinbutton"]')];
+    const unit = m.pricingType && m.pricingType !== 'token';
+    let expected;
+    if (unit) expected = Number(fields[0].value) * (m.pricingTiers?.[0]?.price ?? m.promptPrice) / (m.pricingType === 'per-10k-characters' ? 10000 : 1);
+    else if (m.promptPrice == null || m.completionPrice == null) {
+      if (!document.querySelector('.nmd-estimate-result [role="alert"]')) throw new Error('Missing unpublished estimate state');
+      return 'PASS unpublished estimate';
+    } else {
+      const input = Number(fields[0].value), output = m.capabilities?.model_type === 'embedding' ? 0 : Number(fields[1].value);
+      const tier = m.tokenPricingTiers?.find(t => input <= t.maxTokens) || m.tokenPricingTiers?.at(-1);
+      const thinking = m.capabilities?.thinking_mode === 'always' || m.capabilities?.thinking_default === true;
+      const outputPrice = thinking ? (tier ? m.thinkingPricing?.tiers?.find(t => t.label === tier.label)?.thinkingCompletionPrice ?? tier.thinkingCompletionPrice ?? tier.completionPrice : m.thinkingPricing?.thinkingCompletionPrice ?? m.completionPrice) : tier?.completionPrice ?? m.completionPrice;
+      expected = (input * (tier?.promptPrice ?? m.promptPrice) + output * outputPrice) / 1000000;
+    }
+    const actual = Number(document.querySelector('[data-testid="estimated-cost"]')?.textContent.replace('¥',''));
+    if (!Number.isFinite(actual) || Math.abs(actual - Number(expected.toFixed(6))) > 0.0000001) throw new Error('Estimate mismatch: '+id+' '+actual+' / '+expected);
+    return 'PASS cost estimate: '+id;
+  })()`);
+}
 try {
   for (const id of ids) {
     browser('open', `${base}/models/${id.split('/').map(encodeURIComponent).join('/')}`);
@@ -36,9 +63,15 @@ try {
       for (const tier of model.tokenPricingTiers || []) assert(pricing.includes(tier.label) && pricing.includes('¥' + tier.promptPrice) && pricing.includes('¥' + tier.completionPrice), 'Missing tier');
       for (const key of ['implicitHit','explicitHit','explicitCreation']) if (model.cachePricing?.[key] !== undefined) assert(pricing.includes('¥' + model.cachePricing[key]), 'Missing cache price ' + key);
       assert(!!document.querySelector('.nmd-actions a[href="/keys"]') === (!model.availability || model.availability === 'available'), 'Availability CTA mismatch');
+      assert(document.querySelectorAll('.nmd-guidance li').length >= 2, 'Missing model guidance');
+      assert(document.querySelector('.nmd-estimator'), 'Missing cost estimator');
       assert(!document.querySelector('.nmd-details[open]'), 'Details should start collapsed');
       return 'PASS real catalog: ' + model.id;
     })()`);
+    verifyEstimate();
+    const isUnit = catalog.data.find(model => model.id === id).pricingType;
+    fill('.nmd-estimator input[role="spinbutton"]', isUnit && isUnit !== 'token' ? '2' : '1000');
+    verifyEstimate();
     for (const width of [1440, 1280, 1024, 390, 320]) {
       browser('set', 'viewport', String(width), '900');
       check(`(() => { if (document.documentElement.scrollWidth > innerWidth) throw new Error('Horizontal overflow at ' + innerWidth); return 'PASS width ' + innerWidth; })()`);
@@ -51,7 +84,7 @@ try {
       return 'PASS shared content and price alignment';
     })()`);
     }
-    console.log(`PASS catalog, prices, availability, alignment, 1440/1280/1024/390/320px: ${id}`);
+    console.log(`PASS catalog, guidance, edited estimate, prices, availability, alignment, 1440/1280/1024/390/320px: ${id}`);
   }
   browser('set', 'viewport', '1440', '1000');
   browser('open', `${base}/models/qwen3.8-max`);
