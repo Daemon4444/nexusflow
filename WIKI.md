@@ -608,6 +608,8 @@ override、默认继承账户套餐；`024`/`025` 已在并行企业分支预留
 
 前端已有浅/深主题、中文优先的控制台文案和部分 i18n。控制台页面统一用 `frontend/components/ConsoleUI.tsx`（PageHeader / KpiBand / Panel / Tag / formatConsoleTime）和 `frontend/app/console.css` 的 `nfc-*` 样式；定价页 `pricing/pricing.css`（`pr-*`）、文档 `docs/docs.css`（`dn-*`/`dh-*`）、首页 `app/home.css` 各自独立。视觉约定：一套无衬线字体（Inter + 苹方），数字用 tabular-nums 而非等宽或衬线字体，层级靠字号与留白，只用细分隔线，不加装饰元素；颜色只用于表达状态。`/playground` 永久重定向到 `/docs/quickstart`。2026-10 产品决定公开首页以中文为主。模型详情使用 catch-all 路由承接含斜杠的模型 ID。
 
+模型详情页采用标题与规格摘要、协议切换示例、独立定价栏；请求参数、能力边界和完整阶梯价按需展开。价格、缓存价和可用性继续来自实时目录；未开放模型不显示获取 Key 的调用入口。局部样式在 `frontend/app/(dashboard)/models/[...id]/detail.css`，Ant Design Tabs 跟随站点主题。只读浏览器回归：`node scripts/test-model-detail-browser.mjs http://127.0.0.1:3217`（需启动前端并连接目录 API，依赖 `agent-browser`）；覆盖真实目录价、三种宽度、含斜杠 ID、协议示例切换/语法/匿名 401 和复制反馈，不发起付费请求。
+
 当前主推模型和推荐顺序会随运营调整，不能从历史对话推断。以 `frontend/app/page.tsx`、`frontend/lib/models.ts` 和线上页面为准。
 
 公共站与控制台共用 `Header`。登录入口携带经过站内校验的 `returnTo`；移动文档使用抽屉目录；模型推荐必须遵循运行时可用性，不能推荐或提交暂不可用模型。公告模型显示“即将上线 / 价格待公布”，所有价格组件接受 `null` 且不得用 `|| 0` 转成免费。定价与模型服务端取数统一通过 `BACKEND_URL`，避免非默认端口构建静默生成空目录。

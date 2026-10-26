@@ -1,5 +1,8 @@
 "use client";
 
+import { ConfigProvider, Tabs, theme as antTheme } from "antd";
+import { useTheme } from "@/lib/theme";
+import "./detail.css";
 import DocsCodeBlock from "@/components/DocsCodeBlock";
 import { useEffect, useState } from "react";
 import { fetchAPI } from "@/lib/api";
@@ -101,18 +104,6 @@ interface ProtocolExample {
   code: string;
   note?: string;
 }
-
-const categoryColors: Record<string, string> = {
-  "大语言模型": "#2563eb",
-  "推理模型": "#dc2626",
-  "多模态模型": "#7c3aed",
-  "编程模型": "#0891b2",
-  "图像生成": "#db2777",
-  "视频生成": "#f97316",
-  "向量模型": "#0f766e",
-  "专业模型": "#64748b",
-  "语音模型": "#7c2d12",
-};
 
 function getProtocolExamples(model: AIModel): ProtocolExample[] {
   const protocols = model.supportedProtocols || model.supported_protocols || [];
@@ -374,6 +365,7 @@ asyncio.run(main())`,
 
 export default function ModelDetailPage() {
   const params = useParams();
+  const { theme } = useTheme();
   const [model, setModel] = useState<AIModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -429,7 +421,6 @@ export default function ModelDetailPage() {
     );
   }
 
-  const accent = categoryColors[model.category] || "#111";
   const pricingType = model.pricingType || "token";
   const isUnitPriced = pricingType !== "token";
   const isAvailable = !model.availability || model.availability === "available";
@@ -452,379 +443,100 @@ export default function ModelDetailPage() {
         ? "万字符"
         : "百万 Token";
   const unitPrice = model.pricingTiers?.[0]?.price ?? model.promptPrice;
-  const summaryItems = pricingPending
-    ? [
-        ["上下文", formatTokens(model.contextLength)],
-        ["最大输出", formatTokens(model.maxOutput)],
-        ["价格", "待官方公布"],
-        ["可用状态", availabilityLabel],
-      ]
-    : isUnitPriced
-    ? [
-        ["计费方式", `按${pricingUnit}`],
-        ["可用状态", availabilityLabel],
-        ["起步价格", `¥${unitPrice}/${pricingUnit}`],
-        ["价格规格", model.pricingTiers?.length ? `${model.pricingTiers.length} 档` : "统一单价"],
-      ]
-    : [
-        ["上下文", formatTokens(model.contextLength)],
-        ["最大输出", formatTokens(model.maxOutput)],
-        ["首阶输入", `¥${model.promptPrice}/M`],
-        ["首阶输出", `¥${model.completionPrice}/M`],
-      ];
-  const protocols = model.supportedProtocols || model.supported_protocols || [];
   const protocolExamples = getProtocolExamples(model);
   const capabilityRows = model.capabilities ? [
     ["类型", model.capabilities.model_type],
-    ["思考模式", model.capabilities.thinking_mode === "mixed" ? `可开关${model.capabilities.thinking_default === null ? "" : `，默认${model.capabilities.thinking_default ? "开启" : "关闭"}`}` : model.capabilities.thinking_mode === "always" ? "仅思考，不能关闭" : "无"],
+    ["思考模式", model.capabilities.thinking_mode === "mixed" ? `可开关${model.capabilities.thinking_default === null ? "" : `，默认${model.capabilities.thinking_default ? "开启" : "关闭"}`}` : model.capabilities.thinking_mode === "always" ? "仅思考，不能关闭" : model.capabilities.thinking_mode === "unknown" ? "未声明" : "无"],
     ["工具调用", model.capabilities.supports_tools ? "支持" : "未声明"],
     ["视觉输入", model.capabilities.supports_vision ? "支持" : "未声明"],
     ["视频输入", model.capabilities.supports_video_input ? "支持" : "未声明"],
     ["音频输入", model.capabilities.supports_audio_input ? "支持" : "未声明"],
-    ["thinking_budget", model.capabilities.supports_thinking_budget ? "支持，public chat 已透传" : "未声明"],
-    ["preserve_thinking", model.capabilities.supports_preserve_thinking ? "支持，public chat 已透传" : "未声明"],
+    ["thinking_budget", model.capabilities.supports_thinking_budget ? "支持" : "未声明"],
+    ["preserve_thinking", model.capabilities.supports_preserve_thinking ? "支持" : "未声明"],
     ["搜索参数", model.capabilities.supports_search ? "支持" : "当前未开放"],
   ] : [];
 
+  const description = model.id === "qwen3.8-max"
+    ? "通义千问旗舰模型，支持视觉理解、工具调用与可切换的思考模式，适用于编程、文档分析及智能体任务。"
+    : model.description;
+  const price = (value: number | null | undefined) => value == null ? "待公布" : `¥${value}`;
+
   return (
-    <div style={{ padding: "32px 44px", fontFamily: "var(--font-sans)" }}>
-      <div style={{ marginBottom: 28 }}>
-        <Link href="/models" style={{ fontSize: 13, color: "var(--text-tertiary)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-          返回模型列表
-        </Link>
-      </div>
-
-      <div className="card-static" style={{ marginBottom: 24 }}>
-
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-          <div>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>{model.name}</h1>
-              {model.isNew && <span className="tag tag-new">NEW</span>}
-              {model.isFeatured && <span className="tag tag-featured">HOT</span>}
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>{model.provider}</span>
-              <span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--text-tertiary)" }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: accent, background: `${accent}15`, padding: "3px 10px", borderRadius: 6 }}>{model.category}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: isAvailable ? "var(--success)" : "var(--warning)", background: isAvailable ? "var(--success-bg)" : "var(--warning-bg)", border: `1px solid ${isAvailable ? "var(--success-border)" : "var(--warning-border)"}`, padding: "3px 9px", borderRadius: 999 }}>{availabilityLabel}</span>
-            </div>
-          </div>
-          <code style={{ maxWidth: "100%", overflowWrap: "anywhere", fontSize: 13, color: "var(--text-tertiary)", background: "var(--bg-elevated)", padding: "6px 12px", borderRadius: 8, border: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>
-            {model.id}
-          </code>
+    <article className="nmd">
+      <nav className="nmd-breadcrumb" aria-label="面包屑">
+        <Link href="/models">模型目录</Link><span aria-hidden="true">/</span><span>{model.name}</span>
+      </nav>
+      <header className="nmd-hero">
+        <div className="nmd-identity">
+          <div className="nmd-eyebrow"><span>{model.provider}</span><span>{model.category}</span></div>
+          <h1>{model.name}</h1>
+          <div className="nmd-model-id"><span>模型 ID</span><code>{model.id}</code></div>
+          <p className="nmd-description">{description.length > 160 ? `${description.slice(0, 160)}…` : description}</p>
+          {(description.length > 160 || description !== model.description) && <details className="nmd-description-more"><summary>完整模型介绍</summary><p>{model.description}</p></details>}
         </div>
-
-        <p style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.7, marginBottom: 16 }}>
-          {model.description}
-        </p>
-
-        {model.tags.length > 0 && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-            {model.tags.map((tag) => (
-              <span key={tag} style={{ padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 500, color: "var(--text-tertiary)", background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="model-detail-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 16, padding: "16px 0", borderTop: "1px solid var(--border)" }}>
-          {summaryItems.map(([label, value]) => (
-            <div key={label}>
-              <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>{label}</div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>{value}</div>
-            </div>
-          ))}
+        <div className="nmd-actions">
+          <span className={`nmd-status ${isAvailable ? "is-available" : "is-unavailable"}`}><i aria-hidden="true" />{availabilityLabel}</span>
+          {isAvailable ? <Link href="/keys" className="btn-primary">获取 API Key <span aria-hidden="true">↗</span></Link> : <span className="nmd-unavailable">当前未开放调用</span>}
+          <Link href="/docs/quickstart" className="nmd-doc-link">阅读接入文档 →</Link>
         </div>
-        {isUnitPriced && model.pricingTiers && model.pricingTiers.length > 0 && (
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>规格定价</div>
-            <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-              {model.pricingTiers.map((tier, index) => (
-                <div key={tier.label} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "10px 12px", borderBottom: index < model.pricingTiers!.length - 1 ? "1px solid var(--border)" : "none", fontSize: 13 }}>
-                  <span style={{ fontWeight: 500 }}>{tier.label}</span>
-                  <strong>¥{tier.price}/{pricingUnit}</strong>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {model.alternatePricingModes && model.alternatePricingModes.length > 0 && (
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
-              其它官方定价模式
-            </div>
-            <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-              {model.alternatePricingModes.map((mode, index) => (
-                <div key={mode.id} style={{ padding: "12px 14px", borderBottom: index < model.alternatePricingModes!.length - 1 ? "1px solid var(--border)" : "none" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center", fontSize: 13 }}>
-                    <strong>{mode.label}</strong>
-                    <span>输入 ¥{mode.promptPrice}/M · 输出 ¥{mode.completionPrice}/M</span>
-                    <span style={{ color: mode.availability === "available" ? "var(--success)" : "var(--warning, #d97706)", fontWeight: 600 }}>
-                      {mode.availability === "available" ? "可用" : "官方已公布，暂未开放"}
-                    </span>
-                  </div>
-                  {mode.note && <div style={{ marginTop: 7, color: "var(--text-tertiary)", fontSize: 12, lineHeight: 1.6 }}>{mode.note}</div>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {model.thinkingPricing && (
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
-              思考模式输出价
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶非思考输出</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.thinkingPricing.completionPrice}/M</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>首阶思考输出</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--warning, #d97706)" }}>¥{model.thinkingPricing.thinkingCompletionPrice}/M</div>
-              </div>
-            </div>
-            {model.thinkingPricing.tiers && model.thinkingPricing.tiers.length > 0 && (
-              <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", marginTop: 10 }}>
-                {model.thinkingPricing.tiers.map((tier, idx) => (
-                  <div key={tier.label} style={{
-                    display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr", gap: 12, padding: "10px 12px",
-                    borderBottom: idx < model.thinkingPricing!.tiers!.length - 1 ? "1px solid var(--border)" : "none",
-                    fontSize: 13,
-                  }}>
-                    <span style={{ fontWeight: 500 }}>{tier.label}</span>
-                    <span style={{ textAlign: "right" }}>非思考 ¥{tier.completionPrice}/M</span>
-                    <span style={{ textAlign: "right" }}>思考 ¥{tier.thinkingCompletionPrice}/M</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
-              开启思考模式时，思维链与回答的全部输出 token 按思考价计费。
-            </div>
-          </div>
-        )}
-        {model.cachePricing && (
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
-              上下文缓存价
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: model.cachePricing.explicitHit !== undefined ? "repeat(3, 1fr)" : "repeat(1, 1fr)", gap: 16 }}>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>隐式缓存命中</div>
-                <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.cachePricing.implicitHit}/M</div>
-              </div>
-              {model.cachePricing.explicitHit !== undefined && (
-                <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>显式缓存命中</div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.cachePricing.explicitHit}/M</div>
-                </div>
-              )}
-              {model.cachePricing.explicitCreation !== undefined && (
-                <div>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase" }}>显式缓存创建</div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>¥{model.cachePricing.explicitCreation}/M</div>
-                </div>
-              )}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 8 }}>
-              {model.cachePricing.explicitHit !== undefined
-                ? "缓存命中的输入 token 按上述单价计费，未命中部分按输入价计费。"
-                : "该模型自动应用隐式缓存，命中部分按上述单价计费，无需也不支持显式缓存开关。"}
-            </div>
-          </div>
-        )}
-        {model.tokenPricingTiers && model.tokenPricingTiers.length > 0 && (
-          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 10 }}>
-              阶梯定价
-            </div>
-            <div style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-              {model.tokenPricingTiers.map((tier, idx) => {
-                const tierCache = model.cachePricing?.tiers?.find((entry) => entry.label === tier.label);
-                return (
-                  <div key={tier.label} style={{
-                    display: "grid",
-                    gridTemplateColumns: tierCache
-                      ? (tierCache.explicitHit !== undefined ? "1.4fr 1fr 1fr 1fr 1fr" : "1.4fr 1fr 1fr 1fr")
-                      : "1.4fr 1fr 1fr",
-                    gap: 12,
-                    padding: "10px 12px",
-                    borderBottom: idx < model.tokenPricingTiers!.length - 1 ? "1px solid var(--border)" : "none",
-                    fontSize: 13,
-                  }}>
-                    <span style={{ fontWeight: 500 }}>{tier.label}</span>
-                    <span style={{ textAlign: "right" }}>输入 ¥{tier.promptPrice}/M</span>
-                    <span style={{ textAlign: "right" }}>输出 ¥{tier.completionPrice}/M</span>
-                    {tierCache && (
-                      <>
-                        <span style={{ textAlign: "right", color: "var(--text-secondary)" }}>隐式缓存 ¥{tierCache.implicitHit}/M</span>
-                        {tierCache.explicitHit !== undefined && (
-                          <span style={{ textAlign: "right", color: "var(--text-secondary)" }}>显式缓存 ¥{tierCache.explicitHit}/M</span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="card-static" style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          支持的功能
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {model.supported.map((s) => (
-            <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "var(--nf-wash)", color: "var(--nf-ink)", border: "1px solid var(--nf-line)" }}>
-              <svg style={{ color: "var(--nfc-accent-ink)" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
-              {s}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {protocols.length > 0 && (
-        <div className="card-static" style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            支持协议
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {protocols.map((protocol) => (
-              <span
-                key={protocol}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: "rgba(29,78,216,0.08)",
-                  color: "#1d4ed8",
-                  border: "1px solid rgba(29,78,216,0.16)",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                {protocol}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(capabilityRows.length > 0 || (model.allowed_parameters?.length || 0) > 0) && (
-        <div className="card-static" style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            能力与参数边界
-          </div>
-          {capabilityRows.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
-              {capabilityRows.map(([label, value]) => (
-                <div key={label} style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-                  <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 13, color: "var(--text-primary)", fontWeight: 600 }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          {(model.allowed_parameters?.length || 0) > 0 && (
-            <div>
-              <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginBottom: 8 }}>
-                当前 NexusFlow public chat 入口会透传的参数：
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {model.allowed_parameters!.map((param) => (
-                  <span key={param} style={{ padding: "4px 10px", borderRadius: 999, fontSize: 12, fontWeight: 500, background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-                    {param}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="card-static" style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          API 调用示例
-        </div>
-
-        <div style={{ display: "grid", gap: 18 }}>
-          {protocolExamples.map((example) => (
-            <div key={example.id} style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--bg-subtle)" }}>
-              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border)", background: "rgba(255,255,255,0.5)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>
-                      {example.label}
-                    </div>
-                    <code style={{ fontSize: 12, color: "var(--text-tertiary)", fontFamily: "var(--font-mono)" }}>
-                      {example.endpoint}
-                    </code>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {example.params.map((param) => (
-                    <span
-                      key={param}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: 999,
-                        fontSize: 12,
-                        fontWeight: 500,
-                        background: "var(--bg-elevated)",
-                        border: "1px solid var(--border)",
-                        color: "var(--text-secondary)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      {param}
-                    </span>
-                  ))}
-                </div>
-
-                {example.note && (
-                  <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.6, color: "var(--text-secondary)" }}>
-                    {example.note}
-                  </div>
-                )}
-              </div>
-
-              <div className="code-block">
-                <div className="code-block-header">
-                  <div className="landing-code-dots"><span /><span /><span /></div>
-                  <span style={{ marginLeft: 12, fontSize: 12, color: "#666" }}>
-                    {example.filename}
-                  </span>
-                </div>
+      </header>
+      {!isAvailable && <p className="nmd-notice" role="status">{availabilityDescription}</p>}
+      <dl className="nmd-specs">
+        {model.contextLength > 0 && <div><dt>上下文窗口</dt><dd title={`${model.contextLength.toLocaleString()} tokens`}>{formatTokens(model.contextLength)}<small>tokens</small></dd></div>}
+        {model.maxOutput > 0 && <div><dt>最大输出</dt><dd title={`${model.maxOutput.toLocaleString()} tokens`}>{formatTokens(model.maxOutput)}<small>tokens</small></dd></div>}
+        <div><dt>计费方式</dt><dd className="nmd-spec-text">按{pricingUnit}</dd></div>
+        <div><dt>接入方式</dt><dd className="nmd-spec-text">{protocolExamples.length ? `${protocolExamples.length} 种 API 协议` : "暂无接入示例"}</dd></div>
+      </dl>
+      <div className="nmd-columns">
+        <div className="nmd-main">
+          <section className="nmd-section" aria-labelledby="nmd-integration">
+            <div className="nmd-section-heading"><h2 id="nmd-integration">API 接入</h2><span>使用你的 NexusFlow API Key</span></div>
+            {protocolExamples.length ? <ConfigProvider theme={{ algorithm: theme === "dark" ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm, token: { fontFamily: "var(--font-sans)", colorPrimary: theme === "dark" ? "#e5e7eb" : "#171717" } }}><Tabs key={model.id} className="nmd-protocols" items={protocolExamples.map(example => ({
+              key: example.id,
+              label: example.label.replace("OpenAI Chat Completions", "Chat Completions").replace("Anthropic Messages", "Messages").replace("OpenAI Responses", "Responses"),
+              children: <div>
+                <div className="nmd-endpoint"><span>{example.endpoint.startsWith("wss:") ? "WSS" : "POST"}</span><code>{example.endpoint}</code></div>
                 <DocsCodeBlock code={example.code} />
-              </div>
-            </div>
-          ))}
+                {example.note && <p className="nmd-note">{example.note}</p>}
+                <details className="nmd-details"><summary>支持的请求参数 <span>{example.params.length}</span></summary><div className="nmd-parameters">{example.params.map(param => <code key={param}>{param}</code>)}</div></details>
+              </div>,
+            }))} /></ConfigProvider> : <p className="nmd-note">该模型暂未提供接入示例，请查阅文档。</p>}
+          </section>
+          <section className="nmd-section" aria-labelledby="nmd-capabilities">
+            <h2 id="nmd-capabilities">模型能力</h2>
+            <ul className="nmd-capabilities">{model.supported.map(item => <li key={item}><span aria-hidden="true">✓</span>{item}</li>)}</ul>
+            {capabilityRows.length > 0 && <details className="nmd-details"><summary>能力与参数边界</summary><dl className="nmd-capability-rows">{capabilityRows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></details>}
+          </section>
         </div>
+        <aside className="nmd-pricing" aria-labelledby="nmd-pricing-title">
+          <div className="nmd-section-heading"><h2 id="nmd-pricing-title">定价</h2><span>人民币 / {pricingUnit}</span></div>
+          {pricingPending ? <p className="nmd-price-pending">价格待公布</p> : isUnitPriced ? <div className="nmd-price-row"><span>起步价格</span><strong>{price(unitPrice)}</strong></div> : <>
+            <div className="nmd-price-row"><span>{model.tokenPricingTiers?.length ? "输入 · 首阶" : "输入"}</span><strong>{price(model.promptPrice)}</strong></div>
+            <div className="nmd-price-row"><span>{model.tokenPricingTiers?.length ? "输出 · 首阶" : "输出"}</span><strong>{price(model.completionPrice)}</strong></div>
+          </>}
+          <p className="nmd-note">{pricingPending ? "价格公布后开放计费。" : "按实际用量计费。账户专属折扣以账单为准。"}</p>
+          {isUnitPriced && !!model.pricingTiers?.length && <div className="nmd-price-group"><h3>规格定价</h3>{model.pricingTiers.map(tier => <div className="nmd-price-line" key={tier.label}><span>{tier.label}</span><strong>{price(tier.price)}</strong></div>)}</div>}
+          {model.cachePricing && <div className="nmd-price-group"><h3>上下文缓存</h3>
+            <div className="nmd-price-line"><span>隐式缓存命中</span><strong>{price(model.cachePricing.implicitHit)}</strong></div>
+            {model.cachePricing.explicitHit !== undefined && <div className="nmd-price-line"><span>显式缓存命中</span><strong>{price(model.cachePricing.explicitHit)}</strong></div>}
+            {model.cachePricing.explicitCreation !== undefined && <div className="nmd-price-line"><span>显式缓存创建</span><strong>{price(model.cachePricing.explicitCreation)}</strong></div>}
+            <p className="nmd-note">{model.cachePricing.explicitHit !== undefined ? "缓存命中部分按缓存价计费，未命中部分按输入价计费。" : "自动应用隐式缓存，无需设置显式缓存开关。"}</p>
+          </div>}
+          {!!model.tokenPricingTiers?.length && <details className="nmd-details"><summary>完整阶梯价格 <span>{model.tokenPricingTiers.length} 档</span></summary>
+            {model.tokenPricingTiers.map(tier => {
+              const cache = model.cachePricing?.tiers?.find(item => item.label === tier.label);
+              return <div className="nmd-tier" key={tier.label}><h3>{tier.label}</h3><div className="nmd-price-line"><span>输入 / 输出</span><strong>{price(tier.promptPrice)} / {price(tier.completionPrice)}</strong></div>{cache && <><div className="nmd-price-line"><span>隐式缓存命中</span><strong>{price(cache.implicitHit)}</strong></div>{cache.explicitHit !== undefined && <div className="nmd-price-line"><span>显式缓存命中</span><strong>{price(cache.explicitHit)}</strong></div>}{cache.explicitCreation !== undefined && <div className="nmd-price-line"><span>显式缓存创建</span><strong>{price(cache.explicitCreation)}</strong></div>}</>}</div>;
+            })}
+          </details>}
+          {model.thinkingPricing && <div className="nmd-price-group"><h3>思考模式输出价</h3>
+            <div className="nmd-price-line"><span>首阶非思考 / 思考</span><strong>{price(model.thinkingPricing.completionPrice)} / {price(model.thinkingPricing.thinkingCompletionPrice)}</strong></div>
+            <p className="nmd-note">开启思考时，思维链与回答的全部输出 token 按思考价计费。</p>
+            {!!model.thinkingPricing.tiers?.length && <details className="nmd-details"><summary>查看思考模式阶梯</summary>{model.thinkingPricing.tiers.map(tier => <div className="nmd-tier" key={tier.label}><h3>{tier.label}</h3><div className="nmd-price-line"><span>非思考 / 思考</span><strong>{price(tier.completionPrice)} / {price(tier.thinkingCompletionPrice)}</strong></div></div>)}</details>}
+          </div>}
+          {!!model.alternatePricingModes?.length && <details className="nmd-details"><summary>其它定价模式</summary>{model.alternatePricingModes.map(mode => <div className="nmd-tier" key={mode.id}><h3>{mode.label}</h3><div className="nmd-price-line"><span>输入 / 输出</span><strong>{price(mode.promptPrice)} / {price(mode.completionPrice)}</strong></div><p className="nmd-note">{mode.availability === "available" ? "可用" : "官方已公布，暂未开放"}{mode.note ? `。${mode.note}` : ""}</p></div>)}</details>}
+          <Link href="/pricing" className="nmd-pricing-link">查看全部模型定价 <span aria-hidden="true">↗</span></Link>
+        </aside>
       </div>
-
-      <div className="card-static">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)", marginBottom: 4 }}>{isAvailable ? "通过 API 调用" : availabilityLabel}</div>
-            <div style={{ fontSize: 13, color: "var(--text-tertiary)" }}>{isAvailable ? "用控制台创建的 API Key 按上方示例调用，按实际用量计费。" : availabilityDescription}</div>
-          </div>
-          {isAvailable ? (
-            <Link href="/keys" className="btn-primary" style={{ padding: "10px 20px" }}>
-              获取 API Key
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-            </Link>
-          ) : !isAvailable ? (
-            <span className="btn-secondary" aria-disabled="true" style={{ padding: "10px 20px", cursor: "not-allowed", opacity: 0.7 }}>暂不可用</span>
-          ) : null}
-        </div>
-      </div>
-    </div>
+    </article>
   );
 }
