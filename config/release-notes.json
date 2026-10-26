@@ -447,6 +447,16 @@
         "客户端中途断开(client_closed)现在会按已产出部分结算预占,对账从“结算数=成功数”改为“结算数=计费调用数”",
         "此前这类调用会让 report 误报不闭合"
       ]
+    },
+    "subject:feat: align model detail layout with OpenRouter reference": {
+      "type": "improve",
+      "audience": "customer",
+      "title": "模型详情页重新设计",
+      "points": [
+        "全部模型统一采用紧凑详情页：首屏展示价格、上下文和输出规格，分区浏览服务、定价、能力和 API。",
+        "支持复制模型 ID、切换协议示例，完整阶梯价与参数按需展开。",
+        "优化手机端吸顶导航、横向表格与深色模式；价格、计费与模型路由规则不变。"
+      ]
     }
   }
 }
