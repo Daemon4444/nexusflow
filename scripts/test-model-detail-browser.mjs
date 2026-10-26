@@ -9,7 +9,13 @@ function browser(...args) {
   return execFileSync('agent-browser', ['--session', session, ...args], { encoding: 'utf8', timeout: 60000 });
 }
 function check(code) { return browser('eval', code); }
-const ids = ['qwen3.8-max', 'qwen3.7-plus', 'qwen3-asr-flash', 'kimi-k3.1-pro', 'MiniMax/MiniMax-M3'];
+function fill(selector, value) {
+  // CDP's select-all shortcut is platform-dependent; select the DOM text, then type real keys.
+  check(`document.querySelector(${JSON.stringify(selector)}).select()`);
+  browser('press', 'Backspace');
+  if (value) browser('type', selector, value);
+}
+const ids = ['qwen3.8-max', 'qwen3.7-plus', 'qwen3-asr-flash', 'kimi-k3.1-pro', 'MiniMax/MiniMax-M3', 'qwen-plus', 'qwen3.5-omni-plus', 'text-embedding-v4', 'qwen3-tts-flash', 'wan2.6-t2v', 'wan2.7-image'];
 try {
   for (const id of ids) {
     browser('open', `${base}/models/${id.split('/').map(encodeURIComponent).join('/')}`);
@@ -33,15 +39,36 @@ try {
       assert(!document.querySelector('.nmd-details[open]'), 'Details should start collapsed');
       return 'PASS real catalog: ' + model.id;
     })()`);
-    for (const width of [1440, 390, 320]) {
+    for (const width of [1440, 1280, 1024, 390, 320]) {
       browser('set', 'viewport', String(width), '900');
       check(`(() => { if (document.documentElement.scrollWidth > innerWidth) throw new Error('Horizontal overflow at ' + innerWidth); return 'PASS width ' + innerWidth; })()`);
+    check(`(() => {
+      const rect = selector => document.querySelector(selector).getBoundingClientRect();
+      const close = (a,b) => Math.abs(a-b) <= 1;
+      if (!close(rect('.nmd-specs').right, rect('.nmd-content').right)) throw new Error('Summary/content right edges differ');
+      const prices = [...document.querySelectorAll('.nmd-price-row strong, .nmd-cache-grid strong')];
+      if (prices.some(e => !close(e.getBoundingClientRect().right, rect('.nmd-pricing').right))) throw new Error('Price amounts do not share an axis');
+      return 'PASS shared content and price alignment';
+    })()`);
     }
-    console.log(`PASS catalog, prices, availability, collapsed details, 1440/390/320px: ${id}`);
+    console.log(`PASS catalog, prices, availability, alignment, 1440/1280/1024/390/320px: ${id}`);
   }
   browser('set', 'viewport', '1440', '1000');
   browser('open', `${base}/models/qwen3.8-max`);
   browser('wait', '--fn', '!!document.querySelector(".nmd-pricing")');
+  fill('[aria-label="总输入 Token"]', '10000');
+  fill('[aria-label="总输出 Token（含思考）"]', '1000');
+  browser('wait', '--fn', `document.querySelector('[data-testid="estimated-cost"]').textContent === '¥0.156'`);
+  browser('click', '.nmd-estimator summary');
+  fill('[aria-label="输入中缓存命中 Token"]', '8000');
+  browser('wait', '--fn', `document.querySelector('[data-testid="estimated-cost"]').textContent === '¥0.072'`);
+  fill('[aria-label="输入中缓存命中 Token"]', '10001');
+  browser('wait', '--text', '缓存命中与创建 Token 合计不能超过非音频输入。');
+  fill('[aria-label="输入中缓存命中 Token"]', '0');
+  fill('[aria-label="总输入 Token"]', '');
+  browser('wait', '--text', '请填写用量后查看估算。');
+  fill('[aria-label="总输入 Token"]', '10000');
+  console.log('PASS live estimator edits: ¥0.156 normal / ¥0.072 cached; over-cache and empty rejection');
   for (const [label, endpoint] of [['Messages', '/v1/messages'], ['Responses', '/v1/responses'], ['Chat Completions', '/v1/chat/completions']]) {
     browser('find', 'role', 'tab', 'click', '--name', label, '--exact');
     browser('wait', '--fn', `document.querySelector('[role="tabpanel"]:not([aria-hidden="true"]) .nmd-endpoint code')?.textContent === ${JSON.stringify(endpoint)}`);
