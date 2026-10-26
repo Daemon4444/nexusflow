@@ -42,6 +42,7 @@ function harness(relativePath, { exports = [], fetchAPI = async () => ({ success
     'next/navigation': { useParams: () => params },
     '@/lib/api': { fetchAPI },
     '@/lib/auth': { useAuth: () => ({ user }), authHeaders: () => ({}) },
+    '@/lib/theme': { useTheme: () => ({ theme: 'light' }) },
     '@/lib/i18n': { useI18n: () => ({ t: key => key }) },
   };
   function load(relative, extra = []) {
@@ -49,7 +50,7 @@ function harness(relativePath, { exports = [], fetchAPI = async () => ({ success
     const code = ts.transpileModule(source, { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
     const compiledModule = { exports: {} };
     const localRequire = id => mocks[id] || (id === '@/lib/models' ? load('lib/models.ts') : id === '@/lib/money' ? load('lib/money.ts') : id === '@/lib/firstRun' ? load('lib/firstRun.ts') : id === '@/lib/codeExamples' ? load('lib/codeExamples.ts') : id === '@/components/ConsoleUI' ? load('components/ConsoleUI.tsx') : new Proxy({}, { get: (_, name) => `${id}/${String(name)}` }));
-    vm.runInNewContext(code, { module: compiledModule, exports: compiledModule.exports, require: localRequire, AbortController, URLSearchParams, Date, console, window: {}, navigator: {}, localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }, setTimeout }, { filename: relative });
+    vm.runInNewContext(code, { module: compiledModule, exports: compiledModule.exports, require: localRequire, AbortController, URLSearchParams, Date, console, IntersectionObserver: class { observe() {} disconnect() {} }, document: { querySelectorAll: () => [] }, window: {}, navigator: {}, localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }, setTimeout }, { filename: relative });
     return compiledModule.exports;
   }
   const mod = load(relativePath, exports);
