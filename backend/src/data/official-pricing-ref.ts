@@ -39,7 +39,11 @@ export const REF: Record<string, Ref> = {
   "claude-opus-4-8": { ctx: 1000000, maxOut: 128000, in: 34, out: 170, cache: 3.4, read: 3.4 },
   "claude-opus-5": { ctx: 1000000, maxOut: 128000, in: 34, out: 170, cache: 3.4, read: 3.4 },
   "qwen3.8-max": { ctx: 1000000, maxOut: 131072, in: 12, out: 36, cache: 1.5, create: 15, read: 1 },
-  "qwen3.8-flash": { ctx: 1000000, maxOut: 131072, in: 0.8, out: 2.7, cache: 0.16, read: 0.08 },
+  "qwen3.8-flash": {
+    ctx: 1000000, maxOut: 131072,
+    // 百炼控制台 2026-10-26：显式缓存创建官方 1.25（我方按 输入价×1.25=1.0，schema 暂无单独创建价字段）
+    tiers: [{ max: 1000000, in: 0.8, out: 2.7, cache: 0.1, read: 0.1 }],
+  },
   "qwen3.7-max": { ctx: 1000000, maxOut: 131072, in: 12, out: 36, cache: 2.4, create: 15, read: 1.2 },
   "qwen3.7-plus": {
     ctx: 1000000, maxOut: 131072,
