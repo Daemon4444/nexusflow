@@ -292,7 +292,7 @@ test('detail estimate handles media units, audio modalities and zero prices', ()
 test('detail guidance respects deployed modality, thinking and task types', () => {
   const { getModelGuidance } = harness('lib/model-detail.ts').mod;
   const plain=model('plain',{description:'文本模型',tags:[],capabilities:{model_type:'chat',supports_tools:false,supports_vision:false,thinking_mode:'always'}});
-  assert.match(getModelGuidance(plain).limits.join(' '),/未声明工具调用/);
+  assert.match(getModelGuidance(plain).limits.join(' '),/不支持工具调用/);
   assert.match(getModelGuidance(plain).limits.join(' '),/不能关闭/);
   assert.ok(!getModelGuidance(plain).uses.join(' ').includes('截图'));
   assert.match(getModelGuidance({...plain,capabilities:{model_type:'embedding'}}).uses.join(' '),/向量/);

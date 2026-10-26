@@ -27,12 +27,12 @@ function verifyEstimate() {
     const fields = [...document.querySelectorAll('.nmd-estimator input[role="spinbutton"]')];
     const unit = m.pricingType && m.pricingType !== 'token';
     let expected;
-    if (unit) expected = Number(fields[0].value) * (m.pricingTiers?.[0]?.price ?? m.promptPrice) / (m.pricingType === 'per-10k-characters' ? 10000 : 1);
+    if (unit) expected = Number(fields[0].value.replaceAll(',', '')) * (m.pricingTiers?.[0]?.price ?? m.promptPrice) / (m.pricingType === 'per-10k-characters' ? 10000 : 1);
     else if (m.promptPrice == null || m.completionPrice == null) {
       if (!document.querySelector('.nmd-estimate-result [role="alert"]')) throw new Error('Missing unpublished estimate state');
       return 'PASS unpublished estimate';
     } else {
-      const input = Number(fields[0].value), output = m.capabilities?.model_type === 'embedding' ? 0 : Number(fields[1].value);
+      const input = Number(fields[0].value.replaceAll(',', '')), output = m.capabilities?.model_type === 'embedding' ? 0 : Number(fields[1].value.replaceAll(',', ''));
       const tier = m.tokenPricingTiers?.find(t => input <= t.maxTokens) || m.tokenPricingTiers?.at(-1);
       const thinking = m.capabilities?.thinking_mode === 'always' || m.capabilities?.thinking_default === true;
       const outputPrice = thinking ? (tier ? m.thinkingPricing?.tiers?.find(t => t.label === tier.label)?.thinkingCompletionPrice ?? tier.thinkingCompletionPrice ?? tier.completionPrice : m.thinkingPricing?.thinkingCompletionPrice ?? m.completionPrice) : tier?.completionPrice ?? m.completionPrice;
@@ -50,6 +50,7 @@ try {
     check(`(async () => {
       const { data: model, success } = await (await fetch('/proxy/api/models/' + encodeURIComponent(${JSON.stringify(id)}))).json();
       const assert = (value, message) => { if (!value) throw new Error(message); };
+      const fmt = v => '¥' + v.toFixed(Math.max(2, (String(v).split('.')[1] || '').length));
       assert(success, 'Catalog unavailable');
       assert(document.querySelector('h1').firstChild.textContent === model.name, 'Model identity mismatch');
       const pricing = document.querySelector('.nmd-pricing').textContent;
@@ -57,11 +58,11 @@ try {
         if (model.promptPrice === null || model.completionPrice === null) assert(pricing.includes('价格待公布'), 'Missing unpublished price state');
         else {
           const values = [...document.querySelectorAll('.nmd-price-row strong')].map(e => e.textContent);
-          assert(values[0] === '¥' + model.promptPrice && values[1] === '¥' + model.completionPrice, 'Input/output price mismatch');
+          assert(values[0] === fmt(model.promptPrice) && values[1] === fmt(model.completionPrice), 'Input/output price mismatch');
         }
-      } else assert(pricing.includes('¥' + (model.pricingTiers?.[0]?.price ?? model.promptPrice)), 'Unit price mismatch');
-      for (const tier of model.tokenPricingTiers || []) assert(pricing.includes(tier.label) && pricing.includes('¥' + tier.promptPrice) && pricing.includes('¥' + tier.completionPrice), 'Missing tier');
-      for (const key of ['implicitHit','explicitHit','explicitCreation']) if (model.cachePricing?.[key] !== undefined) assert(pricing.includes('¥' + model.cachePricing[key]), 'Missing cache price ' + key);
+      } else assert(pricing.includes(fmt(model.pricingTiers?.[0]?.price ?? model.promptPrice)), 'Unit price mismatch');
+      for (const tier of model.tokenPricingTiers || []) assert(pricing.includes(tier.label) && pricing.includes(fmt(tier.promptPrice)) && pricing.includes(fmt(tier.completionPrice)), 'Missing tier');
+      for (const key of ['implicitHit','explicitHit','explicitCreation']) if (model.cachePricing?.[key] !== undefined) assert(pricing.includes(fmt(model.cachePricing[key])), 'Missing cache price ' + key);
       assert(!!document.querySelector('.nmd-actions a[href="/keys"]') === (!model.availability || model.availability === 'available'), 'Availability CTA mismatch');
       assert(document.querySelectorAll('.nmd-guidance li').length >= 2, 'Missing model guidance');
       assert(document.querySelector('.nmd-estimator'), 'Missing cost estimator');
@@ -79,8 +80,13 @@ try {
       const rect = selector => document.querySelector(selector).getBoundingClientRect();
       const close = (a,b) => Math.abs(a-b) <= 1;
       if (!close(rect('.nmd-specs').right, rect('.nmd-content').right)) throw new Error('Summary/content right edges differ');
+      for (const sel of ['.nmd-specs', '.nmd-content', '.nmd-section-nav', '.nmd-pricing', '.nmd-estimator', '.nmd-guidance', '.nmd-description'])
+        if (document.querySelector(sel) && !close(rect(sel).left, rect('.nmd h1').left)) throw new Error('Left edge differs: ' + sel);
       const prices = [...document.querySelectorAll('.nmd-price-row strong, .nmd-cache-grid strong')];
-      if (prices.some(e => !close(e.getBoundingClientRect().right, rect('.nmd-pricing').right))) throw new Error('Price amounts do not share an axis');
+      const axis = prices.length ? prices[0].getBoundingClientRect().right : 0;
+      if (prices.some(e => !close(e.getBoundingClientRect().right, axis))) throw new Error('Price amounts do not share an axis');
+      const cells = [...document.querySelectorAll('.nmd-specs>div')];
+      if (innerWidth > 760 && cells.some(c => !close(c.getBoundingClientRect().top, cells[0].getBoundingClientRect().top) || !close(c.getBoundingClientRect().height, cells[0].getBoundingClientRect().height))) throw new Error('Spec cells misaligned');
       return 'PASS shared content and price alignment';
     })()`);
     }

@@ -10,7 +10,7 @@ import { fetchAPI } from "@/lib/api";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
-import { type AIModel, getModelGuidance } from "@/lib/model-detail";
+import { type AIModel, getModelGuidance, formatPrice } from "@/lib/model-detail";
 import ModelCostEstimator from "@/components/ModelCostEstimator";
 
 interface ProtocolExample {
@@ -399,11 +399,11 @@ export default function ModelDetailPage() {
   const description = model.id === "qwen3.8-max"
     ? "通义千问旗舰模型，支持视觉理解、工具调用与可切换的思考模式，适用于编程、文档分析及智能体任务。"
     : model.description;
-  const price = (value: number | null | undefined) => value == null ? "待公布" : `¥${value}`;
+  const price = (value: number | null | undefined) => value == null ? "待公布" : `¥${formatPrice(value)}`;
 
   const guidance = getModelGuidance(model);
   const sectionLinks = [
-    { id: "nmd-overview", label: "服务概览", icon: <ApiOutlined /> },
+    { id: "nmd-overview", label: "概览", icon: <ApiOutlined /> },
     { id: "nmd-pricing", label: "定价", icon: <DollarOutlined /> },
     { id: "nmd-capabilities", label: "模型能力", icon: <SlidersOutlined /> },
     { id: "nmd-integration", label: "API 接入", icon: <CodeOutlined /> },
@@ -435,13 +435,11 @@ export default function ModelDetailPage() {
         <nav className="nmd-section-nav" aria-label="模型详情目录">{sectionLinks.map(item => <a key={item.id} href={`#${item.id}`} aria-current={activeSection === item.id ? "location" : undefined} onClick={() => setActiveSection(item.id)}>{item.icon}{item.label}</a>)}</nav>
         <div className="nmd-content">
           <section id="nmd-overview" className="nmd-section" aria-labelledby="nmd-overview-title">
-            <h2 id="nmd-overview-title">服务概览</h2>
-            <p className="nmd-section-description">通过 NexusFlow 统一接入，使用同一套 API Key 与账户余额。</p>
+            <h2 id="nmd-overview-title">概览</h2>
             <div className="nmd-guidance">
               <div><h3>适合做什么</h3><ul>{guidance.uses.map(item => <li key={item}>{item}</li>)}</ul></div>
               <div><h3>输入与使用限制</h3><ul>{guidance.limits.map(item => <li key={item}>{item}</li>)}</ul></div>
             </div>
-            <div className="nmd-service-table-wrap"><table className="nmd-service-table"><thead><tr><th>接入服务</th><th>输入 / {pricingUnit}</th>{!isUnitPriced && <th>输出 / {pricingUnit}</th>}<th>状态</th></tr></thead><tbody><tr><th scope="row">NexusFlow<span>统一 API 网关</span></th><td>{price(isUnitPriced ? unitPrice : model.promptPrice)}{model.tokenPricingTiers?.length ? " 起" : ""}</td>{!isUnitPriced && <td>{price(model.completionPrice)}{model.tokenPricingTiers?.length ? " 起" : ""}</td>}<td><span className={`nmd-status ${isAvailable ? "is-available" : "is-unavailable"}`}><i aria-hidden="true" />{availabilityLabel}</span></td></tr></tbody></table></div>
             <div className="nmd-protocol-list"><span>支持协议</span>{protocolExamples.length ? protocolExamples.map(example => <a href="#nmd-integration" key={example.id} onClick={() => setActiveProtocol(example.id)}>{example.label.replace("OpenAI Chat Completions", "Chat Completions").replace("Anthropic Messages", "Messages").replace("OpenAI Responses", "Responses")}</a>) : <span>暂无接入示例</span>}</div>
           </section>
         <section id="nmd-pricing" className="nmd-section nmd-pricing" aria-labelledby="nmd-pricing-title">

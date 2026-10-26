@@ -113,3 +113,34 @@
 .nmd-estimate-breakdown dt { font-size:12px; color:var(--text-secondary); }
 .nmd-estimate-breakdown dd { margin:0; font-size:13px; font-variant-numeric:tabular-nums; white-space:nowrap; }
 @media(max-width:760px) { .nmd-guidance { grid-template-columns:1fr; gap:24px; } .nmd-estimator { padding:16px; } .nmd-estimate-fields { grid-template-columns:1fr; } .nmd-estimate-total { flex-wrap:wrap; } }
+
+/* ---- 2026-10-26 layout polish: one shared left edge, joined spec strip, flat pricing/estimator ---- */
+.nmd { max-width:1040px; }
+.nmd-specs { grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); grid-template-columns:none; gap:0; border:1px solid var(--border); border-radius:8px; margin:28px 0 0; }
+.nmd-specs>div { border:0; border-radius:0; padding:18px 20px; min-height:92px; box-sizing:border-box; }
+.nmd-specs>div+div { border-left:1px solid var(--border); }
+.nmd-specs dd { font-size:18px; }
+.nmd-layout { display:block; border-top:0; padding-top:0; margin-top:0; }
+.nmd-section-nav { position:sticky; top:0; z-index:10; flex-direction:row; gap:4px; padding:12px 0 0; margin:24px 0 32px; background:var(--bg-card); border-bottom:1px solid var(--border); overflow-x:auto; }
+.nmd-section-nav a { padding:10px 14px; border-radius:0; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; background:transparent; }
+.nmd-section-nav a:hover { background:transparent; }
+.nmd-section-nav a[aria-current] { background:transparent; border-bottom-color:var(--text-primary); }
+.nmd-section { scroll-margin-top:64px; margin-bottom:48px; }
+.nmd-guidance { align-items:start; margin:20px 0 0; gap:48px; }
+.nmd-guidance ul { gap:0; }
+.nmd-guidance li { padding:12px 0; border-top:1px solid var(--border); }
+.nmd-pricing>*,.nmd-estimator { max-width:680px; }
+.nmd-price-row,.nmd-price-line { padding:13px 0; font-size:14px; }
+.nmd-price-row strong,.nmd-price-line strong { font-size:14px; font-weight:600; min-width:96px; text-align:right; font-variant-numeric:tabular-nums; }
+.nmd-estimator { border:0; border-top:1px solid var(--border); border-radius:0; padding:28px 0 0; margin-top:36px; }
+.nmd-estimator h3 { font-size:14px; }
+.nmd-estimate-fields { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); }
+.nmd-estimate-result { background:var(--bg-elevated); border:0; border-radius:8px; padding:18px 20px; }
+.nmd-estimate-breakdown>div:first-child { border-top:0; }
+.nmd-estimate-breakdown dd { min-width:96px; text-align:right; }
+.nmd-estimate-total strong { min-width:96px; text-align:right; }
+@media(max-width:760px) {
+.nmd-specs { grid-auto-flow:row; grid-template-columns:repeat(2,minmax(0,1fr)); margin-top:22px; }
+.nmd-specs>div { padding:12px 14px; min-height:0; } .nmd-specs>div+div { border-left:0; } .nmd-specs>div:nth-child(even) { border-left:1px solid var(--border); } .nmd-specs>div:nth-child(n+3) { border-top:1px solid var(--border); }
+.nmd-section-nav { margin:20px 0 24px; } .nmd-guidance { gap:20px; } .nmd-estimate-result { padding:14px; }
+}
