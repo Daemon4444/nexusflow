@@ -18,7 +18,7 @@ try {
       const { data: model, success } = await (await fetch('/proxy/api/models/' + encodeURIComponent(${JSON.stringify(id)}))).json();
       const assert = (value, message) => { if (!value) throw new Error(message); };
       assert(success, 'Catalog unavailable');
-      assert(document.querySelector('h1').textContent === model.name, 'Model identity mismatch');
+      assert(document.querySelector('h1').firstChild.textContent === model.name, 'Model identity mismatch');
       const pricing = document.querySelector('.nmd-pricing').textContent;
       if (!model.pricingType || model.pricingType === 'token') {
         if (model.promptPrice === null || model.completionPrice === null) assert(pricing.includes('价格待公布'), 'Missing unpublished price state');
@@ -56,4 +56,25 @@ try {
   browser('find', 'role', 'button', 'click', '--name', '复制', '--exact');
   browser('wait', '--text', '已复制');
   console.log('PASS code copy feedback');
+  browser('find', 'role', 'button', 'click', '--name', '复制模型 ID', '--exact');
+  browser('wait', '--fn', `!!document.querySelector('[aria-label="模型 ID 已复制"]')`);
+  browser('click', '.nmd-section-nav a[href="#nmd-pricing"]');
+  browser('wait', '--fn', 'location.hash === "#nmd-pricing"');
+  browser('wait', '--fn', `(() => { const top = document.querySelector('#nmd-pricing').getBoundingClientRect().top; return top >= 64 && top <= 150; })()`);
+  check(`(() => {
+    const top = document.querySelector('#nmd-pricing').getBoundingClientRect().top;
+    if (top < 64 || top > 150) throw new Error('Pricing anchor obscured by header');
+    return 'PASS section navigation';
+  })()`);
+  console.log('PASS model ID copy and section navigation');
+  browser('set', 'viewport', '390', '844');
+  browser('click', '.nmd-section-nav a[href="#nmd-integration"]');
+  browser('wait', '--fn', `document.querySelector('#nmd-integration').getBoundingClientRect().top < innerHeight / 2`);
+  check(`(() => {
+    const nav = document.querySelector('.nmd-section-nav').getBoundingClientRect();
+    const section = document.querySelector('#nmd-integration').getBoundingClientRect();
+    if (nav.top < 60 || nav.top > 80 || section.top < nav.bottom) throw new Error('Mobile sticky navigation overlaps content');
+    return 'PASS mobile sticky navigation';
+  })()`);
+  console.log('PASS mobile sticky navigation');
 } finally { browser('close'); }
