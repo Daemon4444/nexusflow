@@ -1,6 +1,7 @@
 "use client";
 
 import { ConfigProvider, Tabs, theme as antTheme } from "antd";
+import { ApiOutlined, CodeOutlined, CopyOutlined, CheckOutlined, DollarOutlined, SlidersOutlined } from "@ant-design/icons";
 import { useTheme } from "@/lib/theme";
 import "./detail.css";
 import DocsCodeBlock from "@/components/DocsCodeBlock";
@@ -369,6 +370,28 @@ export default function ModelDetailPage() {
   const [model, setModel] = useState<AIModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [activeProtocol, setActiveProtocol] = useState("");
+  const [copiedId, setCopiedId] = useState(false);
+  const [activeSection, setActiveSection] = useState("nmd-overview");
+
+  useEffect(() => {
+    if (!model) return;
+    const observer = new IntersectionObserver(entries => {
+      const visible = entries.filter(entry => entry.isIntersecting);
+      if (visible.length) setActiveSection(visible[0].target.id);
+    }, { rootMargin: "-100px 0px -55% 0px" });
+    document.querySelectorAll(".nmd-content > section").forEach(section => observer.observe(section));
+    return () => observer.disconnect();
+  }, [model]);
+
+  async function copyModelId() {
+    if (!model) return;
+    try {
+      await navigator.clipboard.writeText(model.id);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 1800);
+    } catch { setCopiedId(false); }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -461,66 +484,57 @@ export default function ModelDetailPage() {
     : model.description;
   const price = (value: number | null | undefined) => value == null ? "待公布" : `¥${value}`;
 
+  const sectionLinks = [
+    { id: "nmd-overview", label: "服务概览", icon: <ApiOutlined /> },
+    { id: "nmd-pricing", label: "定价", icon: <DollarOutlined /> },
+    { id: "nmd-capabilities", label: "模型能力", icon: <SlidersOutlined /> },
+    { id: "nmd-integration", label: "API 接入", icon: <CodeOutlined /> },
+  ];
+
   return (
     <article className="nmd">
-      <nav className="nmd-breadcrumb" aria-label="面包屑">
-        <Link href="/models">模型目录</Link><span aria-hidden="true">/</span><span>{model.name}</span>
-      </nav>
+      <nav className="nmd-breadcrumb" aria-label="面包屑"><Link href="/models">← 模型目录</Link></nav>
       <header className="nmd-hero">
         <div className="nmd-identity">
-          <div className="nmd-eyebrow"><span>{model.provider}</span><span>{model.category}</span></div>
-          <h1>{model.name}</h1>
-          <div className="nmd-model-id"><span>模型 ID</span><code>{model.id}</code></div>
-          <p className="nmd-description">{description.length > 160 ? `${description.slice(0, 160)}…` : description}</p>
-          {(description.length > 160 || description !== model.description) && <details className="nmd-description-more"><summary>完整模型介绍</summary><p>{model.description}</p></details>}
+          <h1>{model.name}<span className="nmd-provider">{model.provider}</span></h1>
+          <div className="nmd-model-id"><code>{model.id}</code><button type="button" className="nmd-copy-id" onClick={copyModelId} aria-label={copiedId ? "模型 ID 已复制" : "复制模型 ID"} title={copiedId ? "已复制" : "复制模型 ID"}>{copiedId ? <CheckOutlined /> : <CopyOutlined />}</button><span className={`nmd-status ${isAvailable ? "is-available" : "is-unavailable"}`}><i aria-hidden="true" />{availabilityLabel}</span></div>
         </div>
         <div className="nmd-actions">
-          <span className={`nmd-status ${isAvailable ? "is-available" : "is-unavailable"}`}><i aria-hidden="true" />{availabilityLabel}</span>
+          <a href="#nmd-integration" className="nmd-api-button"><CodeOutlined /> API</a>
           {isAvailable ? <Link href="/keys" className="btn-primary">获取 API Key <span aria-hidden="true">↗</span></Link> : <span className="nmd-unavailable">当前未开放调用</span>}
-          <Link href="/docs/quickstart" className="nmd-doc-link">阅读接入文档 →</Link>
         </div>
       </header>
+      <p className="nmd-description">{description.length > 160 ? `${description.slice(0, 160)}…` : description}</p>
+      {(description.length > 160 || description !== model.description) && <details className="nmd-description-more"><summary>展开介绍</summary><p>{model.description}</p></details>}
       {!isAvailable && <p className="nmd-notice" role="status">{availabilityDescription}</p>}
       <dl className="nmd-specs">
+        <div><dt>{isUnitPriced ? "起步价格" : "输入 / 输出价格"}</dt><dd>{pricingPending ? "待公布" : isUnitPriced ? price(unitPrice) : `${price(model.promptPrice)} / ${price(model.completionPrice)}`}<small>/ {pricingUnit}{model.tokenPricingTiers?.length ? " · 首阶" : ""}</small></dd></div>
         {model.contextLength > 0 && <div><dt>上下文窗口</dt><dd title={`${model.contextLength.toLocaleString()} tokens`}>{formatTokens(model.contextLength)}<small>tokens</small></dd></div>}
         {model.maxOutput > 0 && <div><dt>最大输出</dt><dd title={`${model.maxOutput.toLocaleString()} tokens`}>{formatTokens(model.maxOutput)}<small>tokens</small></dd></div>}
-        <div><dt>计费方式</dt><dd className="nmd-spec-text">按{pricingUnit}</dd></div>
-        <div><dt>接入方式</dt><dd className="nmd-spec-text">{protocolExamples.length ? `${protocolExamples.length} 种 API 协议` : "暂无接入示例"}</dd></div>
+        <div><dt>模型类型</dt><dd>{model.category}</dd></div>
       </dl>
-      <div className="nmd-columns">
-        <div className="nmd-main">
-          <section className="nmd-section" aria-labelledby="nmd-integration">
-            <div className="nmd-section-heading"><h2 id="nmd-integration">API 接入</h2><span>使用你的 NexusFlow API Key</span></div>
-            {protocolExamples.length ? <ConfigProvider theme={{ algorithm: theme === "dark" ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm, token: { fontFamily: "var(--font-sans)", colorPrimary: theme === "dark" ? "#e5e7eb" : "#171717" } }}><Tabs key={model.id} className="nmd-protocols" items={protocolExamples.map(example => ({
-              key: example.id,
-              label: example.label.replace("OpenAI Chat Completions", "Chat Completions").replace("Anthropic Messages", "Messages").replace("OpenAI Responses", "Responses"),
-              children: <div>
-                <div className="nmd-endpoint"><span>{example.endpoint.startsWith("wss:") ? "WSS" : "POST"}</span><code>{example.endpoint}</code></div>
-                <DocsCodeBlock code={example.code} />
-                {example.note && <p className="nmd-note">{example.note}</p>}
-                <details className="nmd-details"><summary>支持的请求参数 <span>{example.params.length}</span></summary><div className="nmd-parameters">{example.params.map(param => <code key={param}>{param}</code>)}</div></details>
-              </div>,
-            }))} /></ConfigProvider> : <p className="nmd-note">该模型暂未提供接入示例，请查阅文档。</p>}
+      <div className="nmd-layout">
+        <nav className="nmd-section-nav" aria-label="模型详情目录">{sectionLinks.map(item => <a key={item.id} href={`#${item.id}`} aria-current={activeSection === item.id ? "location" : undefined} onClick={() => setActiveSection(item.id)}>{item.icon}{item.label}</a>)}</nav>
+        <div className="nmd-content">
+          <section id="nmd-overview" className="nmd-section" aria-labelledby="nmd-overview-title">
+            <h2 id="nmd-overview-title">服务概览</h2>
+            <p className="nmd-section-description">通过 NexusFlow 统一接入，使用同一套 API Key 与账户余额。</p>
+            <div className="nmd-service-table-wrap"><table className="nmd-service-table"><thead><tr><th>接入服务</th><th>输入 / {pricingUnit}</th>{!isUnitPriced && <th>输出 / {pricingUnit}</th>}<th>状态</th></tr></thead><tbody><tr><th scope="row">NexusFlow<span>统一 API 网关</span></th><td>{price(isUnitPriced ? unitPrice : model.promptPrice)}{model.tokenPricingTiers?.length ? " 起" : ""}</td>{!isUnitPriced && <td>{price(model.completionPrice)}{model.tokenPricingTiers?.length ? " 起" : ""}</td>}<td><span className={`nmd-status ${isAvailable ? "is-available" : "is-unavailable"}`}><i aria-hidden="true" />{availabilityLabel}</span></td></tr></tbody></table></div>
+            <div className="nmd-protocol-list"><span>支持协议</span>{protocolExamples.length ? protocolExamples.map(example => <a href="#nmd-integration" key={example.id} onClick={() => setActiveProtocol(example.id)}>{example.label.replace("OpenAI Chat Completions", "Chat Completions").replace("Anthropic Messages", "Messages").replace("OpenAI Responses", "Responses")}</a>) : <span>暂无接入示例</span>}</div>
           </section>
-          <section className="nmd-section" aria-labelledby="nmd-capabilities">
-            <h2 id="nmd-capabilities">模型能力</h2>
-            <ul className="nmd-capabilities">{model.supported.map(item => <li key={item}><span aria-hidden="true">✓</span>{item}</li>)}</ul>
-            {capabilityRows.length > 0 && <details className="nmd-details"><summary>能力与参数边界</summary><dl className="nmd-capability-rows">{capabilityRows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></details>}
-          </section>
-        </div>
-        <aside className="nmd-pricing" aria-labelledby="nmd-pricing-title">
+        <section id="nmd-pricing" className="nmd-section nmd-pricing" aria-labelledby="nmd-pricing-title">
           <div className="nmd-section-heading"><h2 id="nmd-pricing-title">定价</h2><span>人民币 / {pricingUnit}</span></div>
-          {pricingPending ? <p className="nmd-price-pending">价格待公布</p> : isUnitPriced ? <div className="nmd-price-row"><span>起步价格</span><strong>{price(unitPrice)}</strong></div> : <>
+          <div className="nmd-price-band">{pricingPending ? <p className="nmd-price-pending">价格待公布</p> : isUnitPriced ? <div className="nmd-price-row"><span>起步价格</span><strong>{price(unitPrice)}</strong></div> : <>
             <div className="nmd-price-row"><span>{model.tokenPricingTiers?.length ? "输入 · 首阶" : "输入"}</span><strong>{price(model.promptPrice)}</strong></div>
             <div className="nmd-price-row"><span>{model.tokenPricingTiers?.length ? "输出 · 首阶" : "输出"}</span><strong>{price(model.completionPrice)}</strong></div>
           </>}
-          <p className="nmd-note">{pricingPending ? "价格公布后开放计费。" : "按实际用量计费。账户专属折扣以账单为准。"}</p>
+          </div><p className="nmd-note">{pricingPending ? "价格公布后开放计费。" : "按实际用量计费。账户专属折扣以账单为准。"}</p>
           {isUnitPriced && !!model.pricingTiers?.length && <div className="nmd-price-group"><h3>规格定价</h3>{model.pricingTiers.map(tier => <div className="nmd-price-line" key={tier.label}><span>{tier.label}</span><strong>{price(tier.price)}</strong></div>)}</div>}
-          {model.cachePricing && <div className="nmd-price-group"><h3>上下文缓存</h3>
+          {model.cachePricing && <div className="nmd-price-group"><h3>上下文缓存</h3><div className="nmd-cache-grid">
             <div className="nmd-price-line"><span>隐式缓存命中</span><strong>{price(model.cachePricing.implicitHit)}</strong></div>
             {model.cachePricing.explicitHit !== undefined && <div className="nmd-price-line"><span>显式缓存命中</span><strong>{price(model.cachePricing.explicitHit)}</strong></div>}
             {model.cachePricing.explicitCreation !== undefined && <div className="nmd-price-line"><span>显式缓存创建</span><strong>{price(model.cachePricing.explicitCreation)}</strong></div>}
-            <p className="nmd-note">{model.cachePricing.explicitHit !== undefined ? "缓存命中部分按缓存价计费，未命中部分按输入价计费。" : "自动应用隐式缓存，无需设置显式缓存开关。"}</p>
+            </div><p className="nmd-note">{model.cachePricing.explicitHit !== undefined ? "缓存命中部分按缓存价计费，未命中部分按输入价计费。" : "自动应用隐式缓存，无需设置显式缓存开关。"}</p>
           </div>}
           {!!model.tokenPricingTiers?.length && <details className="nmd-details"><summary>完整阶梯价格 <span>{model.tokenPricingTiers.length} 档</span></summary>
             {model.tokenPricingTiers.map(tier => {
@@ -535,7 +549,28 @@ export default function ModelDetailPage() {
           </div>}
           {!!model.alternatePricingModes?.length && <details className="nmd-details"><summary>其它定价模式</summary>{model.alternatePricingModes.map(mode => <div className="nmd-tier" key={mode.id}><h3>{mode.label}</h3><div className="nmd-price-line"><span>输入 / 输出</span><strong>{price(mode.promptPrice)} / {price(mode.completionPrice)}</strong></div><p className="nmd-note">{mode.availability === "available" ? "可用" : "官方已公布，暂未开放"}{mode.note ? `。${mode.note}` : ""}</p></div>)}</details>}
           <Link href="/pricing" className="nmd-pricing-link">查看全部模型定价 <span aria-hidden="true">↗</span></Link>
-        </aside>
+        </section>
+          <section id="nmd-capabilities" className="nmd-section" aria-labelledby="nmd-capabilities-title">
+            <h2 id="nmd-capabilities-title">模型能力</h2>
+            <ul className="nmd-capabilities">{model.supported.map(item => <li key={item}><span aria-hidden="true">✓</span>{item}</li>)}</ul>
+            {capabilityRows.length > 0 && <details className="nmd-details"><summary>能力与参数边界</summary><dl className="nmd-capability-rows">{capabilityRows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></details>}
+          </section>
+
+          <section id="nmd-integration" className="nmd-section" aria-labelledby="nmd-integration-title">
+            <div className="nmd-section-heading"><h2 id="nmd-integration-title">API 接入</h2><span>使用你的 NexusFlow API Key</span></div>
+            {protocolExamples.length ? <ConfigProvider theme={{ algorithm: theme === "dark" ? antTheme.darkAlgorithm : antTheme.defaultAlgorithm, token: { fontFamily: "var(--font-sans)", colorPrimary: theme === "dark" ? "#e5e7eb" : "#171717" } }}><Tabs key={model.id} className="nmd-protocols" activeKey={protocolExamples.some(example => example.id === activeProtocol) ? activeProtocol : protocolExamples[0]?.id} onChange={setActiveProtocol} items={protocolExamples.map(example => ({
+              key: example.id,
+              label: example.label.replace("OpenAI Chat Completions", "Chat Completions").replace("Anthropic Messages", "Messages").replace("OpenAI Responses", "Responses"),
+              children: <div>
+                <div className="nmd-endpoint"><span>{example.endpoint.startsWith("wss:") ? "WSS" : "POST"}</span><code>{example.endpoint}</code></div>
+                <DocsCodeBlock code={example.code} />
+                {example.note && <p className="nmd-note">{example.note}</p>}
+                <details className="nmd-details"><summary>支持的请求参数 <span>{example.params.length}</span></summary><div className="nmd-parameters">{example.params.map(param => <code key={param}>{param}</code>)}</div></details>
+              </div>,
+            }))} /></ConfigProvider> : <p className="nmd-note">该模型暂未提供接入示例，请查阅文档。</p>}
+          </section>
+
+        </div>
       </div>
     </article>
   );
