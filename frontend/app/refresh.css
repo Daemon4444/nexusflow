@@ -145,7 +145,7 @@ input, select, textarea, .ant-input, .ant-select-selector { border-radius: 8px; 
 }
 .nf-word { display: inline-block; margin-bottom: -.22em; padding-bottom: .22em; overflow: hidden; vertical-align: top; line-height: 1.12; }
 .nf-word > span { display: inline-block; animation: nf-word-rise .55s cubic-bezier(.22, 1, .36, 1) both; }
-.nf-word.is-latin { margin: 0 .16em 0 .12em; }
+.nf-word.is-latin { margin: 0 0 0 .12em; }
 @keyframes nf-word-rise { from { transform: translateY(1.25em); } to { transform: none; } }
 @keyframes nf-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
