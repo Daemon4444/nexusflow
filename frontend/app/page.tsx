@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import HeroDemo from "@/components/HeroDemo";
 import { useAuth } from "@/lib/auth";
 import { useEffect, useRef, useState } from "react";
 import { fetchAPI } from "@/lib/api";
@@ -611,28 +612,43 @@ export default function LandingPage() {
     <Header />
     <main id="main-content" className="nf-site">
       <section className="nf-hero">
+        <div className="nf-sky" aria-hidden="true">
+          <svg viewBox="0 0 1440 420" preserveAspectRatio="xMidYMax slice">
+            <defs>
+              <linearGradient id="nf-r1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2a6fe0" /><stop offset="1" stopColor="#8fb8f5" /></linearGradient>
+              <linearGradient id="nf-r2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6aa2ee" /><stop offset="1" stopColor="#dbe9fd" /></linearGradient>
+              <linearGradient id="nf-r3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a9c9f7" /><stop offset="1" stopColor="#f3f8ff" /></linearGradient>
+            </defs>
+            <path className="nf-ridge nf-ridge-3" fill="url(#nf-r3)" d="M0 300 L120 250 L210 290 L330 220 L450 285 L560 240 L700 295 L820 235 L940 290 L1060 245 L1190 292 L1310 250 L1440 290 V420 H0Z" />
+            <path className="nf-ridge nf-ridge-2" fill="url(#nf-r2)" d="M0 340 L90 300 L200 335 L340 262 L430 322 L560 285 L690 338 L810 292 L950 340 L1090 296 L1230 342 L1340 308 L1440 338 V420 H0Z" />
+            <path className="nf-ridge nf-ridge-1" fill="url(#nf-r1)" d="M0 380 L130 346 L250 372 L380 318 L470 366 L620 330 L760 378 L900 340 L1040 380 L1180 346 L1300 376 L1440 352 V420 H0Z" />
+          </svg>
+          <i className="nf-sun" />
+        </div>
         <div className="nf-hero-copy">
-          <div className="nf-eyebrow"><i />统一模型网关 · 按量计费</div>
-          <h1>NexusFlow</h1>
-          <p className="nf-hero-tagline">一个 Key，调用所有主流模型。</p>
+          <div className="nf-eyebrow"><i />NexusFlow · 统一模型网关</div>
+          <h1 aria-label="一个 Key，调用所有主流模型。">
+            {["一个", "Key，", "调用", "所有", "主流", "模型。"].map((w, i) => (
+              <span className={`nf-word${/[A-Za-z]/.test(w) ? " is-latin" : ""}`} key={i} aria-hidden="true"><span style={{ animationDelay: `${i * 0.1}s` }}>{w}</span></span>
+            ))}
+          </h1>
+          <hr className="nf-hero-rule" />
           <p className="nf-hero-lead">
             千问、DeepSeek、Claude、GLM、Kimi、Seedance 等{modelCount === null ? "主流" : ` ${modelCount} 个已收录`}模型，兼容 OpenAI 与 Anthropic 协议。按量计费，一张账单，余额不过期。
           </p>
           <div className="nf-hero-actions">
-            <Link href={startHref} className="nf-btn nf-btn-primary nf-btn-lg">{user ? "进入控制台" : "免费开始"}</Link>
-            <Link href="/docs/quickstart" className="nf-btn nf-btn-secondary nf-btn-lg">5 分钟快速开始</Link>
-          </div>
-          <div className="nf-hero-metrics">
-            <div><strong>{availableCount ?? "—"}</strong><span>当前可调用模型</span></div>
-            <div><strong>3</strong><span>种兼容协议</span></div>
-            <div><strong>1</strong><span>个 Key，一张账单</span></div>
+            <Link href={startHref} className="nf-btn nf-btn-primary nf-btn-lg nf-cta-pulse">{user ? "进入控制台" : "免费开始"}</Link>
+            <Link href="/docs/quickstart" className="nf-btn nf-btn-glass nf-btn-lg">5 分钟快速开始</Link>
           </div>
         </div>
-
-        <div className="nf-cylinder-shell" aria-label="可调用的模型">
-          <CylinderCarousel items={carouselModels} />
-        </div>
+        <HeroDemo />
       </section>
+
+      <div className="nf-hero-metrics nf-metrics-row">
+        <div><strong>{availableCount ?? "—"}</strong><span>当前可调用模型</span></div>
+        <div><strong>3</strong><span>种兼容协议</span></div>
+        <div><strong>1</strong><span>个 Key，一张账单</span></div>
+      </div>
 
       <ProviderMarquee counts={providerCounts} />
 
