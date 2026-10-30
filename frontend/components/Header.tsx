@@ -33,6 +33,7 @@ export default function Header() {
   const [localeOpen, setLocaleOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menusRef = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
   const inConsole = consolePaths.some((path) => pathname.startsWith(path));
   const isActive = (href: string) => href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -45,6 +46,13 @@ export default function Header() {
 
   const loginHref = `/login?returnTo=${encodeURIComponent(pathname || "/dashboard")}`;
   const registerHref = `/login?tab=register&returnTo=${encodeURIComponent(pathname || "/dashboard")}`;
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -73,7 +81,7 @@ export default function Header() {
 
   return (
     <>
-      <header className={`app-header nf-header ${inConsole ? "nf-header-console" : ""}`}>
+      <header className={`app-header nf-header ${inConsole ? "nf-header-console" : ""}`} data-over-hero={pathname === "/" && !scrolled ? "true" : undefined}>
         <div className="nf-header-brand">
           <button className="nf-header-mobile-toggle" onClick={handleMobileToggle} aria-label={inConsole ? (consoleMenuOpen ? "关闭控制台菜单" : "打开控制台菜单") : (mobileMenuOpen ? "关闭网站菜单" : "打开网站菜单")} aria-expanded={inConsole ? consoleMenuOpen : mobileMenuOpen} aria-controls={inConsole ? "console-sidebar" : "mobile-site-menu"}>
             {(inConsole ? consoleMenuOpen : mobileMenuOpen) ? <CloseOutlined /> : <MenuOutlined />}
