@@ -143,15 +143,15 @@ export default function OverviewScreen() {
                       <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
                         <defs>
                           <linearGradient id="nfAdminRequests" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0f766e" stopOpacity={0.24} />
-                            <stop offset="95%" stopColor="#0f766e" stopOpacity={0.01} />
+                            <stop offset="5%" stopColor="#2f72e0" stopOpacity={0.24} />
+                            <stop offset="95%" stopColor="#2f72e0" stopOpacity={0.01} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" />
                         <XAxis dataKey="axisLabel" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                         <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                         <Tooltip formatter={(value) => [displayNumber(Number(value)), "请求"]} />
-                        <Area type="monotone" dataKey="requests" stroke="#0f766e" strokeWidth={2} fill="url(#nfAdminRequests)" connectNulls={false} />
+                        <Area type="monotone" dataKey="requests" stroke="#2f72e0" strokeWidth={2} fill="url(#nfAdminRequests)" connectNulls={false} />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>

@@ -264,8 +264,8 @@ export default function DashboardPage() {
                       <ComposedChart data={daily} margin={{ top: 14, right: 4, left: -18, bottom: 0 }}>
                         <defs>
                           <linearGradient id="quietRequestFill" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#0f9488" stopOpacity={0.14} />
-                            <stop offset="100%" stopColor="#0f9488" stopOpacity={0} />
+                            <stop offset="0%" stopColor="#3c83f6" stopOpacity={0.14} />
+                            <stop offset="100%" stopColor="#3c83f6" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid vertical={false} stroke="#e6e9e7" strokeDasharray="3 3" />
@@ -273,8 +273,8 @@ export default function DashboardPage() {
                         <YAxis yAxisId="requests" tickLine={false} axisLine={false} tick={{ fill: "#777d7a", fontSize: 11 }} />
                         <YAxis yAxisId="cost" orientation="right" tickLine={false} axisLine={false} tick={{ fill: "#777d7a", fontSize: 11 }} />
                         <Tooltip content={<ChartTooltip />} />
-                        <Bar yAxisId="cost" dataKey="cost" fill="#d4efec" radius={[2, 2, 0, 0]} barSize={18} isAnimationActive={false} />
-                        <Area yAxisId="requests" type="monotone" dataKey="requests" stroke="#0f9488" strokeWidth={2.2} fill="url(#quietRequestFill)" dot={{ r: 2.5, fill: "#0f9488", strokeWidth: 0 }} isAnimationActive={false} />
+                        <Bar yAxisId="cost" dataKey="cost" fill="rgba(60,131,246,0.22)" radius={[2, 2, 0, 0]} barSize={18} animationDuration={900} animationEasing="ease-out" />
+                        <Area yAxisId="requests" type="monotone" dataKey="requests" stroke="#3c83f6" strokeWidth={2.2} fill="url(#quietRequestFill)" dot={{ r: 2.5, fill: "#3c83f6", strokeWidth: 0 }} animationDuration={900} animationEasing="ease-out" />
                       </ComposedChart>
                     </ResponsiveContainer>
                   </div>

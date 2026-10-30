@@ -17,8 +17,8 @@ export default function AdminProviders({ children }: { children: React.ReactNode
           algorithm: dark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
           cssVar: { prefix: "nf-admin" },
           token: {
-            colorPrimary: dark ? "#2dd4bf" : "#0f766e",
-            colorInfo: dark ? "#60a5fa" : "#2563eb",
+            colorPrimary: dark ? "#5b9bff" : "#2f72e0",
+            colorInfo: dark ? "#8dbaff" : "#3c83f6",
             colorSuccess: dark ? "#34d399" : "#15803d",
             colorWarning: dark ? "#fbbf24" : "#b45309",
             colorError: dark ? "#fb7185" : "#be123c",
@@ -32,7 +32,7 @@ export default function AdminProviders({ children }: { children: React.ReactNode
           },
           components: {
             Layout: {
-              bodyBg: dark ? "#0c1014" : "#f5f7f8",
+              bodyBg: dark ? "#0c1014" : "#fafafb",
               headerBg: dark ? "#11171d" : "#ffffff",
               siderBg: dark ? "#11171d" : "#ffffff",
             },
@@ -40,8 +40,8 @@ export default function AdminProviders({ children }: { children: React.ReactNode
               itemBorderRadius: 7,
               itemHeight: 36,
               itemMarginInline: 8,
-              itemSelectedBg: dark ? "rgba(45, 212, 191, 0.12)" : "#e9f5f2",
-              itemSelectedColor: dark ? "#5eead4" : "#0f766e",
+              itemSelectedBg: dark ? "rgba(60, 131, 246, 0.14)" : "#f3f8ff",
+              itemSelectedColor: dark ? "#8dbaff" : "#2f72e0",
             },
             Card: {
               headerHeight: 48,
@@ -49,7 +49,7 @@ export default function AdminProviders({ children }: { children: React.ReactNode
             Table: {
               headerBg: dark ? "#151c23" : "#f7f9fa",
               headerColor: dark ? "#9ca3af" : "#52606d",
-              rowHoverBg: dark ? "#151c23" : "#f7faf9",
+              rowHoverBg: dark ? "#151c23" : "#f3f8ff",
             },
           },
         }}
