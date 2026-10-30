@@ -292,3 +292,51 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; }
   .nf-reveal-ready [data-reveal], .nf-reveal-ready [data-reveal] :is(.nf-model-row, .nf-feature) { opacity: 1 !important; transform: none !important; animation: none !important; transition: none; }
   .nf-feature:hover { transform: none; }
 }
+
+/* ════════ Console: same motion language as the landing hero ════════ */
+.quiet-button-primary, .btn-primary, .usr-btn-primary {
+  background: var(--rf-blue) !important;
+  border-color: var(--rf-blue) !important;
+  color: #fff !important;
+  border-radius: 6px;
+  box-shadow: 0 0 0 .5px #0544a9, inset 0 -1px 0 0 var(--rf-dusk), inset 0 .5px 0 0 var(--rf-glow) !important;
+  transition: transform .16s ease-out, background-color .15s, box-shadow .15s;
+}
+.quiet-button-primary:hover, .btn-primary:hover, .usr-btn-primary:hover { background: var(--rf-blue-hover) !important; transform: translateY(-1px); }
+.quiet-button-primary:active, .btn-primary:active { transform: none; }
+
+/* page sections rise in sequence (8px / .5s / ease-out) */
+.quiet-console-page > * { animation: nf-fade-up .5s ease-out both; }
+.quiet-console-page > :nth-child(1) { animation-delay: 0s; }
+.quiet-console-page > :nth-child(2) { animation-delay: .08s; }
+.quiet-console-page > :nth-child(3) { animation-delay: .16s; }
+.quiet-console-page > :nth-child(4) { animation-delay: .24s; }
+.quiet-console-page > :nth-child(n+5) { animation-delay: .32s; }
+.quiet-kpi-band > * { animation: nf-fade-up .5s ease-out both; }
+.quiet-kpi-band > :nth-child(1) { animation-delay: .12s; }
+.quiet-kpi-band > :nth-child(2) { animation-delay: .2s; }
+.quiet-kpi-band > :nth-child(3) { animation-delay: .28s; }
+.quiet-kpi-band > :nth-child(4) { animation-delay: .36s; }
+.quiet-kpi-band > :nth-child(5) { animation-delay: .44s; }
+
+/* sidebar + table feedback */
+.usr-sidebar-link { transition: background-color .15s, color .15s, padding-left .16s ease-out; }
+.usr-sidebar-link:hover { padding-left: 14px; }
+.quiet-data-panel tbody tr, .quiet-primary-panel tbody tr { transition: background-color .15s; }
+.quiet-data-panel tbody tr:hover, .quiet-primary-panel tbody tr:hover { background: var(--rf-frost); }
+
+@media (prefers-reduced-motion: reduce) {
+  .quiet-console-page > *, .quiet-kpi-band > * { animation: none; }
+  .usr-sidebar-link:hover { padding-left: inherit; }
+}
+
+/* selected filter pills / tabs: Signal Blue instead of black */
+[role="tab"][aria-selected="true"], button[aria-pressed="true"] {
+  background: var(--rf-blue) !important;
+  border-color: var(--rf-blue) !important;
+  color: #fff !important;
+}
+[role="tab"], button[aria-pressed] { transition: background-color .15s, border-color .15s, color .15s; }
+
+.nf-header[data-over-hero="true"] .nf-header-search kbd,
+.nf-header[data-over-hero="true"] .nf-header-search [class*="kbd"] { background: rgba(255, 255, 255, .2) !important; border-color: rgba(255, 255, 255, .4) !important; color: #fff !important; }

@@ -3,19 +3,15 @@
 @layer components {
   .nf-admin {
     --nf-admin-paper: rgba(255, 255, 255, 0.96);
-    --nf-admin-ink: #14211f;
+    --nf-admin-ink: #18181b;
     --nf-admin-muted: #66736f;
     --nf-admin-faint: #687571;
-    --nf-admin-line: #e2e8e6;
+    --nf-admin-line: #e4e4e7;
     --nf-admin-wash: #f5f7f8;
-    --nf-admin-signal: #0f766e;
+    --nf-admin-signal: #3c83f6;
     --nf-admin-out: #be123c;
     min-height: 100vh;
-    background:
-      linear-gradient(rgba(15, 118, 110, 0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(15, 118, 110, 0.025) 1px, transparent 1px),
-      var(--nf-admin-wash);
-    background-size: 32px 32px;
+    background: var(--nf-admin-wash);
     color: var(--nf-admin-ink);
   }
 
@@ -26,7 +22,7 @@
     --nf-admin-faint: #687773;
     --nf-admin-line: #26322f;
     --nf-admin-wash: #0c1014;
-    --nf-admin-signal: #2dd4bf;
+    --nf-admin-signal: #5b9bff;
     --nf-admin-out: #fb7185;
   }
 
@@ -259,7 +255,7 @@
 
   /* Modals render outside .nf-admin, so every variable carries a fallback. */
   .nf-admin-amount-in {
-    color: var(--nf-admin-signal, #0f766e);
+    color: var(--nf-admin-signal, #3c83f6);
     font-variant-numeric: tabular-nums;
   }
 
