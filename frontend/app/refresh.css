@@ -221,7 +221,10 @@ input, select, textarea, .ant-input, .ant-select-selector { border-radius: 8px; 
   .nf-site .nf-hero { padding-top: 168px !important; }
   .nf-demo { margin-top: 40px; }
   .nf-demo-feed li span { flex-basis: 52px; }
-  .nf-sun { right: 8%; width: 72px; height: 72px; }
+  .nf-sun { display: none; }
+  .nf-sky { clip-path: ellipse(160% 100% at 50% 0); }
+  .nf-site .nf-metrics-row { width: calc(100% - 40px); margin-top: 120px !important; }
+  .nf-site .nf-hero-lead { font-size: 16px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .nf-word > span, .nf-hero-rule, .nf-hero-lead, .nf-hero-actions, .nf-eyebrow, .nf-demo, .nf-demo-type, .nf-ridge, .nf-sun, .nf-cta-pulse { animation: none !important; }
@@ -260,3 +263,32 @@ input, select, textarea, .ant-input, .ant-select-selector { border-radius: 8px; 
 /* `hidden` on html/body made body its own scroll container, which silently
    broke every `position: sticky` (header never pinned). `clip` has no such side effect. */
 html, body { overflow-x: clip !important; overflow-y: visible !important; }
+
+/* ── scroll reveal: same 8px / .5s / ease-out as the hero, children staggered ── */
+.nf-reveal-ready [data-reveal] { opacity: 0; transform: translateY(8px); transition: opacity .5s ease-out, transform .5s ease-out; }
+.nf-reveal-ready [data-reveal].is-in { opacity: 1; transform: none; }
+.nf-reveal-ready [data-reveal] :is(.nf-model-row, .nf-feature) { opacity: 0; }
+.nf-reveal-ready [data-reveal].is-in :is(.nf-model-row, .nf-feature) { animation: nf-fade-up .5s ease-out both; }
+.is-in .nf-model-row:nth-child(1), .is-in .nf-feature:nth-child(1) { animation-delay: .08s !important; }
+.is-in .nf-model-row:nth-child(2), .is-in .nf-feature:nth-child(2) { animation-delay: .16s !important; }
+.is-in .nf-model-row:nth-child(3), .is-in .nf-feature:nth-child(3) { animation-delay: .24s !important; }
+.is-in .nf-model-row:nth-child(4), .is-in .nf-feature:nth-child(4) { animation-delay: .32s !important; }
+.is-in .nf-model-row:nth-child(5) { animation-delay: .40s !important; }
+.is-in .nf-model-row:nth-child(6) { animation-delay: .48s !important; }
+.is-in .nf-model-row:nth-child(n+7) { animation-delay: .56s !important; }
+/* quota bars fill in once their card is visible */
+.is-in .nf-demo-quota em i { transform-origin: left; animation: nf-fill .9s cubic-bezier(.22, 1, .36, 1) .4s both; }
+@keyframes nf-fill { from { transform: scaleX(0); } to { transform: none; } }
+
+/* ── hover feedback (0.15–0.16s, matching the reference) ── */
+.nf-feature { transition: border-color .15s, box-shadow .15s, transform .16s ease-out; }
+.nf-feature:hover { border-color: var(--rf-glow); transform: translateY(-2px); box-shadow: 0 12px 32px -16px rgba(60, 131, 246, .35); }
+.nf-model-row { transition: background-color .15s, padding-left .16s ease-out; }
+.nf-model-row:hover { padding-left: 12px !important; }
+.nf-more-link { transition: letter-spacing .16s ease-out; }
+.nf-more-link:hover { text-decoration: none; letter-spacing: .01em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nf-reveal-ready [data-reveal], .nf-reveal-ready [data-reveal] :is(.nf-model-row, .nf-feature) { opacity: 1 !important; transform: none !important; animation: none !important; transition: none; }
+  .nf-feature:hover { transform: none; }
+}
