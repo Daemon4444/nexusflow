@@ -1,0 +1,133 @@
+/* Visual refresh — reference: Cluely design system (refero 72da35d5).
+   Signal Blue is the only chromatic colour; structure comes from 1px Bone
+   hairlines, no card shadows. Radii: buttons 4, inputs 8, cards 12, feature 24.
+   Loaded last so it overrides the earlier token layers. One sans family
+   (Inter + PingFang) — the reference's serif hero is intentionally not used. */
+
+:root {
+  --rf-blue: #3c83f6;
+  --rf-blue-hover: #2f72e0;
+  --rf-dusk: #022c70;
+  --rf-azure: #0544a5;
+  --rf-glow: #81b6ff;
+  --rf-frost: #f3f8ff;
+  --rf-vapor: #edeef2;
+  --rf-bone: #e4e4e7;
+
+  --nf-accent: var(--rf-blue);
+  --nf-accent-hover: var(--rf-blue-hover);
+  --nf-accent-soft: var(--rf-frost);
+  --nf-wash: #fafafb;
+  --nf-ink: #18181b;
+  --nf-muted: #5e616e;
+  --nf-faint: #777a88;
+  --nf-line: var(--rf-bone);
+  --nf-line-strong: #d7d7d7;
+
+  --border: var(--rf-bone);
+  --border-hover: #d7d7d7;
+  --text-primary: #18181b;
+  --text-secondary: #5e616e;
+  --text-tertiary: #777a88;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --focus-ring: rgba(60, 131, 246, .28);
+}
+
+html[data-theme="dark"] {
+  --nf-accent: #5b9bff;
+  --nf-accent-hover: #7fb0ff;
+  --nf-accent-soft: rgba(60, 131, 246, .14);
+  --nfc-accent-ink: #8dbaff;
+  --accent: #3c83f6;
+  --accent-hover: #5b9bff;
+  --accent-light: #8dbaff;
+  --accent-bg: rgba(60, 131, 246, .14);
+  --accent-border: rgba(60, 131, 246, .34);
+}
+
+body { letter-spacing: -0.005em; }
+
+/* ── buttons: Signal Blue, 4px radius, glassy ring + inset ── */
+.nf-btn { border-radius: 4px; font-weight: 500; }
+.nf-btn-primary {
+  background: var(--rf-blue);
+  border-color: var(--rf-blue);
+  color: #fff;
+  box-shadow: 0 0 0 .5px #0544a9, inset 0 -1px 0 0 var(--rf-dusk), inset 0 .5px 0 0 var(--rf-glow);
+}
+.nf-btn-primary:hover {
+  background: var(--rf-blue-hover);
+  box-shadow: 0 0 0 .5px #0544a9, inset 0 -1px 0 0 var(--rf-dusk), inset 0 .5px 0 0 var(--rf-glow), 0 6px 16px -4px rgba(60, 131, 246, .45);
+}
+.nf-btn-secondary { background: #fff; border-color: var(--rf-bone); color: var(--nf-ink); box-shadow: none; }
+.nf-btn-secondary:hover { background: var(--rf-frost); border-color: var(--rf-glow); color: var(--nf-ink); }
+.nf-btn:focus-visible { box-shadow: 0 0 0 3px rgba(60, 131, 246, .28); }
+
+/* inputs / cards */
+input, select, textarea, .ant-input, .ant-select-selector { border-radius: 8px; }
+.nf-feature, .nf-card { border-radius: 24px; border-color: var(--rf-bone); box-shadow: none; }
+.nf-feature:nth-child(odd) { background: var(--rf-frost); border-color: transparent; }
+.nf-feature-demo { border-radius: 12px; background: #fff; border: 1px solid var(--rf-bone); }
+.nf-feature:nth-child(odd) .nf-feature-demo { background: #fff; }
+
+/* ── header ── */
+.nf-header { background: rgba(255, 255, 255, .86) !important; border-bottom-color: var(--rf-bone) !important; }
+.nf-auth-links a.primary { border-radius: 4px; background: var(--rf-blue); }
+
+/* ── landing hero: atmospheric blue dawn → white workspace ── */
+.nf-site { background: #fff !important; }
+.nf-hero { position: relative; isolation: isolate; }
+.nf-hero::before {
+  content: "";
+  position: absolute;
+  top: -64px;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  margin-left: -50vw;
+  z-index: -1;
+  background:
+    radial-gradient(60% 70% at 50% 0%, rgba(115, 168, 232, .42) 0%, rgba(60, 131, 246, .14) 45%, rgba(255, 255, 255, 0) 75%),
+    linear-gradient(180deg, var(--rf-frost) 0%, #fff 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
+  mask-image: linear-gradient(180deg, #000 70%, transparent);
+}
+.nf-hero .nf-eyebrow { border-color: rgba(60, 131, 246, .28); background: rgba(255, 255, 255, .8); color: var(--rf-azure); }
+.nf-site .nf-hero h1 {
+  font-weight: 500 !important;
+  letter-spacing: -.04em !important;
+  background: linear-gradient(180deg, var(--nf-ink) 40%, var(--rf-azure));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.nf-hero-tagline { font-weight: 500; letter-spacing: -.02em; }
+.nf-hero-metrics strong { font-weight: 600 !important; }
+
+/* model cards in the hero cylinder: hairline, frame like the product mockup */
+.nf-cylinder-shell .ld-cyl-card { border-radius: 16px; box-shadow: 0 0 0 1px rgba(207, 226, 255, .5); border-color: var(--rf-bone); }
+
+/* section heads */
+.nf-section-head h2, .nf-switch h2 { font-weight: 500 !important; letter-spacing: -.036em !important; }
+.nf-model-table { border-top-color: var(--rf-bone) !important; }
+.nf-model-row:hover { background: var(--rf-frost); }
+.nf-more-link { color: var(--rf-blue); }
+.nf-switch li::before { border-color: var(--rf-blue); }
+
+/* closing band: deep dusk gradient instead of flat black */
+.nf-final {
+  background:
+    radial-gradient(70% 140% at 50% 120%, #1c38ea 0%, rgba(28, 56, 234, 0) 70%),
+    linear-gradient(180deg, #022c70 0%, #0a1f55 100%) !important;
+  border-radius: 24px !important;
+}
+.nf-final .nf-btn-primary { background: #fff !important; color: var(--rf-dusk) !important; border-color: #fff !important; }
+
+/* ── console: light surfaces, blue active state ── */
+.usr-layout { --page-bg: #fafafb; }
+.nf-app-main a.active, .nf-mobile-site-menu nav a.active { color: var(--rf-blue); background: var(--rf-frost); }
+.usr-sidebar a.active, .usr-nav-item.active { box-shadow: inset 2px 0 0 var(--rf-blue); }
+
+/* status pills keep their semantic colour; neutral pills use Vapor */
+.nf-pill, .nf-tag { border-radius: 9999px; background: var(--rf-vapor); }
